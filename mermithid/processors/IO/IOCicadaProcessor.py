@@ -6,6 +6,8 @@ CicadaPy.loadLibraries()
 from ROOT import Katydid as KT
 
 from morpho.processors.IO import IOProcessor
+from morpho.utilities import reader, morphologging
+logger = morphologging.getLogger(__name__)
 
 from ROOT import TFile, TTreeReader, TTreeReaderValue
 
@@ -14,21 +16,25 @@ class IOCicadaProcessor(IOProcessor):
 
     def Configure(self,params):
         super().Configure(params)
+        self.tree_name = reader.read_param(params,"treename","multiTrackEvents")
+        self.object_name = reader.read_param(params,"objectname","Event")
 
     def Reader(self):
         '''
         '''
+        logger.debug("Reading {}".format(self.file_name))
         file = TFile.Open(self.file_name)
         if not file:
             raise FileNotFoundError("File {} does not exist".format(self.file_name))
 
         # Extract tree from file
-        tree = file.Get("multiTrackEvents")
+        tree = file.Get(self.tree_name)
         # Create TTreeReader
         treeReader = TTreeReader(tree)
         # Create object TMultiTrackEventData to "point" to the object "Event" in the tree
         multiTrackEvents = TTreeReaderValue(KT.TMultiTrackEventData)(treeReader, "Event")
 
+        logger.debug("Extracting {} from {}".format(self.variables,self.object_name))
         theData = {}
         for var in self.variables:
             theData.update({str(var): []})

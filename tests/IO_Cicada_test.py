@@ -11,6 +11,8 @@ logger = morphologging.getLogger(__name__)
 reader_config = {
     "action": "read",
     "filename": "events_000001097_katydid_v2.7.0_concat.root",
+    "treename": "multiTrackEvents",
+    "objectname": "Event",
     "variables": ['StartTimeInAcq','StartFrequency']
 }
 
