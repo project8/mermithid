@@ -1,4 +1,5 @@
-from setuptools import setup, find_packages
+#! /usr/bin/env python
+from setuptools import find_packages, setup
 from glob import glob
 
 import sys, os
@@ -19,7 +20,7 @@ on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 requirements = []
 extras_require = {
     'h5': ['h5py<=2.6'],
-    'core':['matplotlib==1.5.1','colorlog', 'PyYAML==3.11','pyparsing>=2.1.5','numpy>=1.14','pystan==2.17.0.0','dnspython==1.12.0','pbr==0.10.8','cycler==0.10.0','python-dateutil==2.5.3'],
+    'core':['matplotlib==1.5.1','colorlog', 'PyYAML==3.11','pyparsing>=2.1.5','numpy>=1.14','pystan==2.17.0.0','pbr==0.10.8','cycler==0.10.0','python-dateutil==2.5.3'],
     'doc': ['sphinx', 'sphinx_rtd_theme', 'sphinxcontrib-programoutput']
 }
 
@@ -33,6 +34,24 @@ everything = set()
 for deps in extras_require.values():
     everything.update(deps)
 extras_require['all'] = everything
+
+try:
+    import CicadaPy
+except ImportError:
+    print('\nError! Cicada is required to build from source.')
+    print('Please install it and make sure you have added the libraries to your PYTHONPATH.')
+    print('Documentation can be found here: ')
+    print('  http://p8-cicada.readthedocs.io/en/latest')
+    sys.exit(1)
+
+try:
+    import PhylloxeraPy
+except ImportError:
+    print('\nError! Phylloxera is required to build from source.')
+    print('Please install it and make sure you have added the libraries to your PYTHONPATH.')
+    print('Documentation can be found here: ')
+    print('  http://github.com/project8/phylloxera')
+    sys.exit(1)
 
 setup(
     name='mermithid',
