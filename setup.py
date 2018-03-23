@@ -19,7 +19,7 @@ on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 
 requirements = []
 extras_require = {
-    'core':['morpho','pystan','matplotlib==1.5.1','colorlog'],
+    'core':['morpho','matplotlib==1.5.1','colorlog'],
     'doc': ['sphinx','sphinx_rtd_theme','sphinxcontrib-programoutput']
 }
 
