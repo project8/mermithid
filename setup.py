@@ -18,9 +18,8 @@ on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 
 requirements = []
 extras_require = {
-    'h5': ['h5py<=2.6'],
-    'core':['matplotlib==1.5.1','colorlog', 'PyYAML==3.11','pyparsing>=2.1.5','numpy>=1.14','pystan==2.17.0.0','dnspython==1.12.0','pbr==0.10.8','cycler==0.10.0','python-dateutil==2.5.3'],
-    'doc': ['sphinx', 'sphinx_rtd_theme', 'sphinxcontrib-programoutput']
+    'core':['morpho','pystan','matplotlib==1.5.1','colorlog'],
+    'doc': ['sphinx','sphinx_rtd_theme','sphinxcontrib-programoutput']
 }
 
 if on_rtd:
@@ -28,6 +27,15 @@ if on_rtd:
     requirements += extras_require['doc']
 else:
     requirements = extras_require['core']
+    try:
+        import CicadaPy
+    except ImportError:
+        sys.exit("CicadaPy cannot be imported. Make sure it has been installed and the PYTHONPATH is properly setup.")
+    try:
+        import PhylloxeraPy
+    except ImportError:
+        sys.exit("PhylloxeraPy cannot be imported. Make sure it has been installed and the PYTHONPATH is properly setup.")
+
 
 everything = set()
 for deps in extras_require.values():
