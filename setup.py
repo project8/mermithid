@@ -1,4 +1,5 @@
-from setuptools import setup, find_packages
+#! /usr/bin/env python
+from setuptools import find_packages, setup
 from glob import glob
 
 import sys, os
@@ -30,12 +31,19 @@ else:
     try:
         import CicadaPy
     except ImportError:
-        sys.exit("CicadaPy cannot be imported. Make sure it has been installed and the PYTHONPATH is properly setup.")
+        print('\nError! Cicada is required to build from source.')
+        print('Please install it and make sure you have added the libraries to your PYTHONPATH.')
+        print('Documentation can be found here: ')
+        print('  http://p8-cicada.readthedocs.io/en/latest')
+        sys.exit(1)
     try:
         import PhylloxeraPy
     except ImportError:
-        sys.exit("PhylloxeraPy cannot be imported. Make sure it has been installed and the PYTHONPATH is properly setup.")
-
+        print('\nError! Phylloxera is required to build from source.')
+        print('Please install it and make sure you have added the libraries to your PYTHONPATH.')
+        print('Documentation can be found here: ')
+        print('  http://github.com/project8/phylloxera')
+        sys.exit(1)
 
 everything = set()
 for deps in extras_require.values():
