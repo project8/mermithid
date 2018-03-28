@@ -4,6 +4,8 @@ source /setup.sh
 
 export BUILDLOCATION=/build
 
+pip install colorlog # need a first installation before being updated by mermithid
+
 echo "Installing Cicada"
 mkdir -p /mermithid/Cicada/my_build
 cd /mermithid/Cicada/my_build
