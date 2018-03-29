@@ -4,3 +4,6 @@
 [submodule "Phylloxera"]
 	path = Phylloxera
 	url = https://guiguem@github.com/project8/phylloxera.git
+[submodule "uproot"]
+	path = uproot
+	url = https://github.com/scikit-hep/uproot
