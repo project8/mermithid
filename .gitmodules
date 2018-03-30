@@ -1,9 +1,9 @@
 [submodule "Cicada"]
 	path = Cicada
-	url = https://guiguem@github.com/project8/cicada.git
+	url = https://github.com/project8/cicada.git
 [submodule "Phylloxera"]
 	path = Phylloxera
-	url = https://guiguem@github.com/project8/phylloxera.git
-[submodule "uproot"]
-	path = uproot
-	url = https://github.com/scikit-hep/uproot
+	url = https://github.com/project8/phylloxera.git
+[submodule "morpho"]
+	path = morpho
+	url = https://github.com/project8/morpho.git
