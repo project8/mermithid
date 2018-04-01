@@ -23,6 +23,10 @@ extras_require = {
     'doc': ['sphinx','sphinx_rtd_theme','sphinxcontrib-programoutput']
 }
 
+# Manual installation of morpho while it's being developed
+from subprocess import call
+call(["pip", "install", "morpho/."])
+
 if on_rtd:
     requirements.append('better-apidoc')
     requirements += extras_require['doc']
@@ -45,6 +49,7 @@ else:
         print('  http://github.com/project8/phylloxera')
         sys.exit(1)
 
+
 everything = set()
 for deps in extras_require.values():
     everything.update(deps)
@@ -57,4 +62,7 @@ setup(
     install_requires=requirements,
     extras_require=extras_require,
     url='http://www.github.com/project8/mermithid',
+    # dependency_links=[
+    #     'git+https://github.com/project8/morpho.git@morpho2/develop#egg=morpho-2.0.0'
+    # ],
 )
