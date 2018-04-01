@@ -16,8 +16,8 @@ class IOCicadaProcessor(IOProcessor):
 
     def Configure(self,params):
         super().Configure(params)
-        self.tree_name = reader.read_param(params,"treename","multiTrackEvents")
-        self.object_name = reader.read_param(params,"objectname","Event")
+        self.tree_name = reader.read_param(params,"tree_name","multiTrackEvents")
+        self.object_name = reader.read_param(params,"object_name","Event")
 
     def Reader(self):
         '''
