@@ -1,13 +1,12 @@
 import PhylloxeraPy
 PhylloxeraPy.loadLibraries(True)
 import ROOT
-# from .Constants import *
-import Constants
 
-from morpho.utilities import morphologging
+from morpho.utilities import morphologging, reader
 logger=morphologging.getLogger(__name__)
 
 from morpho.processors import BaseProcessor
+from  mermithid.misc import Constants
 
 
 increase_range=10. # energy increase required for the convolution product to work
@@ -65,8 +64,19 @@ class TritiumSpectrumGenerator(BaseProcessor):
 
         logger.info("Configure with {}".format(config_dict))
 
-        for key in config_dict:
-            setattr(self, key, config_dict[key])
+        self.KEmin, self.KEmax = reader.read_param(config_dict,"energy_window",[Constants.tritium_endpoint()-1e3,Constants.tritium_endpoint()+1e3])
+        self.volume = reader.read_param(config_dict,"volume",1e-6)
+        self.density = reader.read_param(config_dict,"density",1e18)
+        self.duration = reader.read_param(config_dict,"duration",1e18)
+        self.neutrinomass = reader.read_param(config_dict,"neutrino_mass",1e18)
+        self.background = reader.read_param(config_dict,"background",1e-6)
+        self.poisson_fluctuations = reader.read_param(config_dict,"poisson_fluctuations",False)
+        self.makeDataPlot = reader.read_param(config_dict,"make_plot",True)
+        self.energy_resolution = reader.read_param(config_dict,"energy_resolution",0)
+
+    def _PrepareWorkspace(self):
+        # for key in config_dict:
+        #     setattr(self, key, config_dict[key])
         if hasattr(self,"energy_resolution") and self.energy_resolution>0.:
             logger.debug("Will use a smeared spectrum with {} eV energy res.".format(self.energy_resolution))
             self.increase_range = 10*self.energy_resolution
@@ -150,11 +160,12 @@ class TritiumSpectrumGenerator(BaseProcessor):
 
     def Run(self):
         logger.info("Run...")
+        self._PrepareWorkspace()
         return self._GenerateData()
 
     def _GenerateData(self):
         
-        logger.info("Generate data")
+        logger.debug("Generate data")
         KE = self.workspace.var("KE")
         KE.setRange("window",self.KEmin,self.KEmax) 
         background = self.workspace.pdf("background")
@@ -162,7 +173,8 @@ class TritiumSpectrumGenerator(BaseProcessor):
         totalEvents = self.number_decays_window_to_generate + self.number_bkgd_window_to_generate
         dataLarge = totalSpectrum.generate(ROOT.RooArgSet(KE),totalEvents,ROOT.RooFit.Range("window"))
         data = dataLarge.reduce(ROOT.RooFit.CutRange("window"))
-        self._makeSomePlots(data)
+        if self.makeDataPlot:
+            self._makeSomePlots(data)
         dataList = []
         for i in range(data.numEntries()):
             dataList.append(data.get(i).getRealValue("KE"))
@@ -172,7 +184,7 @@ class TritiumSpectrumGenerator(BaseProcessor):
         '''
         Make convenient plots for debug purposes
         '''
-        logger.info("Make some plots from data")
+        logger.debug("Make some plots from data")
         
         pdffactory = ROOT.PdfFactory("myPdfFactory")
 
@@ -186,12 +198,12 @@ class TritiumSpectrumGenerator(BaseProcessor):
         frame = KE.frame(ROOT.RooFit.Range("window"))
         data.plotOn(frame)
         frame.Draw()
-        can.SaveAs("plots/data.pdf")
-        logger.debug("Fitting data with model")
-        result = totalSpectrum.fitTo(data,ROOT.RooFit.Range("window"),ROOT.RooFit.Save())
-        logger.debug("Results:")
-        result.Print()
-        totalSpectrum.plotOn(frame)
-        frame.Draw()
-        can.SaveAs("plots/spectrum.pdf")
+        can.SaveAs("data.pdf")
+        # logger.debug("Fitting data with model")
+        # result = totalSpectrum.fitTo(data,ROOT.RooFit.Range("window"),ROOT.RooFit.Save())
+        # logger.debug("Results:")
+        # result.Print()
+        # totalSpectrum.plotOn(frame)
+        # frame.Draw()
+        # can.SaveAs("plots/spectrum.pdf")
 

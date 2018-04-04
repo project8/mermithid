@@ -1,15 +1,12 @@
 import PhylloxeraPy
 PhylloxeraPy.loadLibraries(False)
-
+import ROOT
 
 from morpho.utilities import morphologging, reader
-from morpho.processors.sampling import RooFitLikelihoodSampler
-# from RooFitLikelihoodSampler import RooFitLikelihoodSampler
 logger = morphologging.getLogger(__name__)
 
-import Constants
-
-import ROOT
+from morpho.processors.sampling import RooFitLikelihoodSampler
+import mermithid.misc.Constants
 
 class TritiumSpectrumLikelihoodSampler(RooFitLikelihoodSampler):
 
