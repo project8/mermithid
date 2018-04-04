@@ -4,7 +4,7 @@ import ROOT
 # from .Constants import *
 import Constants
 
-from morpho.utilities import morphologging
+from morpho.utilities import morphologging, reader
 logger=morphologging.getLogger(__name__)
 
 from morpho.processors import BaseProcessor
@@ -64,6 +64,8 @@ class TritiumSpectrumGenerator(BaseProcessor):
         '''
 
         logger.info("Configure with {}".format(config_dict))
+
+        self.KEmin, self.KEmax = reader.read_param(config_dict,)
 
         for key in config_dict:
             setattr(self, key, config_dict[key])
