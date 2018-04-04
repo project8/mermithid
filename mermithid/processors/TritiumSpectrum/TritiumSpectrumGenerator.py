@@ -1,13 +1,12 @@
 import PhylloxeraPy
 PhylloxeraPy.loadLibraries(True)
 import ROOT
-# from .Constants import *
-import Constants
 
 from morpho.utilities import morphologging, reader
 logger=morphologging.getLogger(__name__)
 
 from morpho.processors import BaseProcessor
+import mermithid.misc.Constants
 
 
 increase_range=10. # energy increase required for the convolution product to work
