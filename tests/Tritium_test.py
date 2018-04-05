@@ -14,6 +14,7 @@ class TritiumTests(unittest.TestCase):
     def test_KuriePlot(self):
         from mermithid.processors.TritiumSpectrum import TritiumSpectrumGenerator
         from mermithid.processors.plots import KuriePlotGeneratorProcessor
+        from morpho.processors.plots import Histogram
         from mermithid.misc.Constants import seconds_per_year, tritium_endpoint
 
         specGen_config = {
@@ -26,9 +27,30 @@ class TritiumTests(unittest.TestCase):
             "background": 1e-6, # [counts/eV/s]
             "energy_resolution": 5# [eV]
         }
-        specGen = TritiumSpectrumGenerator.TritiumSpectrumGenerator("specGen")
+        histo_plot = {
+            "data": "KE",
+            "n_bins_x": 100,
+            "title": "spectrum"
+        }
+        kurie_plot = {
+            "data": "KE",
+            "n_bins_x": 1000,
+            "title": "kurie_plot"
+        }
+
+        specGen = TritiumSpectrumGenerator("specGen")
+        histo = Histogram("histo")
+        kurieHisto = KuriePlotGeneratorProcessor("kurieHisto")
+
         specGen.Configure(specGen_config)
-        specGen.Run()
+        histo.Configure(histo_plot)
+        kurieHisto.Configure(kurie_plot)
+
+        result = specGen.Run()
+        histo.data = result
+        kurieHisto.data = result
+        histo.Run()
+        kurieHisto.Run()
 
 if __name__ == '__main__':
     unittest.main()
