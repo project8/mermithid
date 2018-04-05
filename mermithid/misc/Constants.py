@@ -1,3 +1,7 @@
+'''
+Some constants useful for various things...
+'''
+
 def m_electron(): return  510998.910			# Electron mass in eV
 def hbar(): return 6.582119514e-16               # Reduced Planck's constant in eV*s
 def c() : return  299792458.			   	   	 	# Speed of light in m/s
@@ -7,6 +11,8 @@ def freq_c(): return omega_c()/(2. * ROOT.TMath.Pi())			 # Gyromagnetic ratio in
 def k_boltzmann(): return  8.61733238e-5		         	# Boltzmann's constant in eV/Kelvin
 def unit_mass() : return 931.494061e6			 	# Unit mass in eV
 def seconds_per_year(): return 365.25 * 86400.
+
+def fine_structure_constant(): return 0.0072973525664   # fine structure constant (no unit)
 
 #  Tritium-specific constants
 

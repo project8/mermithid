@@ -3,4 +3,5 @@
 
 from __future__ import absolute_import
 
-from . import TritiumSpectrumGenerator, TritiumSpectrumLikelihoodSampler
+from .TritiumSpectrumGenerator import TritiumSpectrumGenerator
+from .TritiumSpectrumLikelihoodSampler import TritiumSpectrumLikelihoodSampler

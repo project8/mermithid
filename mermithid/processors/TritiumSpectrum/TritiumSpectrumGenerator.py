@@ -6,7 +6,7 @@ from morpho.utilities import morphologging, reader
 logger=morphologging.getLogger(__name__)
 
 from morpho.processors import BaseProcessor
-from  mermithid.misc import Constants
+from mermithid.misc import Constants
 
 
 increase_range=10. # energy increase required for the convolution product to work
@@ -50,7 +50,7 @@ class TritiumSpectrumGenerator(BaseProcessor):
         '''
         return self.background * (self.KEmax - self.KEmin + 2*self.increase_range) * self.duration
     
-    def Configure(self, config_dict = {}):
+    def _Configure(self, config_dict = {}):
         '''
         Required class attributes:
         - volume [m3]
@@ -61,8 +61,6 @@ class TritiumSpectrumGenerator(BaseProcessor):
         - background [counts/eV/s]
         - energy resolution [eV]
         '''
-
-        logger.info("Configure with {}".format(config_dict))
 
         self.KEmin, self.KEmax = reader.read_param(config_dict,"energy_window",[Constants.tritium_endpoint()-1e3,Constants.tritium_endpoint()+1e3])
         self.volume = reader.read_param(config_dict,"volume",1e-6)
@@ -158,8 +156,7 @@ class TritiumSpectrumGenerator(BaseProcessor):
         getattr(self.workspace,'import')(background)
         self.workspace.Print()
 
-    def Run(self):
-        logger.info("Run...")
+    def _Run(self):
         self._PrepareWorkspace()
         return self._GenerateData()
 
@@ -178,6 +175,8 @@ class TritiumSpectrumGenerator(BaseProcessor):
         dataList = []
         for i in range(data.numEntries()):
             dataList.append(data.get(i).getRealValue("KE"))
+        # Have to delete the workspace to precent some nasty errors at the end...
+        del self.workspace
         return {"KE": dataList}
 
     def _makeSomePlots(self,data):
@@ -192,7 +191,6 @@ class TritiumSpectrumGenerator(BaseProcessor):
         KE.setRange("window",self.KEmin,self.KEmax) 
         background = self.workspace.pdf("background")
         totalSpectrum = self.workspace.pdf("totalSpectrum")
-        totalSpectrum.Print()
 
         can = ROOT.TCanvas("can","can",600,400)
         frame = KE.frame(ROOT.RooFit.Range("window"))
