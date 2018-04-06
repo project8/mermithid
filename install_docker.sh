@@ -32,6 +32,5 @@ make install
 
 echo "Installing Mermithid"
 cd /mermithid
-# pip install morpho/uproot/. # install a customized version of morpho
-# pip install morpho/. # install a customized version of morpho
-pip install --process-dependency-links .
+pip install morpho/. # install a customized version of morpho until we have a morpho2 release
+pip install . --upgrade

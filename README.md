@@ -30,8 +30,9 @@ You will need to install via a package manager (such as apt-get):
   ```bash
     echo "export PYTHONPATH=${PWD}/build:$PYTHONPATH" >> ~/.bash_profile
   ```
-  1. Install mermithid:
+  1. Install morpho and mermithid:
   ```bash
+  pip install morpho/.
 	pip install .
   ```
 
@@ -44,8 +45,8 @@ You will need to install via a package manager (such as apt-get):
   1. Clone and pull the latest master version of morpho
   1. Inside the morpho folder, execute ```docker-compose run mermithid```.
   The container prompter should appear at the end of the installation.
-  A directory (```morpho_share```) should be created in your home and mounted under the ```/host``` folder: you can modify this by editing the docker-compose file.
-  1. When reinstalling, you can remove the image using ```docker rmi morpho_morpho```
+  A directory (```mermithid_share```) should be created in your home and mounted under the ```/host``` folder: you can modify this by editing the docker-compose file.
+  1. When reinstalling, you can remove the image using ```docker rmi mermithid_mermithid```
 
 ## Quick start and examples
 
