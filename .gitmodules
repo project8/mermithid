@@ -1,0 +1,9 @@
+[submodule "Cicada"]
+	path = Cicada
+	url = https://github.com/project8/cicada.git
+[submodule "Phylloxera"]
+	path = Phylloxera
+	url = https://github.com/project8/phylloxera.git
+[submodule "morpho"]
+	path = morpho
+	url = https://github.com/project8/morpho.git

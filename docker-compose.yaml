@@ -1,0 +1,10 @@
+version: "3"
+
+services:
+  mermithid:
+    build: .
+    command: >
+      bash -c "source /setup.sh && bash"
+    volumes:
+      # share a subdirectory from the host to /host in the docker (can be edited)
+      - ~/mermithid:/host
