@@ -1,7 +1,7 @@
 version: "3"
 
 services:
-  morpho:
+  mermithid:
     build: .
     command: >
       bash -c "source /setup.sh && bash"

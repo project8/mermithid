@@ -2,7 +2,7 @@
 '''
 
 import CicadaPy
-CicadaPy.loadLibraries()
+CicadaPy.loadLibraries(True)
 from ROOT import Katydid as KT
 
 from morpho.processors.IO import IOProcessor

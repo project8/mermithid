@@ -1,5 +1,5 @@
 import PhylloxeraPy
-PhylloxeraPy.loadLibraries(False)
+PhylloxeraPy.loadLibraries(True)
 import ROOT
 
 from morpho.utilities import morphologging, reader
