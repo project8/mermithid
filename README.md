@@ -6,7 +6,7 @@ Mermithid is an extension of morpho that contains processors specific to Project
 ## Requirements
 
 You will need to install via a package manager (such as apt-get):    
-  * python (2.7.x; 3.x not supported)   
+  * python (2.7.x; 3.x)   
   * python-matplotlib   
   * python-pip   
   * git  
@@ -32,8 +32,8 @@ You will need to install via a package manager (such as apt-get):
   ```
   1. Install morpho and mermithid:
   ```bash
-  pip install morpho/.
-	pip install .
+    pip install morpho/.
+    pip install .
   ```
 
 ### Docker installation
