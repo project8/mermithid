@@ -50,7 +50,7 @@ class TritiumSpectrumGenerator(BaseProcessor):
         '''
         return self.background * (self.KEmax - self.KEmin + 2*self.increase_range) * self.duration
     
-    def _Configure(self, config_dict = {}):
+    def InternalConfigure(self, config_dict = {}):
         '''
         Required class attributes:
         - volume [m3]
@@ -156,7 +156,7 @@ class TritiumSpectrumGenerator(BaseProcessor):
         getattr(self.workspace,'import')(background)
         self.workspace.Print()
 
-    def _Run(self):
+    def InternalRun(self):
         self._PrepareWorkspace()
         return self._GenerateData()
 
