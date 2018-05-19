@@ -14,8 +14,8 @@ from ROOT import TFile, TTreeReader, TTreeReaderValue
 
 class IOCicadaProcessor(IOProcessor):
 
-    def Configure(self,params):
-        super().Configure(params)
+    def InternalConfigure(self,params):
+        super().InternalConfigure(params)
         self.tree_name = reader.read_param(params,"tree_name","multiTrackEvents")
         self.object_name = reader.read_param(params,"object_name","Event")
 
