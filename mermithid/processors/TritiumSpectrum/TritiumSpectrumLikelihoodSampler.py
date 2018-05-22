@@ -6,9 +6,14 @@ from morpho.utilities import morphologging, reader
 logger = morphologging.getLogger(__name__)
 
 from morpho.processors.sampling import RooFitLikelihoodSampler
-import mermithid.misc.Constants
+from mermithid.misc import Constants
 
 class TritiumSpectrumLikelihoodSampler(RooFitLikelihoodSampler):
+
+    def InternalConfigure(self,config_dict):
+        super().InternalConfigure(config_dict)
+        self.null_m_nu = reader.read_param(config_dict,"null_neutrino_mass",False)
+
 
     def definePdf(self,wspace):
         '''
@@ -19,7 +24,10 @@ class TritiumSpectrumLikelihoodSampler(RooFitLikelihoodSampler):
         var = wspace.var(self.varName)
 
         # Variables required by this model
-        m_nu = ROOT.RooRealVar("m_nu","m_nu",0.,-300.,300.) 
+        if self.null_m_nu:
+            m_nu = ROOT.RooRealVar("m_nu","m_nu",0.) 
+        else:
+            m_nu = ROOT.RooRealVar("m_nu","m_nu",0.,-300.,300.) 
         endpoint = ROOT.RooRealVar("endpoint", "endpoint", Constants.tritium_endpoint(),
                                                            Constants.tritium_endpoint()-10.,
                                                            Constants.tritium_endpoint()+10.)
