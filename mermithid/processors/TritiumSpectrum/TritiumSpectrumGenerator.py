@@ -16,6 +16,30 @@ class TritiumSpectrumGenerator(BaseProcessor):
     Generate a smeared tritium spectrum.
     '''
 
+
+    def InternalConfigure(self, config_dict = {}):
+        '''
+        Required class attributes:
+        - volume [m3]
+        - density [1/m3]
+        - experiment duration [s]
+        - neutrino mass [eV]
+        - energy window [KEmin,KEmax]
+        - background [counts/eV/s]
+        - energy resolution [eV]
+        '''
+
+        self.KEmin, self.KEmax = reader.read_param(config_dict,"energy_window",[Constants.tritium_endpoint()-1e3,Constants.tritium_endpoint()+1e3])
+        self.volume = reader.read_param(config_dict,"volume",1e-6)
+        self.density = reader.read_param(config_dict,"density",1e18)
+        self.duration = reader.read_param(config_dict,"duration",1e18)
+        self.neutrinomass = reader.read_param(config_dict,"neutrino_mass",1e18)
+        self.background = reader.read_param(config_dict,"background",1e-6)
+        self.poisson_fluctuations = reader.read_param(config_dict,"poisson_fluctuations",False)
+        self.makeDataPlot = reader.read_param(config_dict,"make_plot",True)
+        self.energy_resolution = reader.read_param(config_dict,"energy_resolution",0)
+        self.numberDecays = reader.read_param(config_dict,"number_decays",-1)
+
     def _GetNEvents_Window(self,KE,spectrum):
         '''
         Calculate the number of decays events generated in the energy window
@@ -50,27 +74,6 @@ class TritiumSpectrumGenerator(BaseProcessor):
         '''
         return self.background * (self.KEmax - self.KEmin + 2*self.increase_range) * self.duration
     
-    def InternalConfigure(self, config_dict = {}):
-        '''
-        Required class attributes:
-        - volume [m3]
-        - density [1/m3]
-        - experiment duration [s]
-        - neutrino mass [eV]
-        - energy window [KEmin,KEmax]
-        - background [counts/eV/s]
-        - energy resolution [eV]
-        '''
-
-        self.KEmin, self.KEmax = reader.read_param(config_dict,"energy_window",[Constants.tritium_endpoint()-1e3,Constants.tritium_endpoint()+1e3])
-        self.volume = reader.read_param(config_dict,"volume",1e-6)
-        self.density = reader.read_param(config_dict,"density",1e18)
-        self.duration = reader.read_param(config_dict,"duration",1e18)
-        self.neutrinomass = reader.read_param(config_dict,"neutrino_mass",1e18)
-        self.background = reader.read_param(config_dict,"background",1e-6)
-        self.poisson_fluctuations = reader.read_param(config_dict,"poisson_fluctuations",False)
-        self.makeDataPlot = reader.read_param(config_dict,"make_plot",True)
-        self.energy_resolution = reader.read_param(config_dict,"energy_resolution",0)
 
     def _PrepareWorkspace(self):
         # for key in config_dict:
@@ -120,14 +123,17 @@ class TritiumSpectrumGenerator(BaseProcessor):
         # Background
         background = ROOT.RooUniform("background","background",ROOT.RooArgSet(KE))
 
-        # Calculate number of events and background        
-        number_atoms = self.volume*self.density
-        total_number_decays = number_atoms*self.duration/Constants.tritium_lifetime()
-        if self.doSmearing:
-            self.number_decays_window = total_number_decays * self._GetNEvents_Window(KE,smearedspectrum)
+        # Calculate number of events and background
+        if self.numberDecays<=0:     
+            number_atoms = self.volume*self.density
+            total_number_decays = number_atoms*self.duration/Constants.tritium_lifetime()
+            if self.doSmearing:
+                number_decays_window = total_number_decays * self._GetNEvents_Window(KE,smearedspectrum)
+            else:
+                number_decays_window = total_number_decays * self._GetNEvents_Window(KE,spectrum)
         else:
-            self.number_decays_window = total_number_decays * self._GetNEvents_Window(KE,spectrum)
-        logger.debug("Number decays in window: {}".format(self.number_decays_window))
+            number_decays_window = self.numberDecays
+        logger.debug("Number decays in window: {}".format(number_decays_window))
         self.number_bkgd_window = self._GetNBackground_Window()
         logger.debug("Number bkgd in window: {}".format(self.number_bkgd_window))
 
@@ -137,10 +143,10 @@ class TritiumSpectrumGenerator(BaseProcessor):
         # - Else use the value calculated
         if self.poisson_fluctuations:
             ran = ROOT.TRandom3()
-            self.number_decays_window_to_generate = int(ran.Poisson(self.number_decays_window))
+            self.number_decays_window_to_generate = int(ran.Poisson(number_decays_window))
             self.number_bkgd_window_to_generate = int(ran.Poisson(self.number_bkgd_window))
         else:
-            self.number_decays_window_to_generate = int(self.number_decays_window)
+            self.number_decays_window_to_generate = int(number_decays_window)
             self.number_bkgd_window_to_generate = int(self.number_bkgd_window)
             
         NEvents = ROOT.RooRealVar("NEvents","NEvents",self.number_decays_window_to_generate,0.,10*self.number_decays_window_to_generate)
