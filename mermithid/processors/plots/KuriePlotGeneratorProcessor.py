@@ -22,7 +22,7 @@ class KuriePlotGeneratorProcessor(BaseProcessor):
     Describe.
     '''
 
-    def _Configure(self, params):
+    def InternalConfigure(self, params):
         '''
         Configure
         '''
@@ -33,7 +33,7 @@ class KuriePlotGeneratorProcessor(BaseProcessor):
         # Read other parameters
         self.namedata = reader.read_param(params,'data',"required")
 
-    def _Run(self):
+    def InternalRun(self):
         from ROOT import TMath, TH1F
         data = self.data.get(self.namedata)
         if self.histo.x_min>self.histo.x_max:
