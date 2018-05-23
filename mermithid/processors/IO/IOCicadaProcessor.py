@@ -3,7 +3,11 @@
 
 import CicadaPy
 CicadaPy.loadLibraries(True)
-from ROOT import Katydid as KT
+try:
+    from ROOT import Cicada as KT
+except ImportError:
+    from ROOT import Katydid as KT
+
 
 from morpho.processors.IO import IOProcessor
 from morpho.utilities import reader, morphologging
