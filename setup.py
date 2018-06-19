@@ -19,25 +19,15 @@ on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 
 requirements = []
 extras_require = {
-    'core':['matplotlib==1.5.1','colorlog'],
+    'core':['matplotlib==1.5.1','colorlog',"morpho"],
     'doc': ['sphinx','sphinx_rtd_theme','sphinxcontrib-programoutput']
 }
-
-# Manual installation of morpho while it's being developed
-# from subprocess import call
-# call(["pip", "install", "morpho/."])
 
 if on_rtd:
     requirements.append('better-apidoc')
     requirements += extras_require['doc']
 else:
     requirements = extras_require['core']
-    try:
-        import morpho
-    except ImportError:
-        print('\nError! Morpho is required to build from source.')
-        print('Please install it using `pip install morpho/.`')
-        sys.exit(1)
     try:
         import CicadaPy
     except ImportError:
@@ -64,11 +54,12 @@ extras_require['all'] = everything
 setup(
     name='mermithid',
     version=verstr,
+    description="An Project 8 extension to morpho",
     packages=find_packages(),
     install_requires=requirements,
     extras_require=extras_require,
     url='http://www.github.com/project8/mermithid',
-#     dependency_links=[
-#         'git+https://github.com/project8/morpho.git@morpho2/develop#egg=morpho-v2.0.0'
-#     ],
+    author = "M. Guigue",
+    maintainer = "M. Guigue (PNNL)",
+    maintainer_email = "mathieu.guigue@pnnl.gov"
 )
