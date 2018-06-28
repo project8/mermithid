@@ -22,7 +22,8 @@ class IOTests(unittest.TestCase):
         }
         b = IOCicadaProcessor("reader")
         b.Configure(reader_config)
-        data = b.Run()
+        b.Run()
+        data = b.results
         logger.info("Data extracted = {}".format(data.keys()))
         for key in data.keys():
             logger.info("{} -> size = {}".format(key,len(data[key])))

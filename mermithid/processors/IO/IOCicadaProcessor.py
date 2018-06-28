@@ -22,6 +22,7 @@ class IOCicadaProcessor(IOProcessor):
         super().InternalConfigure(params)
         self.tree_name = reader.read_param(params,"tree_name","multiTrackEvents")
         self.object_name = reader.read_param(params,"object_name","Event")
+        return True
 
     def Reader(self):
         '''
@@ -51,7 +52,8 @@ class IOCicadaProcessor(IOProcessor):
                     logger.error("Variable {} does not exist in TMultiTrackEventData".format(var))
                     raise
                 theData[var].append(function())
-        return theData
+        self.data = theData
+        return True
         
 
     def Writer(self):

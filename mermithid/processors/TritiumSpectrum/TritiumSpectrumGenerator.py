@@ -39,6 +39,7 @@ class TritiumSpectrumGenerator(BaseProcessor):
         self.makeDataPlot = reader.read_param(config_dict,"make_plot",True)
         self.energy_resolution = reader.read_param(config_dict,"energy_resolution",0)
         self.numberDecays = reader.read_param(config_dict,"number_decays",-1)
+        return True
 
     def _GetNEvents_Window(self,KE,spectrum):
         '''
@@ -164,7 +165,8 @@ class TritiumSpectrumGenerator(BaseProcessor):
 
     def InternalRun(self):
         self._PrepareWorkspace()
-        return self._GenerateData()
+        self.results = self._GenerateData()
+        return True
 
     def _GenerateData(self):
         

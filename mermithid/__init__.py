@@ -7,7 +7,7 @@ import pkg_resources
 __version__ = pkg_resources.require("mermithid")[0].version.split('-')[0]
 __commit__ = pkg_resources.require("mermithid")[0].version.split('-')[-1]
 
-from . import misc, processors
+# from . import misc, processors
 
 __all__ = []
 import pkgutil
@@ -20,5 +20,4 @@ for loader, name, is_pkg in pkgutil.walk_packages(__path__):
           continue
         
         globals()[name] = value
-        print(name)
         __all__.append(name)
