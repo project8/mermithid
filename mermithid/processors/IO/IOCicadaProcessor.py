@@ -1,13 +1,8 @@
 '''
+Processor that can read (not write) Katydid ROOT files using the Cicada library
+Author: M. Guigue
+Date: Mar 30 2018
 '''
-
-# import CicadaPy
-# CicadaPy.loadLibraries(True)
-# try:
-#     from ROOT import Cicada as KT
-# except ImportError:
-#     from ROOT import Katydid as KT
-
 
 from morpho.processors.IO import IOProcessor
 from morpho.utilities import reader, morphologging
@@ -17,6 +12,9 @@ from ROOT import TFile, TTreeReader, TTreeReaderValue
 
 
 class IOCicadaProcessor(IOProcessor):
+    '''
+    Processor that can read (not write) Katydid ROOT files using the Cicada library
+    '''
 
     def InternalConfigure(self,params):
         super().InternalConfigure(params)

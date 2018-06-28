@@ -1,5 +1,7 @@
 '''                                                                                                                                     
 Generate a Kurie plot from energy data
+Author: M. Guigue
+Date: Mar 30 2018
 '''
 
 from __future__ import absolute_import
