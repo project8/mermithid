@@ -13,6 +13,7 @@ class TritiumSpectrumLikelihoodSampler(RooFitLikelihoodSampler):
     def InternalConfigure(self,config_dict):
         super().InternalConfigure(config_dict)
         self.null_m_nu = reader.read_param(config_dict,"null_neutrino_mass",False)
+        return True
 
 
     def definePdf(self,wspace):
