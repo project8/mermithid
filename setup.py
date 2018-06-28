@@ -17,10 +17,18 @@ except Exception as err:
 
 on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 
+MORPHO_VERSION='v2.1.0-0-g0c9025d'
+MORPHO_DEP_LINK = 'git+https://github.com/project8/morpho.git@master#egg=morpho-{0}'.format(MORPHO_VERSION)
+print(MORPHO_DEP_LINK)
+MORPHO_REQ = "morpho=={0}".format(MORPHO_VERSION)
+
 requirements = []
 extras_require = {
-    'core':['matplotlib==1.5.1','colorlog',"morpho"],
+    'core':['matplotlib==1.5.1','colorlog',MORPHO_REQ],
     'doc': ['sphinx','sphinx_rtd_theme','sphinxcontrib-programoutput']
+}
+dep_links = {
+    MORPHO_DEP_LINK
 }
 
 if on_rtd:
@@ -58,6 +66,7 @@ setup(
     packages=find_packages(),
     install_requires=requirements,
     extras_require=extras_require,
+    dependency_links=dep_links,
     url='http://www.github.com/project8/mermithid',
     author = "M. Guigue",
     maintainer = "M. Guigue (PNNL)",

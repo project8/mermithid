@@ -32,7 +32,7 @@ You will need to install via a package manager (such as apt-get):
   ```
   1. Install morpho and mermithid:
   ```bash
-    pip install .
+    pip install . --process-dependency-links
   ```
 
 ### Docker installation
