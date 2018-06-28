@@ -46,7 +46,8 @@ class TritiumTests(unittest.TestCase):
         histo.Configure(histo_plot)
         kurieHisto.Configure(kurie_plot)
 
-        result = specGen.Run()
+        specGen.Run()
+        result = specGen.results
         histo.data = result
         kurieHisto.data = result
         histo.Run()

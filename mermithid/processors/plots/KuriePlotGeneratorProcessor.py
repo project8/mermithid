@@ -1,5 +1,7 @@
 '''                                                                                                                                     
 Generate a Kurie plot from energy data
+Author: M. Guigue
+Date: Mar 30 2018
 '''
 
 from __future__ import absolute_import
@@ -32,6 +34,7 @@ class KuriePlotGeneratorProcessor(BaseProcessor):
 
         # Read other parameters
         self.namedata = reader.read_param(params,'data',"required")
+        return True
 
     def InternalRun(self):
         from ROOT import TMath, TH1F
@@ -51,5 +54,6 @@ class KuriePlotGeneratorProcessor(BaseProcessor):
         self.rootcanvas.cd()
         self.histo.Draw("hist")
         self.rootcanvas.Save()
+        return True
     
 

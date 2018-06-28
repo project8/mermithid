@@ -4,6 +4,3 @@
 [submodule "Phylloxera"]
 	path = Phylloxera
 	url = https://github.com/project8/phylloxera.git
-[submodule "morpho"]
-	path = morpho
-	url = https://github.com/project8/morpho.git
