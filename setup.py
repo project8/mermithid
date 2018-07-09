@@ -17,9 +17,8 @@ except Exception as err:
 
 on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 
-MORPHO_VERSION='v2.1.0-0-g0c9025d'
+MORPHO_VERSION='v2.1.1-0-g9ce53b8'
 MORPHO_DEP_LINK = 'git+https://github.com/project8/morpho.git@master#egg=morpho-{0}'.format(MORPHO_VERSION)
-print(MORPHO_DEP_LINK)
 MORPHO_REQ = "morpho=={0}".format(MORPHO_VERSION)
 
 requirements = []
