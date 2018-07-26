@@ -17,13 +17,13 @@ except Exception as err:
 
 on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 
-MORPHO_VERSION='v2.1.1-0-g9ce53b8'
-MORPHO_DEP_LINK = 'git+https://github.com/project8/morpho.git@master#egg=morpho-{0}'.format(MORPHO_VERSION)
+MORPHO_VERSION='v2.1.1-3-g685c9b6'
+MORPHO_DEP_LINK = 'git+ssh://git@github.com/project8/morpho.git@master#egg=morpho-{0}'.format(MORPHO_VERSION)
 MORPHO_REQ = "morpho=={0}".format(MORPHO_VERSION)
 
 requirements = []
 extras_require = {
-    'core':['matplotlib==1.5.1','colorlog',MORPHO_REQ],
+    'core':['colorlog',MORPHO_REQ],
     'doc': ['sphinx','sphinx_rtd_theme','sphinxcontrib-programoutput']
 }
 dep_links = {
@@ -35,22 +35,22 @@ if on_rtd:
     requirements += extras_require['doc']
 else:
     requirements = extras_require['core']
-    try:
-        import CicadaPy
-    except ImportError:
-        print('\nError! Cicada is required to build from source.')
-        print('Please install it and make sure you have added the libraries to your PYTHONPATH.')
-        print('Documentation can be found here: ')
-        print('  http://p8-cicada.readthedocs.io/en/latest')
-        sys.exit(1)
-    try:
-        import PhylloxeraPy
-    except ImportError:
-        print('\nError! Phylloxera is required to build from source.')
-        print('Please install it and make sure you have added the libraries to your PYTHONPATH.')
-        print('Documentation can be found here: ')
-        print('  http://github.com/project8/phylloxera')
-        sys.exit(1)
+    # try:
+    #     import CicadaPy
+    # except ImportError:
+    #     print('\nError! Cicada is required to build from source.')
+    #     print('Please install it and make sure you have added the libraries to your PYTHONPATH.')
+    #     print('Documentation can be found here: ')
+    #     print('  http://p8-cicada.readthedocs.io/en/latest')
+    #     sys.exit(1)
+    # try:
+    #     import PhylloxeraPy
+    # except ImportError:
+    #     print('\nError! Phylloxera is required to build from source.')
+    #     print('Please install it and make sure you have added the libraries to your PYTHONPATH.')
+    #     print('Documentation can be found here: ')
+    #     print('  http://github.com/project8/phylloxera')
+    #     sys.exit(1)
 
 
 everything = set()
