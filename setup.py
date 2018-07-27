@@ -2,7 +2,8 @@
 from setuptools import find_packages, setup
 from glob import glob
 
-import sys, os
+import sys
+import os
 from setuptools.command.test import test as TestCommand
 
 verstr = "none"
@@ -17,7 +18,7 @@ except Exception as err:
 
 on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 
-MORPHO_VERSION='v2.1.1-3-g685c9b6'
+MORPHO_VERSION='v2.1.3-0-gb9715fd'
 MORPHO_DEP_LINK = 'git+https://github.com/project8/morpho.git@master#egg=morpho-{0}'.format(MORPHO_VERSION)
 MORPHO_REQ = "morpho=={0}".format(MORPHO_VERSION)
 
@@ -35,23 +36,6 @@ if on_rtd:
     requirements += extras_require['doc']
 else:
     requirements = extras_require['core']
-    # try:
-    #     import CicadaPy
-    # except ImportError:
-    #     print('\nError! Cicada is required to build from source.')
-    #     print('Please install it and make sure you have added the libraries to your PYTHONPATH.')
-    #     print('Documentation can be found here: ')
-    #     print('  http://p8-cicada.readthedocs.io/en/latest')
-    #     sys.exit(1)
-    # try:
-    #     import PhylloxeraPy
-    # except ImportError:
-    #     print('\nError! Phylloxera is required to build from source.')
-    #     print('Please install it and make sure you have added the libraries to your PYTHONPATH.')
-    #     print('Documentation can be found here: ')
-    #     print('  http://github.com/project8/phylloxera')
-    #     sys.exit(1)
-
 
 everything = set()
 for deps in extras_require.values():
