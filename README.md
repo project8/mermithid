@@ -1,5 +1,7 @@
 # mermithid
 
+[![DOI](https://zenodo.org/badge/122257399.svg)](https://zenodo.org/badge/latestdoi/122257399)
+
 Mermithid is an extension of morpho that contains processors specific to Project 8 analysis, spectrum fitting and plotting.
 
 
