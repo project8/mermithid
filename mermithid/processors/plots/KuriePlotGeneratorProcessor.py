@@ -13,7 +13,7 @@ import os
 from morpho.utilities import morphologging, reader, plots
 from morpho.processors import BaseProcessor
 from morpho.processors.plots import RootCanvas, RootHistogram
-from mermithid.misc import TritiumFormFactor
+from mermithid.misc import TritiumFormFactor, KuriePlotBinning
 logger=morphologging.getLogger(__name__)
 
 __all__ = []
@@ -39,18 +39,9 @@ class KuriePlotGeneratorProcessor(BaseProcessor):
     def InternalRun(self):
         from ROOT import TMath, TH1F
         data = self.data.get(self.namedata)
-        if self.histo.x_min>self.histo.x_max:
-            xMin = min(data)
-            xMax = max(data)
-            self.histo.x_min, self.histo.x_max = xMin,xMax
-            self.histo._createHisto()
-        histo1 = TH1F(self.histo.title+"_data", self.histo.title+"_data", self.histo.n_bins_x, self.histo.x_min, self.histo.x_max)
-        kurieList = []
-        for value in data:
-            histo1.Fill(value)
-        for iBin in range(histo1.GetNbinsX()):
-            kurieList.append(TMath.Sqrt(histo1.GetBinContent(iBin) / TritiumFormFactor.RFactor(histo1.GetBinCenter(iBin), 1)))
-        self.histo.SetBinsContent(kurieList)
+        kurieList, errorList = KuriePlotBinning.KuriePlotBinning(data, xRange=[self.histo.x_min,self.histo.x_max],nBins=self.histo.histo.GetNbinsX())
+        self.histo.SetBinsContent(kurieList[i])
+        self.histo.SetBinsError(errorList[i])
         self.rootcanvas.cd()
         self.histo.Draw("hist")
         self.rootcanvas.Save()
