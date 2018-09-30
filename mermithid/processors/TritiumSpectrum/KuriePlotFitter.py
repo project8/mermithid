@@ -43,9 +43,9 @@ class KuriePlotFitter(BaseProcessor):
         for i, KE in enumerate(centralList):
             kurieGraph.SetPoint(i, KE, kurieList[i])
             kurieGraph.SetPointError(i, 0, errorList[i])
-        fitFunction = TF1("kurieFit", "[0]*([1]-x)*(x<[1]) + [2]", centralList[0], centralList[-1], 3)
-        fitFunction.SetParameters(kurieList[0]/(18600-centralList[0]), 18600, kurieList[-1])
-        kurieGraph.Fit(fitFunction, 'MLER') 
+        self.fitFunction = TF1("kurieFit", "[0]*([1]-x)*(x<[1]) + [2]", centralList[0], centralList[-1], 3)
+        self.fitFunction.SetParameters(kurieList[0]/(18600-centralList[0]), 18600, kurieList[-1])
+        kurieGraph.Fit(self.fitFunction, 'MLER') 
 
     def InternalRun(self):
         from ROOT import TMath, TH1F
@@ -57,8 +57,9 @@ class KuriePlotFitter(BaseProcessor):
         logger.debug("Draw kurie histo")
         self.rootcanvas.cd()
         self.histo.Draw("hist")
-        self.rootcanvas.Save()
         self._FitKuriePlot(centralValueList, kurieList, errorList)
+        self.fitFunction.Draw("sameL")
+        self.rootcanvas.Save()
         return True
     
 
