@@ -28,12 +28,12 @@ class TritiumTests(unittest.TestCase):
             "energy_resolution": 5# [eV]
         }
         histo_plot = {
-            "data": "KE",
+            "variables": "KE",
             "n_bins_x": 100,
             "title": "spectrum"
         }
         kurie_plot = {
-            "data": "KE",
+            "variables": "KE",
             "n_bins_x": 1000,
             "title": "kurie_plot"
         }

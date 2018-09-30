@@ -50,4 +50,7 @@ def KurieFunction(x, par):
     par[1]: Q
     par[2]: B
     '''
-    return par[0]*(par[1]-x)*(x<par[1])+B
+    value = 0
+    if x < par[1][0]:
+        value = par[0]*(par[1]-x)
+    return value + par[2]
