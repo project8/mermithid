@@ -54,3 +54,10 @@ def KurieFunction(x, par):
     if x < par[1][0]:
         value = par[0]*(par[1]-x)
     return value + par[2]
+
+def UnormalizedSquarePoisson(y,l):
+    '''
+    Return the probability density function for Y=sqrt(X)
+    when X follows a Poisson distribution with param lambda
+    '''
+    return 2*y*TMath.Exp(-l)*TMath.Pow(l,y*y)/TMath.tgamma(y*y)
