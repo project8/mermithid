@@ -69,38 +69,28 @@ class KuriePlotFitter(BaseProcessor):
         '''
         kurieList = [val*1e6 for val in akurieList]
         KE = ROOT.RooRealVar("KE","KE", min(centralList), max(centralList))
-        print(min(centralList),max(centralList))
-        #y = ROOT.RooRealVar("y","y",min(kurieList),max(kurieList))
         y = ROOT.RooRealVar("y","y",0,100)
         amplitude = ROOT.RooRealVar("amp","amp",0.012,0, 1)
         endpoint = ROOT.RooRealVar("endpoint","endpoint",18600, 16600, 19600)
         bkg = ROOT.RooRealVar("bkg","bkg",0.2,0,10)
         kurieShape = ROOT.RooFormulaVar("gamma", "amp*(endpoint-KE)*(endpoint>KE)+bkg",ROOT.RooArgList(amplitude,endpoint,bkg,KE))
-        
 
-        res = ROOT.RooFormulaVar("res","gamma-y",ROOT.RooArgList(y,kurieShape))
         pdf = ROOT.RooGenericPdf("pdf","pdf","exp(-gamma*gamma)*pow(gamma*gamma,y*y)/tgamma(y*y)",ROOT.RooArgList(y,kurieShape)) 
-        null = ROOT.RooRealVar("null","null",0)
-        one = ROOT.RooRealVar("one","one",1)
-        #pdf = ROOT.RooGaussian("pdf","pdf", res, null,one)
         
         data = ROOT.RooDataSet("kuriePlot", "kuriePlot", ROOT.RooArgSet(KE, y))
         for ke, val in zip(centralList, kurieList):
-            #if val>0:
-                KE.setVal(ke)
-                y.setVal(val)
-                data.add(ROOT.RooArgSet(KE, y))
+            KE.setVal(ke)
+            y.setVal(val)
+            data.add(ROOT.RooArgSet(KE, y))
        
         data.Print() 
-        #result = pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.NumCPU(3))
+        result = pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.NumCPU(3))
         #result = kurieShape.chi2FitTo(data,ROOT.RooFit.YVar(y), ROOT.RooFit.Save())
-        #result.Print()
-        #logger.debug("Covariance matrix:")
-        #result.covarianceMatrix().Print()
+        result.Print()
+        logger.debug("Covariance matrix:")
+        result.covarianceMatrix().Print()
 
         frame1 = KE.frame()
-        frame1.SetMinimum(0.)
-        frame1.SetMaximum(max(kurieList))
         data.plotOnXY(frame1,ROOT.RooFit.YVar(y))
         kurieShape.plotOn(frame1)
         c = ROOT.TCanvas("c","c",600,400)
@@ -108,8 +98,6 @@ class KuriePlotFitter(BaseProcessor):
         c.SaveAs("test.pdf")
 
         frame2 = y.frame()
-        #pdf = ROOT.RooPoisson("pdf","pdf",y,one)
-        #pdf = ROOT.RooGenericPdf("pdf","pdf","exp(-one)*pow(one,y)/tgamma(y)",ROOT.RooArgList(y,one)) 
         pdf.plotOn(frame2)
         frame2.Draw()
         c.SaveAs("test2.pdf")
