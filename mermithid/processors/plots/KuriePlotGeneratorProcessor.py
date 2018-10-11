@@ -37,7 +37,10 @@ class KuriePlotGeneratorProcessor(BaseProcessor):
         return True
 
     def InternalRun(self):
-        from ROOT import TMath, TH1F
+        try:
+            from ROOT import TMath, TH1F
+        except ImportError:
+            pass
         data = self.data.get(self.namedata)
         kurieList, errorList = KuriePlotBinning.KuriePlotBinning(data, xRange=[self.histo.x_min,self.histo.x_max],nBins=self.histo.histo.GetNbinsX())
         self.histo.SetBinsContent(kurieList[i])

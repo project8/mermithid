@@ -8,8 +8,10 @@ from morpho.processors.IO import IOProcessor
 from morpho.utilities import reader, morphologging
 logger = morphologging.getLogger(__name__)
 
-from ROOT import TFile, TTreeReader, TTreeReaderValue
-
+try:
+    from ROOT import TFile, TTreeReader, TTreeReaderValue
+except ImportError:
+    pass
 
 class IOCicadaProcessor(IOProcessor):
     '''
