@@ -28,17 +28,13 @@ class FrequencyEnergyConversionProcessor(BaseProcessor):
 
     def InternalConfigure(self, params):
         """
-        This method will be called by nymph to configure the processor
-
-        params is a dictionary containing the following keys:
-
         Args:
             frequency_data: An list of frequencies to be converted to
                 energies, in Hz
             B: Magnetic field used to convert frequency to energy in T
             m_electron: Electron mass in eV (Default=510998.910)
             omega_c: (Default=1.758820088e+11)
-        Input: 
+        Input:
             frequencies: list of frequencies to be converted
         Results:
             energies: list of the energies converted from frequencies in Hz

@@ -19,6 +19,10 @@ class IOCicadaProcessor(IOProcessor):
     '''
 
     def InternalConfigure(self,params):
+        '''
+        Args:
+            object_type: class of the object to read in the file
+            object_name: 
         super().InternalConfigure(params)
         self.object_type = reader.read_param(params,"object_type","TMultiTrackEventData")
         self.object_name = reader.read_param(params,"object_name","multiTrackEvents:Event")
@@ -35,7 +39,6 @@ class IOCicadaProcessor(IOProcessor):
             logger.warn("Cannot import ReadKTOutputFile")
         self.data = ReadKTOutputFile(self.file_name,self.variables,katydid=self.use_katydid,objectType=self.object_type,name=self.object_name)
         return True
-        
 
     def Writer(self):
         '''

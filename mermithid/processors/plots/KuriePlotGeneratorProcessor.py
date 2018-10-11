@@ -1,4 +1,4 @@
-'''                                                                                                                                     
+'''
 Generate a Kurie plot from energy data
 Author: M. Guigue
 Date: Mar 30 2018
@@ -16,11 +16,15 @@ __all__ = []
 __all__.append(__name__)
 
 class KuriePlotGeneratorProcessor(BaseProcessor):
-    '''                                                                                                                                
+    '''
     Processor that generates Kurie plots.
     '''
 
     def InternalConfigure(self, params):
+        '''
+        Args:
+            namedata: name of the variable to use for the plot
+        '''
         # Initialize Canvas
         self.rootcanvas = RootCanvas(params,optStat=0)
         self.histo = RootHistogram(params,optStat=0)
