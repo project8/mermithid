@@ -2,7 +2,7 @@
 Installation
 ------------------
 
-  These are two possible ways of installing and working with mermithid.
+These are two possible ways of installing and working with mermithid.
 
 Virtual environment installation
 ----------------------------------
