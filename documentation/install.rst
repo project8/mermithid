@@ -7,21 +7,21 @@ Installation
 Virtual environment installation
 ----------------------------------
 
-Cicada and Phylloxera need to be installed in a sub directory:
+Cicada and Phylloxera need to be installed in a sub directory: ::
 
-  mkdir build
-  cd build
-  cmake ..
-  make -j3
-  make -j3 install
+	mkdir build
+	cd build
+	cmake ..
+	make -j3
+	make -j3 install
 
-These libraries need to be added to your PYTHONPATH:
+These libraries need to be added to your PYTHONPATH: ::
 
-  echo "export PYTHONPATH=${PWD}/build:$PYTHONPATH" >> ~/.bash_profile
+	echo "export PYTHONPATH=${PWD}/build:$PYTHONPATH" >> ~/.bash_profile
 
-Install mermithid:
+Install mermithid: ::
 
-  pip install . --process-dependency-links
+	pip install . --process-dependency-links
 
 (The `--process-dependency-links` is here to install morpho.)
 
