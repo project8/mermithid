@@ -29,8 +29,8 @@ MORPHO_REQ = "morpho=={0}".format(MORPHO_VERSION)
 
 requirements = []
 extras_require = {
-    'core':['colorlog',MORPHO_REQ],
-    'doc': ['sphinx','sphinx_rtd_theme','sphinxcontrib-programoutput']
+    'core':['colorlog', MORPHO_REQ],
+    'doc': ['sphinx','sphinx_rtd_theme','sphinxcontrib-programoutput', 'six', 'colorlog']
 }
 dep_links = {
     MORPHO_DEP_LINK
@@ -50,7 +50,7 @@ extras_require['all'] = everything
 setup(
     name='mermithid',
     version=verstr,
-    description="An Project 8 extension to morpho",
+    description="A Project 8 extension to morpho",
     packages=find_packages(),
     install_requires=requirements,
     extras_require=extras_require,

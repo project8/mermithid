@@ -5,8 +5,10 @@ Date: Sept 28 2018
 '''
 
 from __future__ import absolute_import
-
-from ROOT import TMath
+try:
+    from ROOT import TMath
+except ImportError:
+    pass
 
 from morpho.utilities import morphologging
 from mermithid.misc import TritiumFormFactor

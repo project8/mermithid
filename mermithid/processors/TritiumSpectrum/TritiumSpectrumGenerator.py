@@ -1,6 +1,9 @@
 import PhylloxeraPy
 PhylloxeraPy.loadLibraries(True)
-import ROOT
+try:
+    import ROOT
+except ImportError:
+    pass
 
 from morpho.utilities import morphologging, reader
 logger = morphologging.getLogger(__name__)
