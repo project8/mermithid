@@ -6,7 +6,7 @@ Contents:
 .. toctree::
     :maxdepth: 2
 
-    updates
+    intro
     install
     contribute
     validation_log
