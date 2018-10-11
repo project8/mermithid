@@ -6,10 +6,6 @@ Date: Mar 30 2018
 
 from __future__ import absolute_import
 
-import json
-import os
-
-
 from morpho.utilities import morphologging, reader, plots
 from morpho.processors import BaseProcessor
 from morpho.processors.plots import RootCanvas, RootHistogram
@@ -21,13 +17,10 @@ __all__.append(__name__)
 
 class KuriePlotGeneratorProcessor(BaseProcessor):
     '''                                                                                                                                
-    Describe.
+    Processor that generates Kurie plots.
     '''
 
     def InternalConfigure(self, params):
-        '''
-        Configure
-        '''
         # Initialize Canvas
         self.rootcanvas = RootCanvas(params,optStat=0)
         self.histo = RootHistogram(params,optStat=0)
@@ -49,5 +42,3 @@ class KuriePlotGeneratorProcessor(BaseProcessor):
         self.histo.Draw("hist")
         self.rootcanvas.Save()
         return True
-    
-
