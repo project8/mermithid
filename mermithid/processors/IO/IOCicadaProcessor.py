@@ -29,7 +29,10 @@ class IOCicadaProcessor(IOProcessor):
         '''
         '''
         logger.debug("Reading {}".format(self.file_name))
-        from ReadKTOutputFile import ReadKTOutputFile
+        try:
+            from ReadKTOutputFile import ReadKTOutputFile
+        except ImportError:
+            logger.warn("Cannot import ReadKTOutputFile")
         self.data = ReadKTOutputFile(self.file_name,self.variables,katydid=self.use_katydid,objectType=self.object_type,name=self.object_name)
         return True
         

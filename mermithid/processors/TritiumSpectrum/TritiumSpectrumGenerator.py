@@ -1,5 +1,3 @@
-import PhylloxeraPy
-PhylloxeraPy.loadLibraries(True)
 try:
     import ROOT
 except ImportError:
@@ -7,6 +5,13 @@ except ImportError:
 
 from morpho.utilities import morphologging, reader
 logger = morphologging.getLogger(__name__)
+
+try:
+    import PhylloxeraPy
+    PhylloxeraPy.loadLibraries(True)
+except ImportError:
+    logger.warning("Cannot import PhylloxeraPy")
+    pass
 
 from morpho.processors import BaseProcessor
 from mermithid.misc import Constants
