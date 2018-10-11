@@ -22,7 +22,9 @@ class IOCicadaProcessor(IOProcessor):
         '''
         Args:
             object_type: class of the object to read in the file
-            object_name: 
+            object_name: name of the tree followed by the name of the object
+            use_katydid: retro-compatibility to Katydid namespace
+        '''
         super().InternalConfigure(params)
         self.object_type = reader.read_param(params,"object_type","TMultiTrackEventData")
         self.object_name = reader.read_param(params,"object_name","multiTrackEvents:Event")
@@ -31,6 +33,7 @@ class IOCicadaProcessor(IOProcessor):
 
     def Reader(self):
         '''
+        Reader method
         '''
         logger.debug("Reading {}".format(self.file_name))
         try:
