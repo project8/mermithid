@@ -30,7 +30,7 @@ MORPHO_REQ = "morpho=={0}".format(MORPHO_VERSION)
 requirements = []
 extras_require = {
     'core':['colorlog', MORPHO_REQ],
-    'doc': ['sphinx','sphinx_rtd_theme','sphinxcontrib-programoutput', 'six', 'colorlog']
+    'doc': ['sphinx','sphinx_rtd_theme','sphinxcontrib-programoutput', 'six', 'colorlog', MORPHO_REQ]
 }
 dep_links = {
     MORPHO_DEP_LINK
