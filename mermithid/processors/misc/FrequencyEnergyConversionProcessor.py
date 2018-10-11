@@ -4,7 +4,10 @@ Processor for converting frequencies into energies
 
 from __future__ import absolute_import
 
-import numpy as np
+try:
+    from ROOT import TMath
+except ImportError:
+    pass
 
 from morpho.processors import BaseProcessor
 from morpho.utilities import morphologging, reader
@@ -19,7 +22,7 @@ class FrequencyEnergyConversionProcessor(BaseProcessor):
     '''
 
     def get_kinetic_energy(self, frequency_Hz, B_tesla):
-        freq_c = self.omega_c/2.0/np.pi
+        freq_c = self.omega_c/2.0/TMath.Pi()
         gamma = freq_c / frequency_Hz * B_tesla;
         return (gamma -1.) * self.m_electron;
 
