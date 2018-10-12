@@ -7,6 +7,9 @@ These are two possible ways of installing and working with mermithid.
 Virtual environment installation
 ----------------------------------
 
+One can install mermithid on one's machine using a virtual environment: this allows to keep the system relatively clean.
+However, mermithid uses C++ librairies (Cicada and Phylloxera) that need to be built beforehand.
+
 Cicada and Phylloxera need to be installed in a sub directory: ::
 
 	mkdir build
@@ -19,11 +22,13 @@ These libraries need to be added to your PYTHONPATH: ::
 
 	echo "export PYTHONPATH=${PWD}/build:$PYTHONPATH" >> ~/.bash_profile
 
-Install mermithid: ::
+Inside your virtual environement, install mermithid: ::
 
+	source ~/path/to/the/virtual/environment/bin/activate # activate the virtual environement
+	echo $PYTHONPATH # make sure the build folder above is in this path
 	pip install . --process-dependency-links
 
-(The `--process-dependency-links` is here to install morpho.)
+(The `--process-dependency-links` is here to install the right morpho version from github.)
 
 Docker installation
 --------------------
