@@ -1,12 +1,14 @@
-'''                                                                                                                                     
+'''
 Generate a Kurie binning from energy data
 Author: M. Guigue
 Date: Sept 28 2018
 '''
 
 from __future__ import absolute_import
-
-from ROOT import TMath
+try:
+    from ROOT import TMath
+except ImportError:
+    pass
 
 from morpho.utilities import morphologging
 from mermithid.misc import TritiumFormFactor
@@ -19,14 +21,14 @@ def KuriePlotBinning(data, xRange = [0,-1], nBins=100):
     '''
     For a given list of data points, returns two lists:
     - one containing the bins contents
-    - one containing the bins errors 
+    - one containing the bins errors
     '''
     xmin = xRange[0]
     xmax = xRange[1]
     if xmin>=xmax:
         xmin = min(data)
         xmax = max(data)
-    
+
     lower_bound = [xmin + (xmax-xmin)*i/nBins for i in range(nBins)]
     upper_bound = [xmin + (xmax-xmin)*(i+1)/nBins for i in range(nBins)]
     central_value = [xmin + (xmax-xmin)*(i+0.5)/nBins for i in range(nBins)]

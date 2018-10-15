@@ -1,5 +1,8 @@
 from .Constants import fine_structure_constant, m_electron
-from ROOT import TMath
+try:
+    from ROOT import TMath
+except ImportError:
+    pass
 
 def DiracFermiFunction(E, Z, m):
     beta = TMath.Sqrt(2 * E / m)

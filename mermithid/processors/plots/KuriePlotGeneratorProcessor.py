@@ -1,14 +1,10 @@
-'''                                                                                                                                     
+'''
 Generate a Kurie plot from energy data
 Author: M. Guigue
 Date: Mar 30 2018
 '''
 
 from __future__ import absolute_import
-
-import json
-import os
-
 
 from morpho.utilities import morphologging, reader, plots
 from morpho.processors import BaseProcessor
@@ -20,13 +16,14 @@ __all__ = []
 __all__.append(__name__)
 
 class KuriePlotGeneratorProcessor(BaseProcessor):
-    '''                                                                                                                                
-    Describe.
+    '''
+    Processor that generates Kurie plots.
     '''
 
     def InternalConfigure(self, params):
         '''
-        Configure
+        Args:
+            namedata: name of the variable to use for the plot
         '''
         # Initialize Canvas
         self.rootcanvas = RootCanvas(params,optStat=0)
@@ -37,7 +34,10 @@ class KuriePlotGeneratorProcessor(BaseProcessor):
         return True
 
     def InternalRun(self):
-        from ROOT import TMath, TH1F
+        try:
+            from ROOT import TMath, TH1F
+        except ImportError:
+            pass
         data = self.data.get(self.namedata)
         kurieList, errorList = KuriePlotBinning.KuriePlotBinning(data, xRange=[self.histo.x_min,self.histo.x_max],nBins=self.histo.histo.GetNbinsX())
         self.histo.SetBinsContent(kurieList[i])
@@ -46,5 +46,3 @@ class KuriePlotGeneratorProcessor(BaseProcessor):
         self.histo.Draw("hist")
         self.rootcanvas.Save()
         return True
-    
-

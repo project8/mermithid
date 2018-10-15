@@ -1,9 +1,22 @@
-import PhylloxeraPy
-PhylloxeraPy.loadLibraries(True)
-import ROOT
+'''
+Generate Tritium fake spectrum
+Author: M. Guigue
+Date: Mar 30 2018
+'''
+try:
+    import ROOT
+except ImportError:
+    pass
 
 from morpho.utilities import morphologging, reader
 logger = morphologging.getLogger(__name__)
+
+try:
+    import PhylloxeraPy
+    PhylloxeraPy.loadLibraries(True)
+except ImportError:
+    logger.warning("Cannot import PhylloxeraPy")
+    pass
 
 from morpho.processors import BaseProcessor
 from mermithid.misc import Constants
@@ -15,6 +28,8 @@ increase_range = 10.  # energy increase required for the convolution product to 
 class TritiumSpectrumGenerator(BaseProcessor):
     '''
     Generate a smeared tritium spectrum.
+    It accounts for the background to estimate the number of events to generate
+    based on the exposure time.
     '''
 
     def InternalConfigure(self, config_dict={}):

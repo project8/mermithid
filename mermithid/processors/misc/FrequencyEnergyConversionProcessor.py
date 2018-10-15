@@ -4,7 +4,10 @@ Processor for converting frequencies into energies
 
 from __future__ import absolute_import
 
-import numpy as np
+try:
+    from ROOT import TMath
+except ImportError:
+    pass
 
 from morpho.processors import BaseProcessor
 from morpho.utilities import morphologging, reader
@@ -19,23 +22,19 @@ class FrequencyEnergyConversionProcessor(BaseProcessor):
     '''
 
     def get_kinetic_energy(self, frequency_Hz, B_tesla):
-        freq_c = self.omega_c/2.0/np.pi
+        freq_c = self.omega_c/2.0/TMath.Pi()
         gamma = freq_c / frequency_Hz * B_tesla;
         return (gamma -1.) * self.m_electron;
 
     def InternalConfigure(self, params):
         """
-        This method will be called by nymph to configure the processor
-
-        params is a dictionary containing the following keys:
-
         Args:
             frequency_data: An list of frequencies to be converted to
                 energies, in Hz
             B: Magnetic field used to convert frequency to energy in T
             m_electron: Electron mass in eV (Default=510998.910)
             omega_c: (Default=1.758820088e+11)
-        Input: 
+        Input:
             frequencies: list of frequencies to be converted
         Results:
             energies: list of the energies converted from frequencies in Hz
