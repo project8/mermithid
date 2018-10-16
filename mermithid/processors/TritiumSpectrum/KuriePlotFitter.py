@@ -1,7 +1,7 @@
-'''                                                                                                                                     
-Generate a Kurie plot from energy data
+'''
+Generate a Kurie plot from energy data and fit it
 Author: M. Guigue
-Date: Mar 30 2018
+Date: Oct 16 2018
 '''
 
 from __future__ import absolute_import
@@ -21,8 +21,16 @@ __all__ = []
 __all__.append(__name__)
 
 class KuriePlotFitter(BaseProcessor):
-    '''                                                                                                                                
-    Describe.
+    '''
+    Processor that produces a Kurie plot and fits it.
+    Beware that the results are biaised as the errors used for the fit are assumed
+    to be gaussian while the true distribution is more complex than this.
+    Args:
+        variables: name of the list of data (kinetic energies) to use
+    Inputs:
+        data: dict containing the unbinned data
+    Output:
+        result: dictionary containing the fit result (best value, errors, chi2 and ndf)
     '''
 
     def InternalConfigure(self, params):
@@ -57,50 +65,50 @@ class KuriePlotFitter(BaseProcessor):
             "chi2": rootResults.Chi2(),
             "ndf": rootResults.Ndf(),
             "p-value": rootResults.Prob()
-        } 
+        }
         return resultsDict
 
-    def _PoissonFitKuriePlot(self, centralList, akurieList):
-        '''
-        Fit Kurie plot assuming that each bin follows a new pdf 
-        f(y,lambda)=2/sqrt(2pi)*exp(y^2(1-ln(y^2/lambda^2)-lambda)
-        with y=sqrt(x) where x follows Poisson(lambda) 
-        with lambda = gamma^2 
-        '''
-        kurieList = [val*1e6 for val in akurieList]
-        KE = ROOT.RooRealVar("KE","KE", min(centralList), max(centralList))
-        y = ROOT.RooRealVar("y","y",0,100)
-        amplitude = ROOT.RooRealVar("amp","amp",0.012,0, 1)
-        endpoint = ROOT.RooRealVar("endpoint","endpoint",18600, 16600, 19600)
-        bkg = ROOT.RooRealVar("bkg","bkg",0.2,0,10)
-        kurieShape = ROOT.RooFormulaVar("gamma", "amp*(endpoint-KE)*(endpoint>KE)+bkg",ROOT.RooArgList(amplitude,endpoint,bkg,KE))
-
-        pdf = ROOT.RooGenericPdf("pdf","pdf","exp(-gamma*gamma)*pow(gamma*gamma,y*y)/tgamma(y*y)",ROOT.RooArgList(y,kurieShape)) 
-        
-        data = ROOT.RooDataSet("kuriePlot", "kuriePlot", ROOT.RooArgSet(KE, y))
-        for ke, val in zip(centralList, kurieList):
-            KE.setVal(ke)
-            y.setVal(val)
-            data.add(ROOT.RooArgSet(KE, y))
-       
-        data.Print() 
-        result = pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.NumCPU(3))
-        #result = kurieShape.chi2FitTo(data,ROOT.RooFit.YVar(y), ROOT.RooFit.Save())
-        result.Print()
-        logger.debug("Covariance matrix:")
-        result.covarianceMatrix().Print()
-
-        frame1 = KE.frame()
-        data.plotOnXY(frame1,ROOT.RooFit.YVar(y))
-        kurieShape.plotOn(frame1)
-        c = ROOT.TCanvas("c","c",600,400)
-        frame1.Draw()
-        c.SaveAs("test.pdf")
-
-        frame2 = y.frame()
-        pdf.plotOn(frame2)
-        frame2.Draw()
-        c.SaveAs("test2.pdf")
+    #def _PoissonFitKuriePlot(self, centralList, akurieList):
+    #    '''
+    #    Fit Kurie plot assuming that each bin follows a new pdf
+    #    f(y,lambda)=2/sqrt(2pi)*exp(y^2(1-ln(y^2/lambda^2)-lambda)
+    #    with y=sqrt(x) where x follows Poisson(lambda)
+    #    with lambda = gamma^2
+    #    '''
+    #    kurieList = [val*1e6 for val in akurieList]
+    #    KE = ROOT.RooRealVar("KE","KE", min(centralList), max(centralList))
+    #    y = ROOT.RooRealVar("y","y",0,100)
+    #    amplitude = ROOT.RooRealVar("amp","amp",0.012,0, 1)
+    #    endpoint = ROOT.RooRealVar("endpoint","endpoint",18600, 16600, 19600)
+    #    bkg = ROOT.RooRealVar("bkg","bkg",0.2,0,10)
+    #    kurieShape = ROOT.RooFormulaVar("gamma", "amp*(endpoint-KE)*(endpoint>KE)+bkg",ROOT.RooArgList(amplitude,endpoint,bkg,KE))
+    #
+    #    pdf = ROOT.RooGenericPdf("pdf","pdf","exp(-gamma*gamma)*pow(gamma*gamma,y*y)/tgamma(y*y)",ROOT.RooArgList(y,kurieShape))
+    #
+    #    data = ROOT.RooDataSet("kuriePlot", "kuriePlot", ROOT.RooArgSet(KE, y))
+    #    for ke, val in zip(centralList, kurieList):
+    #        KE.setVal(ke)
+    #        y.setVal(val)
+    #        data.add(ROOT.RooArgSet(KE, y))
+    #
+    #    data.Print()
+    #    result = pdf.fitTo(data, ROOT.RooFit.Save(), ROOT.RooFit.NumCPU(3))
+    #    #result = kurieShape.chi2FitTo(data,ROOT.RooFit.YVar(y), ROOT.RooFit.Save())
+    #    result.Print()
+    #    logger.debug("Covariance matrix:")
+    #    result.covarianceMatrix().Print()
+    #
+    #    frame1 = KE.frame()
+    #    data.plotOnXY(frame1,ROOT.RooFit.YVar(y))
+    #    kurieShape.plotOn(frame1)
+    #    c = ROOT.TCanvas("c","c",600,400)
+    #    frame1.Draw()
+    #    c.SaveAs("test.pdf")
+    #
+    #    frame2 = y.frame()
+    #    pdf.plotOn(frame2)
+    #    frame2.Draw()
+    #    c.SaveAs("test2.pdf")
 
     def InternalRun(self):
         from ROOT import TMath, TH1F
@@ -117,5 +125,4 @@ class KuriePlotFitter(BaseProcessor):
         self.fitFunction.Draw("sameL")
         self.rootcanvas.Save()
         return True
-    
 
