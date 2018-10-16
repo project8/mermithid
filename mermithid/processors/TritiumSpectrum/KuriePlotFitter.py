@@ -6,15 +6,12 @@ Date: Oct 16 2018
 
 from __future__ import absolute_import
 
-import json
-import os
+from ROOT import TGraphErrors, TF1, TH1F
 
-import ROOT
-
-from morpho.utilities import morphologging, reader, plots
+from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from morpho.processors.plots import RootCanvas, RootHistogram
-from mermithid.misc import TritiumFormFactor, KuriePlotTools
+from mermithid.misc import KuriePlotTools
 logger = morphologging.getLogger(__name__)
 
 __all__ = []
@@ -47,7 +44,6 @@ class KuriePlotFitter(BaseProcessor):
 
     def _FitKuriePlot(self, centralList, kurieList, errorList):
         logger.debug("Fitter private method")
-        from ROOT import TGraphErrors, TF1
         kurieGraph = TGraphErrors()
         for i, KE in enumerate(centralList):
             kurieGraph.SetPoint(i, KE, kurieList[i])
@@ -111,7 +107,6 @@ class KuriePlotFitter(BaseProcessor):
     #    c.SaveAs("test2.pdf")
 
     def InternalRun(self):
-        from ROOT import TMath, TH1F
         data = self.data.get(self.namedata)
         centralValueList, kurieList, errorList = KuriePlotTools.KuriePlotBinning(data, xRange=[self.histo.x_min, self.histo.x_max], nBins=self.histo.histo.GetNbinsX())
         logger.debug("Setting values and errors")
