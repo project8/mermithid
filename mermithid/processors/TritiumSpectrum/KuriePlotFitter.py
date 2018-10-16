@@ -6,7 +6,7 @@ Date: Oct 16 2018
 
 from __future__ import absolute_import
 
-from ROOT import TGraphErrors, TF1, TH1F
+from ROOT import TGraphErrors, TF1
 
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
