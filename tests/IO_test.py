@@ -15,10 +15,10 @@ class IOTests(unittest.TestCase):
         from mermithid.processors.IO import IOCicadaProcessor
         reader_config = {
             "action": "read",
-            "filename": "events_rid000001097_000000000_to_000000014.root",
+            "filename": "events_000007031_katydid_v2.13.0_concat.root",
             "object_type": "TMultiTrackEventData",
             "object_name": "multiTrackEvents:Event",
-            "use_katydid": True,
+            "use_katydid": False,
             "variables": ['StartTimeInAcq','StartFrequency']
         }
         b = IOCicadaProcessor("reader")
@@ -28,7 +28,7 @@ class IOTests(unittest.TestCase):
         logger.info("Data extracted = {}".format(data.keys()))
         for key in data.keys():
             logger.info("{} -> size = {}".format(key,len(data[key])))
-            self.assertEqual(len(data[key]),22)
+            self.assertEqual(len(data[key]),320)
 
 if __name__ == '__main__':
     unittest.main()
