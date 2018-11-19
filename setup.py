@@ -19,18 +19,18 @@ except Exception as err:
 on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 
 # Change tag and version number below
-MORPHO_TAG = "v2.1.4"
-MORPHO_HASH = '940e68ce180df6ae40bdfd142380103bb4fe8fac'
+MORPHO_TAG = "v2.3.0"
+MORPHO_HASH = 'b10aeec41d9f36311d00318240bdf9c5fdf86d65'
 
 # Don't touch below
 MORPHO_VERSION='{}-0-g{}'.format(MORPHO_TAG,MORPHO_HASH[:7])
-MORPHO_DEP_LINK = 'git+https://github.com/project8/morpho.git@{0}#egg=morpho-{1}'.format(MORPHO_HASH,MORPHO_VERSION)
+MORPHO_DEP_LINK = 'git+https://github.com/morphoorg/morpho.git@{0}#egg=morpho-{1}'.format(MORPHO_HASH,MORPHO_VERSION)
 MORPHO_REQ = "morpho=={0}".format(MORPHO_VERSION)
 
 requirements = []
 extras_require = {
-    'core':['colorlog',MORPHO_REQ],
-    'doc': ['sphinx','sphinx_rtd_theme','sphinxcontrib-programoutput']
+    'core':['colorlog', MORPHO_REQ],
+    'doc': ['sphinx','sphinx_rtd_theme','sphinxcontrib-programoutput', 'six', 'colorlog', MORPHO_REQ]
 }
 dep_links = {
     MORPHO_DEP_LINK
@@ -50,7 +50,7 @@ extras_require['all'] = everything
 setup(
     name='mermithid',
     version=verstr,
-    description="An Project 8 extension to morpho",
+    description="A Project 8 extension to morpho",
     packages=find_packages(),
     install_requires=requirements,
     extras_require=extras_require,

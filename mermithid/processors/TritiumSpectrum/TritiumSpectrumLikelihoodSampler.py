@@ -1,9 +1,22 @@
-import PhylloxeraPy
-PhylloxeraPy.loadLibraries(True)
-import ROOT
+'''
+Fit Tritium spectrum
+Author: M. Guigue
+Date: Mar 30 2018
+'''
+try:
+    import ROOT
+except ImportError:
+    pass
 
 from morpho.utilities import morphologging, reader
 logger = morphologging.getLogger(__name__)
+
+try:
+    import PhylloxeraPy
+    PhylloxeraPy.loadLibraries(True)
+except ImportError:
+    logger.warning("Cannot import PhylloxeraPy")
+    pass
 
 from morpho.processors.sampling import RooFitLikelihoodSampler
 from mermithid.misc import Constants
@@ -11,6 +24,10 @@ from mermithid.misc import Constants
 class TritiumSpectrumLikelihoodSampler(RooFitLikelihoodSampler):
 
     def InternalConfigure(self,config_dict):
+        '''
+        Args:
+            null_neutrino_mass (bool): set the neutrino mass to zero during fit
+        '''
         super().InternalConfigure(config_dict)
         self.null_m_nu = reader.read_param(config_dict,"null_neutrino_mass",False)
         return True
@@ -26,9 +43,9 @@ class TritiumSpectrumLikelihoodSampler(RooFitLikelihoodSampler):
 
         # Variables required by this model
         if self.null_m_nu:
-            m_nu = ROOT.RooRealVar("m_nu","m_nu",0.) 
+            m_nu = ROOT.RooRealVar("m_nu","m_nu",0.)
         else:
-            m_nu = ROOT.RooRealVar("m_nu","m_nu",0.,-300.,300.) 
+            m_nu = ROOT.RooRealVar("m_nu","m_nu",0.,-300.,300.)
         endpoint = ROOT.RooRealVar("endpoint", "endpoint", Constants.tritium_endpoint(),
                                                            Constants.tritium_endpoint()-10.,
                                                            Constants.tritium_endpoint()+10.)
@@ -48,12 +65,12 @@ class TritiumSpectrumLikelihoodSampler(RooFitLikelihoodSampler):
 
         pdffactory = ROOT.PdfFactory("myPdfFactory")
 
-  
+
         # Background addition
         background = ROOT.RooUniform("background","background",ROOT.RooArgSet(var))
 
         # PDF of the model:
-        # this should have "pdf" as name 
+        # this should have "pdf" as name
         # pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)("pdf",var,spectrum,NEvents,NBkgd)
         if "smearing" in self.options and self.options["smearing"]:
                     # Define PdfFactory to add background and smearing
@@ -62,21 +79,21 @@ class TritiumSpectrumLikelihoodSampler(RooFitLikelihoodSampler):
             gauss = ROOT.RooGaussian("gauss","gauss",var,meanSmearing,widthSmearing)
             # priorSmearing = ROOT.RooGaussian("priorSmearing","priorSmearing",widthSmearing,ROOT.RooFit.RooConst(1.),ROOT.RooFit.RooConst(1.))
             smearedspectrum = pdffactory.GetSmearedPdf(ROOT.RealTritiumSpectrum)("smearedspectrum", 2, var, spectrum, meanSmearing, widthSmearing,100000)
-        
+
             pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)("pdf",var,smearedspectrum,NEvents,NBkgd)
         else:
             pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)("pdf",var,spectrum,NEvents,NBkgd)
-            
+
         # pdf = ROOT.RooProdPdf("pdf","pdf",total_spectrum,priorSmearing)
 
 
         # pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)("pdf",var,smearedspectrum,NEvents,NBkgd)
-        
+
         # can = ROOT.TCanvas("can","can",600,400)
         # frame = var.frame()
         # totalSpectrum.plotOn(frame)
         # frame.Draw()
-        # can.SaveAs("plots/model.pdf") 
+        # can.SaveAs("plots/model.pdf")
 
         # Save pdf: this will save all required variables and functions
         getattr(wspace,'import')(pdf)

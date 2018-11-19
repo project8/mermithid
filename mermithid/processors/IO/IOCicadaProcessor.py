@@ -8,8 +8,10 @@ from morpho.processors.IO import IOProcessor
 from morpho.utilities import reader, morphologging
 logger = morphologging.getLogger(__name__)
 
-from ROOT import TFile, TTreeReader, TTreeReaderValue
-
+try:
+    from ROOT import TFile, TTreeReader, TTreeReaderValue
+except ImportError:
+    pass
 
 class IOCicadaProcessor(IOProcessor):
     '''
@@ -17,6 +19,12 @@ class IOCicadaProcessor(IOProcessor):
     '''
 
     def InternalConfigure(self,params):
+        '''
+        Args:
+            object_type: class of the object to read in the file
+            object_name: name of the tree followed by the name of the object
+            use_katydid: retro-compatibility to Katydid namespace
+        '''
         super().InternalConfigure(params)
         self.object_type = reader.read_param(params,"object_type","TMultiTrackEventData")
         self.object_name = reader.read_param(params,"object_name","multiTrackEvents:Event")
@@ -25,12 +33,15 @@ class IOCicadaProcessor(IOProcessor):
 
     def Reader(self):
         '''
+        Reader method
         '''
         logger.debug("Reading {}".format(self.file_name))
-        from ReadKTOutputFile import ReadKTOutputFile
+        try:
+            from ReadKTOutputFile import ReadKTOutputFile
+        except ImportError:
+            logger.warn("Cannot import ReadKTOutputFile")
         self.data = ReadKTOutputFile(self.file_name,self.variables,katydid=self.use_katydid,objectType=self.object_type,name=self.object_name)
         return True
-        
 
     def Writer(self):
         '''

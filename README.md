@@ -1,15 +1,18 @@
 # mermithid
 
-Mermithid is an extension of morpho that contains processors specific to Project 8 analysis, spectrum fitting and plotting.
+[![DOI](https://zenodo.org/badge/122257399.svg)](https://zenodo.org/badge/latestdoi/122257399)
+[![Documentation Status](https://readthedocs.org/projects/mermithid/badge/?version=latest)](https://mermithid.readthedocs.io/en/latest/?badge=latest)
+
+Mermithid is an extension of [morpho](https://github.com/morphoorg/morpho) that contains processors specific to Project 8 analysis, spectrum fitting and plotting.
 
 
 ## Requirements
 
 You will need to install via a package manager (such as apt-get):
-  * python (2.7.x; 3.x)
+  * python (3.x; 2.7.x support not guaranteed)
   * python-pip
   * git
-  * ROOT (Cern)
+  * ROOT (Cern) with pyROOT
 
 ## Installation
 
@@ -45,6 +48,7 @@ You will need to install via a package manager (such as apt-get):
   1. Inside the morpho folder, execute ```docker-compose run mermithid```.
   The container prompter should appear at the end of the installation.
   A directory (```mermithid_share```) should be created in your home and mounted under the ```/host``` folder: you can modify this by editing the docker-compose file.
+  Once inside the container, run `source /setup.sh` to be able to access morpho and mermithid libraries.
   1. When reinstalling, you can remove the image using ```docker rmi mermithid_mermithid```
 
 ## Quick start and examples

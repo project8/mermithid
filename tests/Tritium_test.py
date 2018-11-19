@@ -12,8 +12,7 @@ logger = morphologging.getLogger(__name__)
 class TritiumTests(unittest.TestCase):
     
     def test_KuriePlot(self):
-        from mermithid.processors.TritiumSpectrum import TritiumSpectrumGenerator
-        from mermithid.processors.plots import KuriePlotGeneratorProcessor
+        from mermithid.processors.TritiumSpectrum import TritiumSpectrumGenerator, KuriePlotFitter
         from morpho.processors.plots import Histogram
         from mermithid.misc.Constants import seconds_per_year, tritium_endpoint
 
@@ -28,19 +27,19 @@ class TritiumTests(unittest.TestCase):
             "energy_resolution": 5# [eV]
         }
         histo_plot = {
-            "data": "KE",
+            "variables": "KE",
             "n_bins_x": 100,
             "title": "spectrum"
         }
         kurie_plot = {
-            "data": "KE",
+            "variables": "KE",
             "n_bins_x": 1000,
             "title": "kurie_plot"
         }
 
         specGen = TritiumSpectrumGenerator("specGen")
         histo = Histogram("histo")
-        kurieHisto = KuriePlotGeneratorProcessor("kurieHisto")
+        kurieHisto = KuriePlotFitter("kurieHisto")
 
         specGen.Configure(specGen_config)
         histo.Configure(histo_plot)
