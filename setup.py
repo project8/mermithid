@@ -19,8 +19,8 @@ except Exception as err:
 on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 
 # Change tag and version number below
-MORPHO_TAG = "v2.2.1"
-MORPHO_HASH = 'bf3fe47c1d85531778d944457b41475ed163e653'
+MORPHO_TAG = "v2.3.0"
+MORPHO_HASH = 'b10aeec41d9f36311d00318240bdf9c5fdf86d65'
 
 # Don't touch below
 MORPHO_VERSION='{}-0-g{}'.format(MORPHO_TAG,MORPHO_HASH[:7])
