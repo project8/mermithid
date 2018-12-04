@@ -31,11 +31,11 @@ RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
     mkdir build &&\
     cd build &&\
     cmake -D CMAKE_BUILD_TYPE=$MERMITHID_BUILD_TYPE \
-          -D CMAKE_INSTALL_PREFIX:PATH=$MERMITHID_BUILD_PREFIX \
-          -D CMAKE_SKIP_INSTALL_RPATH:BOOL=True .. &&\
+    -D CMAKE_INSTALL_PREFIX:PATH=$MERMITHID_BUILD_PREFIX \
+    -D CMAKE_SKIP_INSTALL_RPATH:BOOL=True .. &&\
     cmake -D CMAKE_BUILD_TYPE=$MERMITHID_BUILD_TYPE \
-          -D CMAKE_INSTALL_PREFIX:PATH=$MERMITHID_BUILD_PREFIX \
-          -D CMAKE_SKIP_INSTALL_RPATH:BOOL=True .. &&\
+    -D CMAKE_INSTALL_PREFIX:PATH=$MERMITHID_BUILD_PREFIX \
+    -D CMAKE_SKIP_INSTALL_RPATH:BOOL=True .. &&\
     make -j3 install &&\
     /bin/true
 
@@ -44,7 +44,18 @@ FROM mermithid_common
 
 COPY --from=mermithid_done $MERMITHID_BUILD_PREFIX $MERMITHID_BUILD_PREFIX
 
+# RUN mkdir /tmp_install &&\
+#     cd /tmp_install &&\
+#     git clone https://github.com/project8/mermithid &&\
+#     cd mermithid &&\
+#     git fetch && git fetch --tags &&\
+#     git checkout $MERMITHID_TAG &&\
+#     git submodule update --init --recursive &&\
+#     source $MERMITHID_BUILD_PREFIX/setup.sh &&\
+#     pip3 install . --process-dependency-links &&\
+#     cd / &&\
+#     rm /tmp_install &&\
+#     morpho --help
+
 RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
-    cd $MERMITHID_BUILD_PREFIX &&\
-    pip3 install . --process-dependency-links
-    
+    pip3 install git+git://github.com/project8/mermithid.git --process-dependency-links
