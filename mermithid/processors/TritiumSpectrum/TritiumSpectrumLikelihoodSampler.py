@@ -18,10 +18,10 @@ except ImportError:
     logger.warning("Cannot import PhylloxeraPy")
     pass
 
-from morpho.processors.sampling import RooFitLikelihoodSampler
+from morpho.processors.sampling import RooFitInterfaceProcessor
 from mermithid.misc import Constants
 
-class TritiumSpectrumLikelihoodSampler(RooFitLikelihoodSampler):
+class TritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
 
     def InternalConfigure(self,config_dict):
         '''

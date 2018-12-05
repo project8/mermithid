@@ -4,6 +4,20 @@ Validation Log
 Log
 ---
 
+
+Version: v1.1.1
+~~~~~~~~~~~~~~~
+
+Release Date: Wed Dec 5 2018
+''''''''''''''''''''''''''''
+
+
+Fixes:
+'''''''''''''
+
+* Changing base processor for TritiumLikelihoodSampler
+* Upgrade of docker image build
+
 Version: v1.1.0
 ~~~~~~~~~~~~~~~
 
