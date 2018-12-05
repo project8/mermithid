@@ -4,13 +4,22 @@ Validation Log
 Log
 ---
 
+Version: v1.1.2
+~~~~~~~~~~~~~~~
+
+Release Date: Wed Dec 5 2018
+''''''''''''''''''''''''''''
+
+New features:
+'''''''''''''
+
+* Update to Phylloxera v1.2.3
 
 Version: v1.1.1
 ~~~~~~~~~~~~~~~
 
 Release Date: Wed Dec 5 2018
 ''''''''''''''''''''''''''''
-
 
 Fixes:
 '''''''''''''
