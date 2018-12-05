@@ -5,11 +5,11 @@ Log
 ---
 
 
-Version: 
+Version: v1.1.1
 ~~~~~~~~~~~~~~~
 
-Release Date: 
-'''''''''''''''''''''''''''''
+Release Date: Wed Dec 5 2018
+''''''''''''''''''''''''''''
 
 
 Fixes:
