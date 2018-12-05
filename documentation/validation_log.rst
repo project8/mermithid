@@ -4,6 +4,20 @@ Validation Log
 Log
 ---
 
+
+Version: 
+~~~~~~~~~~~~~~~
+
+Release Date: 
+'''''''''''''''''''''''''''''
+
+
+Fixes:
+'''''''''''''
+
+* Changing base processor for TritiumLikelihoodSampler
+* Upgrade of docker image build
+
 Version: v1.1.0
 ~~~~~~~~~~~~~~~
 
