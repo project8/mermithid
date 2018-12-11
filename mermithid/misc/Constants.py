@@ -3,6 +3,7 @@ Some constants useful for various things...
 '''
 
 def m_electron(): return  510998.910			# Electron mass in eV
+def e(): return 1.6021766208e-19                # Electron charge
 def hbar(): return 6.582119514e-16               # Reduced Planck's constant in eV*s
 def c() : return  299792458.			   	   	 	# Speed of light in m/s
 def hbarc(): return hbar() * c()						# hbar * c

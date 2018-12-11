@@ -15,6 +15,9 @@ class TritiumTests(unittest.TestCase):
         from mermithid.processors.TritiumSpectrum import TritiumSpectrumLikelihoodSampler, KuriePlotFitter
         from morpho.processors.plots import Histogram
         from mermithid.misc.Constants import seconds_per_year, tritium_endpoint
+        import importlib.machinery
+        modulename = importlib.machinery.SourceFileLoader('modulename','/host-mermithid/mermithid/processors/TritiumSpectrum/TritiumSpectrumLikelihoodSampler.py').load_module()
+        from modulename import TritiumSpectrumLikelihoodSampler
 
         specGen_config = {
             "volume": 7e-6*1e-2, # [m3]
@@ -25,15 +28,19 @@ class TritiumTests(unittest.TestCase):
             # "energy_window": [0.,tritium_endpoint()+1e3], # [KEmin,KEmax]
             "background": 1e-6, # [counts/eV/s]
             "energy_resolution": 5,# [eV]
-            "mode": "generate"
+            "mode": "generate",
+            "varName": "F",
+            "iter": 10,
+            "interestParams": ["F"],
+            "fixedParams": {"m_nu": 0}
         }
         histo_plot = {
-            "variables": "KE",
+            "variables": "F",
             "n_bins_x": 100,
             "title": "spectrum"
         }
         kurie_plot = {
-            "variables": "KE",
+            "variables": "F",
             "n_bins_x": 1000,
             "title": "kurie_plot"
         }
@@ -47,9 +54,9 @@ class TritiumTests(unittest.TestCase):
         kurieHisto.Configure(kurie_plot)
 
 
-        specGen.definePdf()
+        #specGen.definePdf()
         specGen.Run()
-        result = specGen.results
+        result = specGen.data
         histo.data = result
         kurieHisto.data = result
         histo.Run()
