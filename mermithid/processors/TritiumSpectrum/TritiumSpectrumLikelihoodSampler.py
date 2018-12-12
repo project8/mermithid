@@ -21,6 +21,8 @@ except ImportError:
 from morpho.processors.sampling import RooFitInterfaceProcessor
 from mermithid.misc import Constants
 
+
+
 class TritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
 
     def InternalConfigure(self,config_dict):
@@ -38,6 +40,9 @@ class TritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
         self.frequency_resolution = reader.read_param(config_dict, "frequency_resolution", 0)
         self.energy_or_frequency = reader.read_param(config_dict, "energy_or_frequency", "frequency")
         self.B = reader.read_param(config_dict, "B-field-strength", 0.95777194923080811)
+        self.snr_eff_coeff = reader.read_param(config_dict, "snr_efficiency_coefficients", [0.1, 0, 0, 0])
+        self.channel_eff_coeff = reader.read_param(config_dict, "channel_efficiency_coefficients", [24587.645303008387, 7645.8567999493698, 24507.145055859062, -11581.288750763715, 0.98587787287591955])
+        self.channel_cf = reader.read_param(config_dict, "channel_central_frequency", 1378e6)
         return True
 
 
@@ -89,17 +94,21 @@ class TritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
             spectrum = ROOT.RealTritiumSpectrum("spectrum","spectrum",var,endpoint,m_nu)
         else:
             B = ROOT.RooRealVar("B", "B", self.B)
-            p0 = ROOT.RooRealVar("p0", "p0", 1.)
-            p1 = ROOT.RooRealVar("p1", "p1", 0.)
-            eff_coeff = ROOT.RooArgList(p0, p1, var)
-            eff_coeff.Print()
-            efficiency = ROOT.RooFormulaVar("efficiency", "efficiency", "@0 + @1*TMath::Power(@2,1)", eff_coeff)
-            efficiency.Print()
-            print(efficiency.evaluate())
 
-            spectrum = ROOT.RealTritiumFrequencySpectrum("spectrum","spectrum",var, B, endpoint,m_nu)
-            spectrum.SetEfficiencyCoefficients(p0, p1, var)
+
+
+            shapePdf = ROOT.RealTritiumFrequencySpectrum("shapePdf","shapePdf",var, B, endpoint,m_nu)
+            #spectrum.SetEfficiencyCoefficients(eff_coeff)
             print("Generated frequency spectrum")
+
+            ## Acceptance state cut (1 or 0)
+            #cut = ROOT.RooCategory("cut", "cutr")
+            #cut.defineType("reject", 0);
+            #cut.defineType("accept", 1)
+            #effPdf = ROOT.RooEfficiency("effPdf","effPdf",effFunc,cut,"accept")
+            #spectrum = ROOT.RooProdPdf("spectrum", "spectrum", ROOT.RooArgSet(shapePdf), ROOT.RooFit.Conditional(ROOT.RooArgSet(effPdf), ROOT.RooArgSet(cut)))
+
+
 
 
         pdffactory = ROOT.PdfFactory("myPdfFactory")
@@ -117,17 +126,48 @@ class TritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
 
             # Spectrum smearing
             gauss = ROOT.RooGaussian("gauss","gauss",var,meanSmearing,widthSmearing)
-            # priorSmearing = ROOT.RooGaussian("priorSmearing","priorSmearing",widthSmearing,ROOT.RooFit.RooConst(1.),ROOT.RooFit.RooConst(1.))
-            smearedspectrum = pdffactory.GetSmearedPdf(ROOT.RealTritiumSpectrum)("smearedspectrum", 2, var, spectrum, meanSmearing, widthSmearing,100000)
-
+            smearedspectrum = pdffactory.GetSmearedPdf(ROOT.RealTritiumSpectrum)("smearedspectrum", 2, var, shapePdf, meanSmearing, widthSmearing,100000)
             pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)("pdf",var,smearedspectrum,NEvents,NBkgd)
+
+
+        elif "snr_efficiency" in self.options and self.options["snr_efficiency"]:
+            print("Appyling efficiency")
+            print(self.snr_eff_coeff)
+            # Spectrum distortion
+            p0 = ROOT.RooRealVar("p0", "p0", self.snr_eff_coeff[0])
+            p1 = ROOT.RooRealVar("p1", "p1", self.snr_eff_coeff[1])
+            p2 = ROOT.RooRealVar("p2", "p2", self.snr_eff_coeff[2])
+            p3 = ROOT.RooRealVar("p3", "p3", self.snr_eff_coeff[3])
+            eff_coeff = ROOT.RooArgList(var, p0, p1, p2, p3)
+
+            effFunc = ROOT.RooFormulaVar("efficiency", "efficiency", "p0 + p1*TMath::Power(@0,1) + p2*TMath::Power(@0,2) + p3*TMath::Power(@0,3)", eff_coeff)
+            distortedSpectrum = ROOT.RooEffProd("distortedSpectrum", "distortedSpectrum", shapePdf, effFunc)
+
+
+            if "channel_efficiency" in self.options and self.options["channel_efficiency"]:
+                print(self.channel_eff_coeff)
+                print(self.channel_cf*1e-6)
+                c0 = ROOT.RooRealVar("c0", "c0", self.channel_eff_coeff[0])
+                c1 = ROOT.RooRealVar("c1", "c1", self.channel_eff_coeff[1])
+                c2 = ROOT.RooRealVar("c2", "c2", self.channel_eff_coeff[2])
+                c3 = ROOT.RooRealVar("c3", "c3", self.channel_eff_coeff[3])
+                c4 = ROOT.RooRealVar("c4", "c4", self.channel_eff_coeff[4])
+                cf = ROOT.RooRealVar("cf", "cf", self.channel_cf*1e-6-50)
+
+
+                channel_eff_coeff = ROOT.RooArgList(var, c0, c1, c2, c3, c4, cf)
+
+                # filter = args[4] * np.sqrt(1/(1 + 1*(x/args[0])**args[1]))* np.sqrt(1/(1 + 1*(x/args[2])**args[3]))
+                # x is Frequency in channel in MHz: (@0*TMath::Power(10, -6)-cf)
+                channelEffFunc = ROOT.RooFormulaVar("channel_efficiency", "channel_efficiency", "c4 * TMath::Sqrt(1/(1 + 1*TMath::Power((@0*TMath::Power(10, -6)-cf)/c0, c1)))* TMath::Sqrt(1/(1 + TMath::Power((@0*TMath::Power(10, -6)-cf)/c2, c3)))", channel_eff_coeff)
+                superDistortedSpectrum = ROOT.RooEffProd("superDistortedSpectrum", "superDistortedSpectrum", distortedSpectrum, channelEffFunc)
+                pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)("pdf",var,superDistortedSpectrum,NEvents,NBkgd)
+            else:
+                pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)("pdf",var,distortedSpectrum,NEvents,NBkgd)
         else:
-            pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)("pdf",var,spectrum,NEvents,NBkgd)
-
-        # pdf = ROOT.RooProdPdf("pdf","pdf",total_spectrum,priorSmearing)
+            pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)("pdf",var,shapePdf,NEvents,NBkgd)
 
 
-        # pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)("pdf",var,smearedspectrum,NEvents,NBkgd)
 
         # can = ROOT.TCanvas("can","can",600,400)
         # frame = var.frame()
@@ -187,7 +227,6 @@ class TritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
             B = 0.95777194923080811
         emass = Constants.m_electron()
         emass_kg = Constants.m_electron() * Constants.e()/Constants.c()**2
-        print(E, emass)
         gamma = E/(emass)+1
         #return e*B*c**2/(E*e+E0*e)*(1+1/np.tan(Theta)**2/2)/(2*m.pi)
         return (Constants.e()*B)/(2.0*3.141592653589793*emass_kg) * 1/gamma
