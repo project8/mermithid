@@ -7,11 +7,12 @@ ENV MERMITHID_TAG=v1.1.4
 ENV MERMITHID_BUILD_PREFIX=/usr/local/p8/mermithid/$MERMITHID_TAG
 
 RUN mkdir -p $MERMITHID_BUILD_PREFIX &&\
+    chmod -R 777 $MERMITHID_BUILD_PREFIX/.. &&\
     cd $MERMITHID_BUILD_PREFIX &&\
     echo "source ${COMMON_BUILD_PREFIX}/setup.sh" > setup.sh &&\
     echo "export MERMITHID_TAG=${MERMITHID_TAG}" >> setup.sh &&\
     echo "export MERMITHID_BUILD_PREFIX=${MERMITHID_BUILD_PREFIX}" >> setup.sh &&\
-    echo 'ln -sf $MERMITHID_BUILD_PREFIX $MERMITHID_BUILD_PREFIX/../current' >> setup.sh &&\
+    echo 'ln -sfT $MERMITHID_BUILD_PREFIX $MERMITHID_BUILD_PREFIX/../current' >> setup.sh &&\
     echo 'export PATH=$MERMITHID_BUILD_PREFIX/bin:$PATH' >> setup.sh &&\
     echo 'export LD_LIBRARY_PATH=$MERMITHID_BUILD_PREFIX/lib:$LD_LIBRARY_PATH' >> setup.sh &&\
     echo 'export PYTHONPATH=$MERMITHID_BUILD_PREFIX/$(python -m site --user-site | sed "s%$(python -m site --user-base)%%"):$PYTHONPATH' >> setup.sh &&\
