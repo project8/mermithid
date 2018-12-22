@@ -4,6 +4,17 @@ Validation Log
 Log
 ---
 
+Version: v1.1.5
+~~~~~~~~~~~~~~~
+
+Release Date: Wed Dec 21 2018
+'''''''''''''''''''''''''''''
+
+New features:
+'''''''''''''
+
+* Update Dockerfile
+
 Version: v1.1.4
 ~~~~~~~~~~~~~~~
 
