@@ -4,6 +4,17 @@ Validation Log
 Log
 ---
 
+Version: v1.1.6
+~~~~~~~~~~~~~~~
+
+Release Date: Mon Feb 11 2019
+'''''''''''''''''''''''''''''
+
+New features:
+'''''''''''''
+
+* Update docker-compose.yaml
+
 Version: v1.1.5
 ~~~~~~~~~~~~~~~
 
