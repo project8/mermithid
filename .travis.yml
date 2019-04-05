@@ -2,6 +2,7 @@ language: ruby
 services:
 - docker
 script:
+- pwd
 - docker build -t mermithid .
 - docker run -v /home/travis/build/project8/mermithid:/mermithid mermithid /bin/sh -c "source /usr/local/p8/mermithid/v1.1.7/setup.sh;\
   source /usr/local/p8/mermithid/v1.1.7/bin/this_phylloxera.sh; \
