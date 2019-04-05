@@ -4,6 +4,18 @@ Validation Log
 Log
 ---
 
+Version: v1.1.7
+~~~~~~~~~~~~~~~
+
+Release Date: Thur Apr 4 2019
+'''''''''''''''''''''''''''''
+
+New features:
+'''''''''''''
+
+* Morpho update to v2.3.1
+* Cicada update to v1.3.3
+
 Version: v1.1.6
 ~~~~~~~~~~~~~~~
 
