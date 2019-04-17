@@ -4,7 +4,7 @@ services:
 script:
 - pwd
 - docker build -t mermithid .
-- docker run --rm -it mermithid /bin/sh -c "source \$MERMITHID_BUILD_PREFIX/setup.sh; source \$MERMITHID_BUILD_PREFIX/bin/this_phylloxera.sh; source \$MERMITHID_BUILD_PREFIX/bin/this_cicada.sh; cd \$MERMITHID_BUILD_PREFIX; pwd; ls; cd tests; bash test.sh"
+- docker run --rm -it mermithid /bin/bash -c "source \$MERMITHID_BUILD_PREFIX/setup.sh; source \$MERMITHID_BUILD_PREFIX/bin/this_phylloxera.sh; source \$MERMITHID_BUILD_PREFIX/bin/this_cicada.sh; cd \$MERMITHID_BUILD_PREFIX; pwd; ls; cd tests; ls; bash test.sh"
 notifications:
   slack:
     secure: rDOa4kja0Q+8abRXFkwrlPKlCyDmN5tUmpaei4TUciHyzVgSzn3ick2UvrogYAG4KJTn8101F2hqQ9qi1juvuhi8Nlkqx/8YaW6RlUz+BTbUM3YxIqNUtf5WRNxxx6NaI3zkAPfzv+tifVyrSdAwcT4MEB4Ys03umKMP257g2gMZ13l2KjyYo9IBwt5kqD24pT7lyy1a557aCz5aU8PvbLW5bBx8ByS5cAURBpfIyIxzDG6EJNt70Ydpxn1K2FxVMgng4xfPTqlbSOYw+1XUzdfK9vxn/n0yCQikTuK6hD4ddDywhRm5HzWgy1GzufrlgHqst1J4BvQH0Ker7KsL+SQqYPqFa97kyyOLfrboB2IVoPYaKfs85097zE+nAK+3Q7/ydYYZT7tg+A8ULXhpRhQqUN2olFoyoBAB+Gxw+8ukboRqsNcSRRbfyvDKb3/NLfe4jQBV+Di+DsstLdIF3KI8fsovzbXXLw+M1cc71fGKtQJPK42KYBYa3XQJgDjpkk0Jvjum+mT/2tLoiTUOnXIy2fcWqlUbICbT3oXMIEH5Wg/ZRIaIzxBFWWzoRzy2EbBf87xouyyv+IcwWH80knQ8pRNVRUvL/KVNd9qhLldpLMV94gJo6MJBD6XGvMZPvI6f/Q8mhYR8KN4oJW9FZniWwrqAIjKsIIWmoA3XtUY=
