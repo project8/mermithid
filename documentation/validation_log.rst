@@ -4,6 +4,17 @@ Validation Log
 Log
 ---
 
+Version: v1.1.8
+~~~~~~~~~~~~~~~
+
+Release Date: Thur Apr 18 2019
+'''''''''''''''''''''''''''''
+
+New features:
+'''''''''''''
+
+* Morpho update to v2.3.2
+
 Version: v1.1.7
 ~~~~~~~~~~~~~~~
 
