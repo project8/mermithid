@@ -1,7 +1,7 @@
-FROM project8/p8compute_dependencies:v0.5.0 as mermithid_common
+FROM project8/p8compute_dependencies:v0.4.0 as mermithid_common
 
 ARG build_type=Release
-ENV MERMITHOD_BUILD_TYPE=$build_type
+ENV MERMITHID_BUILD_TYPE=$build_type
 
 ENV MERMITHID_TAG=v1.1.7
 ENV MERMITHID_BUILD_PREFIX=/usr/local/p8/mermithid/$MERMITHID_TAG
