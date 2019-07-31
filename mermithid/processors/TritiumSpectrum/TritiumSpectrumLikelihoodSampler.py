@@ -20,6 +20,7 @@ except ImportError:
 
 from morpho.processors.sampling import RooFitInterfaceProcessor
 from mermithid.misc import Constants
+from ROOT import TMath
 
 
 
@@ -42,9 +43,9 @@ class TritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
         self.B = reader.read_param(config_dict, "B-field-strength", 0.95777194923080811)
         self.snr_eff_coeff = reader.read_param(config_dict, "snr_efficiency_coefficients", [0.1, 0, 0, 0])
         self.channel_eff_coeff = reader.read_param(config_dict, "channel_efficiency_coefficients", [24587.645303008387, 7645.8567999493698, 24507.145055859062, -11581.288750763715, 0.98587787287591955])
-        self.channel_cf = reader.read_param(config_dict, "channel_central_frequency", 1378e6)
+        self.channel_cf = reader.read_param(config_dict, "channel_central_frequency", 1000e6)
         self.mix_frequency = reader.read_param(config_dict, "mixing_frequency", 24.5e9)
-        self.Fmin, self.Fmax = [self.mix_frequency + self.channel_cf - self.Fwindow[0] - 50e6, self.mix_frequency + self.channel_cf + self.Fwindow[1]]
+        self.Fmin, self.Fmax = [self.mix_frequency + self.channel_cf + self.Fwindow[0] , self.mix_frequency + self.channel_cf + self.Fwindow[1]]
         return True
 
 
@@ -204,16 +205,26 @@ class TritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
             argSet.add(wspace.var(name))
         return argSet
         """
-    def Frequency(self, E, B=None, Theta=None):
+    def Frequency(self, E, B=None):
         print("Calculate frequency from energy")
-        if Theta==None:
-            Theta=3.141592653589793/2
-        e = Constants.e()
-        c = Constants.c()
         if B == None:
-            B = 0.95777194923080811
+            B = self.B
         emass = Constants.m_electron()
         emass_kg = Constants.m_electron() * Constants.e()/Constants.c()**2
         gamma = E/(emass)+1
         #return e*B*c**2/(E*e+E0*e)*(1+1/np.tan(Theta)**2/2)/(2*m.pi)
         return (Constants.e()*B)/(2.0*3.141592653589793*emass_kg) * 1/gamma
+
+    def Energy(self, F, B=None, Theta=None):
+        #print(type(F))
+        if B==None:
+            B = self.B
+        emass_kg = Constants.m_electron()*Constants.e()/(Constants.c()**2)
+        if isinstance(F, list):
+            gamma = [(Constants.e()*B)/(2.0*TMath.Pi()*emass_kg) * 1/(f) for f in F]
+            return [(g -1)*Constants.m_electron() for g in gamma]
+        else:
+            gamma = (Constants.e()*B)/(2.0*TMath.Pi()*emass_kg) * 1/(f)
+            return (gamma -1)*Constants.m_electron()
+        #shallow trap 0.959012745568
+        #deep trap 0.95777194923080811
