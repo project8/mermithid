@@ -52,6 +52,15 @@ You will need to install via a package manager (such as apt-get):
   
 ### Running mermithid
 
+In both cases, you need to set the paths right for using these software.
+For example in the docker container:
+
+```bash
+   source $MERMITHID_PREFIX_BUILD/setup.sh
+   source $MERMITHID_PREFIX_BUILD/bin/this_cicada.sh
+   source $MERMITHID_PREFIX_BUILD/bin/this_phylloxera.sh
+```
+
 ## Quick start and examples
 
   Mermithid works a-la morpho, where the operations on data are defined using processors.
