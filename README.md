@@ -49,6 +49,17 @@ You will need to install via a package manager (such as apt-get):
   The container prompter should appear at the end of the installation.
   A directory (```mermithid_share```) should be created in your home and mounted under the ```/host``` folder: you can modify this by editing the docker-compose file.
   1. When reinstalling, you can remove the image using ```docker rmi mermithid_mermithid```
+  
+### Running mermithid
+
+In both cases, you need to set the paths right for using these software.
+For example in the docker container:
+
+```bash
+   source $MERMITHID_PREFIX_BUILD/setup.sh
+   source $MERMITHID_PREFIX_BUILD/bin/this_cicada.sh
+   source $MERMITHID_PREFIX_BUILD/bin/this_phylloxera.sh
+```
 
 ## Quick start and examples
 

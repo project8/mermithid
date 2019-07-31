@@ -54,7 +54,7 @@ def run_apidoc(_):
     """Generage API documentation"""
     import better_apidoc
     better_apidoc.main(
-        ['better-apidoc', '-t', './_templates', '--force',
+        ['better-apidoc', '-t', './_templates', '--force', '--no-toc',
          '--separate', '-o', 'better_apidoc_out', '../mermithid'])
 
 
