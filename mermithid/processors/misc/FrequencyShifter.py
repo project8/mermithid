@@ -6,7 +6,10 @@ Date: 10/11/18
 
 from __future__ import absolute_import
 
-import numpy as np
+try:
+    import numpy as np
+except ImportError:
+    pass
 
 from morpho.processors import BaseProcessor
 from morpho.utilities import morphologging, reader
