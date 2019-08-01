@@ -41,7 +41,7 @@ class TritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
         self.frequency_resolution = reader.read_param(config_dict, "frequency_resolution", 0)
         self.energy_or_frequency = reader.read_param(config_dict, "energy_or_frequency", "frequency")
         self.B = reader.read_param(config_dict, "B-field-strength", 0.95777194923080811)
-        self.snr_eff_coeff = reader.read_param(config_dict, "snr_efficiency_coefficients", [0.1, 0, 0, 0])
+        self.snr_eff_coeff = reader.read_param(config_dict, "snr_efficiency_coefficients", [0.1, 0, 0, 0, 0, 0])
         self.channel_eff_coeff = reader.read_param(config_dict, "channel_efficiency_coefficients", [24587.645303008387, 7645.8567999493698, 24507.145055859062, -11581.288750763715, 0.98587787287591955])
         self.channel_cf = reader.read_param(config_dict, "channel_central_frequency", 1000e6)
         self.mix_frequency = reader.read_param(config_dict, "mixing_frequency", 24.5e9)
@@ -120,13 +120,16 @@ class TritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
             logger.info("Appyling SNR efficiency")
 
             # Spectrum distortion
+            mif_freq = ROOT.RooRealVar("mf", "mf", self.mix_frequency)
             p0 = ROOT.RooRealVar("p0", "p0", self.snr_eff_coeff[0])
             p1 = ROOT.RooRealVar("p1", "p1", self.snr_eff_coeff[1])
             p2 = ROOT.RooRealVar("p2", "p2", self.snr_eff_coeff[2])
             p3 = ROOT.RooRealVar("p3", "p3", self.snr_eff_coeff[3])
-            eff_coeff = ROOT.RooArgList(var, p0, p1, p2, p3)
+            p4 = ROOT.RooRealVar("p4", "p4", self.snr_eff_coeff[4])
+            p5 = ROOT.RooRealVar("p5", "p5", self.snr_eff_coeff[5])
+            eff_coeff = ROOT.RooArgList(var, mif_freq, p0, p1, p2, p3, p4, p5)
 
-            effFunc = ROOT.RooFormulaVar("efficiency", "efficiency", "p0 + p1*TMath::Power(@0,1) + p2*TMath::Power(@0,2) + p3*TMath::Power(@0,3)", eff_coeff)
+            effFunc = ROOT.RooFormulaVar("efficiency", "efficiency", "p0 + p1*TMath::Power(@0-mf,1) + p2*TMath::Power(@0-mf,2) + p3*TMath::Power(@0-mf,3) + p4*TMath::Power(@0-mf,4) + p5*TMath::Power(@0-mf,5)", eff_coeff)
 
             if "smearing" in self.options and self.options["smearing"]:
                 distortedSpectrum = ROOT.RooEffProd("distortedSpectrum", "distortedSpectrum", smearedspectrum, effFunc)

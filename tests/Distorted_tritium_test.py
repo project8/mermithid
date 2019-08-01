@@ -37,7 +37,7 @@ class TritiumTests(unittest.TestCase):
             "interestParams": ["F"],
             "fixedParams": {"m_nu": 0},
             "options": {"snr_efficiency": True, "channel_efficiency":False, "smearing": True},
-            "snr_efficiency_coefficients": [-451719.97479592788, 5.2434404146607557e-05, -2.0285859980859651e-15, 2.6157820559434323e-26],
+            "snr_efficiency_coefficients": [-265.03357206889626, 6.693200670990694e-07, -5.795611253664308e-16, 1.5928835520798478e-25, 2.892234977030861e-35, -1.566210147698845e-44], #[-451719.97479592788, 5.2434404146607557e-05, -2.0285859980859651e-15, 2.6157820559434323e-26],
             "channel_central_frequency": 1400e6,
             "mixing_frequency": 24.5e9
         }
