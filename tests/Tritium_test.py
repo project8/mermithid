@@ -10,7 +10,7 @@ from morpho.utilities import morphologging
 logger = morphologging.getLogger(__name__)
 
 class TritiumTests(unittest.TestCase):
-    
+
     def test_KuriePlot(self):
         from mermithid.processors.TritiumSpectrum import TritiumSpectrumGenerator, KuriePlotFitter
         from morpho.processors.plots import Histogram

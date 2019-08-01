@@ -8,11 +8,10 @@ Date:8/1/2019
 from __future__ import absolute_import
 
 from ROOT import TF1
-#from morpho.processors.plots import Histogram
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from morpho.processors.plots import RootCanvas
-from .RootHistogram import RootHistogram # This is the modified version of RootHistogram
+from .RootHistogram import RootHistogram
 logger = morphologging.getLogger(__name__)
 
 
@@ -46,7 +45,7 @@ class Histogram(BaseProcessor):
                 aParamsDict.update({"variables": str(var)})
                 self.histos.append(RootHistogram(params, optStat=0))
         else:
-            self.histo = CorrectedRootHistogram(params, optStat=0)
+            self.histo = RootHistogram(params, optStat=0)
             self.range = reader.read_param(params, 'range', [0., -1.])
             self.eff_func = TF1("eff_func",self.efficiency,self.range[0],self.range[1])
         return True

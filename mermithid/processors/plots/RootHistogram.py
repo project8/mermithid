@@ -88,4 +88,5 @@ class RootHistogram(object):
         self.histo.Write()
 
     def Divide(self, eff_func):
+        self.histo.Sumw2()
         self.histo.Divide(eff_func)
