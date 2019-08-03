@@ -7,13 +7,14 @@ Log
 Version: v1.1.10
 ~~~~~~~~~~~~~~~~
 
-Release Date: Thur Apr 18 2019
+Release Date: Sat Aug 3 2019
 '''''''''''''''''''''''''''''
 
 New features:
 '''''''''''''
 
-* Morpho update to v2.3.2
+* Documentation update
+* ReadTheDocs repair
 
 Version: v1.1.9
 ~~~~~~~~~~~~~~~
