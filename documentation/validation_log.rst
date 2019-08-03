@@ -4,6 +4,28 @@ Validation Log
 Log
 ---
 
+Version: v1.1.10
+~~~~~~~~~~~~~~~~
+
+Release Date: Thur Apr 18 2019
+'''''''''''''''''''''''''''''
+
+New features:
+'''''''''''''
+
+* Morpho update to v2.3.2
+
+Version: v1.1.9
+~~~~~~~~~~~~~~~
+
+Release Date: Mon Jul 22 2019
+'''''''''''''''''''''''''''''
+
+New features:
+'''''''''''''
+
+* P8 Compute Dependencies image update to v0.7.0 
+
 Version: v1.1.8
 ~~~~~~~~~~~~~~~
 
