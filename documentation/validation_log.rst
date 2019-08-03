@@ -4,6 +4,29 @@ Validation Log
 Log
 ---
 
+Version: v1.1.10
+~~~~~~~~~~~~~~~~
+
+Release Date: Sat Aug 3 2019
+'''''''''''''''''''''''''''''
+
+New features:
+'''''''''''''
+
+* Documentation update
+* ReadTheDocs repair
+
+Version: v1.1.9
+~~~~~~~~~~~~~~~
+
+Release Date: Mon Jul 22 2019
+'''''''''''''''''''''''''''''
+
+New features:
+'''''''''''''
+
+* P8 Compute Dependencies image update to v0.7.0 
+
 Version: v1.1.8
 ~~~~~~~~~~~~~~~
 

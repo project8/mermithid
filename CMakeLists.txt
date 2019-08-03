@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.1)
 
 cmake_policy( SET CMP0048 NEW ) # version in project()
-project( Mermithid VERSION 1.1.9 )
+project( Mermithid VERSION 1.1.10 )
 
 list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/Phylloxera/Scarab/cmake )
 # list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/Cicada/Scarab/cmake )
