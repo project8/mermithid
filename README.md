@@ -44,8 +44,8 @@ You will need to install via a package manager (such as apt-get):
   Please use this environment to testing/resolving bugs.
 
   1. Install Docker (Desktop version): https://docs.docker.com/engine/installation/
-  1. Clone and pull the latest master version of morpho
-  1. Inside the morpho folder, execute ```docker-compose run mermithid```.
+  1. Clone and pull the latest master version of mermithid
+  1. Inside the mermithid folder, execute ```docker-compose run mermithid```.
   The container prompter should appear at the end of the installation.
   A directory (```mermithid_share```) should be created in your home and mounted under the ```/host``` folder: you can modify this by editing the docker-compose file.
   1. When reinstalling, you can remove the image using ```docker rmi mermithid_mermithid```
