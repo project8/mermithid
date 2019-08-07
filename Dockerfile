@@ -1,17 +1,18 @@
-FROM project8/p8compute_dependencies:v0.2.0 as mermithid_common
+FROM project8/p8compute_dependencies:v0.7.0 as mermithid_common
 
 ARG build_type=Release
-ENV MERMITHOD_BUILD_TYPE=$build_type
+ENV MERMITHID_BUILD_TYPE=$build_type
 
-ENV MERMITHID_TAG=v1.1.3
+ENV MERMITHID_TAG=v1.1.10
 ENV MERMITHID_BUILD_PREFIX=/usr/local/p8/mermithid/$MERMITHID_TAG
 
 RUN mkdir -p $MERMITHID_BUILD_PREFIX &&\
+    chmod -R 777 $MERMITHID_BUILD_PREFIX/.. &&\
     cd $MERMITHID_BUILD_PREFIX &&\
     echo "source ${COMMON_BUILD_PREFIX}/setup.sh" > setup.sh &&\
     echo "export MERMITHID_TAG=${MERMITHID_TAG}" >> setup.sh &&\
     echo "export MERMITHID_BUILD_PREFIX=${MERMITHID_BUILD_PREFIX}" >> setup.sh &&\
-    echo 'ln -sf $MERMITHID_BUILD_PREFIX $MERMITHID_BUILD_PREFIX/../current' >> setup.sh &&\
+    echo 'ln -sfT $MERMITHID_BUILD_PREFIX $MERMITHID_BUILD_PREFIX/../current' >> setup.sh &&\
     echo 'export PATH=$MERMITHID_BUILD_PREFIX/bin:$PATH' >> setup.sh &&\
     echo 'export LD_LIBRARY_PATH=$MERMITHID_BUILD_PREFIX/lib:$LD_LIBRARY_PATH' >> setup.sh &&\
     echo 'export PYTHONPATH=$MERMITHID_BUILD_PREFIX/$(python -m site --user-site | sed "s%$(python -m site --user-base)%%"):$PYTHONPATH' >> setup.sh &&\

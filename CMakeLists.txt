@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.1)
 
 cmake_policy( SET CMP0048 NEW ) # version in project()
-project( Mermithid VERSION 1.1.3 )
+project( Mermithid VERSION 1.1.10 )
 
 list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/Phylloxera/Scarab/cmake )
 # list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/Cicada/Scarab/cmake )
@@ -18,3 +18,4 @@ set( Scarab_BUILD_AUTHENTICATION OFF CACHE BOOL "No auth" FORCE)
 set( Scarab_BUILD_PARAM OFF CACHE BOOL "No param" FORCE)
 
 set( Cicada_ENABLE_KATYDID_NAMESPACE OFF CACHE BOOL "Use Cicada namespace" FORCE)
+
