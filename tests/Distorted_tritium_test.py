@@ -12,12 +12,12 @@ logger = morphologging.getLogger(__name__)
 class TritiumTests(unittest.TestCase):
 
     def test_KuriePlot(self):
-        from mermithid.processors.TritiumSpectrum import TritiumSpectrumLikelihoodSampler, KuriePlotFitter
+        from mermithid.processors.TritiumSpectrum import DistortedTritiumSpectrumLikelihoodSampler, KuriePlotFitter
         from morpho.processors.plots import Histogram
         from mermithid.misc.Constants import seconds_per_year, tritium_endpoint
         import importlib.machinery
-        modulename = importlib.machinery.SourceFileLoader('modulename','/host-mermithid/mermithid/processors/TritiumSpectrum/TritiumSpectrumLikelihoodSampler.py').load_module()
-        from modulename import TritiumSpectrumLikelihoodSampler
+        #modulename = importlib.machinery.SourceFileLoader('modulename','/host-mermithid/mermithid/processors/TritiumSpectrum/DistortedTritiumSpectrumLikelihoodSampler.py').load_module()
+        #from modulename import DistortedTritiumSpectrumLikelihoodSampler
 
         specGen_config = {
             "volume": 7e-6*1e-2, # [m3]
@@ -49,7 +49,7 @@ class TritiumTests(unittest.TestCase):
         }
 
 
-        specGen = TritiumSpectrumLikelihoodSampler("specGen")
+        specGen = DistortedTritiumSpectrumLikelihoodSampler("specGen")
         histo = Histogram("histo")
 
         specGen.Configure(specGen_config)

@@ -1,7 +1,7 @@
 '''
 Fit Tritium spectrum
-Author: M. Guigue
-Date: Mar 30 2018
+Author: C. Claessens
+Date: Aug 07 2019
 '''
 try:
     import ROOT
@@ -24,7 +24,7 @@ from ROOT import TMath
 
 
 
-class TritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
+class DistortedTritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
 
     def InternalConfigure(self,config_dict):
         '''
