@@ -23,7 +23,7 @@ from mermithid.misc import Constants
 
 
 
-class TritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
+class TritiumSpectrumLikelihoodSamplerDistorted(RooFitInterfaceProcessor):
 
     def InternalConfigure(self,config_dict):
         '''
@@ -119,13 +119,16 @@ class TritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
             logger.info("Appyling SNR efficiency")
 
             # Spectrum distortion
+            mf = ROOT.RooRealVar("mf", "mf", self.mix_frequency )
             p0 = ROOT.RooRealVar("p0", "p0", self.snr_eff_coeff[0])
             p1 = ROOT.RooRealVar("p1", "p1", self.snr_eff_coeff[1])
             p2 = ROOT.RooRealVar("p2", "p2", self.snr_eff_coeff[2])
             p3 = ROOT.RooRealVar("p3", "p3", self.snr_eff_coeff[3])
-            eff_coeff = ROOT.RooArgList(var, p0, p1, p2, p3)
+            p4 = ROOT.RooRealVar("p4", "p4", self.snr_eff_coeff[4])
+            p5 = ROOT.RooRealVar("p5", "p5", self.snr_eff_coeff[5])
+            eff_coeff = ROOT.RooArgList(var, mf, p0, p1, p2, p3, p4, p5)
 
-            effFunc = ROOT.RooFormulaVar("efficiency", "efficiency", "p0 + p1*TMath::Power(@0,1) + p2*TMath::Power(@0,2) + p3*TMath::Power(@0,3)", eff_coeff)
+            effFunc = ROOT.RooFormulaVar("efficiency", "efficiency", "p0 + p1*TMath::Power(@0-mf,1) + p2*TMath::Power(@0-mf,2) + p3*TMath::Power(@0-mf,3) + p4*TMath::Power(@0-mf,4) + p5*TMath::Power(@0-mf,5)", eff_coeff)
 
             if "smearing" in self.options and self.options["smearing"]:
                 distortedSpectrum = ROOT.RooEffProd("distortedSpectrum", "distortedSpectrum", smearedspectrum, effFunc)

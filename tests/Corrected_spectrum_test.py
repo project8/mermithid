@@ -12,12 +12,13 @@ logger = morphologging.getLogger(__name__)
 class TritiumTests(unittest.TestCase):
 
     def test_Corrected_spectrum(self):
-        from mermithid.processors.TritiumSpectrum import TritiumSpectrumLikelihoodSampler, KuriePlotFitter
-        from mermithid.processors.plots import Histogram
+        from mermithid.processors.TritiumSpectrum import TritiumSpectrumLikelihoodSamplerDistorted, KuriePlotFitter
+        from mermithid.processors.misc.EfficiencyCorrector import EfficiencyCorrector
+        from morpho.processors.plots import Histogram
         from mermithid.misc.Constants import seconds_per_year, tritium_endpoint
         import importlib.machinery
-        modulename = importlib.machinery.SourceFileLoader('modulename','/host-mermithid/mermithid/processors/TritiumSpectrum/TritiumSpectrumLikelihoodSampler.py').load_module()
-        from modulename import TritiumSpectrumLikelihoodSampler
+        modulename = importlib.machinery.SourceFileLoader('modulename','/Users/ziegler/docker_share/builds/mermithid/mermithid/processors/TritiumSpectrum/TritiumSpectrumLikelihoodSamplerDistorted.py').load_module()
+        from modulename import TritiumSpectrumLikelihoodSamplerDistorted
 
         specGen_config = {
             "volume": 7e-6*1e-2, # [m3]
@@ -34,19 +35,27 @@ class TritiumTests(unittest.TestCase):
             "mode": "generate",
             "varName": "F",
             "iter": 10000,
-            "interestParams": ["F"],
+            "interestParams": "F",
             "fixedParams": {"m_nu": 0},
             "options": {"snr_efficiency": True, "channel_efficiency":False, "smearing": False},
-            "snr_efficiency_coefficients": [-451719.97479592788, 5.2434404146607557e-05, -2.0285859980859651e-15, 2.6157820559434323e-26],
-            #"channel_efficiency_coefficients": [24587.645303008387, 7645.8567999493698, 24507.145055859062, -11581.288750763715, 0.98587787287591955],
+            "snr_efficiency_coefficients": [-265.03357206889626, 6.693200670990694e-07, -5.795611253664308e-16, 1.5928835520798478e-25, 2.892234977030861e-35, -1.566210147698845e-44],
             "channel_central_frequency": 1400e6,
             "mixing_frequency": 24.5e9
         }
+        effCorr_config = {
+            "variables": "F",
+            "range": [24.5e9+1300e6, 24.5e9+1550e6],
+            "n_bins_x": 100,
+            "title": "corrected_spectrum",
+            "efficiency": "-265.03357206889626 + 6.693200670990694e-07*(x-24.5e9) + -5.795611253664308e-16*(x-24.5e9)^2 + 1.5928835520798478e-25*(x-24.5e9)^3 + 2.892234977030861e-35*(x-24.5e9)^4 + -1.566210147698845e-44*(x-24.5e9)^5",
+            "mode": "binned"
+
+        }
         histo_plot = {
-            "variables": ["F", "Fb", "Fa"],
+            "variables": "F",
             "n_bins_x": 100,
             "title": "spectrum",
-            "range": [24.5e9+1330e6, 24.5e9+1560e6]
+            "range": [24.5e9+1300e6, 24.5e9+1550e6]
         }
         kurie_plot = {
             "variables": "F",
@@ -54,19 +63,30 @@ class TritiumTests(unittest.TestCase):
             "title": "kurie_plot"
         }
 
-        specGen = TritiumSpectrumLikelihoodSampler("specGen")
+        specGen = TritiumSpectrumLikelihoodSamplerDistorted("specGen")
+        effCorr = EfficiencyCorrector("effCorr")
         histo = Histogram("histo")
 
         specGen.Configure(specGen_config)
+        effCorr.Configure(effCorr_config)
         histo.Configure(histo_plot)
 
 
         #specGen.definePdf()
         specGen.Run()
-        result = specGen.data
-
-        histo.data = result
+        results = specGen.data
+        histo.data = results
         histo.Run()
+
+        results.update({'bin_centers': [], 'counts': []})
+
+        for i in range(histo_plot['n_bins_x']):
+            results['bin_centers'].append(histo.histo.histo.GetBinCenter(i+1))
+            results['counts'].append(histo.histo.histo.GetBinContent(i+1))
+
+        effCorr.data = results
+        effCorr.Run()
+
 
 
 if __name__ == '__main__':
