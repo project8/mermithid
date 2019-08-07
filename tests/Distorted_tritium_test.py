@@ -11,11 +11,11 @@ logger = morphologging.getLogger(__name__)
 
 class TritiumTests(unittest.TestCase):
 
-    def test_KuriePlot(self):
+    def test_DistortedSpectrum(self):
         from mermithid.processors.TritiumSpectrum import DistortedTritiumSpectrumLikelihoodSampler, KuriePlotFitter
         from morpho.processors.plots import Histogram
         from mermithid.misc.Constants import seconds_per_year, tritium_endpoint
-        import importlib.machinery
+        #import importlib.machinery
         #modulename = importlib.machinery.SourceFileLoader('modulename','/host-mermithid/mermithid/processors/TritiumSpectrum/DistortedTritiumSpectrumLikelihoodSampler.py').load_module()
         #from modulename import DistortedTritiumSpectrumLikelihoodSampler
 
