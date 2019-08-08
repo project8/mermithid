@@ -20,10 +20,10 @@ on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 
 # Change tag and version number below
 MORPHO_TAG = "v2.3.3"
-MORPHO_HASH = '86a233ed59123a1eed6334c8fd4332c1203fb1dc'
+MORPHO_HASH = 'e8fcebc2fd82718fbcb2c47009c28b408049fa79'
 
 # Don't touch below
-MORPHO_VERSION='{}-42-g{}'.format(MORPHO_TAG,MORPHO_HASH[:7])
+MORPHO_VERSION='{}-46-g{}'.format(MORPHO_TAG,MORPHO_HASH[:7])
 MORPHO_DEP_LINK = 'git+https://github.com/morphoorg/morpho.git@{0}#egg=morpho-{1}'.format(MORPHO_HASH,MORPHO_VERSION)
 MORPHO_REQ = "morpho=={0}".format(MORPHO_VERSION)
 
