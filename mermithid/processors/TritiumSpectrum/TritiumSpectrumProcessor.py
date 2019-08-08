@@ -96,7 +96,6 @@ class TritiumSpectrumProcessor(RooFitInterfaceProcessor):
         Users should edit this function.
         '''
         logger.debug("Defining pdf")
-        ROOT.RooRandom.randomGenerator().SetSeed(random.randint(0, 121212111121212))
                # for key in config_dict:
         #     setattr(self, key, config_dict[key])
         if hasattr(self, "energy_resolution") and self.energy_resolution > 0.:
