@@ -64,6 +64,7 @@ class KuriePlotFitter(BaseProcessor):
             "ndf": rootResults.Ndf(),
             "p-value": rootResults.Prob()
         }
+        logger.debug("Fit done")
         return resultsDict
 
     #def _PoissonFitKuriePlot(self, centralList, akurieList):
@@ -112,6 +113,7 @@ class KuriePlotFitter(BaseProcessor):
         data = self.data.get(self.namedata)
         centralValueList, kurieList, errorList = KuriePlotTools.KuriePlotBinning(data, xRange=[self.histo.x_min, self.histo.x_max], nBins=self.histo.histo.GetNbinsX())
         logger.debug("Setting values and errors")
+        self.histo._createHisto(data)
         self.histo.SetBinsContent(kurieList)
         self.histo.SetBinsError(errorList)
         logger.debug("Draw kurie histo")
