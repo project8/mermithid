@@ -5,8 +5,10 @@ Date: Oct 16 2018
 '''
 
 from __future__ import absolute_import
-
-from ROOT import TGraphErrors, TF1
+try:
+    from ROOT import TGraphErrors, TF1
+except ImportError:
+    pass
 
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
