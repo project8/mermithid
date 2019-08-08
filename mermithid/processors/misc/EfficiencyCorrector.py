@@ -72,7 +72,7 @@ class EfficiencyCorrector(BaseProcessor):
                 self.corrected_data['efficiency'].append(self.eff_func.Eval(self.data.get(self.bin_centers)[i])/self.eff_norm)
                 self.corrected_data['counts'][i] /= self.corrected_data['efficiency'][i]
                 if self.asInteger:
-                    temp_int = int(self.efficiency_data['counts'][i])
+                    temp_int = int(self.corrected_data['counts'][i])
                     self.corrected_data['counts'][i] = temp_int
 
             self.histo.Fill(self.corrected_data.get(self.namedata))

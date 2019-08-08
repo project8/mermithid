@@ -12,13 +12,13 @@ logger = morphologging.getLogger(__name__)
 class TritiumTests(unittest.TestCase):
 
     def test_Corrected_spectrum(self):
-        from mermithid.processors.TritiumSpectrum import TritiumSpectrumLikelihoodSamplerDistorted, KuriePlotFitter
+        from mermithid.processors.TritiumSpectrum import DistortedTritiumSpectrumLikelihoodSampler
         from mermithid.processors.misc.EfficiencyCorrector import EfficiencyCorrector
         from morpho.processors.plots import Histogram
         from mermithid.misc.Constants import seconds_per_year, tritium_endpoint
         import importlib.machinery
-        modulename = importlib.machinery.SourceFileLoader('modulename','/Users/ziegler/docker_share/builds/mermithid/mermithid/processors/TritiumSpectrum/TritiumSpectrumLikelihoodSamplerDistorted.py').load_module()
-        from modulename import TritiumSpectrumLikelihoodSamplerDistorted
+        modulename = importlib.machinery.SourceFileLoader('modulename','/Users/ziegler/docker_share/builds/mermithid/mermithid/processors/TritiumSpectrum/DistortedTritiumSpectrumLikelihoodSampler.py').load_module()
+        from modulename import DistortedTritiumSpectrumLikelihoodSampler
 
         specGen_config = {
             "volume": 7e-6*1e-2, # [m3]
@@ -57,13 +57,9 @@ class TritiumTests(unittest.TestCase):
             "title": "spectrum",
             "range": [24.5e9+1300e6, 24.5e9+1550e6]
         }
-        kurie_plot = {
-            "variables": "F",
-            "n_bins_x": 1000,
-            "title": "kurie_plot"
-        }
 
-        specGen = TritiumSpectrumLikelihoodSamplerDistorted("specGen")
+
+        specGen = DistortedTritiumSpectrumLikelihoodSampler("specGen")
         effCorr = EfficiencyCorrector("effCorr")
         histo = Histogram("histo")
 
@@ -77,6 +73,13 @@ class TritiumTests(unittest.TestCase):
         results = specGen.data
         histo.data = results
         histo.Run()
+
+        """
+        Not proud of how I create binned data here. But it works =). Currently
+        the EfficiencyCorrector needs to know the bin centers and bin occupancy
+        to work. EfficiencyCorrector is based on Histogram and creates a
+        histogram along with returning the corrected data.
+        """
 
         results.update({'bin_centers': [], 'counts': []})
 
