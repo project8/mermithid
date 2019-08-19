@@ -216,14 +216,14 @@ class DistortedTritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
         emass_kg = Constants.m_electron() * Constants.e()/Constants.c()**2
         gamma = E/(emass)+1
         #return e*B*c**2/(E*e+E0*e)*(1+1/np.tan(Theta)**2/2)/(2*m.pi)
-        return (Constants.e()*B)/(2.0*3.141592653589793*emass_kg) * 1/gamma
+        return (Constants.e()*B)/(2.0*TMath.Pi()*emass_kg) * 1/gamma
 
-    def Energy(self, F, B=None, Theta=None):
+    def Energy(self, f, B=None, Theta=None):
         #print(type(F))
         if B==None:
             B = self.B
         emass_kg = Constants.m_electron()*Constants.e()/(Constants.c()**2)
-        if isinstance(F, list):
+        if isinstance(f, list):
             gamma = [(Constants.e()*B)/(2.0*TMath.Pi()*emass_kg) * 1/(f) for f in F]
             return [(g -1)*Constants.m_electron() for g in gamma]
         else:
