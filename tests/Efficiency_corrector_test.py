@@ -66,7 +66,7 @@ class TritiumTests(unittest.TestCase):
         specGen.Configure(specGen_config)
         effCorr.Configure(effCorr_config)
         histo.Configure(histo_plot)
-
+    
 
         #specGen.definePdf()
         specGen.Run()

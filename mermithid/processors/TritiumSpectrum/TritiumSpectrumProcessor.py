@@ -113,7 +113,7 @@ class TritiumSpectrumProcessor(RooFitInterfaceProcessor):
         KE = ROOT.RooRealVar("KE", "KE", self.KE_min -
                              self.increase_range, self.KE_max+self.increase_range)
         KE.setBins(1000, "cache")
-        
+
         KE.setBins(50, "cache")
         m_nu = ROOT.RooRealVar("m_nu", "m_nu", self.neutrino_mass, -1000, 1000)
         endpoint = ROOT.RooRealVar("endpoint", "endpoint", Constants.tritium_endpoint(),

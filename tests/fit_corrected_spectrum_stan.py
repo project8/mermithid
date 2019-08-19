@@ -43,7 +43,7 @@ def ProduceData(counts=10000):
         "iter": counts,
         "interestParams": ["F"],
         "fixedParams": {"m_nu": 0},
-        "options": {"snr_efficiency": True, "channel_efficiency":False, "smearing": True},
+        "options": {"snr_efficiency": False, "channel_efficiency":False, "smearing": True},
         "snr_efficiency_coefficients": [-265.03357206889626, 6.693200670990694e-07, -5.795611253664308e-16, 1.5928835520798478e-25, 2.892234977030861e-35, -1.566210147698845e-44], #[-451719.97479592788, 5.2434404146607557e-05, -2.0285859980859651e-15, 2.6157820559434323e-26],
         "channel_central_frequency": 1400e6,
         "mixing_frequency": 24.5e9
@@ -85,7 +85,7 @@ def CorrectData(input_data, nbins = 100, F_min = 24.5e9 + 1320e6, F_max = 24.5e9
         "range": [F_min, F_max],
         "n_bins_x": nbins,
         "title": "corrected_spectrum",
-        "efficiency": "-265.03357206889626 + 6.693200670990694e-07*(x-24.5e9) + -5.795611253664308e-16*(x-24.5e9)^2 + 1.5928835520798478e-25*(x-24.5e9)^3 + 2.892234977030861e-35*(x-24.5e9)^4 + -1.566210147698845e-44*(x-24.5e9)^5",
+        #"efficiency": "-265.03357206889626 + 6.693200670990694e-07*(x-24.5e9) + -5.795611253664308e-16*(x-24.5e9)^2 + 1.5928835520798478e-25*(x-24.5e9)^3 + 2.892234977030861e-35*(x-24.5e9)^4 + -1.566210147698845e-44*(x-24.5e9)^5",
         "mode": "binned",
         "asInteger": True
 
@@ -166,7 +166,7 @@ def AnalyzeData(tritium_data, nbins=100, iterations=100, f_min = 24.5e9+1320e6, 
     print(sampling_result.keys())
 
     if make_plots:
-        plot_name = 'aposteriori_distribution_{}_{}_{}'.format(
+        plot_name = 'aposteriori_distribution_undistorted_{}_{}_{}'.format(
             nCounts, energy_resolution, energy_resolution_precision)
         plot_Sampling(sampling_result, plot_name)
 
@@ -196,11 +196,11 @@ def plot_Sampling(data, name='aposteriori_distribution'):
     aposterioriPlotter.data = data
     aposterioriPlotter.Run()
 
-def DoCombinedAnalysis():
+def DoAnalysis():
     print("Generate fake distorted tritium data and test efficiency correction.")
     tritium_data = ProduceData()
     corrected_tritium_data = CorrectData(tritium_data)
     AnalyzeData(corrected_tritium_data, make_plots=True)
 if __name__ == '__main__':
 
-    DoCombinedAnalysis()
+    DoAnalysis()
