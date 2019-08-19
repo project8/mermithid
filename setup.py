@@ -19,11 +19,11 @@ except Exception as err:
 on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 
 # Change tag and version number below
-MORPHO_TAG = "v2.3.3"
-MORPHO_HASH = 'e201e0b3eb321ad7733ba31c3297a2adeb26f77b'
+MORPHO_TAG = "v2.4.0"
+MORPHO_HASH = 'f9f8362b97c94cbb9a9a61de60ec2e2415001b35'
 
 # Don't touch below
-MORPHO_VERSION='{}-35-g{}'.format(MORPHO_TAG,MORPHO_HASH[:7])
+MORPHO_VERSION='{}-0-g{}'.format(MORPHO_TAG,MORPHO_HASH[:7])
 MORPHO_DEP_LINK = 'git+https://github.com/morphoorg/morpho.git@{0}#egg=morpho-{1}'.format(MORPHO_HASH,MORPHO_VERSION)
 MORPHO_REQ = "morpho=={0}".format(MORPHO_VERSION)
 
