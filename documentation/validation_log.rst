@@ -4,6 +4,18 @@ Validation Log
 Log
 ---
 
+Version: v1.1.11
+~~~~~~~~~~~~~~~~
+
+Release Date: Mon Aug 26 2019
+'''''''''''''''''''''''''''''
+
+New features:
+'''''''''''''
+
+* Upgrade to morpho v2.4.0
+* Rework of the RealTritiumSpectrum RooFit model
+
 Version: v1.1.10
 ~~~~~~~~~~~~~~~~
 
