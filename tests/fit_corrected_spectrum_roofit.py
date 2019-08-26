@@ -69,7 +69,6 @@ def ProduceData(counts=10000):
 
     return tritium_data
 
-
 def CorrectData(input_data, nbins = 100, F_min = 24.5e9 + 1320e6, F_max = 24.5e9 + 1480e6, mode = "binned"):
 
     effCorr_config = {
@@ -121,7 +120,7 @@ def AnalyzeData(tritium_data, nbins=100, iterations=100, F_min = 24.5e9 + 1320e6
     KE_max = Energy(F_min)
 
     #energy_resolution_precision = 0.01
-    energy_resolution = 5
+    energy_resolution = 36
     #meanSigma = energy_resolution
 
     #nCounts = len(tritium_data["KE"])

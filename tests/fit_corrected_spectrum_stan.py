@@ -48,33 +48,17 @@ def ProduceData(counts=10000):
         "channel_central_frequency": 1400e6,
         "mixing_frequency": 24.5e9
     }
-    """
 
-    histo_plot = {
-        "variables": ["F"],
-        "n_bins_x": 100,
-        "title": "spectrum",
-        "range": [1320e6, 1480e6]
-    }
-
-    """
     specGen = DistortedTritiumSpectrumLikelihoodSampler("specGen")
-    #histo = Histogram("histo")
-
     specGen.Configure(specGen_config)
-    #histo.Configure(histo_plot)
-
     specGen.Run()
     tritium_data = specGen.data
     print('Number of events: {}'.format(len(tritium_data["F"])))
     #result_E = {"KE": specGen.Energy(tritium_data["F"])}
     #result_E["is_sample"] = tritium_data["is_sample"]
 
-
     #result_mixed = tritium_data
     #result_mixed["F"] = [f-24.5e9 for f in result_mixed["F"]]
-    #histo.data = result_mixed
-    #histo.Run()
 
     return tritium_data
 
@@ -85,14 +69,13 @@ def CorrectData(input_data, nbins = 100, F_min = 24.5e9 + 1320e6, F_max = 24.5e9
         "range": [F_min, F_max],
         "n_bins_x": nbins,
         "title": "corrected_spectrum",
-        #"efficiency": "-265.03357206889626 + 6.693200670990694e-07*(x-24.5e9) + -5.795611253664308e-16*(x-24.5e9)^2 + 1.5928835520798478e-25*(x-24.5e9)^3 + 2.892234977030861e-35*(x-24.5e9)^4 + -1.566210147698845e-44*(x-24.5e9)^5",
+        "efficiency": "-265.03357206889626 + 6.693200670990694e-07*(x-24.5e9) + -5.795611253664308e-16*(x-24.5e9)^2 + 1.5928835520798478e-25*(x-24.5e9)^3 + 2.892234977030861e-35*(x-24.5e9)^4 + -1.566210147698845e-44*(x-24.5e9)^5",
         "mode": "binned",
         "asInteger": True
 
     }
 
-    effCorr = EfficiencyCorrector("effCorr")
-    effCorr.Configure(effCorr_config)
+
 
     histo = TH1F("histo", "histo", nbins, F_min, F_max)
 
@@ -106,13 +89,15 @@ def CorrectData(input_data, nbins = 100, F_min = 24.5e9 + 1320e6, F_max = 24.5e9
         counts.append(int(histo.GetBinContent(i)))
         bin_centers.append(histo.GetBinCenter(i))
 
-    binned_data = {"counts": counts, "bin_centers": bin_centers, "F": input_data["F"]}
+    binned_data = {"N": counts, "F": bin_centers}
 
+    effCorr = EfficiencyCorrector("effCorr")
+    effCorr.Configure(effCorr_config)
     effCorr.data = binned_data
     effCorr.Run()
 
-    corrected_E_data = {"KE": Energy(effCorr.corrected_data["bin_centers"])}
-    corrected_E_data["N"] = effCorr.corrected_data["counts"]
+    corrected_E_data = {"KE": Energy(effCorr.corrected_data["F"])}
+    corrected_E_data["N"] = effCorr.corrected_data["N"]
 
     return corrected_E_data
 

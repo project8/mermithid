@@ -11,6 +11,7 @@ except ImportError:
     pass
 
 import random
+from ROOT import RooFit
 from datetime import datetime
 from morpho.utilities import morphologging, reader
 logger = morphologging.getLogger(__name__)
@@ -178,4 +179,73 @@ class TritiumSpectrumProcessor(RooFitInterfaceProcessor):
 
         getattr(wspace, 'import')(KE)
         getattr(wspace, 'import')(pdf)
+        return wspace
+
+    def _Fit(self):
+        '''
+        Fit the data using the pdf defined in the workspace
+        '''
+        wspace = ROOT.RooWorkspace()
+        wspace = self._defineDataset(wspace)
+        wspace = self.definePdf(wspace)
+        logger.debug("Workspace content:")
+        wspace.Print()
+        wspace = self._FixParams(wspace)
+        pdf = wspace.pdf("pdf")
+        dataset = wspace.data(self.datasetName)
+
+        paramOfInterest = self._getArgSet(wspace, self.paramOfInterestNames)
+        result = pdf.fitTo(dataset, ROOT.RooFit.Save())
+        result.Print()
+
+        if self.make_fit_plot:
+            fit_can = ROOT.TCanvas("fit_can","fit_can",600,400)
+            var = wspace.var(self.varName)
+            frame = var.frame()
+            dataset.plotOn(frame)
+            pdf.plotOn(frame)
+            frame.Draw()
+            fit_can.SaveAs("results_fit.pdf")
+
+            res_can = ROOT.TCanvas("res_can","res_can",600,400)
+            chisqr = frame.chiSquare()
+            print(chisqr)
+            resid_hist = frame.residHist()
+            resid = ROOT.RooRealVar('Residuals', 'Residuals', self.KE_min, self.KE_max)
+            resid_frame = resid.frame()
+            resid_frame.addPlotable(resid_hist)
+            resid_frame.Draw()
+            res_can.SaveAs("results_residuals.pdf")
+
+        self.result = {}
+        for varName in self.paramOfInterestNames:
+            self.result.update({str(varName): wspace.var(str(varName)).getVal()})
+            self.result.update({"error_"+str(varName): wspace.var(str(varName)).getErrorHi()})
+        return True
+
+    def _defineDataset(self, wspace):
+        '''
+        Define our dataset given our data and add it to the workspace..
+        Note that we only import one variable in the RooWorkspace.
+        TODO:
+         - Implement the import of several variables in the RooWorkspace
+           -> might need to redefine this method when necessary
+        '''
+        var = ROOT.RooRealVar(self.varName, self.varName, self.KE_min, self.KE_max)
+        ## Needed for being able to do convolution products on this variable (don't touch!)
+        var.setBins(10000, "cache")
+        if self.binned:
+            logger.debug("Binned dataset {}".format(self.varName))
+            data = ROOT.RooDataHist(
+                self.datasetName, self.datasetName, ROOT.RooArgList(var), RooFit.Import(self._data))
+        else:
+            logger.debug("Unbinned dataset {}".format(self.varName))
+            data = ROOT.RooDataSet(
+                self.datasetName, self.datasetName, ROOT.RooArgSet(var))
+            for value in self._data[self.varName]:
+                var.setVal(value)
+                data.add(ROOT.RooArgSet(var))
+        getattr(wspace, 'import')(data)
+        logger.info("Workspace after dataset:")
+        wspace.Print()
         return wspace
