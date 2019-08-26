@@ -1,10 +1,7 @@
 from mermithid.misc import Constants
 from morpho.processors.sampling import RooFitInterfaceProcessor
-'''
-Fit Tritium spectrum
-Author: M. Guigue
-Date: Mar 30 2018
-'''
+from morpho.utilities import morphologging, reader
+
 try:
     import ROOT
 except ImportError:
@@ -33,15 +30,18 @@ class TritiumSpectrumProcessor(RooFitInterfaceProcessor):
         '''
         super().InternalConfigure(config_dict)
         self.fixed_m_nu = reader.read_param(config_dict, "fixed_m_nu", False)
-        self.neutrino_mass = reader.read_param(config_dict, "neutrino_mass", 0.)
-        self.energy_resolution = reader.read_param(config_dict, "energy_resolution", 0.)
+        self.neutrino_mass = reader.read_param(
+            config_dict, "neutrino_mass", 0.)
+        self.energy_resolution = reader.read_param(
+            config_dict, "energy_resolution", 0.)
         # self.n_events = reader.read_param(config_dict, "n_events", 1200)
         # self.n_bkgd = reader.read_param(config_dict, "n_kbg", 100)
         self.background = reader.read_param(config_dict, "background", 1e-6)
         self.volume = reader.read_param(config_dict, "volume", 1e-6)
         self.density = reader.read_param(config_dict, "density", 1e18)
         self.duration = reader.read_param(config_dict, "duration", 1e18)
-        self.KE_min, self.KE_max = reader.read_param(config_dict, "paramRange", "required")["KE"]
+        self.KE_min, self.KE_max = reader.read_param(
+            config_dict, "paramRange", "required")["KE"]
         self.numberDecays = reader.read_param(config_dict, "number_decays", -1)
         self.poisson_fluctuations = reader.read_param(
             config_dict, "poisson_fluctuations", False)
@@ -73,7 +73,7 @@ class TritiumSpectrumProcessor(RooFitInterfaceProcessor):
                 "meanSmearing_tmp", "meanSmearing_tmp", 0)
             widthSmearing = ROOT.RooRealVar(
                 "widthSmearing_tmp", "widthSmearing_tmp", self.energy_resolution)
-            smearedspectrum = pdffactory.GetSmearedPdf(ROOT.RealTritiumSpectrum)(
+            spectrum = pdffactory.GetSmearedPdf(ROOT.RealTritiumSpectrum)(
                 "smearedspectrum_tmp", 2, KE, spectrum, meanSmearing, widthSmearing, 1000000)
         fullSpectrumIntegral = spectrum.createIntegral(
             ROOT.RooArgSet(KE), ROOT.RooFit.Range("FullRange"))
@@ -90,15 +90,12 @@ class TritiumSpectrumProcessor(RooFitInterfaceProcessor):
         '''
         return self.background * (self.KE_max - self.KE_min + 2*self.increase_range) * self.duration
 
-
     def definePdf(self, wspace):
         '''
         Defines the Pdf that RooFit will sample and add it to the workspace.
         Users should edit this function.
         '''
         logger.debug("Defining pdf")
-               # for key in config_dict:
-        #     setattr(self, key, config_dict[key])
         if hasattr(self, "energy_resolution") and self.energy_resolution > 0.:
             logger.debug("Will use a smeared spectrum with {} eV energy res.".format(
                 self.energy_resolution))
