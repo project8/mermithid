@@ -1,4 +1,4 @@
-FROM project8/p8compute_dependencies:v0.7.0 as mermithid_common
+FROM project8/p8compute_dependencies:v0.9.0 as mermithid_common
 
 ARG build_type=Release
 ENV MERMITHID_BUILD_TYPE=$build_type
