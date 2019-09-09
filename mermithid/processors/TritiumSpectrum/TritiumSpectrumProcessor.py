@@ -195,18 +195,18 @@ class TritiumSpectrumProcessor(RooFitInterfaceProcessor):
         result = pdf.fitTo(dataset, ROOT.RooFit.Save())
         result.Print()
 
+        var = wspace.var(self.varName)
+        frame = var.frame()
+        dataset.plotOn(frame)
+        pdf.plotOn(frame)
+        chisqr = frame.chiSquare()
+
         if self.make_fit_plot:
             fit_can = ROOT.TCanvas("fit_can","fit_can",600,400)
-            var = wspace.var(self.varName)
-            frame = var.frame()
-            dataset.plotOn(frame)
-            pdf.plotOn(frame)
             frame.Draw()
             fit_can.SaveAs("results_fit.pdf")
 
             res_can = ROOT.TCanvas("res_can","res_can",600,400)
-            chisqr = frame.chiSquare()
-            print(chisqr)
             resid_hist = frame.residHist()
             resid = ROOT.RooRealVar('Residuals', 'Residuals', self.KE_min, self.KE_max)
             resid_frame = resid.frame()
@@ -218,6 +218,7 @@ class TritiumSpectrumProcessor(RooFitInterfaceProcessor):
         for varName in self.paramOfInterestNames:
             self.result.update({str(varName): wspace.var(str(varName)).getVal()})
             self.result.update({"error_"+str(varName): wspace.var(str(varName)).getErrorHi()})
+        self.result.update({'chi2': chisqr})
         return True
 
     def _defineDataset(self, wspace):
@@ -235,6 +236,8 @@ class TritiumSpectrumProcessor(RooFitInterfaceProcessor):
             logger.debug("Binned dataset {}".format(self.varName))
             data = ROOT.RooDataHist(
                 self.datasetName, self.datasetName, ROOT.RooArgList(var), RooFit.Import(self._data))
+            """for value in self._data[self.varName]:
+                var.setVal(value)"""
         else:
             logger.debug("Unbinned dataset {}".format(self.varName))
             data = ROOT.RooDataSet(

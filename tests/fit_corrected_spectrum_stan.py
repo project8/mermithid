@@ -5,6 +5,7 @@ Date: Aug 31 2019
 '''
 
 import unittest
+import sys, os
 
 from morpho.utilities import morphologging
 logger = morphologging.getLogger(__name__)
@@ -14,8 +15,10 @@ from morpho.processors.plots import Histogram
 from mermithid.misc.Constants import seconds_per_year, tritium_endpoint
 from mermithid.misc import Constants
 
+import ROOT
 from ROOT import TH1F
 from ROOT import TMath
+from ROOT import RooFit
 
 from morpho.processors.sampling.PyStanSamplingProcessor import PyStanSamplingProcessor
 from mermithid.processors.misc.EfficiencyCorrector import EfficiencyCorrector
@@ -43,7 +46,7 @@ def ProduceData(counts=10000):
         "iter": counts,
         "interestParams": ["F"],
         "fixedParams": {"m_nu": 0},
-        "options": {"snr_efficiency": False, "channel_efficiency":False, "smearing": True},
+        "options": {"snr_efficiency": True, "channel_efficiency":False, "smearing": True},
         "snr_efficiency_coefficients": [-265.03357206889626, 6.693200670990694e-07, -5.795611253664308e-16, 1.5928835520798478e-25, 2.892234977030861e-35, -1.566210147698845e-44], #[-451719.97479592788, 5.2434404146607557e-05, -2.0285859980859651e-15, 2.6157820559434323e-26],
         "channel_central_frequency": 1400e6,
         "mixing_frequency": 24.5e9
@@ -54,52 +57,34 @@ def ProduceData(counts=10000):
     specGen.Run()
     tritium_data = specGen.data
     print('Number of events: {}'.format(len(tritium_data["F"])))
-    #result_E = {"KE": specGen.Energy(tritium_data["F"])}
-    #result_E["is_sample"] = tritium_data["is_sample"]
-
-    #result_mixed = tritium_data
-    #result_mixed["F"] = [f-24.5e9 for f in result_mixed["F"]]
 
     return tritium_data
 
-def CorrectData(input_data, nbins = 100, F_min = 24.5e9 + 1320e6, F_max = 24.5e9 + 1480e6):
+def CorrectData(input_data, nbins = 100, F_min = 24.5e9 + 1320e6,
+F_max = 24.5e9 + 1480e6, mode = 'unbinned', asInteger = False,
+energy_or_frequency = 'energy', histogram_or_dictionary = 'histogram'):
 
     effCorr_config = {
+
         "variables": "F",
         "range": [F_min, F_max],
         "n_bins_x": nbins,
         "title": "corrected_spectrum",
         "efficiency": "-265.03357206889626 + 6.693200670990694e-07*(x-24.5e9) + -5.795611253664308e-16*(x-24.5e9)^2 + 1.5928835520798478e-25*(x-24.5e9)^3 + 2.892234977030861e-35*(x-24.5e9)^4 + -1.566210147698845e-44*(x-24.5e9)^5",
-        "mode": "binned",
-        "asInteger": True
+        "mode": mode,
+        "energy_or_frequency": energy_or_frequency,
+        "histogram_or_dictionary": histogram_or_dictionary,
+        "asInteger": asInteger,
 
     }
 
-
-
-    histo = TH1F("histo", "histo", nbins, F_min, F_max)
-
-    for val in input_data["F"]:
-        histo.Fill(val)
-
-    bin_centers = []
-    counts = []
-
-    for i in range(nbins):
-        counts.append(int(histo.GetBinContent(i)))
-        bin_centers.append(histo.GetBinCenter(i))
-
-    binned_data = {"N": counts, "F": bin_centers}
-
     effCorr = EfficiencyCorrector("effCorr")
     effCorr.Configure(effCorr_config)
-    effCorr.data = binned_data
+    effCorr.data = input_data
     effCorr.Run()
+    result = effCorr.corrected_data
 
-    corrected_E_data = {"KE": Energy(effCorr.corrected_data["F"])}
-    corrected_E_data["N"] = effCorr.corrected_data["N"]
-
-    return corrected_E_data
+    return result
 
 def AnalyzeData(tritium_data, nbins=100, iterations=100, f_min = 24.5e9+1320e6, f_max = 24.5e9+1480e6, make_plots=False):
 
@@ -155,6 +140,7 @@ def AnalyzeData(tritium_data, nbins=100, iterations=100, f_min = 24.5e9+1320e6, 
             nCounts, energy_resolution, energy_resolution_precision)
         plot_Sampling(sampling_result, plot_name)
 
+    return sampling_result
 def Energy(f, B=None, Theta=None):
     #print(type(F))
     if B==None:
@@ -185,7 +171,7 @@ def DoAnalysis():
     print("Generate fake distorted tritium data and test efficiency correction.")
     tritium_data = ProduceData()
     corrected_tritium_data = CorrectData(tritium_data)
-    AnalyzeData(corrected_tritium_data, make_plots=True)
+    AnalyzeData(corrected_tritium_data, make_plots=False)
 if __name__ == '__main__':
 
     DoAnalysis()

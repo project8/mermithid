@@ -69,7 +69,8 @@ def ProduceData(counts=10000):
 
     return tritium_data
 
-def CorrectData(input_data, nbins = 100, F_min = 24.5e9 + 1320e6, F_max = 24.5e9 + 1480e6, mode = "binned"):
+def CorrectData(input_data, nbins = 100, F_min = 24.5e9 + 1320e6,
+F_max = 24.5e9 + 1480e6, mode = 'unbinned', asInteger = False, energy_or_frequency = 'energy', histogram_or_dictionary = 'histogram'):
 
     effCorr_config = {
 
@@ -79,40 +80,17 @@ def CorrectData(input_data, nbins = 100, F_min = 24.5e9 + 1320e6, F_max = 24.5e9
         "title": "corrected_spectrum",
         "efficiency": "-265.03357206889626 + 6.693200670990694e-07*(x-24.5e9) + -5.795611253664308e-16*(x-24.5e9)^2 + 1.5928835520798478e-25*(x-24.5e9)^3 + 2.892234977030861e-35*(x-24.5e9)^4 + -1.566210147698845e-44*(x-24.5e9)^5",
         "mode": mode,
+        "energy_or_frequency": energy_or_frequency,
+        "histogram_or_dictionary": histogram_or_dictionary,
 
     }
 
-    histo = TH1F("histo", "histo", nbins, F_min, F_max)
-    corr_histo = TH1F("corr_hist", "corr_histo", nbins, Energy(F_max), Energy(F_min))
-
-    for val in input_data["F"]:
-        histo.Fill(val)
-
-    bin_centers = []
-    counts = []
-
-    for i in range(nbins):
-        counts.append(int(histo.GetBinContent(i)))
-        bin_centers.append(histo.GetBinCenter(i))
-
-    binned_data = {"N": counts, "F": bin_centers}
-
     effCorr = EfficiencyCorrector("effCorr")
     effCorr.Configure(effCorr_config)
-    effCorr.data = binned_data
+    effCorr.data = input_data
     effCorr.Run()
 
-    if mode == "binned":
-        corrected_E_data = {"KE": Energy(effCorr.corrected_data["F"])}
-        corrected_E_data["N"] = effCorr.corrected_data["N"]
-
-        for i in range(len(corrected_E_data["KE"])):
-            corr_histo.SetBinContent(i, corrected_E_data["N"][-i])
-        return corr_histo
-
-    elif mode == "unbinned":
-        corrected_E_data = {"KE": Energy(effCorr.corrected_data["F"])}
-        return corrected_E_data
+    return effCorr.corrected_data
 
 def AnalyzeData(tritium_data, nbins=100, iterations=100, F_min = 24.5e9 + 1320e6, F_max = 24.5e9 + 1480e6):
 
@@ -137,7 +115,7 @@ def AnalyzeData(tritium_data, nbins=100, iterations=100, F_min = 24.5e9 + 1320e6
         "mode": "fit",
         "varName": "KE",
         "iter": iterations,
-        "interestParams": ["KE"],
+        "interestParams": ["endpoint"],
         "paramRange": {
             "KE": [KE_min, KE_max]
         },
@@ -164,6 +142,7 @@ def AnalyzeData(tritium_data, nbins=100, iterations=100, F_min = 24.5e9 + 1320e6
     specFit.Configure(fit_config)
     specFit.data = tritium_data
     specFit.Run()
+    #print(specFit.result)
 
 def Energy(f, B=None, Theta=None):
     #print(type(F))
@@ -180,7 +159,7 @@ def Energy(f, B=None, Theta=None):
 def DoAnalysis():
     print("Generate fake distorted tritium data and test efficiency correction.")
     tritium_data = ProduceData()
-    corrected_tritium_data = CorrectData(tritium_data)
+    corrected_tritium_data = CorrectData(tritium_data, mode = 'unbinned', energy_or_frequency = 'energy', asInteger = False)
     AnalyzeData(corrected_tritium_data)
 if __name__ == '__main__':
 

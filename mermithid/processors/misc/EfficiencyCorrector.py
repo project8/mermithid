@@ -7,7 +7,8 @@ Date:8/1/2019
 
 from __future__ import absolute_import
 
-from ROOT import TF1, TMath
+import sys
+from ROOT import TF1, TMath, TH1F
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from morpho.processors.plots import RootCanvas, RootHistogram
@@ -38,61 +39,84 @@ class EfficiencyCorrector(BaseProcessor):
         '''
         Configure
         '''
-        # Initialize Canvas
-        # try:
-        #     self.rootcanvas = RootCanvas.RootCanvas(params, optStat=0)
-        # except:
         self.rootcanvas = RootCanvas(params, optStat=0)
 
 
         # Read other parameters
         self.namedata = reader.read_param(params, 'variables', "required")
-        #self.bin_centers = reader.read_param(params, 'bin_centers', 'bin_centers') # Assumes binned data is an input dict with a list that has the bin centers.
         self.N = reader.read_param(params, 'N', 'N')
         self.eff_eqn = reader.read_param(params, 'efficiency', '1')
         self.mode = reader.read_param(params, 'mode', 'unbinned')
+        self.histogram_or_dictionary = reader.read_param(params, 'histogram_or_dictionary',
+         'histogram')
         self.n_bins_x = reader.read_param(params, 'n_bins_x', 100)
-        self.histo = RootHistogram(params, optStat=0)
         self.range = reader.read_param(params, 'range', [0., -1.])
-        self.eff_func = TF1("eff_func", self.eff_eqn, self.range[0], self.range[1])
+        self.eff_func = TF1('eff_func', self.eff_eqn, self.range[0], self.range[1])
+        self.histo = TH1F('histo', 'histo', self.n_bins_x, self.range[0], self.range[1])
         self.asInteger = reader.read_param(params, 'asInteger', False)
+        self.energy_or_frequency = reader.read_param(params, 'energy_or_frequency', 'energy')
         self.total_counts = 0
         self.total_weighted_counts = 0
         self.eff_norm = 0
-        self.corrected_data = {self.namedata: [], 'efficiency': []}
+
+        if self.energy_or_frequency == 'energy':
+            self.corrected_data = TH1F('corrrected_data', 'corrected_data', self.n_bins_x, Energy(self.range[1]), Energy(self.range[0]))
+            print(sys.getrefcount(self.corrected_data))
+        elif self.energy_or_frequency == 'frequency':
+            self.corrected_data = TH1F('corrrected_data', 'corrected_data', self.n_bins_x, self.range[0], self.range[1])
+
         return True
 
     def InternalRun(self):
-        #self.rootcanvas.cd()
         if self.mode == 'unbinned':
-            self.corrected_data[self.namedata] = self.data.get(self.namedata)
+
+            for i in self.data.get(self.namedata):
+                self.histo.Fill(i)
+
+        elif self.mode == 'binned':
 
             for i in range(len(self.data.get(self.namedata))):
-                self.eff_norm += self.eff_func.Eval(self.data.get(self.namedata)[i])
-            
-            for i in range(len(self.data.get(self.namedata))):
-                self.corrected_data['efficiency'].append(self.eff_func.Eval(self.data.get(self.namedata)[i])/self.eff_norm)
+                self.histo.SetBinContent(i + 1, self.data.get('N')[i])
 
-        if self.mode == 'binned':
-            self.corrected_data[self.namedata] = self.data.get(self.namedata)
-            self.corrected_data[self.N] = self.data.get(self.N)
+        self.histo.Sumw2()
 
-            for i in range(len(self.namedata)):
-                self.total_counts += self.data.get(self.N)[i]
-                self.total_weighted_counts += self.data.get(self.N)[i]/self.eff_func.Eval(self.data.get(self.namedata)[i])
+        for i in range(self.n_bins_x):
 
-            self.eff_norm = self.total_counts/self.total_weighted_counts
+            self.total_counts += self.histo.GetBinContent(i + 1)
+            self.total_weighted_counts += self.histo.GetBinContent(i + 1)/self.eff_func.Eval(self.histo.GetBinCenter(i + 1))
 
+        self.eff_norm = self.total_counts/self.total_weighted_counts
+
+        if self.asInteger:
+
+            if self.energy_or_frequency == 'frequency':
+                for i in range(self.n_bins_x):
+                    self.corrected_data.SetBinContent(i + 1,
+                    int(self.eff_norm * self.histo.GetBinContent(i + 1)/self.eff_func.Eval(self.histo.GetBinCenter(i + 1))))
+            elif self.energy_or_frequency == 'energy':
+                for i in range(self.n_bins_x):
+                    self.corrected_data.SetBinContent(self.n_bins_x - i,
+                    int(self.eff_norm * self.histo.GetBinContent(i + 1)/self.eff_func.Eval(self.histo.GetBinCenter(i + 1))))
+
+        else:
+
+            if self.energy_or_frequency == 'frequency':
+                for i in range(self.n_bins_x):
+                    self.corrected_data.SetBinContent(i + 1,
+                    self.eff_norm * self.histo.GetBinContent(i + 1)/self.eff_func.Eval(self.histo.GetBinCenter(i + 1)))
+            elif self.energy_or_frequency == 'energy':
+                for i in range(self.n_bins_x):
+                    self.corrected_data.SetBinContent(self.n_bins_x - i,
+                    self.eff_norm * self.histo.GetBinContent(i + 1)/(self.eff_func.Eval(self.histo.GetBinCenter(i + 1))))
+
+        self.corrected_data.Sumw2()
+
+        if self.histogram_or_dictionary == 'dictionary':
+            temp_dictionary = {'KE': [], 'N': []}
             for i in range(self.n_bins_x):
-                self.corrected_data['efficiency'].append(self.eff_func.Eval(self.data.get(self.namedata)[i])/self.eff_norm)
-                self.corrected_data['N'][i] /= self.corrected_data['efficiency'][i]
-                if self.asInteger:
-                    temp_int = int(self.corrected_data['N'][i])
-                    self.corrected_data['N'][i] = temp_int
+                temp_dictionary['KE'].append(self.corrected_data.GetBinCenter(i + 1))
+                temp_dictionary['N'].append(int(self.corrected_data.GetBinContent(i + 1)))
+            self.corrected_data = temp_dictionary
+            #print(self.corrected_data.keys())
 
-            #self.histo.Fill(self.corrected_data.get(self.namedata))
-            #self.histo.SetBinsContent(self.corrected_data['counts'])
-            #self.histo.Divide(self.eff_func)
-            #self.histo.Draw("hist")
-        #self.rootcanvas.Save()
         return True
