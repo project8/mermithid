@@ -75,7 +75,7 @@ class EfficiencyCorrector(BaseProcessor):
 
         elif self.mode == 'binned':
 
-            for i in range(len(self.data.get(self.namedata))):
+            for i in range(self.n_bins_x):
                 self.histo.SetBinContent(i + 1, self.data.get('N')[i])
 
         self.histo.Sumw2()

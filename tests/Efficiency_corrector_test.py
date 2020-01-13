@@ -16,9 +16,10 @@ class TritiumTests(unittest.TestCase):
         from mermithid.processors.misc.EfficiencyCorrector import EfficiencyCorrector
         from morpho.processors.plots import Histogram
         from mermithid.misc.Constants import seconds_per_year, tritium_endpoint
-        import importlib.machinery
-        modulename = importlib.machinery.SourceFileLoader('modulename','/Users/ziegler/docker_share/builds/mermithid/mermithid/processors/TritiumSpectrum/DistortedTritiumSpectrumLikelihoodSampler.py').load_module()
-        from modulename import DistortedTritiumSpectrumLikelihoodSampler
+        #import importlib.machinery
+        #modulename = importlib.machinery.SourceFileLoader('modulename','/Users/ziegler/docker_share/builds/mermithid/mermithid/processors/TritiumSpectrum/DistortedTritiumSpectrumLikelihoodSampler.py').load_module()
+        #from modulename import DistortedTritiumSpectrumLikelihoodSampler
+
 
         specGen_config = {
             "volume": 7e-6*1e-2, # [m3]
@@ -48,7 +49,8 @@ class TritiumTests(unittest.TestCase):
             "n_bins_x": 100,
             "title": "corrected_spectrum",
             "efficiency": "-265.03357206889626 + 6.693200670990694e-07*(x-24.5e9) + -5.795611253664308e-16*(x-24.5e9)^2 + 1.5928835520798478e-25*(x-24.5e9)^3 + 2.892234977030861e-35*(x-24.5e9)^4 + -1.566210147698845e-44*(x-24.5e9)^5",
-            "mode": "binned"
+            "mode": "binned",
+            "histogram_or_dictionary": "dictionary"
 
         }
         histo_plot = {
@@ -66,11 +68,12 @@ class TritiumTests(unittest.TestCase):
         specGen.Configure(specGen_config)
         effCorr.Configure(effCorr_config)
         histo.Configure(histo_plot)
-    
+
 
         #specGen.definePdf()
         specGen.Run()
         results = specGen.data
+
         histo.data = results
         histo.Run()
 
@@ -81,15 +84,16 @@ class TritiumTests(unittest.TestCase):
         histogram along with returning the corrected data.
         """
 
-        results.update({'bin_centers': [], 'counts': []})
+        results.update({'bin_centers': [], 'N': []})
 
         for i in range(histo_plot['n_bins_x']):
             results['bin_centers'].append(histo.histo.histo.GetBinCenter(i+1))
-            results['counts'].append(histo.histo.histo.GetBinContent(i+1))
+            results['N'].append(histo.histo.histo.GetBinContent(i+1))
 
+        #print(results.keys())
         effCorr.data = results
         effCorr.Run()
-
+        #print(effCorr.corrected_data)
 
 
 if __name__ == '__main__':
