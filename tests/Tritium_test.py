@@ -11,7 +11,7 @@ logger = morphologging.getLogger(__name__)
 
 
 class TritiumTests(unittest.TestCase):
-
+    """
     def test_KuriePlot(self):
         from mermithid.processors.TritiumSpectrum import TritiumSpectrumGenerator, KuriePlotFitter
         from morpho.processors.plots import Histogram
@@ -53,13 +53,13 @@ class TritiumTests(unittest.TestCase):
         kurieHisto.data = result
         histo.Run()
         kurieHisto.Run()
-
+    """
     def test_GenAna(self):
         from mermithid.processors.TritiumSpectrum import TritiumSpectrumProcessor
         from morpho.processors.plots import Histogram
         from mermithid.misc.Constants import seconds_per_year, tritium_endpoint
 
-        energy_resolution = 5
+        energy_resolution = 36
 
         specGen_config = {
             "mode": "generate",
@@ -105,23 +105,24 @@ class TritiumTests(unittest.TestCase):
                 "widthSmearing": energy_resolution
             },
             "varName": "KE",
-            "interestParams": ['KE'],
-            "make_fit_plot": True,
+            "interestParams": ['endpoint'],
+            "make_fit_plot": False,
             "binned": False
         }
         specGen = TritiumSpectrumProcessor("specGen")
         specFit = TritiumSpectrumProcessor("specFit")
-        histo = Histogram("histo")
+        #histo = Histogram("histo")
 
         specGen.Configure(specGen_config)
-        histo.Configure(histo_plot)
+        #histo.Configure(histo_plot)
         specFit.Configure(specFit_config)
         specGen.Run()
         result = specGen.data
-        histo.data = result
+        #histo.data = result
         specFit.data = result
-        histo.Run()
+        #histo.Run()
         specFit.Run()
+        print(specFit.result)
 
 
 if __name__ == '__main__':
