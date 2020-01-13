@@ -62,8 +62,10 @@ class EfficiencyCorrector(BaseProcessor):
         if self.energy_or_frequency == 'energy':
             self.corrected_data = TH1F('corrrected_data', 'corrected_data', self.n_bins_x, Energy(self.range[1]), Energy(self.range[0]))
             print(sys.getrefcount(self.corrected_data))
+            self.output_bin_variable='KE'
         elif self.energy_or_frequency == 'frequency':
             self.corrected_data = TH1F('corrrected_data', 'corrected_data', self.n_bins_x, self.range[0], self.range[1])
+            self.output_bin_variable='F'
 
         return True
 
@@ -112,9 +114,9 @@ class EfficiencyCorrector(BaseProcessor):
         self.corrected_data.Sumw2()
 
         if self.histogram_or_dictionary == 'dictionary':
-            temp_dictionary = {'KE': [], 'N': []}
+            temp_dictionary = {self.output_bin_variable: [], 'N': []}
             for i in range(self.n_bins_x):
-                temp_dictionary['KE'].append(self.corrected_data.GetBinCenter(i + 1))
+                temp_dictionary[self.output_bin_variable].append(self.corrected_data.GetBinCenter(i + 1))
                 temp_dictionary['N'].append(int(self.corrected_data.GetBinContent(i + 1)))
             self.corrected_data = temp_dictionary
             #print(self.corrected_data.keys())

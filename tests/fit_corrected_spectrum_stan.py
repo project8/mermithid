@@ -62,7 +62,7 @@ def ProduceData(counts=10000):
 
 def CorrectData(input_data, nbins = 100, F_min = 24.5e9 + 1320e6,
 F_max = 24.5e9 + 1480e6, mode = 'unbinned', asInteger = False,
-energy_or_frequency = 'energy', histogram_or_dictionary = 'histogram'):
+energy_or_frequency = 'energy', histogram_or_dictionary = 'dictionary'):
 
     effCorr_config = {
 
