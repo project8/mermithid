@@ -58,8 +58,8 @@ In both cases, you need to set the paths right for using these software. For exa
 
 ```bash
 source $MERMITHID_BUILD_PREFIX/setup.sh
-   source $MERMITHID_BUILD_PREFIX/bin/this_cicada.sh
-   source $MERMITHID_BUILD_PREFIX/bin/this_phylloxera.sh
+source $MERMITHID_BUILD_PREFIX/bin/this_cicada.sh
+source $MERMITHID_BUILD_PREFIX/bin/this_phylloxera.sh
 ```
 
 ## Quick start and examples
