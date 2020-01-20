@@ -4,6 +4,17 @@ Validation Log
 Log
 ---
 
+Version: v1.1.12
+~~~~~~~~~~~~~~~~
+
+Release Date: Fri Jan 17 2020
+'''''''''''''''''''''''''''''
+
+Fixes:
+''''''
+
+* Fixing starting command in docker-compose
+
 Version: v1.1.11
 ~~~~~~~~~~~~~~~~
 
