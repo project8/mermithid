@@ -124,7 +124,7 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
 
         return True
 
-        def EfficiencyAssignment(self, f):
-            efficiency = 0.9
-            efficiency_error = 0.05
-            return efficiency, efficiency_error
+    def EfficiencyAssignment(self, f):
+        efficiency = 0.9
+        efficiency_error = 0.05
+        return efficiency, efficiency_error
