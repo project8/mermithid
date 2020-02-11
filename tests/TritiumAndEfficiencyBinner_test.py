@@ -79,8 +79,8 @@ class TritiumTests(unittest.TestCase):
 
         """
 
-        2/11/20: the below is out of date, from when EfficiencyCorrector rather
-        than TritiumAndEfficiencyBinner was used. Being replumbed now.
+        2/11/20: the below note is out of date, from when EfficiencyCorrector
+        rather than TritiumAndEfficiencyBinner was used. Being replumbed now.
 
         Not proud of how I create binned data here. But it works =). Currently
         the EfficiencyCorrector needs to know the bin centers and bin occupancy
