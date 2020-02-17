@@ -59,6 +59,7 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         self.total_weighted_counts = 0
         self.eff_norm = 0
 
+        # initialize the histogram to store the corrected data
         if self.energy_or_frequency == 'energy':
             self.corrected_data = TH1F('corrrected_data', 'corrected_data', self.n_bins_x, Energy(self.range[1]), Energy(self.range[0]))
             print(sys.getrefcount(self.corrected_data))
@@ -71,6 +72,12 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
 
     def InternalRun(self):
         print('hi')
+
+        # the below fills the histogram "histo" with data. If the data is coming
+        # in unbinned, you can use ROOT's native Fill, or if it's already binned
+        # you manually set the value of each of the bins. I'm a little confused;
+        # shouldn't histo already be filled with data, based on
+        # TritiumEfficiencyAndBinner_test.py?
         if self.mode == 'unbinned':
 
             for i in self.data.get(self.namedata):
@@ -81,8 +88,11 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
             for i in range(self.n_bins_x):
                 self.histo.SetBinContent(i + 1, self.data.get('N')[i])
 
+        # this tells the histogram to keep track of sum of squares of weights
         self.histo.Sumw2()
 
+        # this appears to just be getting total counts and total counts
+        # weighted by efficiency. Are things in ROOT not zero-indexed?!?
         for i in range(self.n_bins_x):
 
             self.total_counts += self.histo.GetBinContent(i + 1)
@@ -90,6 +100,10 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
 
         self.eff_norm = self.total_counts/self.total_weighted_counts
 
+        # this populates the corrected_data histogram with the efficiency
+        # corrections, counting backwards for energy because higher frequency
+        # means lower energy. asInteger is a parameter read out from the config
+        # file or defaulted to False, and the effect seems subtle.
         if self.asInteger:
 
             if self.energy_or_frequency == 'frequency':
@@ -114,6 +128,7 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
 
         self.corrected_data.Sumw2()
 
+        # put corrected data in a dictionary form if requested
         if self.histogram_or_dictionary == 'dictionary':
             temp_dictionary = {self.output_bin_variable: [], 'N': []}
             for i in range(self.n_bins_x):
