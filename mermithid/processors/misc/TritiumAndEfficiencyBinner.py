@@ -7,6 +7,7 @@ Date:1/20/2020
 
 from __future__ import absolute_import
 
+import numpy as np
 import sys
 from ROOT import TF1, TMath, TH1F
 from morpho.utilities import morphologging, reader
@@ -41,18 +42,13 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         '''
         self.rootcanvas = RootCanvas(params, optStat=0)
 
-
         # Read other parameters
         self.namedata = reader.read_param(params, 'variables', "required")
         self.N = reader.read_param(params, 'N', 'N')
         self.eff_eqn = reader.read_param(params, 'efficiency', '1')
         self.mode = reader.read_param(params, 'mode', 'unbinned')
-        self.histogram_or_dictionary = reader.read_param(params, 'histogram_or_dictionary',
-         'histogram')
         self.n_bins_x = reader.read_param(params, 'n_bins_x', 100)
         self.range = reader.read_param(params, 'range', [0., -1.])
-        self.eff_func = TF1('eff_func', self.eff_eqn, self.range[0], self.range[1])
-        self.histo = TH1F('histo', 'histo', self.n_bins_x, self.range[0], self.range[1])
         self.asInteger = reader.read_param(params, 'asInteger', False)
         self.energy_or_frequency = reader.read_param(params, 'energy_or_frequency', 'energy')
         self.total_counts = 0
@@ -61,85 +57,39 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
 
         # initialize the histogram to store the corrected data
         if self.energy_or_frequency == 'energy':
-            self.corrected_data = TH1F('corrrected_data', 'corrected_data', self.n_bins_x, Energy(self.range[1]), Energy(self.range[0]))
             print(sys.getrefcount(self.corrected_data))
             self.output_bin_variable='KE'
+            self.bins = np.linspace(self.range[0], self.range[1], self.n_bins_x)
         elif self.energy_or_frequency == 'frequency':
-            self.corrected_data = TH1F('corrrected_data', 'corrected_data', self.n_bins_x, self.range[0], self.range[1])
             self.output_bin_variable='F'
+            self.bins = np.linspace(self.range[0], self.range[1], self.n_bins_x)
 
         return True
 
     def InternalRun(self):
-        print('hi')
+        print('namedata:',self.namedata)
 
-        # the below fills the histogram "histo" with data. If the data is coming
-        # in unbinned, you can use ROOT's native Fill, or if it's already binned
-        # you manually set the value of each of the bins. I'm a little confused;
-        # shouldn't histo already be filled with data, based on
-        # TritiumEfficiencyAndBinner_test.py?
-        if self.mode == 'unbinned':
+        N,b = np.histogram(self.data[self.namedata], self.bins)
+        self.bin_centers = self.bins[0:-1]+0.5*(self.bins[1]-self.bins[0])
 
-            for i in self.data.get(self.namedata):
-                self.histo.Fill(i)
+        self.bin_efficiencies = np.zeros(self.n_bins_x-1)
+        self.bin_efficiency_errors = np.zeros(self.n_bins_x-1)
 
-        elif self.mode == 'binned':
+        for i in range(self.n_bins_x-1):
 
-            for i in range(self.n_bins_x):
-                self.histo.SetBinContent(i + 1, self.data.get('N')[i])
+            self.bin_efficiencies[i], self.bin_efficiency_errors[i] = self.EfficiencyAssignment(self.bin_centers[i])
 
-        # this tells the histogram to keep track of sum of squares of weights
-        self.histo.Sumw2()
-
-        # this appears to just be getting total counts and total counts
-        # weighted by efficiency. Are things in ROOT not zero-indexed?!?
-        for i in range(self.n_bins_x):
-
-            self.total_counts += self.histo.GetBinContent(i + 1)
-            self.total_weighted_counts += self.histo.GetBinContent(i + 1)/self.eff_func.Eval(self.histo.GetBinCenter(i + 1))
-
-        self.eff_norm = self.total_counts/self.total_weighted_counts
-
-        # this populates the corrected_data histogram with the efficiency
-        # corrections, counting backwards for energy because higher frequency
-        # means lower energy. asInteger is a parameter read out from the config
-        # file or defaulted to False, and the effect seems subtle.
-        if self.asInteger:
-
-            if self.energy_or_frequency == 'frequency':
-                for i in range(self.n_bins_x):
-                    self.corrected_data.SetBinContent(i + 1,
-                    int(self.eff_norm * self.histo.GetBinContent(i + 1)/self.eff_func.Eval(self.histo.GetBinCenter(i + 1))))
-            elif self.energy_or_frequency == 'energy':
-                for i in range(self.n_bins_x):
-                    self.corrected_data.SetBinContent(self.n_bins_x - i,
-                    int(self.eff_norm * self.histo.GetBinContent(i + 1)/self.eff_func.Eval(self.histo.GetBinCenter(i + 1))))
-
-        else:
-
-            if self.energy_or_frequency == 'frequency':
-                for i in range(self.n_bins_x):
-                    self.corrected_data.SetBinContent(i + 1,
-                    self.eff_norm * self.histo.GetBinContent(i + 1)/self.eff_func.Eval(self.histo.GetBinCenter(i + 1)))
-            elif self.energy_or_frequency == 'energy':
-                for i in range(self.n_bins_x):
-                    self.corrected_data.SetBinContent(self.n_bins_x - i,
-                    self.eff_norm * self.histo.GetBinContent(i + 1)/(self.eff_func.Eval(self.histo.GetBinCenter(i + 1))))
-
-        self.corrected_data.Sumw2()
+        self.bin_efficiencies_normed = self.bin_efficiencies/np.sum(self.bin_efficiencies)
+        self.bin_efficiency_errors_normed = self.bin_efficiency_errors/np.sum(self.bin_efficiencies)
 
         # put corrected data in a dictionary form if requested
-        if self.histogram_or_dictionary == 'dictionary':
-            temp_dictionary = {self.output_bin_variable: [], 'N': []}
-            for i in range(self.n_bins_x):
-                temp_dictionary[self.output_bin_variable].append(self.corrected_data.GetBinCenter(i + 1))
-                temp_dictionary['N'].append(int(self.corrected_data.GetBinContent(i + 1)))
-            self.corrected_data = temp_dictionary
-            #print(self.corrected_data.keys())
-
-        # initialize
-        self.tritium_binned_data = {}
-
+        temp_dictionary = {self.output_bin_variable: [], 'N': [], 'bin_efficiencies': [], 'bin_efficiency_errors': []}
+        temp_dictionary['N'] = N
+        temp_dictionary[self.output_bin_variable] = self.bin_centers
+        temp_dictionary['bin_efficiencies'] = self.bin_efficiencies_normed
+        temp_dictionary['bin_efficiency_errors'] = self.bin_efficiency_errors_normed
+        self.results = temp_dictionary
+        #print(self.corrected_data.keys())
 
         return True
 
