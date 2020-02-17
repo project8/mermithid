@@ -75,7 +75,7 @@ class TritiumTests(unittest.TestCase):
         plt.subplot(1,2,1)
         plt.errorbar(binned_results['F'], binned_results['N'], yerr = np.sqrt(binned_results['N']), drawstyle = 'steps-mid')
         plt.subplot(1,2,2)
-        plt.errorbar(binned_results['F'], binned_results['bin_efficiencies'], yerr = binned_results['bin_efficiency_errors'])
+        plt.errorbar(binned_results['F'], binned_results['bin_efficiencies'], yerr = binned_results['bin_efficiency_errors'], drawstyle = 'steps-mid')
         plt.savefig('TritiumAndEfficiencyBinnerOutputPlot.png')
 
 if __name__ == '__main__':
