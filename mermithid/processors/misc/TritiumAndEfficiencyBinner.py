@@ -137,6 +137,10 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
             self.corrected_data = temp_dictionary
             #print(self.corrected_data.keys())
 
+        # initialize
+        self.tritium_binned_data = {}
+
+
         return True
 
     def EfficiencyAssignment(self, f):
