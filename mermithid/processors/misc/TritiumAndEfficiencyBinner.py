@@ -8,6 +8,7 @@ Date:2/17/2020
 from __future__ import absolute_import
 
 import numpy as np
+import scipy
 import sys
 import json
 from morpho.utilities import morphologging, reader
@@ -44,9 +45,7 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         self.namedata = reader.read_param(params, 'variables', "required")
         self.N = reader.read_param(params, 'N', 'N')
         self.eff_eqn = reader.read_param(params, 'efficiency', '1')
-        self.mode = reader.read_param(params, 'mode', 'unbinned')
-        self.n_bins_x = reader.read_param(params, 'n_bins_x', 100)
-        self.range = reader.read_param(params, 'range', [0., -1.])
+        self.bins = reader.read_param(params, 'bins', [])
         self.asInteger = reader.read_param(params, 'asInteger', False)
         self.energy_or_frequency = reader.read_param(params, 'energy_or_frequency', 'energy')
         self.efficiency_filepath = reader.read_param(params, 'efficiency_filepath', '/host/combined_energy_corrected_eff_at_quad_trap_frequencies.json')
@@ -55,10 +54,8 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         if self.energy_or_frequency == 'energy':
             print(sys.getrefcount(self.corrected_data))
             self.output_bin_variable='KE'
-            self.bins = np.linspace(self.range[0], self.range[1], self.n_bins_x)
         elif self.energy_or_frequency == 'frequency':
             self.output_bin_variable='F'
-            self.bins = np.linspace(self.range[0], self.range[1], self.n_bins_x)
 
         return True
 
@@ -68,26 +65,29 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         N,b = np.histogram(self.data[self.namedata], self.bins)
         self.bin_centers = self.bins[0:-1]+0.5*(self.bins[1]-self.bins[0])
 
-        self.bin_efficiencies = np.zeros(self.n_bins_x-1)
-        self.bin_efficiency_errors = np.zeros(self.n_bins_x-1)
-
-        self.bin_efficiencies, self.bin_efficiency_errors = self.EfficiencyAssignment(self.bin_centers)
-
+        # Efficiencies for bins
+        self.bin_efficiencies, self.bin_efficiency_errors = self.EfficiencyAssignment(self.bins, True)
         self.bin_efficiencies_normed = self.bin_efficiencies/np.sum(self.bin_efficiencies)
         self.bin_efficiency_errors_normed = self.bin_efficiency_errors/np.sum(self.bin_efficiencies)
 
-        # put corrected data in a dictionary form if requested
-        temp_dictionary = {self.output_bin_variable: [], 'N': [], 'bin_efficiencies': [], 'bin_efficiency_errors': []}
+        # Efficiencies for events, but with binned uncertainties (?)
+        self.event_efficiencies, self.event_efficiency_errors = self.EfficiencyAssignment(self.data[self.namedata], False)
+        self.event_efficiencies_normed = self.event_efficiencies/np.sum(self.event_efficiencies)
+        self.event_efficiency_errors_normed = self.event_efficiency_errors/np.sum(self.event_efficiencies)
+
+        # Put it all in a dictionary
+        temp_dictionary = {self.output_bin_variable: [], 'N': [], 'bin_efficiencies': [], 'bin_efficiency_errors': [], 'event_efficiencies': [], 'event_efficiency_errors': []}
         temp_dictionary['N'] = N
         temp_dictionary[self.output_bin_variable] = self.bin_centers
         temp_dictionary['bin_efficiencies'] = self.bin_efficiencies_normed
         temp_dictionary['bin_efficiency_errors'] = self.bin_efficiency_errors_normed
+        temp_dictionary['event_efficiencies'] = self.event_efficiencies_normed
+        temp_dictionary['event_efficiency_errors'] = self.event_efficiency_errors_normed
         self.results = temp_dictionary
-        #print(self.corrected_data.keys())
 
         return True
 
-    def EfficiencyAssignment(self, f):
+    def EfficiencyAssignment(self, f, integrate_bin_width = False):
         with open(self.efficiency_filepath, 'r') as infile:
             a = json.load(infile)
         print(a.keys)
@@ -95,10 +95,22 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         fss_frequencies = a['frequencies']
         fss_efficiencies = a['eff interp with slope correction']
         fss_efficiency_errors = a['error interp with slope correction']
-        bin_center_efficiencies = np.interp(f, fss_frequencies, fss_efficiencies, left=0, right=0)
-        bin_center_efficiency_lower_errors = np.interp(f, fss_frequencies, fss_efficiency_errors[0], left=1, right=1)
-        bin_center_efficiency_upper_errors = np.interp(f, fss_frequencies, fss_efficiency_errors[1], left=1, right=1)
-        # to do: integrate over bin width instead of just taking value at bin bin_centers
-        # to do: figure out how to deal with the situation where
-        #   frequencies have been slope/power corrected
-        return bin_center_efficiencies, [bin_center_efficiency_lower_errors, bin_center_efficiency_upper_errors]
+        efficiency_interpolation = scipy.interpolate.interp1d(fss_frequencies, fss_efficiencies, bounds_error=False, fill_value=0)
+        efficiency_error_interpolation_lower = scipy.interpolate.interp1d(fss_frequencies, fss_efficiency_errors[0], bounds_error=False, fill_value=1)
+        efficiency_error_interpolation_upper = scipy.interpolate.interp1d(fss_frequencies, fss_efficiency_errors[1], bounds_error=False, fill_value=1)
+        if integrate_bin_width == False:
+            # FOI means frequency of interest
+            FOI_efficiencies = efficiency_interpolation(f)
+            FOI_efficiency_lower_errors = efficiency_error_interpolation_lower(f)
+            FOI_efficiency_upper_errors = efficiency_error_interpolation_upper(f)
+        else:
+            number_of_bins = len(f)-1
+            FOI_efficiencies = np.zeros(number_of_bins)
+            FOI_efficiency_lower_errors = np.zeros(number_of_bins)
+            FOI_efficiency_upper_errors = np.zeros(number_of_bins)
+            for i in range(number_of_bins):
+                FOI_efficiencies[i] = scipy.integrate.quad(efficiency_interpolation, f[i], f[i+1])[0]/(f[i+1]-f[i])
+                FOI_efficiency_lower_errors[i] = scipy.integrate.quad(efficiency_error_interpolation_lower, f[i], f[i+1])[0]/(f[i+1]-f[i])
+                FOI_efficiency_upper_errors[i] = scipy.integrate.quad(efficiency_error_interpolation_upper, f[i], f[i+1])[0]/(f[i+1]-f[i])
+        # to do: figure out how to deal with the situation where frequencies have been slope/power corrected
+        return FOI_efficiencies, [FOI_efficiency_lower_errors, FOI_efficiency_upper_errors]
