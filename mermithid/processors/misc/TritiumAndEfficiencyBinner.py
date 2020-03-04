@@ -2,7 +2,13 @@
 Bin tritium start frequencies and calculate efficiency for each bin
 function.
 Author: A. Ziegler, E. Novitski, C. Claessens
-Date:2/17/2020
+Date:3/4/2020
+
+This takes efficiency informations and interpolates between frequency points.
+Then, you dump in tritium data.
+It assigns an efficiency and efficiency uncertainty upper and lower bounds to each event.
+It also bins events and defines an efficiency and efficiency uncertainty upper and
+lower bound by integrating the interpolated efficiency over each bin.
 '''
 
 from __future__ import absolute_import

@@ -1,7 +1,7 @@
 '''
 This scripts aims at testing Tritium specific processors.
-Author: M. Guigue, C. Claessens, A. Ziegler
-Date: Aug 1 2018
+Author: M. Guigue, C. Claessens, A. Ziegler, E. Novitski
+Date: 3/4/20
 '''
 
 import numpy as np
