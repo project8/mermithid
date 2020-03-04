@@ -48,7 +48,7 @@ class TritiumTests(unittest.TestCase):
             "energy_or_frequency": 'frequency',
             "variables": "F",
             "range": [24.5e9+1300e6, 24.5e9+1550e6],
-            "n_bins_x": 10,
+            "n_bins_x": 100,
             "title": "corrected_spectrum",
             "efficiency": "-265.03357206889626 + 6.693200670990694e-07*(x-24.5e9) + -5.795611253664308e-16*(x-24.5e9)^2 + 1.5928835520798478e-25*(x-24.5e9)^3 + 2.892234977030861e-35*(x-24.5e9)^4 + -1.566210147698845e-44*(x-24.5e9)^5",
             "mode": "unbinned"

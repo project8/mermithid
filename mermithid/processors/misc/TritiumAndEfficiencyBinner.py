@@ -98,4 +98,7 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         bin_center_efficiencies = np.interp(f, fss_frequencies, fss_efficiencies, left=0, right=0)
         bin_center_efficiency_lower_errors = np.interp(f, fss_frequencies, fss_efficiency_errors[0], left=1, right=1)
         bin_center_efficiency_upper_errors = np.interp(f, fss_frequencies, fss_efficiency_errors[1], left=1, right=1)
+        # to do: integrate over bin width instead of just taking value at bin bin_centers
+        # to do: figure out how to deal with the situation where
+        #   frequencies have been slope/power corrected
         return bin_center_efficiencies, [bin_center_efficiency_lower_errors, bin_center_efficiency_upper_errors]
