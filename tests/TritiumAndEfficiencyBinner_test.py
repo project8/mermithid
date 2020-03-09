@@ -31,7 +31,7 @@ class TritiumTests(unittest.TestCase):
             "frequency_window": [-100e6, +100e6], #[Fmin, Fmax]
             "energy_or_frequency": "frequency",
             # "energy_window": [0.,tritium_endpoint()+1e3], # [KEmin,KEmax]
-            "background": 1e-6, # [counts/eV/s]
+            "background": 0,#1e-6, # [counts/eV/s]
             "energy_resolution": 5,# [eV]
             "frequency_resolution": 2e6,# [Hz]
             "mode": "generate",
@@ -68,11 +68,6 @@ class TritiumTests(unittest.TestCase):
         tritiumAndEfficiencyBinner.data = data
         tritiumAndEfficiencyBinner.Run()
         results = tritiumAndEfficiencyBinner.results
-
-        print(len(results['F']))
-        print(len(results['N']))
-        print(len(results['bin_efficiencies']))
-        print(np.shape(results['bin_efficiency_errors']))
 
         plt.figure()
         plt.subplot(1,2,1)

@@ -70,8 +70,6 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
             self.bin_centers = a['frequencies']
             self.bins = np.array(self.bin_centers) - (self.bin_centers[1]-self.bin_centers[0])/2
             self.bins = np.append(self.bins, [self.bin_centers[-1]+(self.bin_centers[1]-self.bin_centers[0])/2])
-            print(len(self.bin_centers))
-            print(len(self.bins))
         else:
             self.bin_centers = self.bins[0:-1]+0.5*(self.bins[1]-self.bins[0])
         return True
@@ -107,7 +105,7 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
 
     def EfficiencyAssignment(self, f_bin_centers, f_bins = None, integrate_bin_width = False):
         a = self.GetEfficiencyFileContent()
-        print(a.keys)
+        #print(a.keys)
         # keys: ['frequencies_slope_cut', 'eff interp no slope correction', 'error interp no slope correction', 'frequencies', 'eff interp with slope correction', 'error interp with slope correction']
         fss_frequencies = a['frequencies']
         fss_efficiencies = a['eff interp with slope correction']
