@@ -20,20 +20,19 @@ class TritiumTests(unittest.TestCase):
         #from modulename import DistortedTritiumSpectrumLikelihoodSampler
 
         specGen_config = {
-            "volume": 7e-6*1e-2, # [m3]
-            "density": 3e17, # [1/m3]
             "duration": 1.*seconds_per_year()/12.*1, # [s]
+            "event_rate": 10./(24*3600),
             "neutrino_mass" :0, # [eV]
             "energy_window": [tritium_endpoint()-1e3,tritium_endpoint()+1e3], # [KEmin,KEmax]
             "frequency_window": [-100e6, +100e6], #[Fmin, Fmax]
             "energy_or_frequency": "frequency",
             # "energy_window": [0.,tritium_endpoint()+1e3], # [KEmin,KEmax]
-            "background": 1e-6, # [counts/eV/s]
+            "background": 1e-9, # [counts/eV/s]
             "energy_resolution": 5,# [eV]
             "frequency_resolution": 2e6,# [Hz]
             "mode": "generate",
             "varName": "F",
-            "iter": 10000,
+            "iter": 1000,
             "interestParams": ["F"],
             "fixedParams": {"m_nu": 0},
             "options": {"snr_efficiency": True, "channel_efficiency":False, "smearing": True},
