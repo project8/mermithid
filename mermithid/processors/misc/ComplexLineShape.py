@@ -515,79 +515,13 @@ class ComplexLineShape(BaseProcessor):
         self.fss_bins = reader.read_param(params, "fss_bins", False)
         # If self.fss_bins is True, self.bins is ignored and overwritten
 
-        # initialize the histogram to store the corrected data
-        if self.energy_or_frequency == 'energy':
-            print(sys.getrefcount(self.corrected_data))
-            self.output_bin_variable='KE'
-        elif self.energy_or_frequency == 'frequency':
-            self.output_bin_variable='F'
-
-        if self.fss_bins == True:
-            a = self.GetEfficiencyFileContent()
-            self.bin_centers = a['frequencies']
-            self.bins = np.array(self.bin_centers) - (self.bin_centers[1]-self.bin_centers[0])/2
-            self.bins = np.append(self.bins, [self.bin_centers[-1]+(self.bin_centers[1]-self.bin_centers[0])/2])
-        else:
-            self.bin_centers = self.bins[0:-1]+0.5*(self.bins[1]-self.bins[0])
-        return True
-
     def InternalRun(self):
-        print('namedata:',self.namedata)
-
-        N,b = np.histogram(self.data[self.namedata], self.bins)
-
-        # Efficiencies for bins
-        # If we want to use fss bins, we want False to be passed to EfficiencyAssignment
-        # because we just want to use the efficiency info directly from the file.
-        self.bin_efficiencies, self.bin_efficiency_errors = self.EfficiencyAssignment(self.bin_centers, self.bins, not self.fss_bins)
-        self.bin_efficiencies_normed = self.bin_efficiencies/np.sum(self.bin_efficiencies)
-        self.bin_efficiency_errors_normed = self.bin_efficiency_errors/np.sum(self.bin_efficiencies)
-
-        # Efficiencies for events, but with binned uncertainties (?)
-        self.event_efficiencies, self.event_efficiency_errors = self.EfficiencyAssignment(self.data[self.namedata], None, False)
-        self.event_efficiencies_normed = self.event_efficiencies/np.sum(self.event_efficiencies)
-        self.event_efficiency_errors_normed = self.event_efficiency_errors/np.sum(self.event_efficiencies)
-
-        # Put it all in a dictionary
-        temp_dictionary = {self.output_bin_variable: [], 'N': [], 'bin_efficiencies': [], 'bin_efficiency_errors': [], 'event_efficiencies': [], 'event_efficiency_errors': []}
-        temp_dictionary['N'] = N
-        temp_dictionary[self.output_bin_variable] = self.bin_centers
-        temp_dictionary['bin_efficiencies'] = self.bin_efficiencies_normed
-        temp_dictionary['bin_efficiency_errors'] = self.bin_efficiency_errors_normed
-        temp_dictionary['event_efficiencies'] = self.event_efficiencies_normed
-        temp_dictionary['event_efficiency_errors'] = self.event_efficiency_errors_normed
-        self.results = temp_dictionary
-
+        returned_string = self.ReturnAString('I am running')
+        print(returned_string)
+        print(self.data)
+        self.results = self.data + 1
+        print(self.results)
         return True
 
-    def EfficiencyAssignment(self, f_bin_centers, f_bins = None, integrate_bin_width = False):
-        a = self.GetEfficiencyFileContent()
-        #print(a.keys)
-        # keys: ['frequencies_slope_cut', 'eff interp no slope correction', 'error interp no slope correction', 'frequencies', 'eff interp with slope correction', 'error interp with slope correction']
-        fss_frequencies = a['frequencies']
-        fss_efficiencies = a['eff interp with slope correction']
-        fss_efficiency_errors = a['error interp with slope correction']
-        efficiency_interpolation = scipy.interpolate.interp1d(fss_frequencies, fss_efficiencies, bounds_error=False, fill_value=0)
-        efficiency_error_interpolation_lower = scipy.interpolate.interp1d(fss_frequencies, fss_efficiency_errors[0], bounds_error=False, fill_value=1)
-        efficiency_error_interpolation_upper = scipy.interpolate.interp1d(fss_frequencies, fss_efficiency_errors[1], bounds_error=False, fill_value=1)
-        if integrate_bin_width == False:
-            # FOI means frequency of interest
-            FOI_efficiencies = efficiency_interpolation(f_bin_centers)
-            FOI_efficiency_lower_errors = efficiency_error_interpolation_lower(f_bin_centers)
-            FOI_efficiency_upper_errors = efficiency_error_interpolation_upper(f_bin_centers)
-        else:
-            number_of_bins = len(f_bins)-1
-            FOI_efficiencies = np.zeros(number_of_bins)
-            FOI_efficiency_lower_errors = np.zeros(number_of_bins)
-            FOI_efficiency_upper_errors = np.zeros(number_of_bins)
-            for i in range(number_of_bins):
-                FOI_efficiencies[i] = scipy.integrate.quad(efficiency_interpolation, f_bins[i], f_bins[i+1])[0]/(f_bins[i+1]-f_bins[i])
-                FOI_efficiency_lower_errors[i] = scipy.integrate.quad(efficiency_error_interpolation_lower, f_bins[i], f_bins[i+1])[0]/(f_bins[i+1]-f_bins[i])
-                FOI_efficiency_upper_errors[i] = scipy.integrate.quad(efficiency_error_interpolation_upper, f_bins[i], f_bins[i+1])[0]/(f_bins[i+1]-f_bins[i])
-        # to do: figure out how to deal with the situation where frequencies have been slope/power corrected
-        return FOI_efficiencies, [FOI_efficiency_lower_errors, FOI_efficiency_upper_errors]
-
-    def GetEfficiencyFileContent(self):
-        with open(self.efficiency_filepath, 'r') as infile:
-            a = json.load(infile)
-        return a
+    def ReturnAString(self, a_test_string):
+        return a_test_string
