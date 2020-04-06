@@ -21,10 +21,10 @@ from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.misc import Constants
 
-#import numpy as np 
+#import numpy as np
 #import matplotlib.pyplot as plt
 #from scipy.optimize import curve_fit
-#import scipy as sp 
+#import scipy as sp
 #from scipy import integrate , signal, interpolate
 #import os
 #import time
@@ -42,7 +42,7 @@ __all__.append(__name__)
 #kr_line_width = 2.83 # eV
 #e_charge = 1.60217662*10**(-19) # Coulombs , charge of electron
 #m_e = 9.10938356*10**(-31) # Kilograms , mass of electron
-#mass_energy_electron = 510.9989461 # keV 
+#mass_energy_electron = 510.9989461 # keV
 #max_scatters = 20
 #gases = ["H2", "Kr"]
 #
@@ -51,7 +51,7 @@ __all__.append(__name__)
 #num_points_in_std_array = 10000
 #
 ## Establishes a standard energy loss array (SELA) from -1000 eV to 1000 eV
-## with number of points equal to num_points_in_std_array. All convolutions 
+## with number of points equal to num_points_in_std_array. All convolutions
 ## will be carried out on this particular discretization
 #def std_eV_array():
 #    emin = -1000
@@ -80,7 +80,7 @@ __all__.append(__name__)
 #    Ecore = 0 # set as 17823 to reproduce Fig. 4 in Hamish Vedantha shake spectrum paper
 #    epsilon = 1e-4 # a small quantity for preventing zero denominator
 #    path_to_excel_file_for_parameters =  'data/KrShakeParameters214.xlsx'
-#    df = pd.read_excel(path_to_excel_file_for_parameters, index_col=0) 
+#    df = pd.read_excel(path_to_excel_file_for_parameters, index_col=0)
 #    A = []
 #    B = []
 #    Gamma = []
@@ -196,8 +196,8 @@ __all__.append(__name__)
 #    energyOsc[1] = energyOsc[1][sorted_indices]
 #    return energyOsc
 #
-## A sub function for the scatter function. Found in 
-## "Energy loss of 18 keV electrons in gaseous T and quench condensed D films" 
+## A sub function for the scatter function. Found in
+## "Energy loss of 18 keV electrons in gaseous T and quench condensed D films"
 ## by V.N. Aseev et al. 2000
 #def aseev_func_tail(energy_loss_array, gas_type):
 #    if gas_type=="H2":
@@ -212,9 +212,9 @@ __all__.append(__name__)
 #    a0 = 5.291772e-11 #bohr radius
 #    return np.where(e_loss>0 , 4.*np.pi*a0**2 * e_rydberg / (kinetic_en * e_loss) * oscillator_strength * np.log(4. * kinetic_en * e_loss / (e_rydberg**3.) ), 0)
 #
-## Function for energy loss from a single scatter of electrons by 
+## Function for energy loss from a single scatter of electrons by
 ## V.N. Aseev et al. 2000
-## This function does the work of combining fit_func1 and fit_func2 by 
+## This function does the work of combining fit_func1 and fit_func2 by
 ## finding the point where they intersect.
 ## Evaluated on the SELA
 #def single_scatter_f(gas_type):
@@ -286,7 +286,7 @@ __all__.append(__name__)
 ## Checks for the existence of a directory called 'scatter_spectra_files'
 ## and checks that this directory contains the scatter spectra files.
 ## If not, this function calls generate_scatter_convolution_files.
-## This function also checks to make sure that the scatter files have the correct 
+## This function also checks to make sure that the scatter files have the correct
 ## number of points in the SELA, and if not, it generates fresh files
 #def check_existence_of_scatter_files(gas_type):
 #    current_path = get_current_path()
@@ -302,7 +302,7 @@ __all__.append(__name__)
 #        strippeddirs = [s.strip('\n') for s in directory]
 #        if len(directory) != len(gases) * max_scatters:
 #            generate_scatter_convolution_files(gas_type)
-#        test_file = 'scatter_spectra_files/scatter'+gas_type+'_01.npy' 
+#        test_file = 'scatter_spectra_files/scatter'+gas_type+'_01.npy'
 #        test_arr = np.load(test_file)
 #        if len(test_arr) != num_points_in_std_array:
 #            print('Scatter files do not match standard array binning, generating fresh files')
@@ -350,7 +350,7 @@ __all__.append(__name__)
 #    bins_nonzero = bins[nonzero_idx]
 #    return bins_nonzero , hist_nonzero , hist_err
 #
-## Flips an array left-to-right. Useful for converting between energy and frequency 
+## Flips an array left-to-right. Useful for converting between energy and frequency
 #def flip_array(array):
 #    flipped = np.fliplr([array]).flatten()
 #    return flipped
@@ -372,7 +372,7 @@ __all__.append(__name__)
 #    x_eV_minus_line = x_eV - line_pos_eV
 #    zero_idx = np.r_[np.where(x_eV_minus_line<-1*en_loss_array_max)[0],np.where(x_eV_minus_line>-1*en_loss_array_min)[0]]
 #    nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
-#    
+#
 #    for gas_index in range(len(gases)):
 #        gas_type = gases[gas_index]
 #        scatter_prob = p0[2*gas_index+2]
@@ -380,7 +380,7 @@ __all__.append(__name__)
 #        full_spectrum = make_spectrum(FWHM_G_eV,scatter_prob, gas_type)
 #        full_spectrum_rev = flip_array(full_spectrum)
 #        f[nonzero_idx] += amplitude*np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
-#    
+#
 #    return f
 #
 ## Given energy in keV and the B_field of the trap, returns frequency in Hz
@@ -410,8 +410,8 @@ __all__.append(__name__)
 ## Call this function to fit a histogram of start frequencies with the model.
 ## Note that the data_hist_freq should be the StartFrequencies as given by katydid,
 ## which will be from ~0 MHZ to ~90 MHz. You must also pass this function the
-## RF_ROI_MIN value from the metadata file of your data. 
-## You must also supply a guess for the B_field present for the run; 
+## RF_ROI_MIN value from the metadata file of your data.
+## You must also supply a guess for the B_field present for the run;
 ## 0.959 T is usually sufficient.
 ## print_params = True will print out the fit parameters. Turn it to False to suppress
 #def fit_data(RF_ROI_MIN,B_field,freq_bins,data_hist_freq,print_params=True):
@@ -438,7 +438,7 @@ __all__.append(__name__)
 #    scatter_prob_guess = 0.5
 #    amplitude_guess = np.sum(data_hist)/2
 #    p_guess = [FWHM_guess, line_pos_guess] + [scatter_prob_guess,amplitude_guess] * (len(gases))
-#    p_bounds = ([FWHM_eV_min, line_pos_keV_min] + [scatter_prob_min,amplitude_min] * (len(gases)) ,  
+#    p_bounds = ([FWHM_eV_min, line_pos_keV_min] + [scatter_prob_min,amplitude_min] * (len(gases)) ,
 #                [FWHM_eV_max, line_pos_keV_max] + [scatter_prob_max,amplitude_max] * (len(gases)))
 #    # Actually do the fitting
 #    params , cov = curve_fit(spectrum_func,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p_guess,bounds=p_bounds)
@@ -456,7 +456,7 @@ __all__.append(__name__)
 #
 #    scatter_prob_fit_err = perr[2::2]
 #    amplitude_fit_err = perr[3::2]
-#    
+#
 #    fit = spectrum_func(bins_keV[0:-1],*params)
 #
 #    line_pos_Hz_fit , line_pos_Hz_fit_err = energy_guess_to_frequency(line_pos_keV_fit,line_pos_keV_fit_err,B_field)
@@ -497,7 +497,7 @@ def Energy(f, B=None, Theta=None):
         gamma = (Constants.e()*B)/(2.0*TMath.Pi()*emass_kg) * 1/(f)
         return (gamma -1)*Constants.m_electron()
 
-class ComlexLineShape(BaseProcessor):
+class ComplexLineShape(BaseProcessor):
 
     def InternalConfigure(self, params):
         '''
