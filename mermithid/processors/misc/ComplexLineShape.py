@@ -31,7 +31,7 @@ logger = morphologging.getLogger(__name__)
 
 __all__ = []
 __all__.append(__name__)
-
+class ComplexlineShape(BaseProcessor):
 # Natural constants
 kr_line = 17.8260 # keV
 kr_line_width = 2.83 # eV

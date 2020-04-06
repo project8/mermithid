@@ -15,7 +15,7 @@ class TritiumTests(unittest.TestCase):
 
     def test_Corrected_spectrum(self):
         from mermithid.processors.TritiumSpectrum import DistortedTritiumSpectrumLikelihoodSampler
-        from mermithid.processors.misc.TritiumAndEfficiencyBinner import TritiumAndEfficiencyBinner
+        from mermithid.processors.misc.ComplexLineShape import ComplexLineShape
         from mermithid.misc.Constants import seconds_per_year, tritium_endpoint
         #import importlib.machinery
         #modulename = importlib.machinery.SourceFileLoader('modulename','/Users/ziegler/docker_share/builds/mermithid/mermithid/processors/TritiumSpectrum/DistortedTritiumSpectrumLikelihoodSampler.py').load_module()
