@@ -497,7 +497,7 @@ def Energy(f, B=None, Theta=None):
         gamma = (Constants.e()*B)/(2.0*TMath.Pi()*emass_kg) * 1/(f)
         return (gamma -1)*Constants.m_electron()
 
-class TritiumAndEfficiencyBinner(BaseProcessor):
+class ComlexLineShape(BaseProcessor):
 
     def InternalConfigure(self, params):
         '''
