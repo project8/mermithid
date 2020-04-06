@@ -34,7 +34,9 @@ class DistortedTritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
         super().InternalConfigure(config_dict)
         self.null_m_nu = reader.read_param(config_dict,"null_neutrino_mass",False)
 
-
+        self.background = reader.read_param(config_dict, "background", 1e-9)
+        self.event_rate = reader.read_param(config_dict, "event_rate", 1.)
+        self.duration = reader.read_param(config_dict, "duration", 24*3600)
         self.KEmin, self.KEmax = reader.read_param(config_dict, "energy_window", [Constants.tritium_endpoint()-1e3, Constants.tritium_endpoint()+1e3])
         self.Fwindow = reader.read_param(config_dict, "frequency_window", [-50e6, 50e6])
         self.energy_resolution = reader.read_param(config_dict, "energy_resolution", 0)
@@ -46,6 +48,8 @@ class DistortedTritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
         self.channel_cf = reader.read_param(config_dict, "channel_central_frequency", 1000e6)
         self.mix_frequency = reader.read_param(config_dict, "mixing_frequency", 24.5e9)
         self.Fmin, self.Fmax = [self.mix_frequency + self.channel_cf + self.Fwindow[0] , self.mix_frequency + self.channel_cf + self.Fwindow[1]]
+
+
         return True
 
 
@@ -69,6 +73,9 @@ class DistortedTritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
         else:
             raise Exception("no valid energy_or_frequency")
 
+        self.N_signal_events = self.event_rate*self.duration
+        self.N_background_events = self.background*self.duration*(self.KEmax-self.KEmin)
+
 
         # Variables required by this model
         if self.null_m_nu:
@@ -80,9 +87,8 @@ class DistortedTritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
                                                            Constants.tritium_endpoint()+10.)
         meanSmearing = ROOT.RooRealVar("meanSmearing","meanSmearing",0.)
         widthSmearing = ROOT.RooRealVar("widthSmearing","widthSmearing",self.resolution)
-        NEvents = ROOT.RooRealVar("NEvents","NEvents",3e5,1e3,5e5)
-        NBkgd = ROOT.RooRealVar("NBkgd","NBkgd",1.3409e+03,5e1,2e4)
-        background = ROOT.RooRealVar("background","background",0.000001,-1,1)
+        NEvents = ROOT.RooRealVar("NEvents","NEvents",self.N_signal_events,1,5e6)
+        NBkgd = ROOT.RooRealVar("NBkgd","NBkgd",self.N_background_events,0,5e6)
 
 
 
@@ -216,7 +222,7 @@ class DistortedTritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
         emass_kg = Constants.m_electron() * Constants.e()/Constants.c()**2
         gamma = E/(emass)+1
         #return e*B*c**2/(E*e+E0*e)*(1+1/np.tan(Theta)**2/2)/(2*m.pi)
-        return (Constants.e()*B)/(2.0*3.141592653589793*emass_kg) * 1/gamma
+        return (Constants.e()*B)/(2.0*TMath.Pi()*emass_kg) * 1/gamma
 
     def Energy(self, F, B=None, Theta=None):
         #print(type(F))
@@ -227,7 +233,7 @@ class DistortedTritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
             gamma = [(Constants.e()*B)/(2.0*TMath.Pi()*emass_kg) * 1/(f) for f in F]
             return [(g -1)*Constants.m_electron() for g in gamma]
         else:
-            gamma = (Constants.e()*B)/(2.0*TMath.Pi()*emass_kg) * 1/(f)
+            gamma = (Constants.e()*B)/(2.0*TMath.Pi()*emass_kg) * 1/(F)
             return (gamma -1)*Constants.m_electron()
         #shallow trap 0.959012745568
         #deep trap 0.95777194923080811
