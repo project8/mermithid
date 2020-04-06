@@ -512,15 +512,12 @@ class ComplexLineShape(BaseProcessor):
         self.asInteger = reader.read_param(params, 'asInteger', False)
         self.energy_or_frequency = reader.read_param(params, 'energy_or_frequency', 'energy')
         self.efficiency_filepath = reader.read_param(params, 'efficiency_filepath', '/host/combined_energy_corrected_eff_at_quad_trap_frequencies.json')
-        self.fss_bins = reader.read_param(params, "fss_bins", False)
-        # If self.fss_bins is True, self.bins is ignored and overwritten
 
     def InternalRun(self):
-        returned_string = self.ReturnAString('I am running')
-        print(returned_string)
-        print(self.data)
-        self.results = self.data + 1
-        print(self.results)
+
+        for key in self.data.keys():
+            number_of_events = len(self.data[key])
+        self.results = number_of_events
         return True
 
     def ReturnAString(self, a_test_string):
