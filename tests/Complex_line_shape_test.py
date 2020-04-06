@@ -14,9 +14,9 @@ logger = morphologging.getLogger(__name__)
 class ComplexLineShapeTests(unittest.TestCase):
 
     def test_complex_lineshape(self):
+        from mermithid.processors.IO import IOCicadaProcessor
         from mermithid.processors.misc.ComplexLineShape import ComplexLineShape
         from mermithid.misc.Constants import seconds_per_year, tritium_endpoint
-        from mermithid.processors.IO import IOCicadaProcessor
 
         reader_config = {
             "action": "read",
