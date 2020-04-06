@@ -69,30 +69,9 @@ class FakeDataGenerator(BaseProcessor):
         '''
         Configure
         '''
-        #Physical constants
-        self.me = 510999. #eV
-        self.alpha = 1/137.036
-        self.c = 299792458. #m/s
-        self.hbar = 6.58212*10**(-16) #eV*s
-        self.gv=1. #Vector coupling constant
-        self.lambdat = 1.2724 # +/- 0.0023, from PDG (2018): http://pdg.lbl.gov/2018/listings/rpp2018-list-n.pdf
-        self.ga=self.gv*(-self.lambdat) #Axial vector coupling constant
-        self.Mnuc2 = self.gv**2 + 3*self.ga**2 #Nuclear matrix element
-        self.GF =  1.1663787*10**(-23) #Gf/(hc)^3, in eV^(-2)
-        self.Vud = 0.97425 #CKM element
-
-        #Beta decay-specific physical constants
-        self.QT = 18563.251 #For atomic tritium (eV), from Bodine et al. (2015)
-        self.QT2 =  18573.24 #For molecular tritium (eV), Bodine et al. (2015)
-        self.Rn =  2.8840*10**(-3) #Helium-3 nuclear radius in units of me, from Kleesiek et al. (2018): https://arxiv.org/pdf/1806.00369.pdf
-        self.M = 5497.885 #Helium-3 mass in units of me, Kleesiek et al. (2018)
-        self.atomic_num = 2. #For helium-3
-        self.g =(1-(self.atomic_num*self.alpha)**2)**0.5 #Constant to be used in screening factor and Fermi function calculations
-        self.V0 = 76. #Nuclear screening potential of orbital electron cloud of the daughter atom, from Kleesiek et al. (2018)
-        self.mu = 5.107 #Difference between magnetic moments of helion and triton, for recoil effects correction
 
         # Read other parameters
-        self.Q = reader.read_param(params, 'Q', self.QT2) #Choose the atomic or molecular tritium endpoint
+        self.Q = reader.read_param(params, 'Q', QT2) #Choose the atomic or molecular tritium endpoint
         self.m = reader.read_param(params, 'neutrino_mass', 0.0085) #Neutrino mass (eV)
         self.Kmin = reader.read_param(params, 'Kmin', self.Q-self.m-2300)  #Energy corresponding to lower bound of frequency ROI (eV)
         self.Kmax = reader.read_param(params, 'Kmax', self.Q-self.m+1000)   #Same, for upper bound (eV)
