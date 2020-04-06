@@ -506,12 +506,7 @@ class ComplexLineShape(BaseProcessor):
 
         # Read other parameters
         self.namedata = reader.read_param(params, 'variables', "required")
-        self.N = reader.read_param(params, 'N', 'N')
-        self.eff_eqn = reader.read_param(params, 'efficiency', '1')
         self.bins = reader.read_param(params, 'bins', [])
-        self.asInteger = reader.read_param(params, 'asInteger', False)
-        self.energy_or_frequency = reader.read_param(params, 'energy_or_frequency', 'energy')
-        self.efficiency_filepath = reader.read_param(params, 'efficiency_filepath', '/host/combined_energy_corrected_eff_at_quad_trap_frequencies.json')
 
     def InternalRun(self):
 
