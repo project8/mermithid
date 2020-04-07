@@ -49,12 +49,12 @@ m_e = 9.10938356*10**(-31) # Kilograms , mass of electron
 mass_energy_electron = 510.9989461 # keV
 
 # Establishes a standard energy loss array (SELA) from -1000 eV to 1000 eV
-# with number of points equal to self.num_points_in_std_array. All convolutions
+# with number of points equal to num_points_in_std_array. All convolutions
 # will be carried out on this particular discretization
 def std_eV_array():
     emin = -1000
     emax = 1000
-    array = np.linspace(emin,emax,self.num_points_in_std_array)
+    array = np.linspace(emin,emax,num_points_in_std_array)
     return array
 
 # A lorentzian function
@@ -344,7 +344,7 @@ class ComplexLineShape(BaseProcessor):
     # If not, this function calls generate_scatter_convolution_files.
     # This function also checks to make sure that the scatter files have the correct
     # number of points in the SELA, and if not, it generates fresh files
-    def check_existence_of_scatter_files(self, gas_type):
+    def check_existence_of_scatter_files(gas_type):
         current_path = '/host/scatter_spectra_files'
         current_dir = '/scatter_spectra_files'
         stuff_in_dir = list_files(current_path)
@@ -356,11 +356,11 @@ class ComplexLineShape(BaseProcessor):
         else:
             directory = os.popen("ls scatter_spectra_files").readlines()
             strippeddirs = [s.strip('\n') for s in directory]
-            if len(directory) != len(self.gases) * max_scatters:
+            if len(directory) != len(gases) * max_scatters:
                 generate_scatter_convolution_files(gas_type)
             test_file = 'scatter_spectra_files/scatter'+gas_type+'_01.npy'
             test_arr = np.load(test_file)
-            if len(test_arr) != self.num_points_in_std_array:
+            if len(test_arr) != num_points_in_std_array:
                 print('Scatter files do not match standard array binning, generating fresh files')
                 generate_scatter_convolution_files(gas_type)
         return
@@ -428,8 +428,8 @@ class ComplexLineShape(BaseProcessor):
         zero_idx = np.r_[np.where(x_eV_minus_line<-1*en_loss_array_max)[0],np.where(x_eV_minus_line>-1*en_loss_array_min)[0]]
         nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
 
-        for gas_index in range(len(self.gases)):
-            gas_type = self.gases[gas_index]
+        for gas_index in range(len(gases)):
+            gas_type = gases[gas_index]
             scatter_prob = p0[2*gas_index+2]
             amplitude    = p0[2*gas_index+3]
 
@@ -469,10 +469,10 @@ class ComplexLineShape(BaseProcessor):
     # You must also supply a guess for the B_field present for the run;
     # 0.959 T is usually sufficient.
     # print_params = True will print out the fit parameters. Turn it to False to suppress
-    def fit_data(self, RF_ROI_MIN,B_field,freq_bins,data_hist_freq,print_params=True):
+    def fit_data(RF_ROI_MIN,B_field,freq_bins,data_hist_freq,print_params=True):
         t = time.time()
-        for gas in self.gases:
-            self.check_existence_of_scatter_files(gas)
+        for gas in gases:
+            check_existence_of_scatter_files(gas)
         bins_Hz = freq_bins+RF_ROI_MIN
         bins_keV = frequency_to_energy(bins_Hz,B_field)
         bins_keV = flip_array(bins_keV)
@@ -492,8 +492,8 @@ class ComplexLineShape(BaseProcessor):
         line_pos_guess = bins_keV[np.argmax(data_hist)]
         scatter_prob_guess = 0.5
         amplitude_guess = np.sum(data_hist)/2
-        p_guess = [FWHM_guess, line_pos_guess] + [scatter_prob_guess,amplitude_guess] * len(self.gases)
-        p_bounds = ([FWHM_eV_min, line_pos_keV_min] + [scatter_prob_min,amplitude_min] * len(selfgases),  [FWHM_eV_max, line_pos_keV_max] + [scatter_prob_max,amplitude_max] * len(self.gases))
+        p_guess = [FWHM_guess, line_pos_guess] + [scatter_prob_guess,amplitude_guess] * len(gases)
+        p_bounds = ([FWHM_eV_min, line_pos_keV_min] + [scatter_prob_min,amplitude_min] * len(gases),  [FWHM_eV_max, line_pos_keV_max] + [scatter_prob_max,amplitude_max] * len(gases))
         # Actually do the fitting
         params , cov = curve_fit(spectrum_func,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p_guess,bounds=p_bounds)
         # Name each of the resulting parameters and errors
@@ -520,9 +520,9 @@ class ComplexLineShape(BaseProcessor):
         if print_params == True:
             output_string = 'Gaussian FWHM = '+str(FWHM_G_eV_fit)+' +/- '+str(FWHM_eV_G_fit_err)+' eV\n'
             output_string += 'Line position = '+str(line_pos_Hz_fit)+' +/- '+str(line_pos_Hz_fit_err)+' Hz\n'
-            for i in range(len(self.gases)):
-                output_string += self.gases[i] + ' Scatter probability = '+str(scatter_prob_fit[i])+' +/- ' + str(scatter_prob_fit_err[i])+'\n'
-                output_string += self.gases[i] + ' Amplitude = '+str(amplitude_fit[i])+' +/- '+str(amplitude_fit_err[i]) + '\n'
+            for i in range(len(gases)):
+                output_string += gases[i] + ' Scatter probability = '+str(scatter_prob_fit[i])+' +/- ' + str(scatter_prob_fit_err[i])+'\n'
+                output_string += gases[i] + ' Amplitude = '+str(amplitude_fit[i])+' +/- '+str(amplitude_fit_err[i]) + '\n'
 
             print(output_string)
 
