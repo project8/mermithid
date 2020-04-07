@@ -27,8 +27,15 @@ class ComplexLineShapeTests(unittest.TestCase):
             "variables": ['StartTimeInAcq','StartFrequency']
         }
         complexLineShape_config = {
-            "variables": "F",
-            'bins': np.linspace(24.5e9+1300e6, 24.5e9+1550e6, 15),
+            'bins_choice': np.linspace(0,90e6,1000),
+            'gases': ["H2","Kr"],
+            'max_scatters': 20,
+            # This is an important parameter which determines how finely resolved
+            # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
+            'num_points_in_std_array': 10000,
+            'RF_ROI_MIN': 25850000000.0,
+            'B_field': 0.957810722501,
+            'path_to_shake_parameters_excel_file': '/host/KrShakeParameters214.xlsx'
         }
 
         b = IOCicadaProcessor("reader")
@@ -42,6 +49,9 @@ class ComplexLineShapeTests(unittest.TestCase):
         logger.info("Data extracted = {}".format(data.keys()))
         for key in data.keys():
             logger.info("{} -> size = {}".format(key,len(data[key])))
+
+        print(data['StartFrequency'])
+        start_frequency_array = np.array(data['StartFrequency'])
 
         complexLineShape.data = data
 
