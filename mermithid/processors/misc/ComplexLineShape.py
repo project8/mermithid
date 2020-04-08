@@ -74,6 +74,7 @@ def gaussian_sigma_to_FWHM(sigma):
 def read_oscillator_str_file(filename):
     f = open(filename, "r")
     lines = f.readlines()
+    f.close()
     energyOsc = [[],[]] #2d array of energy losses, oscillator strengths
 
     for line in lines:
@@ -104,6 +105,7 @@ def get_eloss_spec(e_loss, oscillator_strength, kr_line): #energies in eV
     kinetic_en = kr_line * 1000
     e_rydberg = 13.605693009 #rydberg energy (eV)
     a0 = 5.291772e-11 #bohr radius
+    #print(4. * kinetic_en * e_loss / (e_rydberg**3.))
     return np.where(e_loss>0 , 4.*np.pi*a0**2 * e_rydberg / (kinetic_en * e_loss) * oscillator_strength * np.log(4. * kinetic_en * e_loss / (e_rydberg**3.) ), 0)
 
 # Takes only the nonzero bins of a histogram
@@ -156,13 +158,12 @@ def get_current_path():
 
 # Prints a list of the contents of a directory
 def list_files(path):
-    directory = os.popen("ls "+path).readlines()
-    strippeddirs = [s.strip('\n') for s in directory]
-    return strippeddirs
+    list_of_files = os.listdir(path)
+    return list_of_files
 
 # Returns the name of the current directory
 def get_current_dir():
-    current_path = os.popen("pwd").readlines()
+    current_path = os.path.abspath(os.getcwd())
     stripped_path = [s.strip('\n') for s in current_path]
     stripped_path = stripped_path[0].split('/')
     current_dir = stripped_path[len(stripped_path)-1]
@@ -403,12 +404,11 @@ class ComplexLineShape(BaseProcessor):
         stuff_in_dir = list_files(current_path)
         if 'scatter_spectra_files' not in stuff_in_dir and current_dir != 'scatter_spectra_files':
             print('Scatter files not found, generating')
-            os.popen("mkdir scatter_spectra_files")
+            os.system("mkdir scatter_spectra_files")
             time.sleep(2)
             self.generate_scatter_convolution_files(gas_type)
         else:
-            directory = os.popen("ls scatter_spectra_files").readlines()
-            strippeddirs = [s.strip('\n') for s in directory]
+            directory = os.listdir(os.path.abspath(os.getcwd()) + '/scatter_spectra_files')
             if len(directory) != len(self.gases) * self.max_scatters:
                 self.generate_scatter_convolution_files(gas_type)
             test_file = self.path_to_osc_strengths_files+'scatter_spectra_files/'+'scatter'+gas_type+'_01.npy'
@@ -511,9 +511,15 @@ class ComplexLineShape(BaseProcessor):
         p_guess = [FWHM_guess, line_pos_guess] + [scatter_prob_guess,amplitude_guess] * len(self.gases)
         p_bounds = ([FWHM_eV_min, line_pos_keV_min] + [scatter_prob_min,amplitude_min] * len(self.gases),  [FWHM_eV_max, line_pos_keV_max] + [scatter_prob_max,amplitude_max] * len(self.gases))
         # Actually do the fitting
-        print('Made it to just before the fit!')
+        # print('Made it to just before the fit!')
+        # print('1',self.spectrum_func)
+        # print('2',bins_keV_nonzero)
+        # print('3',data_hist_nonzero)
+        # print('4',data_hist_err)
+        # print('5',p_guess)
+        # print('6',p_bounds)
         params , cov = curve_fit(self.spectrum_func,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p_guess,bounds=p_bounds)
-        print('Made it past the fit!')
+        # print('Made it past the fit!')
         # Name each of the resulting parameters and errors
         ################### Generalize to N self.gases ###########################
         FWHM_G_eV_fit = params[0]
