@@ -151,16 +151,6 @@ def FWHM_voigt(FWHM_L,FWHM_G):
     FWHM_V = 0.5346*FWHM_L+np.sqrt(0.2166*FWHM_L**2+FWHM_G**2)
     return FWHM_V
 
-# Returns the name of the current path
-def get_current_path():
-    path = os.path.abspath(os.getcwd())
-    return path
-
-# Prints a list of the contents of a directory
-def list_files(path):
-    list_of_files = os.listdir(path)
-    return list_of_files
-
 # Returns the name of the current directory
 def get_current_dir():
     current_path = os.path.abspath(os.getcwd())
@@ -399,9 +389,9 @@ class ComplexLineShape(BaseProcessor):
     # number of points in the SELA, and if not, it generates fresh files
     def check_existence_of_scatter_files(self, gas_type):
         os.chdir(self.path_to_osc_strengths_files)
-        current_path = get_current_path()
+        current_path = os.path.abspath(os.getcwd())
         current_dir = get_current_dir()
-        stuff_in_dir = list_files(current_path)
+        stuff_in_dir = os.listdir(current_path)
         if 'scatter_spectra_files' not in stuff_in_dir and current_dir != 'scatter_spectra_files':
             print('Scatter files not found, generating')
             os.system("mkdir scatter_spectra_files")
