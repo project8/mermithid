@@ -149,89 +149,106 @@ def FWHM_voigt(FWHM_L,FWHM_G):
     FWHM_V = 0.5346*FWHM_L+np.sqrt(0.2166*FWHM_L**2+FWHM_G**2)
     return FWHM_V
 
-
-
-
-# The shakeup/shakeoff spectrum for the 17.8 keV line of Kr83m based on Hamish Vadantha paper
-# Overleaf link for the paper https://www.overleaf.com/project/5d56e015162d244b1c283c57
-#######################################################################################
-# Read parameters for shake up shake off spectrum from an excel spread sheet.
-# The parameters are from Hamish and Vedantha shake spectrum paper table IV
-
-# A_Intensity, B_Binding, Gamma_Width, E_b_Scale, Ecore, epsilon_shake_spectrum
-def read_shake_parameters_from_excel_file(path_to_shake_parameters_excel_file):
-    Ecore = 0 # set as 17823 to reproduce Fig. 4 in Hamish Vedantha shake spectrum paper
-    epsilon = 1e-4 # a small quantity for preventing zero denominator
-    df = pd.read_excel(path_to_shake_parameters_excel_file, index_col=0)
-    A = []
-    B = []
-    Gamma = []
-    E_b = []
-    for i in range(27):
-        A.append(df['Unnamed: 1'][i]*100)
-        B.append(df['Unnamed: 2'][i])
-        Gamma.append(df['Unnamed: 4'][i])
-        E_b.append(df['Unnamed: 3'][i])
-    self.A_Intensity, B_Binding, Gamma_Width, E_b_Scale, Ecore, epsilon_shake_spectrum
-    return A, B, Gamma, E_b, Ecore, epsilon
-
-# nprime in Eq. (6)
-def nprime(E_b, W):
-    return np.sqrt(E_b/abs(W))
-
-# Eq.(9) in Hamish Vedantha shake spectrum paper
-def C1s(E_b):
-    return 98.2/E_b
-
-# Eq. (6)
-def P_1s_nprime(E_b, W):
-    n_prime = nprime(E_b, W)
-    P_1s_nprime = 1
-    P_1s_nprime *= C1s(E_b)
-    P_1s_nprime *= (1-np.exp(-2*np.pi*n_prime))**-1
-    P_1s_nprime *= n_prime**8
-    P_1s_nprime *= (n_prime**2+1)**-4
-    P_1s_nprime *= np.exp(-4*n_prime*np.arctan(1/n_prime))
-    return P_1s_nprime
-
-# Eq. (5) in Hamish Vedantha shake spectrum paper
-# shake up spectrum for the ith state
-def I(i, E):
-    numerator = A_Intensity[i]*Gamma_Width[i]
-    denominator = 2*np.pi*(Gamma_Width[i]**2/4 + (Ecore - B_Binding[i] - E)**2)
-    return numerator/denominator
-
-
-# Eq. (11) in Hamish Vedantha shake spectrum paper
-# shake off spectrum for the ith state
-def spectrum1(i, E):
-    if E_b_Scale[i] == 0:
-        spectrum = I(i, E)
-    else:
-        factor = np.arctan(2*(Ecore - E - B_Binding[i]+epsilon_shake_spectrum)/Gamma_Width[i])/(np.pi)+0.5
-        spectrum = A_Intensity[i]*factor*P_1s_nprime(E_b_Scale[i], Ecore-E-B_Binding[i]+epsilon_shake_spectrum)
-    return spectrum
-
-# adding up shake spectrum for all the states
-def full_shake_spectrum(E, start_number_of_i, end_number_of_i):
-    full_spectrum = 0
-    for i in range(start_number_of_i, end_number_of_i, 1):
-        full_spectrum += spectrum1(i, E)
-    return full_spectrum
-
-# shake spectrum by adding up shake spectrum for all the states up to i=24
-def shake_spectrum(input_std_eV_array):
-    x_array = input_std_eV_array
-    x_array = flip_array(x_array)
-    shake_spectrum = full_shake_spectrum(x_array, 0, 24)
-    return shake_spectrum
-###############################################################################
+# Returns the name of the current path
+def get_current_path():
+    current_path = os.popen("pwd").readlines()
+    stripped_path = [s.strip('\n') for s in current_path]
+    return stripped_path[0]
 
 # Prints a list of the contents of a directory
 def list_files(path):
     directory = os.popen("ls "+path).readlines()
     strippeddirs = [s.strip('\n') for s in directory]
     return strippeddirs
+
+# Returns the name of the current directory
+def get_current_dir():
+    current_path = os.popen("pwd").readlines()
+    stripped_path = [s.strip('\n') for s in current_path]
+    stripped_path = stripped_path[0].split('/')
+    current_dir = stripped_path[len(stripped_path)-1]
+    return current_dir
+
+class ShakeSpectrumClass():
+    # The shakeup/shakeoff spectrum for the 17.8 keV line of Kr83m based on Hamish Vadantha paper
+    # Overleaf link for the paper https://www.overleaf.com/project/5d56e015162d244b1c283c57
+    #######################################################################################
+    # Read parameters for shake up shake off spectrum from an excel spread sheet.
+    # The parameters are from Hamish and Vedantha shake spectrum paper table IV
+
+    def __init__(self, path_to_shake_parameters_excel_file, input_std_eV_array):
+
+        Ecore = 0 # set as 17823 to reproduce Fig. 4 in Hamish Vedantha shake spectrum paper
+        epsilon = 1e-4 # a small quantity for preventing zero denominator
+        df = pd.read_excel(path_to_shake_parameters_excel_file, index_col=0)
+        A = []
+        B = []
+        Gamma = []
+        E_b = []
+        for i in range(27):
+            A.append(df['Unnamed: 1'][i]*100)
+            B.append(df['Unnamed: 2'][i])
+            Gamma.append(df['Unnamed: 4'][i])
+            E_b.append(df['Unnamed: 3'][i])
+        A, B, Gamma, E_b, Ecore, epsilon
+        self.A_Intensity = A
+        self.B_Binding = B
+        self.Gamma_Width = Gamma
+        self.E_b_Scale = E_b
+        self.Ecore = Ecore
+        self.epsilon_shake_spectrum = epsilon
+
+    # nprime in Eq. (6)
+    def nprime(self, E_b, W):
+        return np.sqrt(E_b/abs(W))
+
+    # Eq.(9) in Hamish Vedantha shake spectrum paper
+    def C1s(self, E_b):
+        return 98.2/E_b
+
+    # Eq. (6)
+    def P_1s_nprime(self, E_b, W):
+        n_prime = self.nprime(E_b, W)
+        P_1s_nprime = 1
+        P_1s_nprime *= self.C1s(E_b)
+        P_1s_nprime *= (1-np.exp(-2*np.pi*n_prime))**-1
+        P_1s_nprime *= n_prime**8
+        P_1s_nprime *= (n_prime**2+1)**-4
+        P_1s_nprime *= np.exp(-4*n_prime*np.arctan(1/n_prime))
+        return P_1s_nprime
+
+    # Eq. (5) in Hamish Vedantha shake spectrum paper
+    # shake up spectrum for the ith state
+    def I(self, i, E):
+        numerator = self.A_Intensity[i]*self.Gamma_Width[i]
+        denominator = 2*np.pi*(self.Gamma_Width[i]**2/4 + (self.Ecore - self.B_Binding[i] - E)**2)
+        return numerator/denominator
+
+
+    # Eq. (11) in Hamish Vedantha shake spectrum paper
+    # shake off spectrum for the ith state
+    def spectrum1(self, i, E):
+        if self.E_b_Scale[i] == 0:
+            spectrum = self.I(i, E)
+        else:
+            factor = np.arctan(2*(self.Ecore - E - self.B_Binding[i]+self.epsilon_shake_spectrum)/self.Gamma_Width[i])/(np.pi)+0.5
+            spectrum = self.A_Intensity[i]*factor*self.P_1s_nprime(self.E_b_Scale[i], self.Ecore-E-self.B_Binding[i]+self.epsilon_shake_spectrum)
+        return spectrum
+
+    # adding up shake spectrum for all the states
+    def full_shake_spectrum(self, E, start_number_of_i, end_number_of_i):
+        full_spectrum = 0
+        for i in range(start_number_of_i, end_number_of_i, 1):
+            full_spectrum += self.spectrum1(i, E)
+        return full_spectrum
+
+    # shake spectrum by adding up shake spectrum for all the states up to i=24
+    def shake_spectrum(self, input_std_eV_array):
+        x_array = input_std_eV_array
+        x_array = flip_array(x_array)
+        shake_spectrum = self.full_shake_spectrum(x_array, 0, 24)
+        return shake_spectrum
+    ###############################################################################
 
 class ComplexLineShape(BaseProcessor):
 
@@ -254,7 +271,9 @@ class ComplexLineShape(BaseProcessor):
     def InternalRun(self):
 
         # Read shake parameters from Excel file
-        A_Intensity, B_Binding, Gamma_Width, E_b_Scale, Ecore, epsilon_shake_spectrum = read_shake_parameters_from_excel_file(self.path_to_shake_parameters_excel_file)
+#        A_Intensity, B_Binding, Gamma_Width, self.E_b_Scale, Ecore, epsilon_shake_spectrum = read_shake_parameters_from_excel_file(self.path_to_shake_parameters_excel_file)
+
+        self.shakeSpectrumClassInstance = ShakeSpectrumClass(self.path_to_shake_parameters_excel_file, self.std_eV_array)
 
         number_of_events = len(self.data['StartFrequency'])
         self.results = number_of_events
@@ -266,7 +285,7 @@ class ComplexLineShape(BaseProcessor):
         histogram = data_hist_freq
         bins = freq_bins
         guess = np.where(np.array(histogram) == np.max(histogram))[0][0]
-        #print(guess)
+        print(guess)
         kr17kev_in_hz = guess*(bins[1]-bins[0])+bins[0]
         #self.B_field = B(17.8, kr17kev_in_hz + 0)
         cov, \
@@ -275,16 +294,16 @@ class ComplexLineShape(BaseProcessor):
         line_pos_Hz_fit, line_pos_Hz_fit_err, \
         B_field_fit, B_field_fit_err, \
         scatter_prob_fit, scatter_prob_fit_err, \
-        amplitude_fit, amplitude_fit_err = self.fit_data(freq_bins, data_hist_freq)
-
-        # fit with shake spectrum
-        plt.rcParams.update({'font.size': 20})
-        plt.figure(figsize=(15,9))
-        plt.step(bins_Hz[0:-1]/1e9,data_hist_freq)
-        plt.plot(bins_Hz[0:-1]/1e9,fit_Hz)
-        plt.xlabel('frequency GHz')
-        plt.title('fit with shake spectrum 2 gas scattering')
-        plt.savefig('/host/plots/fit_shake_2_gas_0.png')
+        amplitude_fit, amplitude_fit_err = self.fit_data(freq_bins, data_hist_freq,self.shakeSpectrumClassInstance)
+        #
+        # # fit with shake spectrum
+        # plt.rcParams.update({'font.size': 20})
+        # plt.figure(figsize=(15,9))
+        # plt.step(bins_Hz[0:-1]/1e9,data_hist_freq)
+        # plt.plot(bins_Hz[0:-1]/1e9,fit_Hz)
+        # plt.xlabel('frequency GHz')
+        # plt.title('fit with shake spectrum 2 gas scattering')
+        # plt.savefig('/host/plots/fit_shake_2_gas_0.png')
 
         return True
 
@@ -359,36 +378,18 @@ class ComplexLineShape(BaseProcessor):
         first_scatter = self.single_scatter_f(gas_type)
         scatter_num_array = range(2,self.max_scatters+1)
         current_scatter = first_scatter
-        np.save(self.path_to_osc_strengths_files+'/scatter'+gas_type+"_"+str(1).zfill(2),current_scatter)
+        np.save(self.path_to_osc_strengths_files+'scatter_spectra_files/'+'scatter'+gas_type+"_"+str(1).zfill(2),current_scatter)
         # x = self.std_eV_array() # diagnostic
         for i in scatter_num_array:
             current_scatter = self.another_scatter(current_scatter, gas_type)
-            np.save(self.path_to_osc_strengths_files+gas_type+"_"+str(i).zfill(2),current_scatter)
+            np.save(self.path_to_osc_strengths_files+'scatter_spectra_files/'+'scatter'+gas_type+"_"+str(i).zfill(2),current_scatter)
             # plt.plot(x,current_scatter) # diagnostic
         # plt.show() # diagnostic
         elapsed = time.time() - t
         print('Files generated in '+str(elapsed)+'s')
         return
 
-    # Returns the name of the current path
-    # def get_current_path():
-    #     current_path = os.popen("pwd").readlines()
-    #     stripped_path = [s.strip('\n') for s in current_path]
-    #     return stripped_path[0]
 
-    # # Prints a list of the contents of a directory
-    # def list_files(path):
-    #     directory = os.popen("ls "+path).readlines()
-    #     strippeddirs = [s.strip('\n') for s in directory]
-    #     return strippeddirs
-
-    # Returns the name of the current directory
-    # def get_current_dir():
-    #     current_path = os.popen("pwd").readlines()
-    #     stripped_path = [s.strip('\n') for s in current_path]
-    #     stripped_path = stripped_path[0].split('/')
-    #     current_dir = stripped_path[len(stripped_path)-1]
-    #     return current_dir
 
 
     # Checks for the existence of a directory called 'scatter_spectra_files'
@@ -398,8 +399,8 @@ class ComplexLineShape(BaseProcessor):
     # number of points in the SELA, and if not, it generates fresh files
     def check_existence_of_scatter_files(self, gas_type):
         os.chdir(self.path_to_osc_strengths_files)
-        current_path = self.path_to_osc_strengths_files
-        current_dir = self.path_to_osc_strengths_files
+        current_path = get_current_path()
+        current_dir = get_current_dir()
         stuff_in_dir = list_files(current_path)
         if 'scatter_spectra_files' not in stuff_in_dir and current_dir != 'scatter_spectra_files':
             print('Scatter files not found, generating')
@@ -411,7 +412,7 @@ class ComplexLineShape(BaseProcessor):
             strippeddirs = [s.strip('\n') for s in directory]
             if len(directory) != len(self.gases) * self.max_scatters:
                 self.generate_scatter_convolution_files(gas_type)
-            test_file = self.path_to_osc_strengths_files+'scatter'+gas_type+'_01.npy'
+            test_file = self.path_to_osc_strengths_files+'scatter_spectra_files/'+'scatter'+gas_type+'_01.npy'
             test_arr = np.load(test_file)
             if len(test_arr) != self.num_points_in_std_array:
                 print('Scatter files do not match standard array binning, generating fresh files')
@@ -421,7 +422,7 @@ class ComplexLineShape(BaseProcessor):
     # Given a function evaluated on the SELA, convolves it with a gaussian
     def convolve_gaussian(self, func_to_convolve,gauss_FWHM_eV):
         sigma = gaussian_FWHM_to_sigma(gauss_FWHM_eV)
-        resolution_f = self.gaussian(sigma)
+        resolution_f = self.std_gaussian(sigma)
         ans = sp.signal.convolve(resolution_f,func_to_convolve,mode='same')
         ans_normed = self.normalize(ans)
         return ans_normed
@@ -429,7 +430,7 @@ class ComplexLineShape(BaseProcessor):
     # Produces a full spectral shape on the SELA, given a gaussian resolution
     # and a scatter probability
     def make_spectrum(self, gauss_FWHM_eV,scatter_prob,gas_type,emitted_peak='shake'):
-        current_path = '/host'
+        current_path = self.path_to_osc_strengths_files
         # check_existence_of_scatter_files()
         #filenames = list_files('scatter_spectra_files')
         scatter_num_array = range(1,self.max_scatters+1)
@@ -438,12 +439,12 @@ class ComplexLineShape(BaseProcessor):
         if emitted_peak == 'lorentzian':
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
-            current_working_spectrum = shake_spectrum(self.std_eV_array())
+            current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum(self.std_eV_array())
         current_working_spectrum = self.convolve_gaussian(current_working_spectrum,gauss_FWHM_eV)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
         for i in scatter_num_array:
-            current_working_spectrum = np.load(current_path+'/scatter_spectra_files/scatter'+gas_type+'_'+str(i).zfill(2)+'.npy')
+            current_working_spectrum = np.load(current_path+'scatter_spectra_files/'+'scatter'+gas_type+'_'+str(i).zfill(2)+'.npy')
             current_working_spectrum = self.normalize(sp.signal.convolve(zeroth_order_peak,current_working_spectrum,mode='same'))
             current_full_spectrum += current_working_spectrum*scatter_prob**scatter_num_array[i-1]
         # plt.plot(en_array,current_full_spectrum) # diagnostic
@@ -512,6 +513,7 @@ class ComplexLineShape(BaseProcessor):
         p_bounds = ([FWHM_eV_min, line_pos_keV_min] + [scatter_prob_min,amplitude_min] * len(self.gases),  [FWHM_eV_max, line_pos_keV_max] + [scatter_prob_max,amplitude_max] * len(self.gases))
         # Actually do the fitting
         params , cov = curve_fit(self.spectrum_func,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p_guess,bounds=p_bounds)
+        print('Made it past the fit!')
         # Name each of the resulting parameters and errors
         ################### Generalize to N self.gases ###########################
         FWHM_G_eV_fit = params[0]

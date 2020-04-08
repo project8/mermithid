@@ -35,7 +35,8 @@ class ComplexLineShapeTests(unittest.TestCase):
             'num_points_in_std_array': 10000,
             'RF_ROI_MIN': 25850000000.0,
             'B_field': 0.957810722501,
-            'path_to_shake_parameters_excel_file': '/host/KrShakeParameters214.xlsx'
+            'path_to_shake_parameters_excel_file': '/host/KrShakeParameters214.xlsx',
+            'path_to_osc_strengths_files': '/host/'
         }
 
         b = IOCicadaProcessor("reader")
@@ -50,7 +51,7 @@ class ComplexLineShapeTests(unittest.TestCase):
         for key in data.keys():
             logger.info("{} -> size = {}".format(key,len(data[key])))
 
-        print(data['StartFrequency'])
+        #print(data['StartFrequency'])
         start_frequency_array = np.array(data['StartFrequency'])
 
         complexLineShape.data = data
