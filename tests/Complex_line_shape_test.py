@@ -61,7 +61,7 @@ class ComplexLineShapeTests(unittest.TestCase):
         results = complexLineShape.results
         print(results)
 
-        # fit with shake spectrum
+        # plot fit with shake spectrum
         plt.rcParams.update({'font.size': 20})
         plt.figure(figsize=(15,9))
         plt.step(results['bins_Hz'][0:-1]/1e9,results['data_hist_freq'])

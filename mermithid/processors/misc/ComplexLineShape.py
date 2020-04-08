@@ -249,33 +249,7 @@ class ComplexLineShape(BaseProcessor):
         print(guess)
         kr17kev_in_hz = guess*(bins[1]-bins[0])+bins[0]
         #self.B_field = B(17.8, kr17kev_in_hz + 0)
-        cov, \
-        bins_keV , fit , bins_Hz, fit_Hz , \
-        FWHM_eV_fit, FWHM_eV_fit_err, \
-        line_pos_Hz_fit, line_pos_Hz_fit_err, \
-        B_field_fit, B_field_fit_err, \
-        scatter_prob_fit, scatter_prob_fit_err, \
-        amplitude_fit, amplitude_fit_err = self.fit_data(freq_bins, data_hist_freq,self.shakeSpectrumClassInstance)
-        #
-
-
-        self.results = {
-                'cov': cov,
-                'bins_keV': binskeV,
-                'fit': fit,
-                'bins_Hz': bins_Hz,
-                'fit_Hz': fit_Hz,
-                'FWHM_eV_fit': FWHM_eV_fit,
-                'FWHM_eV_fit_err': FWHM_eV_fit_err,
-                'line_pos_Hz_fit': line_pos_Hz_fit,
-                'line_pos_Hz_fit_err': line_pos_Hz_fit_err,
-                'self.B_field_fit': self.B_field_fit,
-                'self.B_field_fit_err': self.B_field_fit_err,
-                'scatter_prob_fit': scatter_prob_fit,
-                'scatter_prob_fit_err': scatter_prob_fit_err,
-                'amplitude_fit': amplitude_fit,
-                'amplitude_fit_err': amplitude_fit_err
-                }
+        self.results = self.fit_data(freq_bins, data_hist_freq,self.shakeSpectrumClassInstance)
 
         return True
 
@@ -526,5 +500,21 @@ class ComplexLineShape(BaseProcessor):
         FWHM_eV_fit_err = FWHM_eV_G_fit_err
         elapsed = time.time() - t
         print('Fit completed in '+str(elapsed)+'s')
-
-        return cov, bins_keV , fit , bins_Hz, fit_Hz , FWHM_eV_fit, FWHM_eV_fit_err, line_pos_Hz_fit, line_pos_Hz_fit_err, self.B_field_fit, self.B_field_fit_err, scatter_prob_fit, scatter_prob_fit_err, amplitude_fit, amplitude_fit_err
+        dictionary_of_fit_results = {
+        'cov': cov,
+        'bins_keV': binskeV,
+        'fit': fit,
+        'bins_Hz': bins_Hz,
+        'fit_Hz': fit_Hz,
+        'FWHM_eV_fit': FWHM_eV_fit,
+        'FWHM_eV_fit_err': FWHM_eV_fit_err,
+        'line_pos_Hz_fit': line_pos_Hz_fit,
+        'line_pos_Hz_fit_err': line_pos_Hz_fit_err,
+        'self.B_field_fit': self.B_field_fit,
+        'self.B_field_fit_err': self.B_field_fit_err,
+        'scatter_prob_fit': scatter_prob_fit,
+        'scatter_prob_fit_err': scatter_prob_fit_err,
+        'amplitude_fit': amplitude_fit,
+        'amplitude_fit_err': amplitude_fit_err
+        }
+        return dictionary_of_fit_results
