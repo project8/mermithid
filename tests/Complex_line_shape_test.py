@@ -1,7 +1,7 @@
 '''
-This scripts aims at testing Tritium specific processors.
-Author: M. Guigue, C. Claessens, A. Ziegler, E. Novitski
-Date: 3/4/20
+Tests complex lineshape fit.
+Author: E. Machado, Y.-H. Sun, E. Novitski
+Date: 4/8/20
 '''
 
 import numpy as np
@@ -35,7 +35,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             'num_points_in_std_array': 10000,
             'RF_ROI_MIN': 25850000000.0,
             'B_field': 0.957810722501,
-            'path_to_shake_parameters_excel_file': '/host/KrShakeParameters214.xlsx',
+            'shake_spectrum_parameters_json_path': '/host/shake_spectrum_parameters.json',
             'path_to_osc_strengths_files': '/host/'
         }
 

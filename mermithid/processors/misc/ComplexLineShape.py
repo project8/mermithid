@@ -1,14 +1,7 @@
 '''
-Bin tritium start frequencies and calculate efficiency for each bin
-function.
-Author: A. Ziegler, E. Novitski, C. Claessens
-Date:3/4/2020
-
-This takes efficiency informations and interpolates between frequency points.
-Then, you dump in tritium data.
-It assigns an efficiency and efficiency uncertainty upper and lower bounds to each event.
-It also bins events and defines an efficiency and efficiency uncertainty upper and
-lower bound by integrating the interpolated efficiency over each bin.
+Fits data to complex lineshape model.
+Author: E. Machado, Y.-H. Sun, E. Novitski
+Date: 4/8/20
 '''
 
 from __future__ import absolute_import
@@ -19,21 +12,11 @@ from scipy.optimize import curve_fit
 from scipy import integrate , signal, interpolate
 import os
 import time
-import pandas as pd
 import sys
 import json
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.misc import Constants
-
-#import numpy as np
-#import matplotlib.pyplot as plt
-#from scipy.optimize import curve_fit
-#import scipy as sp
-#from scipy import integrate , signal, interpolate
-#import os
-#import time
-#import pandas as pd
 
 logger = morphologging.getLogger(__name__)
 
@@ -105,7 +88,6 @@ def get_eloss_spec(e_loss, oscillator_strength, kr_line): #energies in eV
     kinetic_en = kr_line * 1000
     e_rydberg = 13.605693009 #rydberg energy (eV)
     a0 = 5.291772e-11 #bohr radius
-    #print(4. * kinetic_en * e_loss / (e_rydberg**3.))
     return np.where(e_loss>0 , 4.*np.pi*a0**2 * e_rydberg / (kinetic_en * e_loss) * oscillator_strength * np.log(4. * kinetic_en * e_loss / (e_rydberg**3.) ), 0)
 
 # Takes only the nonzero bins of a histogram
@@ -166,27 +148,18 @@ class ShakeSpectrumClass():
     # Read parameters for shake up shake off spectrum from an excel spread sheet.
     # The parameters are from Hamish and Vedantha shake spectrum paper table IV
 
-    def __init__(self, path_to_shake_parameters_excel_file, input_std_eV_array):
+    def __init__(self, shake_spectrum_parameters_json_path, input_std_eV_array):
 
-        Ecore = 0 # set as 17823 to reproduce Fig. 4 in Hamish Vedantha shake spectrum paper
-        epsilon = 1e-4 # a small quantity for preventing zero denominator
-        df = pd.read_excel(path_to_shake_parameters_excel_file, index_col=0)
-        A = []
-        B = []
-        Gamma = []
-        E_b = []
-        for i in range(27):
-            A.append(df['Unnamed: 1'][i]*100)
-            B.append(df['Unnamed: 2'][i])
-            Gamma.append(df['Unnamed: 4'][i])
-            E_b.append(df['Unnamed: 3'][i])
-        A, B, Gamma, E_b, Ecore, epsilon
-        self.A_Intensity = A
-        self.B_Binding = B
-        self.Gamma_Width = Gamma
-        self.E_b_Scale = E_b
-        self.Ecore = Ecore
-        self.epsilon_shake_spectrum = epsilon
+        with open(
+        shake_spectrum_parameters_json_path, 'r'
+        ) as fp:
+            shake_spectrum_parameters = json.load(fp)
+        self.A_Intensity = shake_spectrum_parameters['A_Intensity']
+        self.B_Binding = shake_spectrum_parameters['B_Binding']
+        self.Gamma_Width = shake_spectrum_parameters['Gamma_Width']
+        self.E_b_Scale = shake_spectrum_parameters['E_b_Scale']
+        self.Ecore = shake_spectrum_parameters['Ecore']
+        self.epsilon_shake_spectrum = shake_spectrum_parameters['epsilon_shake_spectrum']
 
     # nprime in Eq. (6)
     def nprime(self, E_b, W):
@@ -255,15 +228,13 @@ class ComplexLineShape(BaseProcessor):
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
         self.RF_ROI_MIN = reader.read_param(params, 'RF_ROI_MIN', 25850000000.0)
         self.B_field = reader.read_param(params, 'B_field', 0.957810722501)
-        self.path_to_shake_parameters_excel_file = reader.read_param(params, 'path_to_shake_parameters_excel_file', '/host/KrShakeParameters214.xlsx')
+        self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/scatter_spectra_files/')
 
     def InternalRun(self):
 
-        # Read shake parameters from Excel file
-#        A_Intensity, B_Binding, Gamma_Width, self.E_b_Scale, Ecore, epsilon_shake_spectrum = read_shake_parameters_from_excel_file(self.path_to_shake_parameters_excel_file)
-
-        self.shakeSpectrumClassInstance = ShakeSpectrumClass(self.path_to_shake_parameters_excel_file, self.std_eV_array)
+        # Read shake parameters from JSON file
+        self.shakeSpectrumClassInstance = ShakeSpectrumClass(self.shake_spectrum_parameters_json_path, self.std_eV_array)
 
         number_of_events = len(self.data['StartFrequency'])
         self.results = number_of_events
