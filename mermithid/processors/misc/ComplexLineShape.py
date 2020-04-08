@@ -151,9 +151,8 @@ def FWHM_voigt(FWHM_L,FWHM_G):
 
 # Returns the name of the current path
 def get_current_path():
-    current_path = os.popen("pwd").readlines()
-    stripped_path = [s.strip('\n') for s in current_path]
-    return stripped_path[0]
+    path = os.path.abspath(os.getcwd())
+    return path
 
 # Prints a list of the contents of a directory
 def list_files(path):
@@ -512,6 +511,7 @@ class ComplexLineShape(BaseProcessor):
         p_guess = [FWHM_guess, line_pos_guess] + [scatter_prob_guess,amplitude_guess] * len(self.gases)
         p_bounds = ([FWHM_eV_min, line_pos_keV_min] + [scatter_prob_min,amplitude_min] * len(self.gases),  [FWHM_eV_max, line_pos_keV_max] + [scatter_prob_max,amplitude_max] * len(self.gases))
         # Actually do the fitting
+        print('Made it to just before the fit!')
         params , cov = curve_fit(self.spectrum_func,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p_guess,bounds=p_bounds)
         print('Made it past the fit!')
         # Name each of the resulting parameters and errors
