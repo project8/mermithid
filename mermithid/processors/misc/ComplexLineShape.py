@@ -236,8 +236,8 @@ class ComplexLineShape(BaseProcessor):
         # Read shake parameters from JSON file
         self.shakeSpectrumClassInstance = ShakeSpectrumClass(self.shake_spectrum_parameters_json_path, self.std_eV_array)
 
-        number_of_events = len(self.data['StartFrequency'])
-        self.results = number_of_events
+        # number_of_events = len(self.data['StartFrequency'])
+        # self.results = number_of_events
 
         a = self.data['StartFrequency']
 
@@ -257,14 +257,25 @@ class ComplexLineShape(BaseProcessor):
         scatter_prob_fit, scatter_prob_fit_err, \
         amplitude_fit, amplitude_fit_err = self.fit_data(freq_bins, data_hist_freq,self.shakeSpectrumClassInstance)
         #
-        # # fit with shake spectrum
-        # plt.rcParams.update({'font.size': 20})
-        # plt.figure(figsize=(15,9))
-        # plt.step(bins_Hz[0:-1]/1e9,data_hist_freq)
-        # plt.plot(bins_Hz[0:-1]/1e9,fit_Hz)
-        # plt.xlabel('frequency GHz')
-        # plt.title('fit with shake spectrum 2 gas scattering')
-        # plt.savefig('/host/plots/fit_shake_2_gas_0.png')
+
+
+        self.results = {
+                'cov': cov,
+                'bins_keV': binskeV,
+                'fit': fit,
+                'bins_Hz': bins_Hz,
+                'fit_Hz': fit_Hz,
+                'FWHM_eV_fit': FWHM_eV_fit,
+                'FWHM_eV_fit_err': FWHM_eV_fit_err,
+                'line_pos_Hz_fit': line_pos_Hz_fit,
+                'line_pos_Hz_fit_err': line_pos_Hz_fit_err,
+                'self.B_field_fit': self.B_field_fit,
+                'self.B_field_fit_err': self.B_field_fit_err,
+                'scatter_prob_fit': scatter_prob_fit,
+                'scatter_prob_fit_err': scatter_prob_fit_err,
+                'amplitude_fit': amplitude_fit,
+                'amplitude_fit_err': amplitude_fit_err
+                }
 
         return True
 
@@ -515,4 +526,5 @@ class ComplexLineShape(BaseProcessor):
         FWHM_eV_fit_err = FWHM_eV_G_fit_err
         elapsed = time.time() - t
         print('Fit completed in '+str(elapsed)+'s')
+
         return cov, bins_keV , fit , bins_Hz, fit_Hz , FWHM_eV_fit, FWHM_eV_fit_err, line_pos_Hz_fit, line_pos_Hz_fit_err, self.B_field_fit, self.B_field_fit_err, scatter_prob_fit, scatter_prob_fit_err, amplitude_fit, amplitude_fit_err
