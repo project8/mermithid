@@ -48,10 +48,13 @@ class IOTests(unittest.TestCase):
 
         plt.subplot(212)
         plt.hist(data['a']['TrueStartFrequenciesCut'], bins=bins, label='channel a')
-        plt.hist(data['b']['TrueStartFrequenciesCut'], bins=bins, label='channel a')
-        plt.hist(data['c']['TrueStartFrequenciesCut'], bins=bins, label='channel a')
+        plt.hist(data['b']['TrueStartFrequenciesCut'], bins=bins, label='channel b')
+        plt.hist(data['c']['TrueStartFrequenciesCut'], bins=bins, label='channel c')
         plt.xlabel('Start frequencies')
         plt.ylabel('N')
+        plt.legend()
+
+        plt.tight_layout()
         plt.savefig('multi_channel_reader_test.png', dpi=200)
 
 if __name__ == '__main__':
