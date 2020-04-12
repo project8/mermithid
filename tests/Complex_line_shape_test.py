@@ -1,7 +1,7 @@
 '''
-This scripts aims at testing Tritium specific processors.
-Author: M. Guigue, C. Claessens, A. Ziegler, E. Novitski
-Date: 3/4/20
+Tests complex lineshape fit.
+Author: E. Machado, Y.-H. Sun, E. Novitski
+Date: 4/8/20
 '''
 
 import numpy as np
@@ -35,7 +35,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             'num_points_in_std_array': 10000,
             'RF_ROI_MIN': 25850000000.0,
             'B_field': 0.957810722501,
-            'path_to_shake_parameters_excel_file': '/host/KrShakeParameters214.xlsx',
+            'shake_spectrum_parameters_json_path': '/host/shake_spectrum_parameters.json',
             'path_to_osc_strengths_files': '/host/'
         }
 
@@ -60,6 +60,15 @@ class ComplexLineShapeTests(unittest.TestCase):
 
         results = complexLineShape.results
         print(results)
+
+        # plot fit with shake spectrum
+        plt.rcParams.update({'font.size': 20})
+        plt.figure(figsize=(15,9))
+        plt.step(results['bins_Hz'][0:-1]/1e9,results['data_hist_freq'])
+        plt.plot(results['bins_Hz'][0:-1]/1e9,results['fit_Hz'])
+        plt.xlabel('frequency GHz')
+        plt.title('fit with shake spectrum 2 gas scattering')
+        plt.savefig('/host/plots/fit_shake_2_gas_0.png')
 
 if __name__ == '__main__':
     unittest.main()

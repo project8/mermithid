@@ -1,14 +1,7 @@
 '''
-Bin tritium start frequencies and calculate efficiency for each bin
-function.
-Author: A. Ziegler, E. Novitski, C. Claessens
-Date:3/4/2020
-
-This takes efficiency informations and interpolates between frequency points.
-Then, you dump in tritium data.
-It assigns an efficiency and efficiency uncertainty upper and lower bounds to each event.
-It also bins events and defines an efficiency and efficiency uncertainty upper and
-lower bound by integrating the interpolated efficiency over each bin.
+Fits data to complex lineshape model.
+Author: E. Machado, Y.-H. Sun, E. Novitski
+Date: 4/8/20
 '''
 
 from __future__ import absolute_import
@@ -19,21 +12,11 @@ from scipy.optimize import curve_fit
 from scipy import integrate , signal, interpolate
 import os
 import time
-import pandas as pd
 import sys
 import json
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.misc import Constants
-
-#import numpy as np
-#import matplotlib.pyplot as plt
-#from scipy.optimize import curve_fit
-#import scipy as sp
-#from scipy import integrate , signal, interpolate
-#import os
-#import time
-#import pandas as pd
 
 logger = morphologging.getLogger(__name__)
 
@@ -74,6 +57,7 @@ def gaussian_sigma_to_FWHM(sigma):
 def read_oscillator_str_file(filename):
     f = open(filename, "r")
     lines = f.readlines()
+    f.close()
     energyOsc = [[],[]] #2d array of energy losses, oscillator strengths
 
     for line in lines:
@@ -149,20 +133,9 @@ def FWHM_voigt(FWHM_L,FWHM_G):
     FWHM_V = 0.5346*FWHM_L+np.sqrt(0.2166*FWHM_L**2+FWHM_G**2)
     return FWHM_V
 
-# Returns the name of the current path
-def get_current_path():
-    path = os.path.abspath(os.getcwd())
-    return path
-
-# Prints a list of the contents of a directory
-def list_files(path):
-    directory = os.popen("ls "+path).readlines()
-    strippeddirs = [s.strip('\n') for s in directory]
-    return strippeddirs
-
 # Returns the name of the current directory
 def get_current_dir():
-    current_path = os.popen("pwd").readlines()
+    current_path = os.path.abspath(os.getcwd())
     stripped_path = [s.strip('\n') for s in current_path]
     stripped_path = stripped_path[0].split('/')
     current_dir = stripped_path[len(stripped_path)-1]
@@ -175,27 +148,18 @@ class ShakeSpectrumClass():
     # Read parameters for shake up shake off spectrum from an excel spread sheet.
     # The parameters are from Hamish and Vedantha shake spectrum paper table IV
 
-    def __init__(self, path_to_shake_parameters_excel_file, input_std_eV_array):
+    def __init__(self, shake_spectrum_parameters_json_path, input_std_eV_array):
 
-        Ecore = 0 # set as 17823 to reproduce Fig. 4 in Hamish Vedantha shake spectrum paper
-        epsilon = 1e-4 # a small quantity for preventing zero denominator
-        df = pd.read_excel(path_to_shake_parameters_excel_file, index_col=0)
-        A = []
-        B = []
-        Gamma = []
-        E_b = []
-        for i in range(27):
-            A.append(df['Unnamed: 1'][i]*100)
-            B.append(df['Unnamed: 2'][i])
-            Gamma.append(df['Unnamed: 4'][i])
-            E_b.append(df['Unnamed: 3'][i])
-        A, B, Gamma, E_b, Ecore, epsilon
-        self.A_Intensity = A
-        self.B_Binding = B
-        self.Gamma_Width = Gamma
-        self.E_b_Scale = E_b
-        self.Ecore = Ecore
-        self.epsilon_shake_spectrum = epsilon
+        with open(
+        shake_spectrum_parameters_json_path, 'r'
+        ) as fp:
+            shake_spectrum_parameters = json.load(fp)
+        self.A_Intensity = shake_spectrum_parameters['A_Intensity']
+        self.B_Binding = shake_spectrum_parameters['B_Binding']
+        self.Gamma_Width = shake_spectrum_parameters['Gamma_Width']
+        self.E_b_Scale = shake_spectrum_parameters['E_b_Scale']
+        self.Ecore = shake_spectrum_parameters['Ecore']
+        self.epsilon_shake_spectrum = shake_spectrum_parameters['epsilon_shake_spectrum']
 
     # nprime in Eq. (6)
     def nprime(self, E_b, W):
@@ -264,18 +228,16 @@ class ComplexLineShape(BaseProcessor):
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
         self.RF_ROI_MIN = reader.read_param(params, 'RF_ROI_MIN', 25850000000.0)
         self.B_field = reader.read_param(params, 'B_field', 0.957810722501)
-        self.path_to_shake_parameters_excel_file = reader.read_param(params, 'path_to_shake_parameters_excel_file', '/host/KrShakeParameters214.xlsx')
+        self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/scatter_spectra_files/')
 
     def InternalRun(self):
 
-        # Read shake parameters from Excel file
-#        A_Intensity, B_Binding, Gamma_Width, self.E_b_Scale, Ecore, epsilon_shake_spectrum = read_shake_parameters_from_excel_file(self.path_to_shake_parameters_excel_file)
+        # Read shake parameters from JSON file
+        self.shakeSpectrumClassInstance = ShakeSpectrumClass(self.shake_spectrum_parameters_json_path, self.std_eV_array)
 
-        self.shakeSpectrumClassInstance = ShakeSpectrumClass(self.path_to_shake_parameters_excel_file, self.std_eV_array)
-
-        number_of_events = len(self.data['StartFrequency'])
-        self.results = number_of_events
+        # number_of_events = len(self.data['StartFrequency'])
+        # self.results = number_of_events
 
         a = self.data['StartFrequency']
 
@@ -287,22 +249,7 @@ class ComplexLineShape(BaseProcessor):
         print(guess)
         kr17kev_in_hz = guess*(bins[1]-bins[0])+bins[0]
         #self.B_field = B(17.8, kr17kev_in_hz + 0)
-        cov, \
-        bins_keV , fit , bins_Hz, fit_Hz , \
-        FWHM_eV_fit, FWHM_eV_fit_err, \
-        line_pos_Hz_fit, line_pos_Hz_fit_err, \
-        B_field_fit, B_field_fit_err, \
-        scatter_prob_fit, scatter_prob_fit_err, \
-        amplitude_fit, amplitude_fit_err = self.fit_data(freq_bins, data_hist_freq,self.shakeSpectrumClassInstance)
-        #
-        # # fit with shake spectrum
-        # plt.rcParams.update({'font.size': 20})
-        # plt.figure(figsize=(15,9))
-        # plt.step(bins_Hz[0:-1]/1e9,data_hist_freq)
-        # plt.plot(bins_Hz[0:-1]/1e9,fit_Hz)
-        # plt.xlabel('frequency GHz')
-        # plt.title('fit with shake spectrum 2 gas scattering')
-        # plt.savefig('/host/plots/fit_shake_2_gas_0.png')
+        self.results = self.fit_data(freq_bins, data_hist_freq,self.shakeSpectrumClassInstance)
 
         return True
 
@@ -398,17 +345,16 @@ class ComplexLineShape(BaseProcessor):
     # number of points in the SELA, and if not, it generates fresh files
     def check_existence_of_scatter_files(self, gas_type):
         os.chdir(self.path_to_osc_strengths_files)
-        current_path = get_current_path()
+        current_path = os.path.abspath(os.getcwd())
         current_dir = get_current_dir()
-        stuff_in_dir = list_files(current_path)
+        stuff_in_dir = os.listdir(current_path)
         if 'scatter_spectra_files' not in stuff_in_dir and current_dir != 'scatter_spectra_files':
             print('Scatter files not found, generating')
-            os.popen("mkdir scatter_spectra_files")
+            os.system("mkdir scatter_spectra_files")
             time.sleep(2)
             self.generate_scatter_convolution_files(gas_type)
         else:
-            directory = os.popen("ls scatter_spectra_files").readlines()
-            strippeddirs = [s.strip('\n') for s in directory]
+            directory = os.listdir(os.path.abspath(os.getcwd()) + '/scatter_spectra_files')
             if len(directory) != len(self.gases) * self.max_scatters:
                 self.generate_scatter_convolution_files(gas_type)
             test_file = self.path_to_osc_strengths_files+'scatter_spectra_files/'+'scatter'+gas_type+'_01.npy'
@@ -453,7 +399,6 @@ class ComplexLineShape(BaseProcessor):
     # Produces a spectrum in real energy that can now be evaluated off of the SELA.
     #def spectrum_func(x_keV,FWHM_G_eV,line_pos_keV,scatter_prob,amplitude):
     def spectrum_func(self, x_keV, *p0):
-        print('1',self.spectrum_func)
         x_eV = x_keV*1000.
         en_loss_array = self.std_eV_array()
         en_loss_array_min = en_loss_array[0]
@@ -495,9 +440,6 @@ class ComplexLineShape(BaseProcessor):
         bins_keV = flip_array(bins_keV)
         data_hist = flip_array(data_hist_freq)
         bins_keV_nonzero , data_hist_nonzero , data_hist_err = get_only_nonzero_bins(bins_keV,data_hist)
-        print('2',bins_keV_nonzero)
-        print('3',data_hist_nonzero)
-        print('4',data_hist_err)
         # Bounds for curve_fit
         FWHM_eV_min = 1e-5
         FWHM_eV_max = (bins_keV[len(bins_keV)-1] - bins_keV[0])*1000
@@ -513,14 +455,21 @@ class ComplexLineShape(BaseProcessor):
         scatter_prob_guess = 0.5
         amplitude_guess = np.sum(data_hist)/2
         p_guess = [FWHM_guess, line_pos_guess] + [scatter_prob_guess,amplitude_guess] * len(self.gases)
-        print('5',p_guess)
         p_bounds = ([FWHM_eV_min, line_pos_keV_min] + [scatter_prob_min,amplitude_min] * len(self.gases),  [FWHM_eV_max, line_pos_keV_max] + [scatter_prob_max,amplitude_max] * len(self.gases))
-        print('6',p_bounds)
         # Actually do the fitting
+<<<<<<< HEAD
         print('Made it to just before the fit!')
-        print('1',self.spectrum_func)
+=======
+        # print('Made it to just before the fit!')
+        # print('1',self.spectrum_func)
+        # print('2',bins_keV_nonzero)
+        # print('3',data_hist_nonzero)
+        # print('4',data_hist_err)
+        # print('5',p_guess)
+        # print('6',p_bounds)
+>>>>>>> 11f8d38637ef856099c82c1ed97c9b88c8015c6c
         params , cov = curve_fit(self.spectrum_func,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p_guess,bounds=p_bounds)
-        print('Made it past the fit!')
+        # print('Made it past the fit!')
         # Name each of the resulting parameters and errors
         ################### Generalize to N self.gases ###########################
         FWHM_G_eV_fit = params[0]
@@ -555,4 +504,21 @@ class ComplexLineShape(BaseProcessor):
         FWHM_eV_fit_err = FWHM_eV_G_fit_err
         elapsed = time.time() - t
         print('Fit completed in '+str(elapsed)+'s')
-        return cov, bins_keV , fit , bins_Hz, fit_Hz , FWHM_eV_fit, FWHM_eV_fit_err, line_pos_Hz_fit, line_pos_Hz_fit_err, self.B_field_fit, self.B_field_fit_err, scatter_prob_fit, scatter_prob_fit_err, amplitude_fit, amplitude_fit_err
+        dictionary_of_fit_results = {
+        'cov': cov,
+        'bins_keV': binskeV,
+        'fit': fit,
+        'bins_Hz': bins_Hz,
+        'fit_Hz': fit_Hz,
+        'FWHM_eV_fit': FWHM_eV_fit,
+        'FWHM_eV_fit_err': FWHM_eV_fit_err,
+        'line_pos_Hz_fit': line_pos_Hz_fit,
+        'line_pos_Hz_fit_err': line_pos_Hz_fit_err,
+        'self.B_field_fit': self.B_field_fit,
+        'self.B_field_fit_err': self.B_field_fit_err,
+        'scatter_prob_fit': scatter_prob_fit,
+        'scatter_prob_fit_err': scatter_prob_fit_err,
+        'amplitude_fit': amplitude_fit,
+        'amplitude_fit_err': amplitude_fit_err
+        }
+        return dictionary_of_fit_results
