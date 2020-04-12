@@ -453,6 +453,7 @@ class ComplexLineShape(BaseProcessor):
     # Produces a spectrum in real energy that can now be evaluated off of the SELA.
     #def spectrum_func(x_keV,FWHM_G_eV,line_pos_keV,scatter_prob,amplitude):
     def spectrum_func(self, x_keV, *p0):
+        print('1',self.spectrum_func)
         x_eV = x_keV*1000.
         en_loss_array = self.std_eV_array()
         en_loss_array_min = en_loss_array[0]
@@ -494,6 +495,9 @@ class ComplexLineShape(BaseProcessor):
         bins_keV = flip_array(bins_keV)
         data_hist = flip_array(data_hist_freq)
         bins_keV_nonzero , data_hist_nonzero , data_hist_err = get_only_nonzero_bins(bins_keV,data_hist)
+        print('2',bins_keV_nonzero)
+        print('3',data_hist_nonzero)
+        print('4',data_hist_err)
         # Bounds for curve_fit
         FWHM_eV_min = 1e-5
         FWHM_eV_max = (bins_keV[len(bins_keV)-1] - bins_keV[0])*1000
@@ -509,9 +513,12 @@ class ComplexLineShape(BaseProcessor):
         scatter_prob_guess = 0.5
         amplitude_guess = np.sum(data_hist)/2
         p_guess = [FWHM_guess, line_pos_guess] + [scatter_prob_guess,amplitude_guess] * len(self.gases)
+        print('5',p_guess)
         p_bounds = ([FWHM_eV_min, line_pos_keV_min] + [scatter_prob_min,amplitude_min] * len(self.gases),  [FWHM_eV_max, line_pos_keV_max] + [scatter_prob_max,amplitude_max] * len(self.gases))
+        print('6',p_bounds)
         # Actually do the fitting
         print('Made it to just before the fit!')
+        print('1',self.spectrum_func)
         params , cov = curve_fit(self.spectrum_func,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p_guess,bounds=p_bounds)
         print('Made it past the fit!')
         # Name each of the resulting parameters and errors
