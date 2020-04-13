@@ -77,30 +77,7 @@ def GenerateFakeData(
     2) mapped values: energy, frequency
     '''
 
-def EfficiencyBinning():
-    specGen_config = {
-        "volume": 7e-6*1e-2, # [m3]
-        "density": 3e17, # [1/m3]
-        "duration": 1.*seconds_per_year()/12., # [s]
-        "neutrino_mass" :0, # [eV]
-        "energy_window": [tritium_endpoint()-1e3,tritium_endpoint()+1e3], # [KEmin,KEmax]
-        "frequency_window": [-100e6, +100e6], #[Fmin, Fmax]
-        "energy_or_frequency": "frequency",
-        # "energy_window": [0.,tritium_endpoint()+1e3], # [KEmin,KEmax]
-        "background": 0,#1e-6, # [counts/eV/s]
-        "energy_resolution": 5,# [eV]
-        "frequency_resolution": 2e6,# [Hz]
-        "mode": "generate",
-        "varName": "F",
-        "iter": 10000,
-        "interestParams": "F",
-        "fixedParams": {"m_nu": 0},
-        "options": {"snr_efficiency": True, "channel_efficiency":False, "smearing": False},
-        "snr_efficiency_coefficients": [-265.03357206889626, 6.693200670990694e-07, -5.795611253664308e-16, 1.5928835520798478e-25, 2.892234977030861e-35, -1.566210147698845e-44],
-        "channel_central_frequency": 1400e6,
-        "mixing_frequency": 24.5e9
-    }
-
+def EfficiencyBinning(tritium_data):
     tritiumAndEfficiencyBinner_config = {
         "energy_or_frequency": 'frequency',
         "variables": "F",
@@ -110,13 +87,9 @@ def EfficiencyBinning():
         'fss_bins': False # If fss_bins is True, bins is ignored and overridden
      }
 
-    specGen = DistortedTritiumSpectrumLikelihoodSampler("specGen")
     tritiumAndEfficiencyBinner = TritiumAndEfficiencyBinner("tritiumAndEfficiencyBinner")
-    specGen.Configure(specGen_config)
     tritiumAndEfficiencyBinner.Configure(tritiumAndEfficiencyBinner_config)
-    specGen.Run()
-    data = specGen.data
-    tritiumAndEfficiencyBinner.data = data
+    tritiumAndEfficiencyBinner.data = tritium_data
     tritiumAndEfficiencyBinner.Run()
     results = tritiumAndEfficiencyBinner.results
     return results
