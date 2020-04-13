@@ -27,8 +27,8 @@ class FakeDataGenerationTest(unittest.TestCase):
             "scattering_sigma": 18.6,
             "scattering_prob": 0.77,
             "B_field": 0.9578186017836624,
-            "S": 4000,
-            "n_steps": 1000,
+            "S": 4500,
+            "n_steps": 40000,
             "A_b": 1e-10
         }
 
