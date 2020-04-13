@@ -53,6 +53,15 @@ def gaussian_sigma_to_FWHM(sigma):
     FWHM = sigma*(2*np.sqrt(2*np.log(2)))
     return FWHM
 
+# calculating combinatorics n choose r
+def ncr(n, r):
+    r = min(r, n-r)
+    if r == 0: return 1
+    res = 1
+    for k in range(1,r+1):
+        res = res*(n-k+1)/k
+    return res
+
 #returns array with energy loss/ oscillator strength data
 def read_oscillator_str_file(filename):
     f = open(filename, "r")
@@ -160,6 +169,7 @@ class ShakeSpectrumClass():
         self.E_b_Scale = shake_spectrum_parameters['E_b_Scale']
         self.Ecore = shake_spectrum_parameters['Ecore']
         self.epsilon_shake_spectrum = shake_spectrum_parameters['epsilon_shake_spectrum']
+        self.input_std_eV_array = input_std_eV_array
 
     # nprime in Eq. (6)
     def nprime(self, E_b, W):
@@ -206,8 +216,8 @@ class ShakeSpectrumClass():
         return full_spectrum
 
     # shake spectrum by adding up shake spectrum for all the states up to i=24
-    def shake_spectrum(self, input_std_eV_array):
-        x_array = input_std_eV_array
+    def shake_spectrum(self):
+        x_array = self.input_std_eV_array
         x_array = flip_array(x_array)
         shake_spectrum = self.full_shake_spectrum(x_array, 0, 24)
         return shake_spectrum
@@ -223,18 +233,19 @@ class ComplexLineShape(BaseProcessor):
         self.bins_choice = reader.read_param(params, 'bins_choice', [])
         self.gases = reader.read_param(params, 'gases', ["H2","Kr"])
         self.max_scatters = reader.read_param(params, 'max_scatters', 20)
+        self.max_comprehensive_scatters = reader.read_param(params, 'max_comprehensive_scatters', 4)
         # This is an important parameter which determines how finely resolved
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
         self.RF_ROI_MIN = reader.read_param(params, 'RF_ROI_MIN', 25850000000.0)
         self.B_field = reader.read_param(params, 'B_field', 0.957810722501)
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
-        self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/scatter_spectra_files/')
+        self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
 
     def InternalRun(self):
 
         # Read shake parameters from JSON file
-        self.shakeSpectrumClassInstance = ShakeSpectrumClass(self.shake_spectrum_parameters_json_path, self.std_eV_array)
+        self.shakeSpectrumClassInstance = ShakeSpectrumClass(self.shake_spectrum_parameters_json_path, self.std_eV_array())
 
         # number_of_events = len(self.data['StartFrequency'])
         # self.results = number_of_events
@@ -249,7 +260,7 @@ class ComplexLineShape(BaseProcessor):
         print(guess)
         kr17kev_in_hz = guess*(bins[1]-bins[0])+bins[0]
         #self.B_field = B(17.8, kr17kev_in_hz + 0)
-        self.results = self.fit_data(freq_bins, data_hist_freq,self.shakeSpectrumClassInstance)
+        self.results = self.fit_data(freq_bins, data_hist_freq, self.shakeSpectrumClassInstance)
 
         return True
 
@@ -317,52 +328,125 @@ class ComplexLineShape(BaseProcessor):
         f_normed = self.normalize(f)
         return f_normed
 
-    # Convolves the scatter function with itself over and over again and saves
-    # the results to .npy files.
-    def generate_scatter_convolution_files(self, gas_type):
+#    # Convolves the scatter function with itself over and over again and saves
+#    # the results to .npy files.
+#    def generate_scatter_convolution_files(self, gas_type):
+#        t = time.time()
+#        first_scatter = self.single_scatter_f(gas_type)
+#        scatter_num_array = range(2,self.max_scatters+1)
+#        current_scatter = first_scatter
+#        np.save(self.path_to_osc_strengths_files+'scatter_spectra_files/'+'scatter'+gas_type+"_"+str(1).zfill(2),current_scatter)
+#        # x = self.std_eV_array() # diagnostic
+#        for i in scatter_num_array:
+#            current_scatter = self.another_scatter(current_scatter, gas_type)
+#            np.save(self.path_to_osc_strengths_files+'scatter_spectra_files/'+'scatter'+gas_type+"_"+str(i).zfill(2),current_scatter)
+#            # plt.plot(x,current_scatter) # diagnostic
+#        # plt.show() # diagnostic
+#        elapsed = time.time() - t
+#        print('Files generated in '+str(elapsed)+'s')
+#        return
+
+    # Convolves the scatter functions and saves
+    # the results to a .npy file.    
+    def generate_scatter_convolution_file(self):
         t = time.time()
-        first_scatter = self.single_scatter_f(gas_type)
-        scatter_num_array = range(2,self.max_scatters+1)
-        current_scatter = first_scatter
-        np.save(self.path_to_osc_strengths_files+'scatter_spectra_files/'+'scatter'+gas_type+"_"+str(1).zfill(2),current_scatter)
-        # x = self.std_eV_array() # diagnostic
-        for i in scatter_num_array:
-            current_scatter = self.another_scatter(current_scatter, gas_type)
-            np.save(self.path_to_osc_strengths_files+'scatter_spectra_files/'+'scatter'+gas_type+"_"+str(i).zfill(2),current_scatter)
+        scatter_spectra_single_gas = {}
+        for gas_type in self.gases:
+            scatter_spectra_single_gas[gas_type] = {}
+            first_scatter = self.single_scatter_f(gas_type)
+            scatter_num_array = range(2, self.max_scatters+1)
+            current_scatter = first_scatter
+            scatter_spectra_single_gas[gas_type][str(1).zfill(2)] = current_scatter
+            # x = std_eV_array() # diagnostic
+            for i in scatter_num_array:
+                current_scatter = self.another_scatter(current_scatter, gas_type)
+                scatter_spectra_single_gas[gas_type][str(i).zfill(2)] = current_scatter
             # plt.plot(x,current_scatter) # diagnostic
-        # plt.show() # diagnostic
+            # plt.show() # diagnostic
+        scatter_spectra = {}
+        scatter_spectra['{}_{}'.format(self.gases[0], self.gases[1])] = {}
+        for i in range(1, self.max_scatters+1):
+            scatter_spectra['{}_{}'.format(self.gases[0], self.gases[1])]['{}_{}'.format(str(i).zfill(2), str(0).zfill(2))]\
+            = scatter_spectra_single_gas[self.gases[0]][str(i).zfill(2)]
+            scatter_spectra['{}_{}'.format(self.gases[0], self.gases[1])]['{}_{}'.format(str(0).zfill(2), str(i).zfill(2))]\
+            = scatter_spectra_single_gas[self.gases[1]][str(i).zfill(2)]
+        # i represents total order, while j represents suborder for H2, thus the suborder for Kr is i-j
+        for i in range(1, self.max_scatters+1):
+            for j in range(1, i):
+                H2_scatter = scatter_spectra_single_gas[self.gases[0]][str(j).zfill(2)]
+                Kr_scatter = scatter_spectra_single_gas[self.gases[1]][str(i-j).zfill(2)]
+                total_scatter = self.normalize(sp.signal.convolve(H2_scatter, Kr_scatter, mode='same'))
+                scatter_spectra['{}_{}'.format(self.gases[0], self.gases[1])]['{}_{}'.format(str(j).zfill(2), str(i-j).zfill(2))] = total_scatter
+        np.save(
+        self.path_to_osc_strengths_files+'scatter_spectra_file/scatter_spectra.npy', 
+        scatter_spectra
+        )
         elapsed = time.time() - t
-        print('Files generated in '+str(elapsed)+'s')
+        print('File generated in '+str(elapsed)+'s')
         return
 
-
-
-
-    # Checks for the existence of a directory called 'scatter_spectra_files'
+    # Checks for the existence of a directory called 'scatter_spectra_file'
     # and checks that this directory contains the scatter spectra files.
-    # If not, this function calls generate_scatter_convolution_files.
-    # This function also checks to make sure that the scatter files have the correct
-    # number of points in the SELA, and if not, it generates fresh files
-    def check_existence_of_scatter_files(self, gas_type):
-        os.chdir(self.path_to_osc_strengths_files)
-        current_path = os.path.abspath(os.getcwd())
-        current_dir = get_current_dir()
-        stuff_in_dir = os.listdir(current_path)
-        if 'scatter_spectra_files' not in stuff_in_dir and current_dir != 'scatter_spectra_files':
-            print('Scatter files not found, generating')
-            os.system("mkdir scatter_spectra_files")
-            time.sleep(2)
-            self.generate_scatter_convolution_files(gas_type)
-        else:
-            directory = os.listdir(os.path.abspath(os.getcwd()) + '/scatter_spectra_files')
-            if len(directory) != len(self.gases) * self.max_scatters:
-                self.generate_scatter_convolution_files(gas_type)
-            test_file = self.path_to_osc_strengths_files+'scatter_spectra_files/'+'scatter'+gas_type+'_01.npy'
-            test_arr = np.load(test_file)
-            if len(test_arr) != self.num_points_in_std_array:
-                print('Scatter files do not match standard array binning, generating fresh files')
-                self.generate_scatter_convolution_files(gas_type)
+    # If not, this function calls generate_scatter_convolution_file.
+    # This function also checks to make sure that the scatter file have the correct
+    # number of entries and correct number of points in the SELA, and if not, it generates a fresh file.
+    # When the variable regenerate is set as True, it generates a fresh file   
+    def check_existence_of_scatter_file(self, regenerate = False):
+        gases = self.gases
+        if regenerate == True:
+            print('generate fresh scatter file')
+            self.generate_scatter_convolution_file()
+        else: 
+            stuff_in_dir = os.listdir(self.path_to_osc_strengths_files)
+            if 'scatter_spectra_file' not in stuff_in_dir:
+                print('Scatter spectra folder not found, generating')
+                os.mkdir(self.path_to_osc_strengths_files+'scatter_spectra_file')
+                time.sleep(2)
+                self.generate_scatter_convolution_file()
+            else:
+                directory = os.listdir(self.path_to_osc_strengths_files + "/scatter_spectra_file")
+                strippeddirs = [s.strip('\n') for s in directory]
+                if 'scatter_spectra.npy' not in strippeddirs:
+                    self.generate_scatter_convolution_file()
+                test_file = self.path_to_osc_strengths_files+'scatter_spectra_file/scatter_spectra.npy' 
+                test_dict = np.load(test_file, allow_pickle = True)
+                if list(test_dict.item().keys())[0] != '{}_{}'.format(gases[0], gases[1]):
+                    print('first entry not matching, generating fresh files')
+                    self.generate_scatter_convolution_file()
+                elif len(test_dict.item()['{}_{}'.format(gases[0], gases[1])]) \
+                            != (1 + self.max_scatters+1)*(self.max_scatters+1)/2 - 1:
+                    print('Number of scatters not matching, generating fresh files')
+                elif len(test_dict.item()['{}_{}'.format(gases[0], gases[1])]['01_00'])\
+                != self.num_points_in_std_array:
+                    print('Binning do not match standard array, generating fresh files')
+                    self.generate_scatter_convolution_file()
         return
+
+#    # Checks for the existence of a directory called 'scatter_spectra_files'
+#    # and checks that this directory contains the scatter spectra files.
+#    # If not, this function calls generate_scatter_convolution_files.
+#    # This function also checks to make sure that the scatter files have the correct
+#    # number of points in the SELA, and if not, it generates fresh files
+#    def check_existence_of_scatter_files(self, gas_type):
+#        os.chdir(self.path_to_osc_strengths_files)
+#        current_path = os.path.abspath(os.getcwd())
+#        current_dir = get_current_dir()
+#        stuff_in_dir = os.listdir(current_path)
+#        if 'scatter_spectra_files' not in stuff_in_dir and current_dir != 'scatter_spectra_files':
+#            print('Scatter files not found, generating')
+#            os.system("mkdir scatter_spectra_files")
+#            time.sleep(2)
+#            self.generate_scatter_convolution_files(gas_type)
+#        else:
+#            directory = os.listdir(os.path.abspath(os.getcwd()) + '/scatter_spectra_files')
+#            if len(directory) != len(self.gases) * self.max_scatters:
+#                self.generate_scatter_convolution_files(gas_type)
+#            test_file = self.path_to_osc_strengths_files+'scatter_spectra_files/'+'scatter'+gas_type+'_01.npy'
+#            test_arr = np.load(test_file)
+#            if len(test_arr) != self.num_points_in_std_array:
+#                print('Scatter files do not match standard array binning, generating fresh files')
+#                self.generate_scatter_convolution_files(gas_type)
+#        return
 
     # Given a function evaluated on the SELA, convolves it with a gaussian
     def convolve_gaussian(self, func_to_convolve,gauss_FWHM_eV):
@@ -374,27 +458,107 @@ class ComplexLineShape(BaseProcessor):
 
     # Produces a full spectral shape on the SELA, given a gaussian resolution
     # and a scatter probability
-    def make_spectrum(self, gauss_FWHM_eV,scatter_prob,gas_type,emitted_peak='shake'):
+#    def make_spectrum(self, gauss_FWHM_eV,scatter_prob,gas_type,emitted_peak='shake'):
+#        current_path = self.path_to_osc_strengths_files
+#        # check_existence_of_scatter_files()
+#        #filenames = list_files('scatter_spectra_files')
+#        scatter_num_array = range(1,self.max_scatters+1)
+#        en_array = self.std_eV_array()
+#        current_full_spectrum = np.zeros(len(en_array))
+#        if emitted_peak == 'lorentzian':
+#            current_working_spectrum = self.std_lorenztian_17keV()
+#        elif emitted_peak == 'shake':
+#            current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum(self.std_eV_array())
+#        current_working_spectrum = self.convolve_gaussian(current_working_spectrum,gauss_FWHM_eV)
+#        zeroth_order_peak = current_working_spectrum
+#        current_full_spectrum += current_working_spectrum
+#        for i in scatter_num_array:
+#            current_working_spectrum = np.load(current_path+'scatter_spectra_files/'+'scatter'+gas_type+'_'+str(i).zfill(2)+'.npy')
+#            current_working_spectrum = self.normalize(sp.signal.convolve(zeroth_order_peak,current_working_spectrum,mode='same'))
+#            current_full_spectrum += current_working_spectrum*scatter_prob**scatter_num_array[i-1]
+#        # plt.plot(en_array,current_full_spectrum) # diagnostic
+#        # plt.show() # diagnostic
+#        return current_full_spectrum
+
+    def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitted_peak='shake'):
+        gases = self.gases
+        max_scatters = self.max_scatters
+        max_comprehensive_scatters = self.max_comprehensive_scatters
         current_path = self.path_to_osc_strengths_files
         # check_existence_of_scatter_files()
         #filenames = list_files('scatter_spectra_files')
-        scatter_num_array = range(1,self.max_scatters+1)
+        p = scatter_proportion
+        q = 1 - p
+        scatter_spectra = np.load(
+        current_path + 'scatter_spectra_file/scatter_spectra.npy', allow_pickle = True
+        )
         en_array = self.std_eV_array()
         current_full_spectrum = np.zeros(len(en_array))
         if emitted_peak == 'lorentzian':
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
-            current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum(self.std_eV_array())
-        current_working_spectrum = self.convolve_gaussian(current_working_spectrum,gauss_FWHM_eV)
+            current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
+        current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
-        for i in scatter_num_array:
-            current_working_spectrum = np.load(current_path+'scatter_spectra_files/'+'scatter'+gas_type+'_'+str(i).zfill(2)+'.npy')
-            current_working_spectrum = self.normalize(sp.signal.convolve(zeroth_order_peak,current_working_spectrum,mode='same'))
-            current_full_spectrum += current_working_spectrum*scatter_prob**scatter_num_array[i-1]
-        # plt.plot(en_array,current_full_spectrum) # diagnostic
+        for n in range(1, max_comprehensive_scatters + 1):
+            for r in range(0, n + 1):
+                current_working_spectrum = \
+                scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
+                ['{}_{}'.format(str(r).zfill(2), str(n-r).zfill(2))]
+                current_working_spectrum = \
+                self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+                current_full_spectrum += current_working_spectrum*ncr(n, r)\
+                *(prob_parameter*p)**(r)*(prob_parameter*q)**(n-r)
+                # print(n, r, n-r)
+        for n in range(max_comprehensive_scatters + 1, max_scatters + 1):
+            current_working_spectrum = \
+            scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
+            ['{}_{}'.format(str(n).zfill(2), str(0).zfill(2))]
+            current_working_spectrum = \
+            self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+            current_full_spectrum += current_working_spectrum*(prob_parameter*p)**(n)
+
+            current_working_spectrum = \
+            scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
+            ['{}_{}'.format(str(0).zfill(2), str(n).zfill(2))]
+            current_working_spectrum = \
+            self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+            current_full_spectrum += current_working_spectrum*(prob_parameter*q)**(n)        
+            # print(n)
+        
+        # plt.plot(en_array,current_working_spectrum) # diagnostic
         # plt.show() # diagnostic
+        # current_full_spectrum = normalize(current_full_spectrum)
         return current_full_spectrum
+
+#    # Produces a spectrum in real energy that can now be evaluated off of the SELA.
+#    #def spectrum_func(x_keV,FWHM_G_eV,line_pos_keV,scatter_prob,amplitude):
+#    def spectrum_func(self, x_keV, *p0):
+#        x_eV = x_keV*1000.
+#        en_loss_array = self.std_eV_array()
+#        en_loss_array_min = en_loss_array[0]
+#        en_loss_array_max = en_loss_array[len(en_loss_array)-1]
+#        en_array_rev = flip_array(-1*en_loss_array)
+#        f = np.zeros(len(x_keV))
+#
+#        FWHM_G_eV = p0[0]
+#        line_pos_keV = p0[1]
+#
+#        line_pos_eV = line_pos_keV*1000.
+#        x_eV_minus_line = x_eV - line_pos_eV
+#        zero_idx = np.r_[np.where(x_eV_minus_line<-1*en_loss_array_max)[0],np.where(x_eV_minus_line>-1*en_loss_array_min)[0]]
+#        nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
+#
+#        for gas_index in range(len(self.gases)):
+#            gas_type = self.gases[gas_index]
+#            scatter_prob = p0[2*gas_index+2]
+#            amplitude    = p0[2*gas_index+3]
+#
+#            full_spectrum = self.make_spectrum(FWHM_G_eV,scatter_prob, gas_type)
+#            full_spectrum_rev = flip_array(full_spectrum)
+#            f[nonzero_idx] += amplitude*np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
+#        return f
 
     # Produces a spectrum in real energy that can now be evaluated off of the SELA.
     #def spectrum_func(x_keV,FWHM_G_eV,line_pos_keV,scatter_prob,amplitude):
@@ -405,23 +569,23 @@ class ComplexLineShape(BaseProcessor):
         en_loss_array_max = en_loss_array[len(en_loss_array)-1]
         en_array_rev = flip_array(-1*en_loss_array)
         f = np.zeros(len(x_keV))
+        f_intermediate = np.zeros(len(x_keV))
 
         FWHM_G_eV = p0[0]
         line_pos_keV = p0[1]
-
+        amplitude = p0[2]
+        prob_parameter = p0[3]
+        scatter_proportion = p0[4]
+    
         line_pos_eV = line_pos_keV*1000.
         x_eV_minus_line = x_eV - line_pos_eV
-        zero_idx = np.r_[np.where(x_eV_minus_line<-1*en_loss_array_max)[0],np.where(x_eV_minus_line>-1*en_loss_array_min)[0]]
+        zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
-
-        for gas_index in range(len(self.gases)):
-            gas_type = self.gases[gas_index]
-            scatter_prob = p0[2*gas_index+2]
-            amplitude    = p0[2*gas_index+3]
-
-            full_spectrum = self.make_spectrum(FWHM_G_eV,scatter_prob, gas_type)
-            full_spectrum_rev = flip_array(full_spectrum)
-            f[nonzero_idx] += amplitude*np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
+    
+        full_spectrum = self.make_spectrum(FWHM_G_eV, prob_parameter, scatter_proportion)
+        full_spectrum_rev = flip_array(full_spectrum)
+        f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
+        f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
         return f
 
     # Call this function to fit a histogram of start frequencies with the model.
@@ -431,82 +595,177 @@ class ComplexLineShape(BaseProcessor):
     # You must also supply a guess for the self.B_field present for the run;
     # 0.959 T is usually sufficient.
     # print_params = True will print out the fit parameters. Turn it to False to suppress
-    def fit_data(self,freq_bins,data_hist_freq,print_params=True):
+#    def fit_data(self,freq_bins,data_hist_freq,print_params=True):
+#        t = time.time()
+#        for gas in self.gases:
+#            self.check_existence_of_scatter_files(gas)
+#        bins_Hz = freq_bins+self.RF_ROI_MIN
+#        bins_keV = frequency_to_energy(bins_Hz,self.B_field)
+#        bins_keV = flip_array(bins_keV)
+#        data_hist = flip_array(data_hist_freq)
+#        bins_keV_nonzero , data_hist_nonzero , data_hist_err = get_only_nonzero_bins(bins_keV,data_hist)
+#        # Bounds for curve_fit
+#        FWHM_eV_min = 1e-5
+#        FWHM_eV_max = (bins_keV[len(bins_keV)-1] - bins_keV[0])*1000
+#        line_pos_keV_min = bins_keV[0]
+#        line_pos_keV_max = bins_keV[len(bins_keV)-1]
+#        scatter_prob_min = 1e-5
+#        scatter_prob_max = 1
+#        amplitude_min = 1e-5
+#        amplitude_max = np.sum(data_hist)*3
+#        # Initial guesses for curve_fit
+#        FWHM_guess = 5
+#        line_pos_guess = bins_keV[np.argmax(data_hist)]
+#        scatter_prob_guess = 0.5
+#        amplitude_guess = np.sum(data_hist)/2
+#        p_guess = [FWHM_guess, line_pos_guess] + [scatter_prob_guess,amplitude_guess] * len(self.gases)
+#        p_bounds = ([FWHM_eV_min, line_pos_keV_min] + [scatter_prob_min,amplitude_min] * len(self.gases),  [FWHM_eV_max, line_pos_keV_max] + [scatter_prob_max,amplitude_max] * len(self.gases))
+#        # Actually do the fitting
+#<<<<<<< HEAD
+#        print('Made it to just before the fit!')
+#=======
+#        # print('Made it to just before the fit!')
+#        # print('1',self.spectrum_func)
+#        # print('2',bins_keV_nonzero)
+#        # print('3',data_hist_nonzero)
+#        # print('4',data_hist_err)
+#        # print('5',p_guess)
+#        # print('6',p_bounds)
+#>>>>>>> 11f8d38637ef856099c82c1ed97c9b88c8015c6c
+#        params , cov = curve_fit(self.spectrum_func,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p_guess,bounds=p_bounds)
+#        # print('Made it past the fit!')
+#        # Name each of the resulting parameters and errors
+#        ################### Generalize to N self.gases ###########################
+#        FWHM_G_eV_fit = params[0]
+#        line_pos_keV_fit = params[1]
+#        #starting at index 2, grabs every other entry. (which is how scattering probs are filled in for N self.gases)
+#        scatter_prob_fit = params[2::2]
+#        amplitude_fit = params[3::2]
+#
+#        perr = np.sqrt(np.diag(cov))
+#        FWHM_eV_G_fit_err = perr[0]
+#        line_pos_keV_fit_err = perr[1]
+#
+#        scatter_prob_fit_err = perr[2::2]
+#        amplitude_fit_err = perr[3::2]
+#        fit = self.spectrum_func(bins_keV[0:-1],*params)
+#
+#        line_pos_Hz_fit , line_pos_Hz_fit_err = energy_guess_to_frequency(line_pos_keV_fit,line_pos_keV_fit_err,self.B_field)
+#        self.B_field_fit , self.B_field_fit_err = central_frequency_to_B_field(line_pos_Hz_fit,line_pos_Hz_fit_err)
+#        fit_Hz = flip_array(fit)
+#        bins_keV = bins_keV - line_pos_keV_fit + kr_line
+#
+#        if print_params == True:
+#            output_string = 'Gaussian FWHM = '+str(FWHM_G_eV_fit)+' +/- '+str(FWHM_eV_G_fit_err)+' eV\n'
+#            output_string += 'Line position = '+str(line_pos_Hz_fit)+' +/- '+str(line_pos_Hz_fit_err)+' Hz\n'
+#            for i in range(len(self.gases)):
+#                output_string += self.gases[i] + ' Scatter probability = '+str(scatter_prob_fit[i])+' +/- ' + str(scatter_prob_fit_err[i])+'\n'
+#                output_string += self.gases[i] + ' Amplitude = '+str(amplitude_fit[i])+' +/- '+str(amplitude_fit_err[i]) + '\n'
+#
+#            print(output_string)
+#
+#        FWHM_eV_fit = FWHM_G_eV_fit
+#        FWHM_eV_fit_err = FWHM_eV_G_fit_err
+#        elapsed = time.time() - t
+#        print('Fit completed in '+str(elapsed)+'s')
+#        dictionary_of_fit_results = {
+#        'cov': cov,
+#        'bins_keV': binskeV,
+#        'fit': fit,
+#        'bins_Hz': bins_Hz,
+#        'fit_Hz': fit_Hz,
+#        'FWHM_eV_fit': FWHM_eV_fit,
+#        'FWHM_eV_fit_err': FWHM_eV_fit_err,
+#        'line_pos_Hz_fit': line_pos_Hz_fit,
+#        'line_pos_Hz_fit_err': line_pos_Hz_fit_err,
+#        'self.B_field_fit': self.B_field_fit,
+#        'self.B_field_fit_err': self.B_field_fit_err,
+#        'scatter_prob_fit': scatter_prob_fit,
+#        'scatter_prob_fit_err': scatter_prob_fit_err,
+#        'amplitude_fit': amplitude_fit,
+#        'amplitude_fit_err': amplitude_fit_err
+#        }
+#        return dictionary_of_fit_results
+
+    def fit_data(self, freq_bins, data_hist_freq, print_params=True):
         t = time.time()
-        for gas in self.gases:
-            self.check_existence_of_scatter_files(gas)
-        bins_Hz = freq_bins+self.RF_ROI_MIN
+        self.check_existence_of_scatter_file()
+        bins_Hz = freq_bins + self.RF_ROI_MIN
         bins_keV = frequency_to_energy(bins_Hz,self.B_field)
         bins_keV = flip_array(bins_keV)
         data_hist = flip_array(data_hist_freq)
-        bins_keV_nonzero , data_hist_nonzero , data_hist_err = get_only_nonzero_bins(bins_keV,data_hist)
+        bins_keV_nonzero , data_hist_nonzero , data_hist_err = get_only_nonzero_bins(bins_keV, data_hist)
         # Bounds for curve_fit
         FWHM_eV_min = 1e-5
         FWHM_eV_max = (bins_keV[len(bins_keV)-1] - bins_keV[0])*1000
         line_pos_keV_min = bins_keV[0]
         line_pos_keV_max = bins_keV[len(bins_keV)-1]
-        scatter_prob_min = 1e-5
-        scatter_prob_max = 1
         amplitude_min = 1e-5
         amplitude_max = np.sum(data_hist)*3
+        prob_parameter_min = 1e-5
+        prob_parameter_max = 1
+        scatter_proportion_min = 1e-5
+        scatter_proportion_max = 1
         # Initial guesses for curve_fit
         FWHM_guess = 5
         line_pos_guess = bins_keV[np.argmax(data_hist)]
-        scatter_prob_guess = 0.5
         amplitude_guess = np.sum(data_hist)/2
-        p_guess = [FWHM_guess, line_pos_guess] + [scatter_prob_guess,amplitude_guess] * len(self.gases)
-        p_bounds = ([FWHM_eV_min, line_pos_keV_min] + [scatter_prob_min,amplitude_min] * len(self.gases),  [FWHM_eV_max, line_pos_keV_max] + [scatter_prob_max,amplitude_max] * len(self.gases))
+        prob_parameter_guess = 0.5
+        scatter_proportion_guess = 0.9
+        p0_guess = [FWHM_guess, line_pos_guess, amplitude_guess, prob_parameter_guess, scatter_proportion_guess] 
+        p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, prob_parameter_min, scatter_proportion_min],  
+                    [FWHM_eV_max, line_pos_keV_max, amplitude_max, prob_parameter_max, scatter_proportion_max])
         # Actually do the fitting
-<<<<<<< HEAD
-        print('Made it to just before the fit!')
-=======
-        # print('Made it to just before the fit!')
-        # print('1',self.spectrum_func)
-        # print('2',bins_keV_nonzero)
-        # print('3',data_hist_nonzero)
-        # print('4',data_hist_err)
-        # print('5',p_guess)
-        # print('6',p_bounds)
->>>>>>> 11f8d38637ef856099c82c1ed97c9b88c8015c6c
-        params , cov = curve_fit(self.spectrum_func,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p_guess,bounds=p_bounds)
-        # print('Made it past the fit!')
+        params , cov = curve_fit(self.spectrum_func,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p0_guess,bounds=p0_bounds)
         # Name each of the resulting parameters and errors
-        ################### Generalize to N self.gases ###########################
+        ################### Generalize to N Gases ###########################
         FWHM_G_eV_fit = params[0]
         line_pos_keV_fit = params[1]
-        #starting at index 2, grabs every other entry. (which is how scattering probs are filled in for N self.gases)
-        scatter_prob_fit = params[2::2]
-        amplitude_fit = params[3::2]
+        #starting at index 2, grabs every other entry. (which is how scattering probs are filled in for N gases)
+        amplitude_fit = params[2]
+        prob_parameter_fit = params[3]
+        scatter_proportion_fit = params[4]
+        total_counts_fit = amplitude_fit
 
         perr = np.sqrt(np.diag(cov))
         FWHM_eV_G_fit_err = perr[0]
         line_pos_keV_fit_err = perr[1]
-
-        scatter_prob_fit_err = perr[2::2]
-        amplitude_fit_err = perr[3::2]
+        amplitude_fit_err = perr[2]
+        prob_parameter_fit_err = perr[3]
+        scatter_proportion_fit_err = perr[4]
+        total_counts_fit_err = amplitude_fit_err
+    
         fit = self.spectrum_func(bins_keV[0:-1],*params)
 
-        line_pos_Hz_fit , line_pos_Hz_fit_err = energy_guess_to_frequency(line_pos_keV_fit,line_pos_keV_fit_err,self.B_field)
-        self.B_field_fit , self.B_field_fit_err = central_frequency_to_B_field(line_pos_Hz_fit,line_pos_Hz_fit_err)
+        line_pos_Hz_fit , line_pos_Hz_fit_err = energy_guess_to_frequency(line_pos_keV_fit, line_pos_keV_fit_err, self.B_field)
+        B_field_fit , B_field_fit_err = central_frequency_to_B_field(line_pos_Hz_fit, line_pos_Hz_fit_err)
         fit_Hz = flip_array(fit)
         bins_keV = bins_keV - line_pos_keV_fit + kr_line
-
-        if print_params == True:
-            output_string = 'Gaussian FWHM = '+str(FWHM_G_eV_fit)+' +/- '+str(FWHM_eV_G_fit_err)+' eV\n'
-            output_string += 'Line position = '+str(line_pos_Hz_fit)+' +/- '+str(line_pos_Hz_fit_err)+' Hz\n'
-            for i in range(len(self.gases)):
-                output_string += self.gases[i] + ' Scatter probability = '+str(scatter_prob_fit[i])+' +/- ' + str(scatter_prob_fit_err[i])+'\n'
-                output_string += self.gases[i] + ' Amplitude = '+str(amplitude_fit[i])+' +/- '+str(amplitude_fit_err[i]) + '\n'
-
-            print(output_string)
-
         FWHM_eV_fit = FWHM_G_eV_fit
         FWHM_eV_fit_err = FWHM_eV_G_fit_err
         elapsed = time.time() - t
-        print('Fit completed in '+str(elapsed)+'s')
+        output_string = 'Gaussian FWHM = '+str(round(FWHM_G_eV_fit,2))+' +/- '+str(round(FWHM_eV_G_fit_err,2))+' eV\n'
+        output_string += '-----------------\n'
+        output_string += 'Line position \n= '+str(round(line_pos_Hz_fit,2))+' +/- '+str(round(line_pos_Hz_fit_err,2))+' Hz\n'
+        output_string += '-----------------\n'
+        output_string += 'Amplitude = {}'.format(round(amplitude_fit,2))+' +/- {}'.format(round(amplitude_fit_err,2)) + '\n'
+        output_string += '-----------------\n'
+        output_string += 'Probability parameter \n= ' + "{:.2e}".format(prob_parameter_fit)\
+        +' +/- ' + "{:.2e}".format(prob_parameter_fit_err)+'\n'
+        output_string += '-----------------\n'
+        output_string += '{} Scatter proportion \n= '.format(self.gases[0]) + "{:.2e}".format(scatter_proportion_fit)\
+        +' +/- ' + "{:.2e}".format(scatter_proportion_fit_err)+'\n'
+        output_string += '-----------------\n'
+#         output_string += 'Total counts = '+"{}".format(round(total_counts_fit,2))\
+#         +' +/- '+"{}".format(round(total_counts_fit_err,2))+'\n'
+#         output_string += '-----------------\n'
+        output_string += 'Fit completed in '+str(round(elapsed,2))+'s'+'\n'
+        if print_params == True:
+            print(output_string)
         dictionary_of_fit_results = {
+        'output_string': output_string,
         'cov': cov,
-        'bins_keV': binskeV,
+        'bins_keV': bins_keV,
         'fit': fit,
         'bins_Hz': bins_Hz,
         'fit_Hz': fit_Hz,
@@ -514,11 +773,14 @@ class ComplexLineShape(BaseProcessor):
         'FWHM_eV_fit_err': FWHM_eV_fit_err,
         'line_pos_Hz_fit': line_pos_Hz_fit,
         'line_pos_Hz_fit_err': line_pos_Hz_fit_err,
-        'self.B_field_fit': self.B_field_fit,
-        'self.B_field_fit_err': self.B_field_fit_err,
-        'scatter_prob_fit': scatter_prob_fit,
-        'scatter_prob_fit_err': scatter_prob_fit_err,
+        'B_field_fit': B_field_fit,
+        'B_field_fit_err': B_field_fit_err,
+        'prob_parameter_fit': prob_parameter_fit,
+        'prob_parameter_fit_err': prob_parameter_fit_err,
+        'scatter_proportion_fit': scatter_proportion_fit,
+        'scatter_proportion_fit_err': scatter_proportion_fit_err,
         'amplitude_fit': amplitude_fit,
-        'amplitude_fit_err': amplitude_fit_err
+        'amplitude_fit_err': amplitude_fit_err,
+        'data_hist_freq': data_hist_freq
         }
         return dictionary_of_fit_results

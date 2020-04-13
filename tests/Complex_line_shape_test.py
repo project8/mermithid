@@ -59,13 +59,19 @@ class ComplexLineShapeTests(unittest.TestCase):
         complexLineShape.Run()
 
         results = complexLineShape.results
-        print(results)
+        print(results['output_string'])
+#        print(type(results['data_hist_freq']))
+#        print(len(results['data_hist_freq']))
 
         # plot fit with shake spectrum
         plt.rcParams.update({'font.size': 20})
         plt.figure(figsize=(15,9))
-        plt.step(results['bins_Hz'][0:-1]/1e9,results['data_hist_freq'])
-        plt.plot(results['bins_Hz'][0:-1]/1e9,results['fit_Hz'])
+        plt.step(
+        results['bins_Hz'][0:-1]/1e9, results['data_hist_freq'], 
+        label = 'data\n total counts = {}\n'.format(len(data['StartFrequency']))
+        )
+        plt.plot(results['bins_Hz'][0:-1]/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
+        plt.legend(loc = 'upper left',fontsize = 12)
         plt.xlabel('frequency GHz')
         plt.title('fit with shake spectrum 2 gas scattering')
         plt.savefig('/host/plots/fit_shake_2_gas_0.png')
