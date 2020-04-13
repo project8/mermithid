@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 class IOTests(unittest.TestCase):
 
-    def test_Cicada(self):
+    def test_MutliChannelReader(self):
         from mermithid.processors.IO import MultiChannelCicadaReader
         reader_config = {
             "action": "read",
@@ -28,7 +28,8 @@ class IOTests(unittest.TestCase):
             "object_type": "TMultiTrackEventData",
             "object_name": "multiTrackEvents:Event",
             "use_katydid": False,
-            "variables": ['StartFrequency', 'StartTimeInRunC']
+            "variables": ['StartFrequency', 'StartTimeInRunC'],
+            "merged_frequency_variable": "F"
         }
         b = MultiChannelCicadaReader("reader")
         b.Configure(reader_config)
@@ -42,7 +43,7 @@ class IOTests(unittest.TestCase):
 
         plt.figure(figsize=(7,7))
         plt.subplot(211)
-        n, bins, p = plt.hist(data['TrueStartFrequenciesMerged'], bins=100)
+        n, bins, p = plt.hist(data['F'], bins=100)
         plt.xlabel('Start frequencies')
         plt.ylabel('N')
 

@@ -36,6 +36,7 @@ class MultiChannelCicadaReader(IOProcessor):
         self.channel_ids = reader.read_param(params, "channel_ids", ['a', 'b', 'c'])
         self.rf_roi_min_freqs = reader.read_param(params, "rf_roi_min_freqs", [0, 0, 0])
         self.transition_freqs = reader.read_param(params, "channel_transition_freqs", [0, 0])
+        self.frequency_variable_name = reader.read_param(params, "merged_frequency_variable", "F")
         return True
 
     def Reader(self):
@@ -56,17 +57,25 @@ class MultiChannelCicadaReader(IOProcessor):
             self.data[self.channel_ids[i]] = ReadKTOutputFile(self.file_name[i],self.variables,katydid=self.use_katydid,objectType=self.object_type,name=self.object_name)
 
 
+
         if 'StartFrequency' in self.variables:
+
+            if len(self.variables) == 1:
+                for k in self.data.keys():
+                    self.data[k] = {'StartFrequency': self.data[k]}
+
             all_frequencies = []
 
             for i in range(self.N_channels):
+
                 true_frequencies = np.array(self.data[self.channel_ids[i]]['StartFrequency'])+self.rf_roi_min_freqs[i]
+
                 index = np.where((true_frequencies>=self.transition_freqs[i][0]) &(true_frequencies<self.transition_freqs[i][1]))
                 all_frequencies.extend(list(true_frequencies[index]))
 
                 self.data[self.channel_ids[i]]['TrueStartFrequenciesCut'] = true_frequencies[index]
 
-            self.data['TrueStartFrequenciesMerged'] = all_frequencies
+            self.data[self.frequency_variable_name] = all_frequencies
         return True
 
     def Writer(self):
