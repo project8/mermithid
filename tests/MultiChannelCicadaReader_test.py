@@ -1,7 +1,7 @@
 '''
 This scripts aims at testing IO processors by reading files.
-Author: M. Guigue
-Date: Feb 27 2018
+Author: C. Claessens
+Date: April 08 2020
 '''
 
 import unittest
