@@ -18,6 +18,7 @@ class IOTests(unittest.TestCase):
         reader_config = {
             "action": "read",
             "N_channels": 3,
+            "channel_ids": ["a", "b", "c"],
             "filename": ["/host/input_data/tritium_run_3_channel_a_some_runs.root",
                          "/host/input_data/tritium_run_3_channel_b_some_runs.root",
                          "/host/input_data/tritium_run_3_channel_c_some_runs.root"],
@@ -37,9 +38,13 @@ class IOTests(unittest.TestCase):
         data = b.data
         logger.info("Data extracted = {}".format(data.keys()))
         for key in data.keys():
-            logger.info("{} -> size = {}".format(key,len(data[key])))
+            if key in reader_config["channel_ids"]:
+                logger.info("Channel {} data:".format(key))
+                logger.info(data[key].keys())
+            else:
+                logger.info("{} -> size = {}".format(key,len(data[key])))
 
-        print(data.keys())
+
 
         plt.figure(figsize=(7,7))
         plt.subplot(211)

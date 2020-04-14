@@ -43,9 +43,9 @@ class MultiChannelCicadaReader(IOProcessor):
         '''
         Reader method
         '''
-        print('\nReading data from {} channels'.format(self.N_channels))
-        print('Min frequencies: {}'.format(self.rf_roi_min_freqs))
-        print('Transition freqs: {}'.format(self.transition_freqs))
+        logger.info('\nReading data from {} channels'.format(self.N_channels))
+        logger.info('Min frequencies: {}'.format(self.rf_roi_min_freqs))
+        logger.info('Transition freqs: {}'.format(self.transition_freqs))
 
         self.data = {}
         for i in range(self.N_channels):
@@ -55,7 +55,7 @@ class MultiChannelCicadaReader(IOProcessor):
             except ImportError:
                 logger.warn("Cannot import ReadKTOutputFile")
             self.data[self.channel_ids[i]] = ReadKTOutputFile(self.file_name[i],self.variables,katydid=self.use_katydid,objectType=self.object_type,name=self.object_name)
-
+            self.data[self.channel_ids[i]]['TotalLifetime'] = self.get_total_live_time_from_root_rile(self.file_name[i])
 
 
         if 'StartFrequency' in self.variables:
@@ -74,6 +74,7 @@ class MultiChannelCicadaReader(IOProcessor):
                 all_frequencies.extend(list(true_frequencies[index]))
 
                 self.data[self.channel_ids[i]]['TrueStartFrequenciesCut'] = true_frequencies[index]
+                self.data[self.channel_ids[i]]['FrequencyRange'] = [self.transition_freqs[i][0], self.transition_freqs[i][1]]
 
             self.data[self.frequency_variable_name] = all_frequencies
         return True
@@ -84,3 +85,26 @@ class MultiChannelCicadaReader(IOProcessor):
         '''
         logger.error("End user analysis: cannot write reconstruction algorithm output")
         raise
+
+    def get_total_live_time_from_root_rile(self, path_to_root_file):
+        f = TFile.Open(path_to_root_file, 'read')
+        list_of_keys = f.GetListOfKeys()
+        #print(list_of_keys)
+        number_of_slices_of_livetime = 0
+        for i in range(len(list_of_keys)):
+            if 'livetime' in f.GetListOfKeys()[i].GetName():
+                number_of_slices_of_livetime += 1
+            #print(f.GetListOfKeys().GetName())
+            #print(f.GetListOfKeys()[i].GetName())
+            #print(f.Get('livetime;23')[0])
+        #print(number_of_slices_of_livetime)
+        total_livetime = 0
+        for i in range(number_of_slices_of_livetime):
+            name_of_livetime_slice = 'livetime;{}'.format(i+1)
+            try:
+                total_livetime += f.Get(name_of_livetime_slice)[0]
+            except:
+                logger.error('livetime not readable in slice {} of root file {}'.format(name_of_livetime_slice, path_to_root_file))
+                continue
+        logger.info('Total lievetime in file: {}'.format(total_livetime))
+        return total_livetime
