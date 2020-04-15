@@ -1,7 +1,9 @@
 '''
-This scripts aims at testing Tritium specific processors.
-Author: M. Guigue, C. Claessens, A. Ziegler, E. Novitski
-Date: 3/4/20
+This script takes efficiency output from the detection efficiency analysis, as
+well as tritium data, and outputs binned or unbinned tritium data with
+efficiencies and efficiency errors.
+Author: C. Claessens, E. Novitski
+Date: 3/9/20
 '''
 
 import numpy as np
