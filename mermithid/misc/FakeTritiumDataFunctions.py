@@ -1,9 +1,14 @@
+'''
+Generate binned or pseudo unbinned data
+Author: T. Weiss, C. Claessens, Y. Sun
+Date:4/6/2020
+'''
 
 from __future__ import absolute_import
 
 import numpy as np
 import math
-import scipy as sp
+
 from scipy.special import gamma
 from scipy import integrate
 from scipy import stats
@@ -14,7 +19,17 @@ from scipy.signal import convolve
 import random
 import os
 
-#Physical constants
+from morpho.utilities import morphologging
+logger = morphologging.getLogger(__name__)
+
+"""
+Constants and functions used by processors/TritiumSpectrum/FakeDataGenerator.py
+"""
+
+"""
+Physical constants
+"""
+
 me = 510999. #eV
 alpha = 1/137.036
 c = 299792458. #m/s
@@ -36,9 +51,12 @@ g =(1-(atomic_num*alpha)**2)**0.5 #Constant to be used in screening factor and F
 V0 = 76. #Nuclear screening potential of orbital electron cloud of the daughter atom, from Kleesiek et al. (2018)
 mu = 5.107 #Difference between magnetic moments of helion and triton, for recoil effects correction
 
+
 """
 Functions to calculate kinematic electron properties
 """
+
+
 def Ee(K):
     return K+me
 
@@ -51,9 +69,9 @@ def beta(K):
 """
 Corrections to the simple spectrum
 """
+
+
 #Radiative corretion to the Fermi function (from interactions with real and virtual photons)
-
-
 def rad_corr(K, Q):
     t = 1./beta(K)*np.arctanh(beta(K))-1
     G = (Q-K)**(2*alpha*t/np.pi)*(1.+2*alpha/np.pi*(t*(np.log(2)-3./2.+(Q-K)/Ee(K))+0.25*(t+1.)*(2.*(1+beta(K)**2)+2*np.log(1-beta(K))+(Q-K)**2/(6*Ee(K)**2))-2+beta(K)/2.-17./36.*beta(K)**2+5./6.*beta(K)**3))
@@ -238,7 +256,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
                                    lineshape, ls_params, min_energy, max_energy):
     """K is an array-like object
     """
-    print('Going to use scipy convolve')
+    logger.info('Using scipy convolve')
     energy_half_range = max(max_energy, abs(min_energy))
 
     dE = K[1] - K[0]
@@ -248,13 +266,12 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
 
     #Generating finely spaced points on the lineshape
     if lineshape=='gaussian':
-        print('broadening', ls_params[0])
+        logger.info('broadening: {}'.format(ls_params[0]))
         lineshape_rates = gaussian(K_lineshape, [ls_params[0], 0])
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
-        detailed = DetailedLineshape()
-        lineshape_rates = detailed.spectrum_func(K_lineshape/1000., ls_params[0], 0, ls_params[1], 1)
+        lineshape_rates = spectrum_func(K_lineshape/1000., ls_params[0], 0, ls_params[1], 1)
 
     beta_rates = np.zeros(len(K))
     for i in range(len(K)):
@@ -285,8 +302,7 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
-        detailed = DetailedLineshape()
-        lineshape_rates = detailed.spectrum_func(K_lineshape/1000., ls_params[0], 0, ls_params[1], 1)
+        lineshape_rates = spectrum_func(K_lineshape/1000., ls_params[0], 0, ls_params[1], 1)
 
     bkgd_rates = np.full(len(K), bkgd_rate())
     if len(K) < len(K_lineshape):
@@ -303,18 +319,18 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
 """
 Functions to calculate number of events to generate
 """
-#Fraction of events near the endpoint
-#Currently, this only holds for the last 13.6 eV of the spectrum
-def frac_near_endpt(Kmin, Q, mass, atom_or_mol='atom'):
-    A = integrate.quad(spectral_rate, Kmin, Q-mass, args=(Q,mass))
-    B = integrate.quad(spectral_rate, V0, Q-mass, args=(Q,mass)) #Minimum at V0 because electrons with energy below screening barrier do not escape
-    f = (A[0])/(B[0])
-    if atom_or_mol=='atom':
-        return 0.7006*f
-    elif atom_or_mol=='mol' or atom_or_mol=='molecule':
-        return 0.57412*f
-    else:
-        print("Choose 'atom' or 'mol'.")
+##Fraction of events near the endpoint
+##Currently, this only holds for the last 13.6 eV of the spectrum
+#def frac_near_endpt(Kmin, Q, mass, atom_or_mol='atom'):
+#    A = integrate.quad(spectral_rate, Kmin, Q-mass, args=(Q,mass))
+#    B = integrate.quad(spectral_rate, V0, Q-mass, args=(Q,mass)) #Minimum at V0 because electrons with energy below screening barrier do not escape
+#    f = (A[0])/(B[0])
+#    if atom_or_mol=='atom':
+#        return 0.7006*f
+#    elif atom_or_mol=='mol' or atom_or_mol=='molecule':
+#        return 0.57412*f
+#    else:
+#        print("Choose 'atom' or 'mol'.")
 
 
 #Convert [number of particles]=(density*volume*efficiency) to a signal activity A_s, measured in events/second.
@@ -425,7 +441,7 @@ def gaussian_sigma_to_FWHM(sigma):
 # Only to be used for functions evaluated on the SELA
 def normalize(f):
     x_arr = std_eV_array()
-    f_norm = sp.integrate.simps(f,x=x_arr)
+    f_norm = integrate.simps(f,x=x_arr)
     # if  f_norm < 0.99 or f_norm > 1.01:
     #     print(f_norm)
     f_normed = f/f_norm
@@ -495,7 +511,7 @@ def single_scatter_f(gas_type):
 # Convolves a function with the single scatter function, on the SELA
 def another_scatter(input_spectrum, gas_type):
     single = single_scatter_f(gas_type)
-    f = sp.signal.convolve(single,input_spectrum,mode='same')
+    f = convolve(single,input_spectrum,mode='same')
     f_normed = normalize(f)
     return f_normed
 
@@ -514,7 +530,7 @@ def generate_scatter_convolution_files(gas_type):
     # plt.plot(x,current_scatter) # diagnostic
     # plt.show() # diagnostic
     elapsed = time.time() - t
-    print('Files generated in '+str(elapsed)+'s')
+    logger.info('Files generated in '+str(elapsed)+'s')
     return
 
 # Returns the name of the current path
@@ -546,7 +562,7 @@ def check_existence_of_scatter_files(gas_type):
     current_dir = get_current_dir()
     stuff_in_dir = list_files(current_path)
     if 'scatter_spectra_files' not in stuff_in_dir and current_dir != 'scatter_spectra_files':
-        print('Scatter files not found, generating')
+        logger.warning('Scatter files not found, generating')
         os.popen("mkdir scatter_spectra_files")
         time.sleep(2)
         generate_scatter_convolution_files(gas_type)
@@ -558,7 +574,7 @@ def check_existence_of_scatter_files(gas_type):
         test_file = 'scatter_spectra_files/scatter'+gas_type+'_01.npy'
         test_arr = np.load(test_file)
         if len(test_arr) != num_points_in_std_array:
-            print('Scatter files do not match standard array binning, generating fresh files')
+            logger.warning('Scatter files do not match standard array binning, generating fresh files')
             generate_scatter_convolution_files(gas_type)
     return
 
@@ -566,7 +582,7 @@ def check_existence_of_scatter_files(gas_type):
 def convolve_gaussian(func_to_convolve,gauss_FWHM_eV):
     sigma = gaussian_FWHM_to_sigma(gauss_FWHM_eV)
     resolution_f = std_gaussian(sigma)
-    ans = sp.signal.convolve(resolution_f,func_to_convolve,mode='same')
+    ans = convolve(resolution_f,func_to_convolve,mode='same')
     ans_normed = normalize(ans)
     return ans_normed
 
@@ -589,7 +605,7 @@ def make_spectrum(gauss_FWHM_eV,scatter_prob,gas_type, emitted_peak='lorentzian'
     norm = 1
     for i in scatter_num_array:
         current_working_spectrum = np.load(os.path.join(current_path, 'scatter_spectra_files/scatter'+gas_type+'_'+str(i).zfill(2)+'.npy'))
-        current_working_spectrum = normalize(sp.signal.convolve(zeroth_order_peak,current_working_spectrum,mode='same'))
+        current_working_spectrum = normalize(convolve(zeroth_order_peak,current_working_spectrum,mode='same'))
         current_full_spectrum += current_working_spectrum*scatter_prob**scatter_num_array[i-1]
         norm += scatter_prob**scatter_num_array[i-1]
     # plt.plot(en_array,current_full_spectrum) # diagnostic
@@ -610,33 +626,30 @@ def flip_array(array):
     return flipped
 
 
-class DetailedLineshape():
-    def __init__(self):
-        print('Using detailed lineshape')
+def spectrum_func(x_keV, *p0):
+    logger.info('Using detailed lineshape')
+    x_eV = x_keV*1000.
+    en_loss_array = std_eV_array()
+    en_loss_array_min = en_loss_array[0]
+    en_loss_array_max = en_loss_array[len(en_loss_array)-1]
+    en_array_rev = flip_array(-1*en_loss_array)
+    f = np.zeros(len(x_keV))
 
-    def spectrum_func(self, x_keV, *p0):
-        x_eV = x_keV*1000.
-        en_loss_array = std_eV_array()
-        en_loss_array_min = en_loss_array[0]
-        en_loss_array_max = en_loss_array[len(en_loss_array)-1]
-        en_array_rev = flip_array(-1*en_loss_array)
-        f = np.zeros(len(x_keV))
+    FWHM_G_eV = p0[0]
+    line_pos_keV = p0[1]
 
-        FWHM_G_eV = p0[0]
-        line_pos_keV = p0[1]
+    line_pos_eV = line_pos_keV*1000.
+    x_eV_minus_line = x_eV - line_pos_eV
+    zero_idx = np.r_[np.where(x_eV_minus_line<-1*en_loss_array_max)[0],np.where(x_eV_minus_line>-1*en_loss_array_min)[0]]
+    nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
 
-        line_pos_eV = line_pos_keV*1000.
-        x_eV_minus_line = x_eV - line_pos_eV
-        zero_idx = np.r_[np.where(x_eV_minus_line<-1*en_loss_array_max)[0],np.where(x_eV_minus_line>-1*en_loss_array_min)[0]]
-        nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
+    for gas_index in range(len(gases)):
+        gas_type = gases[gas_index]
+        scatter_prob = p0[2*gas_index+2]
+        amplitude    = p0[2*gas_index+3]
 
-        for gas_index in range(len(gases)):
-            gas_type = gases[gas_index]
-            scatter_prob = p0[2*gas_index+2]
-            amplitude    = p0[2*gas_index+3]
-
-            full_spectrum = make_spectrum(FWHM_G_eV,scatter_prob, gas_type)
-            full_spectrum_rev = flip_array(full_spectrum)
-            f[nonzero_idx] += amplitude*np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
-        return f
+        full_spectrum = make_spectrum(FWHM_G_eV,scatter_prob, gas_type)
+        full_spectrum_rev = flip_array(full_spectrum)
+        f[nonzero_idx] += amplitude*np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
+    return f
 

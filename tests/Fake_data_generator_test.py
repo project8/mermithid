@@ -1,7 +1,7 @@
 '''
 This scripts aims at testing Tritium specific processors.
-Author: M. Guigue
-Date: Apr 1 2018
+Author: C. Claessens
+Date: Apr 6 2020
 '''
 
 import unittest
@@ -21,15 +21,15 @@ class FakeDataGenerationTest(unittest.TestCase):
             "apply_efficiency": False,
             "efficiency_path": "/host/input_data/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
             "simplified_lineshape_path": "/host/input_data/simplified_scattering_params.txt",
-            "detailed_or_simplified_lineshape": "detailed",
+            "detailed_or_simplified_lineshape": "gaussian", #"simplified", "detailed"
             "use_lineshape": True, # if False only gaussian smearing is applied
             "return_frequency": True,
             "scattering_sigma": 18.6,
             "scattering_prob": 0.77,
             "B_field": 0.9578186017836624,
-            "S": 4500,
-            "n_steps": 40000,
-            "A_b": 1e-10
+            "S": 4500, # number of tritium events
+            "n_steps": 40000, # stepsize for pseudo continuous data is: (Kmax_eff-Kmin_eff)/nsteps
+            "A_b": 1e-10 # background rate 1/eV/s
         }
 
         specGen = FakeDataGenerator("specGen")
@@ -43,7 +43,7 @@ class FakeDataGenerationTest(unittest.TestCase):
         Kgen = results['K']
         Fgen = results['F']
 
-        plt.figure()
+        plt.figure(figsize=(7, 5))
         plt.subplot(121)
         plt.hist(Kgen, bins=50)
         plt.xlabel('K [eV]')
@@ -53,12 +53,9 @@ class FakeDataGenerationTest(unittest.TestCase):
         plt.hist(Fgen, bins=50)
         plt.xlabel('F [Hz]')
         plt.ylabel('N')
+
         plt.tight_layout()
-
         plt.savefig('GeneratedData.png', dpi=200)
-
-
-        #print(result.keys())
 
 
 if __name__ == '__main__':

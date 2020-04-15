@@ -8,14 +8,6 @@ from __future__ import absolute_import
 
 import numpy as np
 import math
-import scipy as sp
-from scipy.special import gamma
-from scipy import integrate
-from scipy import stats
-from scipy.optimize import fsolve
-from scipy import constants
-from scipy.interpolate import interp1d
-from scipy.signal import convolve
 import random
 import time
 import json
@@ -33,36 +25,6 @@ logger = morphologging.getLogger(__name__)
 __all__ = []
 __all__.append(__name__)
 
-#class DetailedLineshape():
-#    def __init__(self):
-#        print('Using detailed lineshape')
-#
-#    def spectrum_func(self, x_keV, *p0):
-#        x_eV = x_keV*1000.
-#        en_loss_array = std_eV_array()
-#        en_loss_array_min = en_loss_array[0]
-#        en_loss_array_max = en_loss_array[len(en_loss_array)-1]
-#        en_array_rev = flip_array(-1*en_loss_array)
-#        f = np.zeros(len(x_keV))
-#
-#        FWHM_G_eV = p0[0]
-#        line_pos_keV = p0[1]
-#
-#        line_pos_eV = line_pos_keV*1000.
-#        x_eV_minus_line = x_eV - line_pos_eV
-#        zero_idx = np.r_[np.where(x_eV_minus_line<-1*en_loss_array_max)[0],np.where(x_eV_minus_line>-1*en_loss_array_min)[0]]
-#        nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
-#
-#        for gas_index in range(len(gases)):
-#            gas_type = gases[gas_index]
-#            scatter_prob = p0[2*gas_index+2]
-#            amplitude    = p0[2*gas_index+3]
-#
-#            full_spectrum = make_spectrum(FWHM_G_eV,scatter_prob, gas_type)
-#            full_spectrum_rev = flip_array(full_spectrum)
-#            f[nonzero_idx] += amplitude*np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
-#        return f
-
 
 class FakeDataGenerator(BaseProcessor):
 
@@ -76,28 +38,34 @@ class FakeDataGenerator(BaseProcessor):
         self.m = reader.read_param(params, 'neutrino_mass', 0.0085) #Neutrino mass (eV)
         self.Kmin = reader.read_param(params, 'Kmin', self.Q-self.m-2300)  #Energy corresponding to lower bound of frequency ROI (eV)
         self.Kmax = reader.read_param(params, 'Kmax', self.Q-self.m+1000)   #Same, for upper bound (eV)
-        self.bin_region_widths = reader.read_param(params, 'bin_region_width', [1., 9.]) #List of widths (eV) of regions where bin sizes do not change, from high to low energy
-        self.nbins_per_region = reader.read_param(params, 'nbins_per_region', [300., 9.]) #List of number of bins in each of those regions, from high to low energy
-
-        self.Nparticles = reader.read_param(params, 'Nparticles', 10**(19)) #Density*volume*efficiency
-        self.runtime = reader.read_param(params, 'runtime', 31556952.) #In seconds
         self.n_steps = reader.read_param(params, 'n_steps', 1000)
         self.B_field = reader.read_param(params, 'B_field', 0.9578186017836624)
-        #For Phase IV:
-        #A_s = find_signal_activity(Nparticles, m, Q, Kmin) #Signal activity: events/s in ROI
-        #S = A_s*runtime #Signal poisson rate
+
+#        #For Phase IV:
+#        #A_s = find_signal_activity(Nparticles, m, Q, Kmin) #Signal activity: events/s in ROI
+#        #S = A_s*runtime #Signal poisson rate
+#        self.S = reader.read_param(params, 'S', 2500)
+#        self.A_b = reader.read_param(params, 'A_b', 10**(-12)) #Flat background activity: events/s/eV
+#        self.B =self.A_b*self.runtime*(self.Kmax-self.Kmin) #Background poisson rate
+#        self.fb = self.B/(self.S+self.B) #Background fraction
+#        self.err_from_B = reader.read_param(params, 'err_from_B', 0.5) #In eV, kinetic energy error from f_c --> K conversion
+#
+#        #For a Phase IV gaussian smearing:
+#        self.sig_trans = reader.read_param(params, 'sig_trans', 0.020856) #Thermal translational Doppler broadening for atomic T (eV)
+#        self.other_sig = reader.read_param(params, 'other_sig', 0.05) #Kinetic energy broadening from other sources (eV)
+#        self.broadening = np.sqrt(self.sig_trans**2+self.other_sig**2) #Total energy broadening (eV)
+#
+#       #For binned spectrum generation (not implemented)
+#        self.bin_region_widths = reader.read_param(params, 'bin_region_width', [1., 9.]) #List of widths (eV) of regions where bin sizes do not change, from high to low energy
+#        self.nbins_per_region = reader.read_param(params, 'nbins_per_region', [300., 9.]) #List of number of bins in each of those regions, from high to low energy
+
+
+        # Phase II Spectrum parameters
+        self.runtime = reader.read_param(params, 'runtime', 31556952.) #In seconds
         self.S = reader.read_param(params, 'S', 2500)
         self.A_b = reader.read_param(params, 'A_b', 10**(-12)) #Flat background activity: events/s/eV
         self.B =self.A_b*self.runtime*(self.Kmax-self.Kmin) #Background poisson rate
-        self.fb = self.B/(self.S+self.B) #Background fraction
         self.err_from_B = reader.read_param(params, 'err_from_B', 0.5) #In eV, kinetic energy error from f_c --> K conversion
-
-        #For a Phase IV gaussian smearing:
-        self.sig_trans = reader.read_param(params, 'sig_trans', 0.020856) #Thermal translational Doppler broadening for atomic T (eV)
-        self.other_sig = reader.read_param(params, 'other_sig', 0.05) #Kinetic energy broadening from other sources (eV)
-        self.broadening = np.sqrt(self.sig_trans**2+self.other_sig**2) #Total energy broadening (eV)
-
-
 
         #Simplified scattering model parameters
         self.scattering_prob = reader.read_param(params, 'scattering_prob', 0.77)
@@ -155,8 +123,6 @@ class FakeDataGenerator(BaseProcessor):
         if self.return_frequency:
             self.results['F'] = Frequency(Kgen, self.B_field)
 
-
-
         return True
 
 
@@ -190,8 +156,9 @@ class FakeDataGenerator(BaseProcessor):
 
         return eff_dict
 
-    def generate_unbinned_data(self, Q_mean, mass, Kmin, Kmax, S, B, nsteps=10**4, lineshape=
-                               'gaussian', params=[0.5], efficiency_dict=None, array_method=True, err_from_B=None, B_field=None):
+    def generate_unbinned_data(self, Q_mean, mass, Kmin, Kmax, S, B, nsteps=10**4,
+                               lineshape='gaussian', params=[0.5], efficiency_dict=None,
+                                array_method=True, err_from_B=None, B_field=None):
         """
             Returns list of event kinetic energies (eV).
             The 'nsteps' parameter can be increased to reduce the number of repeated energies in the returned list, improving the reliability of the sampling method employed here.
@@ -240,7 +207,7 @@ class FakeDataGenerator(BaseProcessor):
         ratesS = ratesS*efficiency
 
         time1 = time.time()
-        print('... signal rate took {} s'.format(time1-time0))
+        logger.info('... signal rate took {} s'.format(time1-time0))
 
         # background
         if array_method == True:
@@ -249,7 +216,7 @@ class FakeDataGenerator(BaseProcessor):
             ratesB = [convolved_bkgd_rate(K, Kmin, Kmax, lineshape, params, min_energy, max_energy) for K in Koptions]
 
         time2 = time.time()
-        print('... background rate took {} s'.format(time2 - time1))
+        logger.info('... background rate took {} s'.format(time2 - time1))
 
         if err_from_B != None:
             dE = Koptions[1] - Koptions[0]
@@ -277,8 +244,9 @@ class FakeDataGenerator(BaseProcessor):
         #KE = np.random.choice(Koptions, np.random.poisson(S+B), p = probs)
         KE = np.random.choice(Koptions, round(S+B), p = probs)
         time5 = time.time()
-        print('... took {} s'.format(time5-time4))
-        print('Number of values in array that are not unique:', np.size(KE) - len(set(KE)), 'out of', np.size(KE))
+
+        logger.info('... took {} s'.format(time5-time4))
+        logger.info('Number of values in array that are not unique: {} out of {}'.format(np.size(KE) - len(set(KE)), np.size(KE)))
 
         return KE
 
