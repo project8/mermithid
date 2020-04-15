@@ -1,5 +1,5 @@
 '''
-Tests complex lineshape fit.
+Reads in data and fits it with complex lineshape model.
 Author: E. Machado, Y.-H. Sun, E. Novitski
 Date: 4/8/20
 '''
@@ -67,7 +67,7 @@ class ComplexLineShapeTests(unittest.TestCase):
         plt.rcParams.update({'font.size': 20})
         plt.figure(figsize=(15,9))
         plt.step(
-        results['bins_Hz'][0:-1]/1e9, results['data_hist_freq'], 
+        results['bins_Hz'][0:-1]/1e9, results['data_hist_freq'],
         label = 'data\n total counts = {}\n'.format(len(data['StartFrequency']))
         )
         plt.plot(results['bins_Hz'][0:-1]/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
