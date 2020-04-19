@@ -75,7 +75,7 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         return True
 
     def InternalRun(self):
-        print('namedata:',self.namedata)
+        logger.info('namedata: {}'.format(self.namedata))
 
         N,b = np.histogram(self.data[self.namedata], self.bins)
 
@@ -105,8 +105,6 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
 
     def EfficiencyAssignment(self, f_bin_centers, f_bins = None, integrate_bin_width = False):
         a = self.GetEfficiencyFileContent()
-        #print(a.keys)
-        # keys: ['frequencies_slope_cut', 'eff interp no slope correction', 'error interp no slope correction', 'frequencies', 'eff interp with slope correction', 'error interp with slope correction']
         fss_frequencies = a['frequencies']
         fss_efficiencies = a['eff interp with slope correction']
         fss_efficiency_errors = a['error interp with slope correction']
@@ -115,10 +113,12 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         efficiency_error_interpolation_upper = scipy.interpolate.interp1d(fss_frequencies, fss_efficiency_errors[1], bounds_error=False, fill_value=1)
         if integrate_bin_width == False:
             # FOI means frequency of interest
+            logger.info('Not integrating efficiencies')
             FOI_efficiencies = efficiency_interpolation(f_bin_centers)
             FOI_efficiency_lower_errors = efficiency_error_interpolation_lower(f_bin_centers)
             FOI_efficiency_upper_errors = efficiency_error_interpolation_upper(f_bin_centers)
         else:
+            logger.info('Integrating efficiencies')
             number_of_bins = len(f_bins)-1
             FOI_efficiencies = np.zeros(number_of_bins)
             FOI_efficiency_lower_errors = np.zeros(number_of_bins)
