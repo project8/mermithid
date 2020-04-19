@@ -18,7 +18,8 @@ import numpy as np
 
 class MultiChannelCicadaReader(IOProcessor):
     '''
-    Processor that can read (not write) Katydid ROOT files using the Cicada library
+    Processor that can read (not write) multiple channels of Katydid ROOT files using the Cicada library.
+    It also extracts the total livetime of the data acquisition.
     '''
 
     def InternalConfigure(self,params):
