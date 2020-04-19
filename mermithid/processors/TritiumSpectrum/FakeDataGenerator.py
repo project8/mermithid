@@ -15,7 +15,6 @@ import os
 
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
-from mermithid.misc import Constants
 from mermithid.misc.FakeTritiumDataFunctions import *
 
 logger = morphologging.getLogger(__name__)
@@ -190,7 +189,7 @@ class FakeDataGenerator(BaseProcessor):
                     pi_err[int((j-2)/2.)].append(float(elements[j]))
         f.close()
         #Sample scattering params p0--p3 from normal distributions with stdevs equal to the corresponding uncertainties
-        for i in range(len(pi)):
+        for i in enumerate(pi):
             for j in range(Nscatters):
                 pi[i][j] = random.gauss(pi[i][j], pi_err[i][j])
         simp_params=[sigma*2*math.sqrt(2*math.log(2)), scattering_prob] + [p[:Nscatters] for p in pi]
@@ -239,9 +238,9 @@ class FakeDataGenerator(BaseProcessor):
 
         if efficiency_dict is not None:
             logger.info('Evaluating efficiencies')
-            efficiency, efficiency_error = efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
+            efficiency, _ = efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
         else:
-            efficiency, efficiency_error = 1, 0
+            efficiency, _ = 1, 0
 
         #Create array of sampled kinetic energies.
         logger.info('Going to calculate rates')
