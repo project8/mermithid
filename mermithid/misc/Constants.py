@@ -39,3 +39,8 @@ def M_3He_in_me(): return 5497.885 #Helium-3 mass in units of me, Kleesiek et al
 def atomic_num(): return 2. #For helium-3
 def V0(): return 76. #Nuclear screening potential of orbital electron cloud of the daughter atom, from Kleesiek et al. (2018)
 def mu_diff_hel_trit(): return 5.107 #Difference between magnetic moments of helion and triton, for recoil effects correction
+
+# Kr specific constants
+
+def kr_k_line_e(): return 17.8260*1e3
+def kr_k_line_width(): return 2.83

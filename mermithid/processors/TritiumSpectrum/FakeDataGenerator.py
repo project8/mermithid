@@ -116,7 +116,7 @@ class FakeDataGenerator(BaseProcessor):
 
 
         # get file content if needed
-                # get efficiency dictionary
+        # get efficiency dictionary
         if self.apply_efficiency:
             self.efficiency_dict = self.load_efficiency_curve()
         else:
@@ -130,6 +130,8 @@ class FakeDataGenerator(BaseProcessor):
                                                         self.scattering_prob,
                                                         self.NScatters)
             elif self.lineshape=='detailed':
+                if not os.path.exists('./scatter_spectra_files'):
+                    raise IOError('./scatter_spectra_files does not exist')
                 self.SimpParams = [self.scattering_sigma*2*math.sqrt(2*math.log(2)), self.scattering_prob]
             else:
                 raise ValueError("'detailed_or_simplified' is neither 'detailed' nor 'simplified'")
@@ -221,6 +223,8 @@ class FakeDataGenerator(BaseProcessor):
         Kmax_eff = Kmax+max_energy #Maximum energy for data is slightly above Kmax>Q-m
         Kmin_eff = Kmin+min_energy #Minimum is slightly below Kmin<Q-m
 
+        if not nsteps > 0:
+            raise ValueError('n_steps is not greater zero')
         step_size = (Kmax_eff-Kmin_eff)/float(nsteps)
         logger.info('Stepsize is {} eV'.format(step_size))
 

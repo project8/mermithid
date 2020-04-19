@@ -28,7 +28,7 @@ class FakeDataGenerationTest(unittest.TestCase):
             "scattering_prob": 0.77, # only used if use_lineshape = True
             "B_field": 0.9578186017836624,
             "S": 4500, # number of tritium events
-            "n_steps": 4000, # stepsize for pseudo continuous data is: (Kmax_eff-Kmin_eff)/nsteps
+            "n_steps": 1000, # stepsize for pseudo continuous data is: (Kmax_eff-Kmin_eff)/nsteps
             "A_b": 1e-10, # background rate 1/eV/s
             "poisson_stats": True
         }
