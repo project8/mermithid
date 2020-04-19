@@ -4,13 +4,13 @@ from morpho.utilities import morphologging, reader
 
 try:
     import ROOT
+    from ROOT import RooFit
 except ImportError:
     pass
 
 import random
-from ROOT import RooFit
+
 from datetime import datetime
-from morpho.utilities import morphologging, reader
 logger = morphologging.getLogger(__name__)
 
 try:
