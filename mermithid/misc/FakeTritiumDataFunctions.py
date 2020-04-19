@@ -22,6 +22,9 @@ import os
 from morpho.utilities import morphologging
 logger = morphologging.getLogger(__name__)
 
+from mermithid.misc.Constants import *
+from mermithid.misc.ConversionFunctions import *
+
 """
 Constants and functions used by processors/TritiumSpectrum/FakeDataGenerator.py
 """
@@ -30,26 +33,26 @@ Constants and functions used by processors/TritiumSpectrum/FakeDataGenerator.py
 Physical constants
 """
 
-me = 510999. #eV
-alpha = 1/137.036
-c = 299792458. #m/s
-hbar = 6.58212*10**(-16) #eV*s
-gv=1. #Vector coupling constant
-lambdat = 1.2724 # +/- 0.0023, from PDG (2018): http://pdg.lbl.gov/2018/listings/rpp2018-list-n.pdf
-ga=gv*(-lambdat) #Axial vector coupling constant
-Mnuc2 = gv**2 + 3*ga**2 #Nuclear matrix element
-GF =  1.1663787*10**(-23) #Gf/(hc)^3, in eV^(-2)
-Vud = 0.97425 #CKM element
+me = m_electron() #510999. #eV
+alpha = fine_structure_constant() #1/137.036
+c = c() #299792458. #m/s
+hbar = hbar() #6.58212*10**(-16) #eV*s
+gv = gv() # 1. #Vector coupling constant
+lambdat = lambdat() # 1.2724 # +/- 0.0023, from PDG (2018): http://pdg.lbl.gov/2018/listings/rpp2018-list-n.pdf
+ga = ga() #gv*(-lambdat) #Axial vector coupling constant
+Mnuc2 = Mnuc2() #gv**2 + 3*ga**2 #Nuclear matrix element
+GF =  GF() #1.1663787*10**(-23) #Gf/(hc)^3, in eV^(-2)
+Vud = Vud() #0.97425 #CKM element
 
 #Beta decay-specific physical constants
-QT = 18563.251 #For atomic tritium (eV), from Bodine et al. (2015)
-QT2 =  18573.24 #For molecular tritium (eV), Bodine et al. (2015)
-Rn =  2.8840*10**(-3) #Helium-3 nuclear radius in units of me, from Kleesiek et al. (2018): https://arxiv.org/pdf/1806.00369.pdf
-M = 5497.885 #Helium-3 mass in units of me, Kleesiek et al. (2018)
-atomic_num = 2. #For helium-3
+QT = QT() #18563.251 #For atomic tritium (eV), from Bodine et al. (2015)
+QT2 = QT2() # 18573.24 #For molecular tritium (eV), Bodine et al. (2015)
+Rn =  Rn() #2.8840*10**(-3) #Helium-3 nuclear radius in units of me, from Kleesiek et al. (2018): https://arxiv.org/pdf/1806.00369.pdf
+M = M_3He_in_me() #5497.885 #Helium-3 mass in units of me, Kleesiek et al. (2018)
+atomic_num = atomic_num() #2. #For helium-3
 g =(1-(atomic_num*alpha)**2)**0.5 #Constant to be used in screening factor and Fermi function calculations
-V0 = 76. #Nuclear screening potential of orbital electron cloud of the daughter atom, from Kleesiek et al. (2018)
-mu = 5.107 #Difference between magnetic moments of helion and triton, for recoil effects correction
+V0 = V0() #76. #Nuclear screening potential of orbital electron cloud of the daughter atom, from Kleesiek et al. (2018)
+mu = mu_diff_hel_trit() #5.107 #Difference between magnetic moments of helion and triton, for recoil effects correction
 
 
 """
@@ -349,12 +352,8 @@ def find_signal_activity(Nparticles, m, Q, Kmin, atom_or_mol='atom', nTperMolecu
 Function to calculate efficiency
 """
 
-def Frequency(E, B):
-    emass = constants.electron_mass/constants.e*constants.c**2
-    gamma = E/(emass)+1
-    return (constants.e*B)/(2.0*np.pi*constants.electron_mass) * 1/gamma
-
 def efficiency_from_interpolation(x, efficiency_dict, B=0.9578186017836624):
+    logger.info('Interpolating efficiencies')
     f = Frequency(x, B)
 
     interp_efficiency = interp1d(efficiency_dict['frequencies'], efficiency_dict['eff interp with slope correction'], fill_value='0', bounds_error=False)
