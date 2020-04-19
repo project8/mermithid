@@ -1,5 +1,5 @@
 '''
-Generate binned or pseudo unbinned data
+Miscellaneous functions for CRES conversions
 Author: C. Claessens
 Date:4/19/2020
 '''
