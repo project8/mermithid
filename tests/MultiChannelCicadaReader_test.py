@@ -10,6 +10,7 @@ from morpho.utilities import morphologging
 logger = morphologging.getLogger(__name__)
 
 import matplotlib.pyplot as plt
+import numpy as np
 
 class IOTests(unittest.TestCase):
 
@@ -18,9 +19,9 @@ class IOTests(unittest.TestCase):
         reader_config = {
             "action": "read",
             "channel_ids": ["a", "b", "c"],
-            "filename": ["rid000069955_merged.root",
-                         "rid000066843_merged.root",
-                         "rid000069341_merged.root"],
+            "filename": ["events_000007031_katydid_v2.13.0_concat.root",
+                         "events_000007031_katydid_v2.13.0_concat.root",
+                         "events_000007031_katydid_v2.13.0_concat.root"],
             "rf_roi_min_freqs": [25803125000.0, 25862500000.0, 25921875000.0],
             "channel_transition_freqs": [[0,1.38623121e9+24.5e9],
                                          [1.38623121e9+24.5e9, 1.44560621e9+24.5e9],
@@ -47,14 +48,15 @@ class IOTests(unittest.TestCase):
 
         plt.figure(figsize=(7,7))
         plt.subplot(211)
-        n, bins, p = plt.hist(data['F'], bins=100)
+        bins = np.linspace(min(data['F']), max(data['F']), 100)
+        n, bins, p = plt.hist(data['F'], bins=bins)
         plt.xlabel('Start frequencies')
         plt.ylabel('N')
 
         plt.subplot(212)
-        plt.hist(data['a']['TrueStartFrequenciesCut'], bins=bins, label='channel a')
-        plt.hist(data['b']['TrueStartFrequenciesCut'], bins=bins, label='channel b')
-        plt.hist(data['c']['TrueStartFrequenciesCut'], bins=bins, label='channel c')
+        plt.hist(data['a']['TrueStartFrequenciesCut']-24.5e9, bins=bins-24.5e9, label='channel a: {} counts'.format(len(data['a']['TrueStartFrequenciesCut'])))
+        plt.hist(data['b']['TrueStartFrequenciesCut']-24.5e9, bins=bins-24.5e9, label='channel b: {} counts'.format(len(data['b']['TrueStartFrequenciesCut'])))
+        plt.hist(data['c']['TrueStartFrequenciesCut']-24.5e9, bins=bins-24.5e9, label='channel c: {} counts'.format(len(data['c']['TrueStartFrequenciesCut'])))
         plt.xlabel('Start frequencies')
         plt.ylabel('N')
         plt.legend()
