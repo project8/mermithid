@@ -17,11 +17,10 @@ class IOTests(unittest.TestCase):
         from mermithid.processors.IO import MultiChannelCicadaReader
         reader_config = {
             "action": "read",
-            "N_channels": 3,
             "channel_ids": ["a", "b", "c"],
-            "filename": ["/host/input_data/tritium_run_3_channel_a_some_runs.root",
-                         "/host/input_data/tritium_run_3_channel_b_some_runs.root",
-                         "/host/input_data/tritium_run_3_channel_c_some_runs.root"],
+            "filename": ["rid000069955_merged.root",
+                         "rid000066843_merged.root",
+                         "rid000069341_merged.root"],
             "rf_roi_min_freqs": [25803125000.0, 25862500000.0, 25921875000.0],
             "channel_transition_freqs": [[0,1.38623121e9+24.5e9],
                                          [1.38623121e9+24.5e9, 1.44560621e9+24.5e9],

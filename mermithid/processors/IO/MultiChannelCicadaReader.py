@@ -1,5 +1,6 @@
 '''
-Processor that can read (not write) Katydid ROOT files using the Cicada library
+Processor that can read (not write) multiple Katydid ROOT files
+associated with multiple (roach) channels  using the Cicada library
 Author: C. Claessens
 Date: April 08 2020
 '''
@@ -26,17 +27,29 @@ class MultiChannelCicadaReader(IOProcessor):
             object_type: class of the object to read in the file
             object_name: name of the tree followed by the name of the object
             use_katydid: retro-compatibility to Katydid namespace
+            channel_ids: key list that will be used for storing the file content, length determines how many files are read
+            rf_roi_min_freqs: list of frequencies that is added to all frequencies read from ROOT file, has to match length of channel ids
+            channel_transition_ranges: list of frequency ranges for each channel
+            merged_frequency_variable: reutrn key for merged start frequencies
         '''
         super().InternalConfigure(params)
         self.object_type = reader.read_param(params,"object_type","TMultiTrackEventData")
         self.object_name = reader.read_param(params,"object_name","multiTrackEvents:Event")
         self.use_katydid = reader.read_param(params,"use_katydid",False)
 
-        self.N_channels = reader.read_param(params, "N_channels", 3)
         self.channel_ids = reader.read_param(params, "channel_ids", ['a', 'b', 'c'])
         self.rf_roi_min_freqs = reader.read_param(params, "rf_roi_min_freqs", [0, 0, 0])
         self.transition_freqs = reader.read_param(params, "channel_transition_freqs", [0, 0])
         self.frequency_variable_name = reader.read_param(params, "merged_frequency_variable", "F")
+
+        if len(self.channel_ids) > len(self.rf_roi_min_freqs):
+            raise ValueError('More channel ids than min frequencies')
+        if len(self.channel_ids) > len(self.transition_freqs):
+            raise ValueError('More channel ids than frequency ranges')
+        if len(self.channel_ids) > len(self.file_name):
+            raise ValueError('More channel ids than root files')
+
+        self.N_channels = len(self.channel_ids)
         return True
 
     def Reader(self):
@@ -54,7 +67,9 @@ class MultiChannelCicadaReader(IOProcessor):
                 from ReadKTOutputFile import ReadKTOutputFile
             except ImportError:
                 logger.warn("Cannot import ReadKTOutputFile")
+
             self.data[self.channel_ids[i]] = ReadKTOutputFile(self.file_name[i],self.variables,katydid=self.use_katydid,objectType=self.object_type,name=self.object_name)
+
 
             if len(self.variables) == 1:
                 self.data[self.channel_ids[i]] = {self.variables[0]: self.data[self.channel_ids[i]]}
@@ -68,7 +83,14 @@ class MultiChannelCicadaReader(IOProcessor):
 
             for i in range(self.N_channels):
 
-                true_frequencies = np.array(self.data[self.channel_ids[i]]['StartFrequency'])+self.rf_roi_min_freqs[i]
+                try:
+                    true_frequencies = np.array(self.data[self.channel_ids[i]]['StartFrequency'])+self.rf_roi_min_freqs[i]
+                except KeyError as e:
+                    logger.warning('Key error: Possibly no events in channel {}?'.format(self.channel_ids[i]))
+                    true_frequencies = np.array([])
+                except TypeError as e:
+                    logger.warning('TypeError: Possibly no events in channel {}?'.format(self.channel_ids[i]))
+                    true_frequencies = np.array([])
 
                 index = np.where((true_frequencies>=self.transition_freqs[i][0]) &(true_frequencies<self.transition_freqs[i][1]))
                 all_frequencies.extend(list(true_frequencies[index]))
@@ -104,5 +126,5 @@ class MultiChannelCicadaReader(IOProcessor):
                 logger.error(e)
                 logger.error('livetime not readable in slice {} of root file {}'.format(name_of_livetime_slice, path_to_root_file))
                 continue
-        logger.info('Total lievetime in file: {}'.format(total_livetime))
+        logger.info('Total livetime in file: {}'.format(total_livetime))
         return total_livetime
