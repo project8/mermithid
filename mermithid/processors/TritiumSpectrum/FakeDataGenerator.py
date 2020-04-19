@@ -66,7 +66,13 @@ class FakeDataGenerator(BaseProcessor):
         self.m = reader.read_param(params, 'neutrino_mass', 0.0085) #Neutrino mass (eV)
         self.Kmin = reader.read_param(params, 'Kmin', self.Q-self.m-2300)  #Energy corresponding to lower bound of frequency ROI (eV)
         self.Kmax = reader.read_param(params, 'Kmax', self.Q-self.m+1000)   #Same, for upper bound (eV)
+        if self.Kmax <= self.Kmin:
+            logger.error("Kmax <= Kmin!")
+            return False
         self.n_steps = reader.read_param(params, 'n_steps', 1000)
+        if self.n_steps <= 0:
+            logger.error("Negative number of steps!")
+            return False
         self.B_field = reader.read_param(params, 'B_field', 0.9578186017836624)
 
 #        #For Phase IV:
