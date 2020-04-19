@@ -15,7 +15,6 @@ class FakeDataGenerationTest(unittest.TestCase):
 
     def test_data_generation(self):
         from mermithid.processors.TritiumSpectrum.FakeDataGenerator import FakeDataGenerator
-        from mermithid.misc.Constants import seconds_per_year, tritium_endpoint
 
         specGen_config = {
             "apply_efficiency": False,
@@ -46,7 +45,7 @@ class FakeDataGenerationTest(unittest.TestCase):
 
         plt.figure(figsize=(7, 5))
         plt.subplot(121)
-        n, b, p = plt.hist(Kgen, bins=50, label='Fake data')
+        n, b, _ = plt.hist(Kgen, bins=50, label='Fake data')
         plt.plot(specGen.Koptions, specGen.probs/(specGen.Koptions[1]-specGen.Koptions[0])*(b[1]-b[0])*len(Kgen), label='Model')
         plt.xlabel('K [eV]')
         plt.ylabel('N')

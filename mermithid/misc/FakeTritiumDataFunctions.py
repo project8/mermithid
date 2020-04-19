@@ -7,17 +7,11 @@ Date:4/6/2020
 from __future__ import absolute_import
 
 import numpy as np
-import math
 
 from scipy.special import gamma
 from scipy import integrate
-from scipy import stats
-from scipy.optimize import fsolve
-from scipy import constants
 from scipy.interpolate import interp1d
 from scipy.signal import convolve
-import random
-import os
 
 from morpho.utilities import morphologging
 logger = morphologging.getLogger(__name__)
@@ -145,12 +139,6 @@ def ephasespace(K, Q):
 """
 Tritium beta spectrum definition
 """
-#Unsmeared beta spectrum
-def spectral_rate(K, Q, mnu):
-    if K < Q-mnu:
-        return GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*ephasespace(K, Q)*(Q - K)*np.sqrt((Q - K)**2 - (mnu)**2)
-    else:
-        return 0.
 
 #Beta spectrum with a lower energy bound Kmin
 def spectral_rate_in_window(K, Q, mnu, Kmin):
@@ -159,7 +147,7 @@ def spectral_rate_in_window(K, Q, mnu, Kmin):
     else:
         return 0.
 
-#Beta spectrum without a lower energy bound
+# Unsmeared eta spectrum without a lower energy bound
 def spectral_rate(K, Q, mnu):
     if Q-mnu > K > 0:
         return GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*ephasespace(K, Q)*(Q - K)*np.sqrt((Q - K)**2 - (mnu)**2)
@@ -191,7 +179,7 @@ def simplified_ls(K, Kcenter, FWHM, prob, p0, p1, p2, p3):
     sig0 = FWHM/float(2*np.sqrt(2*np.log(2)))
     shape = gaussian(K, [sig0, Kcenter])
     norm = 1.
-    for i in range(len(p0)):
+    for i,_ in enumerate(p0):
         sig = p0[i]+p1[i]*FWHM
         mu = -(p2[i]+p3[i]*np.log(FWHM-30))
         probi = prob**(i+1)
@@ -278,8 +266,8 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
         lineshape_rates = spectrum_func(K_lineshape/1000., ls_params[0], 0, ls_params[1], 1)
 
     beta_rates = np.zeros(len(K))
-    for i in range(len(K)):
-        beta_rates[i] = spectral_rate(K[i], Q, mnu)
+    for i,ke in enumerate(K):
+        beta_rates[i] = spectral_rate(ke, Q, mnu)
 
     #Convolving
     convolved = convolve(beta_rates, lineshape_rates, mode='same')
@@ -320,9 +308,6 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
 
 
 
-"""
-Functions to calculate number of events to generate
-"""
 ##Fraction of events near the endpoint
 ##Currently, this only holds for the last 13.6 eV of the spectrum
 #def frac_near_endpt(Kmin, Q, mass, atom_or_mol='atom'):
@@ -339,6 +324,9 @@ Functions to calculate number of events to generate
 
 #Convert [number of particles]=(density*volume*efficiency) to a signal activity A_s, measured in events/second.
 def find_signal_activity(Nparticles, m, Q, Kmin, atom_or_mol='atom', nTperMolecule=2):
+    """
+    Functions to calculate number of events to generate
+    """
     br = frac_near_endpt(Kmin, Q, m, atom_or_mol)
     Thalflife = 3.8789*10**8
     A_s = Nparticles*np.log(2)/(Thalflife)*br
@@ -349,11 +337,12 @@ def find_signal_activity(Nparticles, m, Q, Kmin, atom_or_mol='atom', nTperMolecu
         #For example: A gas of half HT and half T2 would have nTperMolecule==1.5.
         return nTperMolecule*A_s
 
-"""
-Function to calculate efficiency
-"""
+
 
 def efficiency_from_interpolation(x, efficiency_dict, B=0.9578186017836624):
+    """
+    Function to calculate efficiency
+    """
     logger.info('Interpolating efficiencies')
     f = Frequency(x, B)
 

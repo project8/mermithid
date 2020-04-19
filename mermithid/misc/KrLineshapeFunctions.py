@@ -1,5 +1,10 @@
 '''
-Generate binned or pseudo unbinned data
+Various functions for the Krypton lineshape computation
+Adapted from https://github.com/project8/scripts/blob/feature/KrScatterFit/machado/fitting/data_fitting_rebuild.py#L429 - by E. M. Machado
+Changes from that version:
+- Kr specific functions (shake-up/shake-off) removed
+- Spectrum is normalized
+
 Author: T. Weiss, C. Claessens, Y. Sun
 Date:4/6/2020
 '''
@@ -7,16 +12,9 @@ Date:4/6/2020
 from __future__ import absolute_import
 
 import numpy as np
-import math
 
-from scipy.special import gamma
 from scipy import integrate
-from scipy import stats
-from scipy.optimize import fsolve
-from scipy import constants
-from scipy.interpolate import interp1d
 from scipy.signal import convolve
-import random
 import os
 
 from morpho.utilities import morphologging
@@ -24,20 +22,6 @@ logger = morphologging.getLogger(__name__)
 
 from mermithid.misc.Constants import *
 from mermithid.misc.ConversionFunctions import *
-
-
-"""
-functions from detailed lineshape
-"""
-
-"""
-Adapted from https://github.com/project8/scripts/blob/feature/KrScatterFit/machado/fitting/data_fitting_rebuild.py#L429 - by E. M. Machado
-
-Changes from that version:
-- Kr specific functions (shake-up/shake-off) removed
-- Spectrum is normalized
-"""
-
 
 # Natural constants
 kr_line = kr_k_line_e()*1e-3 #17.8260 # keV
@@ -304,7 +288,7 @@ def spectrum_func(x_keV, *p0):
     line_pos_eV = line_pos_keV*1000.
     x_eV_minus_line = x_eV - line_pos_eV
     zero_idx = np.r_[np.where(x_eV_minus_line<-1*en_loss_array_max)[0],np.where(x_eV_minus_line>-1*en_loss_array_min)[0]]
-    nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
+    nonzero_idx = [i for i_, in enumerate(x_keV) if i not in zero_idx]
 
     for gas_index in range(len(gases)):
         gas_type = gases[gas_index]
