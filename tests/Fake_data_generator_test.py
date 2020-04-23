@@ -43,15 +43,15 @@ class FakeDataGenerationTest(unittest.TestCase):
         Kgen = results['K']
         Fgen = results['F']
 
-        plt.figure(figsize=(7, 5))
-        plt.subplot(121)
+        plt.figure(figsize=(7, 7))
+        plt.subplot(211)
         n, b, _ = plt.hist(Kgen, bins=50, label='Fake data')
         plt.plot(specGen.Koptions, specGen.probs/(specGen.Koptions[1]-specGen.Koptions[0])*(b[1]-b[0])*len(Kgen), label='Model')
         plt.xlabel('K [eV]')
         plt.ylabel('N')
         plt.legend()
 
-        plt.subplot(122)
+        plt.subplot(212)
         n, b, p = plt.hist(Fgen, bins=50, label='Fake data')
         plt.xlabel('F [Hz]')
         plt.ylabel('N')

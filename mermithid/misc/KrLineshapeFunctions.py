@@ -23,6 +23,7 @@ logger = morphologging.getLogger(__name__)
 from mermithid.misc.Constants import *
 from mermithid.misc.ConversionFunctions import *
 
+
 # Natural constants
 kr_line = kr_k_line_e()*1e-3 #17.8260 # keV
 kr_line_width = kr_k_line_width() #2.83 # eV
@@ -40,9 +41,10 @@ num_points_in_std_array = 10000
 # with number of points equal to num_points_in_std_array. All convolutions
 # will be carried out on this particular discretization
 def std_eV_array():
-    emin = -1000
     emax = 1000
-    array = np.linspace(emin,emax,num_points_in_std_array)
+    d = emax/num_points_in_std_array
+    emin = -round(emax/d)*d
+    array = np.arange(emin,emax+d,d)
     return array
 
 # A lorentzian function
@@ -72,6 +74,19 @@ def gaussian(x_array,A,sigma=0,mu=0):
 def std_gaussian(sigma):
     x_array = std_eV_array()
     ans = gaussian(x_array,1,sigma,0)
+    return ans
+
+def std_dirac():
+    x_array = std_eV_array()
+    ans = np.zeros(len(x_array))
+    min_x = np.min(np.abs(x_array))
+    ans[np.abs(x_array)==min_x] = 1.
+    logger.warning('Spectrum will be shifted by lineshape by {} eV'.format(min_x))
+    if min_x > 0.1:
+        logger.error('Lineshape will shift spectrum by > 0.1 eV')
+    if min_x > 1.:
+        logger.error('Lineshape will shift spectrum by > 1 eV')
+        raise ValueError('problem with std_eV_array()')
     return ans
 
 # Converts a gaussian's FWHM to sigma
@@ -235,7 +250,7 @@ def convolve_gaussian(func_to_convolve,gauss_FWHM_eV):
 
 # Produces a full spectral shape on the SELA, given a gaussian resolution
 # and a scatter probability
-def make_spectrum(gauss_FWHM_eV,scatter_prob,gas_type, emitted_peak='lorentzian'):
+def make_spectrum(gauss_FWHM_eV,scatter_prob,gas_type, emitted_peak='dirac'):
     current_path = get_current_path()
     # check_existence_of_scatter_files()
     #filenames = list_files('scatter_spectra_files')
@@ -246,6 +261,8 @@ def make_spectrum(gauss_FWHM_eV,scatter_prob,gas_type, emitted_peak='lorentzian'
         current_working_spectrum = std_lorentzian_17keV() #Normalized
     elif emitted_peak == 'shake':
         current_working_spectrum = shake_spectrum()
+    else:
+        current_working_spectrum = std_dirac()
     current_working_spectrum = convolve_gaussian(current_working_spectrum,gauss_FWHM_eV) #Still normalized
     zeroth_order_peak = current_working_spectrum
     current_full_spectrum += current_working_spectrum #I believe, still normalized
@@ -288,7 +305,7 @@ def spectrum_func(x_keV, *p0):
     line_pos_eV = line_pos_keV*1000.
     x_eV_minus_line = x_eV - line_pos_eV
     zero_idx = np.r_[np.where(x_eV_minus_line<-1*en_loss_array_max)[0],np.where(x_eV_minus_line>-1*en_loss_array_min)[0]]
-    nonzero_idx = [i for i_, in enumerate(x_keV) if i not in zero_idx]
+    nonzero_idx = [i for i,_ in enumerate(x_keV) if i not in zero_idx]
 
     for gas_index in range(len(gases)):
         gas_type = gases[gas_index]

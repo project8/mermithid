@@ -188,12 +188,14 @@ class FakeDataGenerator(BaseProcessor):
                 else:
                     pi_err[int((j-2)/2.)].append(float(elements[j]))
         f.close()
+
         #Sample scattering params p0--p3 from normal distributions with stdevs equal to the corresponding uncertainties
-        for i in enumerate(pi):
+        for i,_ in enumerate(pi):
             for j in range(Nscatters):
                 pi[i][j] = random.gauss(pi[i][j], pi_err[i][j])
         simp_params=[sigma*2*math.sqrt(2*math.log(2)), scattering_prob] + [p[:Nscatters] for p in pi]
         return simp_params
+
 
     def load_efficiency_curve(self):
         # Efficiency dictionary
@@ -201,6 +203,7 @@ class FakeDataGenerator(BaseProcessor):
             eff_dict = json.load(infile)
 
         return eff_dict
+
 
     def generate_unbinned_data(self, Q_mean, mass, Kmin, Kmax, S, B, nsteps=10**4,
                                lineshape='gaussian', params=[0.5], efficiency_dict=None,
