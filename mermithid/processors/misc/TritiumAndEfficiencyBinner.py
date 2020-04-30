@@ -133,4 +133,7 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
     def GetEfficiencyFileContent(self):
         with open(self.efficiency_filepath, 'r') as infile:
             a = json.load(infile)
+            if "frequencies" not in a.keys():
+                logger.error("Missing Frequencies key")
+                return False
         return a
