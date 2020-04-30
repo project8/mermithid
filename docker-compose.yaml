@@ -6,4 +6,7 @@ services:
     command: "/bin/bash"
     volumes:
       # share a subdirectory from the host to /host in the docker (can be edited)
-      - ~/mermithid_share:/host
+      #- ~/mermithid_share:/host
+      - ~/Desktop/Project8_2019-20/mermithid:/host_mermithid
+      - ~/Desktop/Project8_2019-20/morpho:/host_morpho
+      - ~/Desktop/Project8_2019-20/scripts:/host_scripts
