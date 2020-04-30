@@ -93,14 +93,13 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         self.event_efficiency_errors_normed = self.event_efficiency_errors/np.sum(self.event_efficiencies)
 
         # Put it all in a dictionary
-        temp_dictionary = {self.output_bin_variable: [], 'N': [], 'bin_efficiencies': [], 'bin_efficiency_errors': [], 'event_efficiencies': [], 'event_efficiency_errors': []}
-        temp_dictionary['N'] = N
-        temp_dictionary[self.output_bin_variable] = self.bin_centers
-        temp_dictionary['bin_efficiencies'] = self.bin_efficiencies_normed
-        temp_dictionary['bin_efficiency_errors'] = self.bin_efficiency_errors_normed
-        temp_dictionary['event_efficiencies'] = self.event_efficiencies_normed
-        temp_dictionary['event_efficiency_errors'] = self.event_efficiency_errors_normed
-        self.results = temp_dictionary
+        self.results = {self.output_bin_variable: [], 'N': [], 'bin_efficiencies': [], 'bin_efficiency_errors': [], 'event_efficiencies': [], 'event_efficiency_errors': []}
+        self.results['N'] = N
+        self.results[self.output_bin_variable] = self.bin_centers
+        self.results['bin_efficiencies'] = self.bin_efficiencies_normed
+        self.results['bin_efficiency_errors'] = self.bin_efficiency_errors_normed
+        self.results['event_efficiencies'] = self.event_efficiencies_normed
+        self.results['event_efficiency_errors'] = self.event_efficiency_errors_normed
 
         return True
 
