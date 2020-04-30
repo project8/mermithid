@@ -20,7 +20,7 @@ import json
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.misc import Constants
-#from mermithid.misc import CRESFunctions
+#from mermithid.misc import ConversionFunctions
 
 logger = morphologging.getLogger(__name__)
 
