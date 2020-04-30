@@ -20,6 +20,7 @@ import json
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.misc import Constants
+#from mermithid.misc import CRESFunctions
 
 logger = morphologging.getLogger(__name__)
 
@@ -27,18 +28,6 @@ logger = morphologging.getLogger(__name__)
 
 __all__ = []
 __all__.append(__name__)
-
-def Energy(f, B=None, Theta=None):
-    #print(type(F))
-    if B==None:
-        B = 0.95777194923080811
-    emass_kg = Constants.m_electron()*Constants.e()/(Constants.c()**2)
-    if isinstance(f, list):
-        gamma = [(Constants.e()*B)/(2.0*TMath.Pi()*emass_kg) * 1/(F) for F in f]
-        return [(g -1)*Constants.m_electron() for g in gamma]
-    else:
-        gamma = (Constants.e()*B)/(2.0*TMath.Pi()*emass_kg) * 1/(f)
-        return (gamma -1)*Constants.m_electron()
 
 class TritiumAndEfficiencyBinner(BaseProcessor):
     '''
