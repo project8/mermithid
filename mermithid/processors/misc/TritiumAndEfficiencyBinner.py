@@ -134,6 +134,12 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         with open(self.efficiency_filepath, 'r') as infile:
             a = json.load(infile)
             if "frequencies" not in a.keys():
-                logger.error("Missing Frequencies key")
+                logger.error("Missing frequencies key")
+                return False
+            if "eff interp with slope correction" not in a.keys():
+                logger.error("Missing eff interp with slope correction key")
+                return False
+            if "error interp with slope correction" not in a.keys():
+                logger.error("error interp with slope correction")
                 return False
         return a
