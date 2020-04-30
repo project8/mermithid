@@ -94,7 +94,7 @@ class DistortedTritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
                                  self.increase_range, self.Fmax+self.increase_range)
             logger.debug("min frequency: {}Hz, max frequency: {}Hz".format(self.Fmin, self.Fmax))
         else:
-            raise Exception("no valid energy_or_frequency")
+            raise ValueError("no valid energy_or_frequency")
 
         self.N_signal_events = self.event_rate*self.duration
         self.N_background_events = self.background*self.duration*(self.KEmax-self.KEmin)
