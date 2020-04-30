@@ -41,7 +41,25 @@ def Energy(f, B=None, Theta=None):
         return (gamma -1)*Constants.m_electron()
 
 class TritiumAndEfficiencyBinner(BaseProcessor):
-
+    '''
+    Processor that takes in tritium data and efficiency data
+    and outputs tritium data (binned and unbinned) with appropriate error
+    bars derived from the efficiency data.
+    Args:
+        energy_or_frequency: type of the tritium input data
+        variables: F or KE
+        bins: bins to use for the binned output
+        fss_bins: if True, overrides 'bins' and uses the binning for the fss
+            efficiency data
+        efficiency_filepath: path to a json file containing the efficiency and
+            efficiency uncertainties from the fss data analysis
+    Inputs:
+        data: dict containing the unbinned tritium data
+    Output:
+        result: dictionary containing N=the number of events,
+            the bin_efficiencies, the bin_efficiency_errors,
+            the event_efficiencies, and the event_efficiency_errors.
+    '''
     def InternalConfigure(self, params):
         '''
         Configure
