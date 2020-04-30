@@ -65,9 +65,10 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         elif self.energy_or_frequency == 'frequency':
             self.output_bin_variable='F'
 
+        self.efficiency_file_content = self.GetEfficiencyFileContent()
+
         if self.fss_bins == True:
-            a = self.GetEfficiencyFileContent()
-            self.bin_centers = a['frequencies']
+            self.bin_centers = self.efficiency_file_content['frequencies']
             self.bins = np.array(self.bin_centers) - (self.bin_centers[1]-self.bin_centers[0])/2
             self.bins = np.append(self.bins, [self.bin_centers[-1]+(self.bin_centers[1]-self.bin_centers[0])/2])
         else:
@@ -104,10 +105,9 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         return True
 
     def EfficiencyAssignment(self, f_bin_centers, f_bins = None, integrate_bin_width = False):
-        a = self.GetEfficiencyFileContent()
-        fss_frequencies = a['frequencies']
-        fss_efficiencies = a['eff interp with slope correction']
-        fss_efficiency_errors = a['error interp with slope correction']
+        fss_frequencies = self.efficiency_file_content['frequencies']
+        fss_efficiencies = self.efficiency_file_content['eff interp with slope correction']
+        fss_efficiency_errors = self.efficiency_file_content['error interp with slope correction']
         efficiency_interpolation = scipy.interpolate.interp1d(fss_frequencies, fss_efficiencies, bounds_error=False, fill_value=0)
         efficiency_error_interpolation_lower = scipy.interpolate.interp1d(fss_frequencies, fss_efficiency_errors[0], bounds_error=False, fill_value=1)
         efficiency_error_interpolation_upper = scipy.interpolate.interp1d(fss_frequencies, fss_efficiency_errors[1], bounds_error=False, fill_value=1)
