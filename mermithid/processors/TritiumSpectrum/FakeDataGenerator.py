@@ -303,3 +303,8 @@ class FakeDataGenerator(BaseProcessor):
         logger.info('Number of values in array that are not unique: {} out of {}'.format(np.size(KE) - len(set(KE)), np.size(KE)))
 
         return KE
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 1a843aecc47bfe57ef1e49a1ec388f4498c3fe18
