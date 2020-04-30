@@ -35,7 +35,8 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
     and outputs tritium data (binned and unbinned) with appropriate error
     bars derived from the efficiency data.
     Args:
-        energy_or_frequency: type of the tritium input data
+        energy_or_frequency: type of the tritium input data. Currently this is
+            only set up to use frequency
         variables: name of the energy/frequency variable (e.g., F or KE)
         bins: bins to use for the binned output
         fss_bins: if True, overrides 'bins' and uses the binning for the fss
@@ -60,7 +61,7 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         self.eff_eqn = reader.read_param(params, 'efficiency', '1')
         self.bins = reader.read_param(params, 'bins', [])
         self.asInteger = reader.read_param(params, 'asInteger', False)
-        self.energy_or_frequency = reader.read_param(params, 'energy_or_frequency', 'energy')
+        self.energy_or_frequency = reader.read_param(params, 'energy_or_frequency', 'energy') #Currently only set up to use frequency
         self.efficiency_filepath = reader.read_param(params, 'efficiency_filepath', 'combined_energy_corrected_eff_at_quad_trap_frequencies.json')
         self.fss_bins = reader.read_param(params, "fss_bins", False)
         # If self.fss_bins is True, self.bins is ignored and overwritten
