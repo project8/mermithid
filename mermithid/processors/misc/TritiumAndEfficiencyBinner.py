@@ -47,7 +47,7 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
     bars derived from the efficiency data.
     Args:
         energy_or_frequency: type of the tritium input data
-        variables: F or KE
+        variables: name of the energy/frequency variable (e.g., F or KE)
         bins: bins to use for the binned output
         fss_bins: if True, overrides 'bins' and uses the binning for the fss
             efficiency data
