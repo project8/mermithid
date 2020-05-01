@@ -49,9 +49,10 @@ class FakeDataGenerator(BaseProcessor):
         - poisson_stats (boolean): if True number of total events is random
         - err_from_B [eV]: energy uncertainty originating from B uncertainty
         - scattering_prob: lineshape parameter - ratio of n+t/nth peak
-        - scattering_sigma [eV]: lineshape parameter - 0-th peak gaussian broadening width
+        - scattering_sigma [eV]: lineshape parameter - 0-th peak gaussian broadening standard deviation
         - NScatters: lineshape parameter - number of scatters included in lineshape
         - simplified_scattering_path: path to simplified lineshape parameters
+        #- detailed_scattering_path: path to H2 scattering files for detailed lineshape
         - efficiency_path: path to efficiency vs. frequency (and uncertainties)
         - use_lineshape (boolean): determines whether titium spectrum is smeared by lineshape.
           If False, it will only be smeared with a Gaussian
@@ -62,13 +63,13 @@ class FakeDataGenerator(BaseProcessor):
 
         # Read other parameters
         self.Q = reader.read_param(params, 'Q', QT2) #Choose the atomic or molecular tritium endpoint
-        self.m = reader.read_param(params, 'neutrino_mass', 0.0085) #Neutrino mass (eV)
+        self.m = reader.read_param(params, 'neutrino_mass', 0.2) #Neutrino mass (eV)
         self.Kmin = reader.read_param(params, 'Kmin', self.Q-self.m-2300)  #Energy corresponding to lower bound of frequency ROI (eV)
         self.Kmax = reader.read_param(params, 'Kmax', self.Q-self.m+1000)   #Same, for upper bound (eV)
         if self.Kmax <= self.Kmin:
             logger.error("Kmax <= Kmin!")
             return False
-        self.n_steps = reader.read_param(params, 'n_steps', 1000)
+        self.n_steps = reader.read_param(params, 'n_steps', 1e5)
         if self.n_steps <= 0:
             logger.error("Negative number of steps!")
             return False
@@ -94,9 +95,10 @@ class FakeDataGenerator(BaseProcessor):
 
 
         # Phase II Spectrum parameters
-        self.runtime = reader.read_param(params, 'runtime', 31556952.) #In seconds
-        self.S = reader.read_param(params, 'S', 2500)
-        self.A_b = reader.read_param(params, 'A_b', 10**(-12)) #Flat background activity: events/s/eV
+        self.runtime = reader.read_param(params, 'runtime', 6.57e6) #In seconds. Default time is ~2.5 months.
+        self.S = reader.read_param(params, 'S', 3300)
+        self.B_1kev = reader.read_param(params, 'B', 0.1) #Background rate per keV for full runtime
+        self.A_b = reader.read_param(params, 'A_b', self.B_1kev/float(self.runtime)/1000.) #Flat background activity: events/s/eV
         self.B =self.A_b*self.runtime*(self.Kmax-self.Kmin) #Background poisson rate
         self.poisson_stats = reader.read_param(params, 'poisson_stats', True)
         self.err_from_B = reader.read_param(params, 'err_from_B', 0.5) #In eV, kinetic energy error from f_c --> K conversion
@@ -110,8 +112,8 @@ class FakeDataGenerator(BaseProcessor):
 
         #paths
         self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
+        #self.detailed_scattering_path = reader.read_param(params, 'detailed_scattering_path', None)
         self.efficiency_path = reader.read_param(params, 'efficiency_path', '/host/input_data/combined_energy_corrected_eff_at_quad_trap_frequencies.json')
-
 
         #options
         self.use_lineshape = reader.read_param(params, 'use_lineshape', True)
@@ -303,8 +305,3 @@ class FakeDataGenerator(BaseProcessor):
         logger.info('Number of values in array that are not unique: {} out of {}'.format(np.size(KE) - len(set(KE)), np.size(KE)))
 
         return KE
-<<<<<<< HEAD
-=======
-
-
->>>>>>> 1a843aecc47bfe57ef1e49a1ec388f4498c3fe18
