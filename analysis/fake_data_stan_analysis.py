@@ -27,12 +27,13 @@ from morpho.processors.sampling import PyStanSamplingProcessor
 from morpho.processors.plots import APosterioriDistribution, Histo2dDivergence
 from morpho.processors.IO import IOROOTProcessor, IORProcessor
 
-#Definition of the processors
+#Defining processors
 writerProcessor = IOROOTProcessor("writer")
 readerProcessor = IOROOTProcessor("reader")
 rReaderProcessor = IORProcessor("reader")
 analysisProcessor = PyStanSamplingProcessor("analyzer")
 aposterioriPlotter = APosterioriDistribution("posterioriDistrib")
+divPlotter = Histo2dDivergence("2dDivergence")
 
 
 def GenerateFakeData(inputs_dict, root_file="tritium_analysis.root"):
@@ -109,7 +110,7 @@ def GenerateFakeData(inputs_dict, root_file="tritium_analysis.root"):
     return results
 
 
-def StanDataAnalysis(data, fit_parameters=None, root_file='tritium_analysis.root', F_or_K='F', stan_files_location='../../morpho_models/', model_code='tritium_model/models/tritium_phase_II_analyzer_unbinned.stan', scattering_params_R='simplified_scattering_params.R'):
+def StanDataAnalysis(data, fit_parameters=None, root_file='tritium_analysis.root', F_or_K='F', stan_files_location='../../morpho_models/', model_code='tritium_model/models/tritium_phase_II_analyzer_unbinned.stan', scattering_params_R='simplified_scattering_params.R', plot_divs=True):
     """
     Analyzes frequency or kinetic energy data using a Stan model. Saves and plots posteriors.
     
@@ -122,15 +123,9 @@ def StanDataAnalysis(data, fit_parameters=None, root_file='tritium_analysis.root
         5) stan_files_location: string; path to directory that contains folders with Stan function files, models, and model caches
         6) model_code: string; path to Stan model (absolute, or path from within stan_files_location)
         7) scattering_params_R: string; path to R file containing parameters employed for Stan scattering model
+        8) plot_divs: boolean; if True, creates plot showing where in parameter space divergences occured
         
     """
-    #If tritium data is read from a root file instead of being passed directly to this processor:
-    #data_reader_config = {
-    #"action": "read",
-    #"tree_name": "gen_results",
-    #"filename": root_file,
-    #"variables": [F_or_K]}
-    
     #Read in scattering parameters from file
     scattering_reader_config = {
         "action": "read",
@@ -139,15 +134,15 @@ def StanDataAnalysis(data, fit_parameters=None, root_file='tritium_analysis.root
         "format": "R"
     }
     
-    #Still need to specify: initial values, adapt_delta
+    #Stan analysis parameters
     analyzer_config = {
         "model_code": stan_files_location+model_code,
         "function_files_location": stan_files_location+"functions",
         #***Add "temp_" when I switch to cmdstan.***
         "model_name": stan_files_location+"tritium_model/models/tritium_phase_II_analyzer_unbinned",
         "cache_dir": stan_files_location+"tritium_model/cache",
-        "warmup": 2500,
-        "iter": 5000,
+        "warmup": 50,
+        "iter": 100,
         "chain": 1,
         "control": {'adapt_delta':0.90},
         "init": {
@@ -180,7 +175,7 @@ def StanDataAnalysis(data, fit_parameters=None, root_file='tritium_analysis.root
             "scattering_prob": 0.77,
             "Nscatters": 20
         },
-        "interestParams": ['Q', 'mass', 'KEmin', 'sigma', 'S', 'B_1kev', 'divergent__'],
+        "interestParams": ['Q', 'mass', 'KEmin', 'sigma', 'S', 'B_1kev', 'KE_sample', 'spectrum_fit'],
     }
     
     posteriors_writer_config = {
@@ -189,27 +184,32 @@ def StanDataAnalysis(data, fit_parameters=None, root_file='tritium_analysis.root
     "file_option": "update",
     "filename": root_file,
     "variables": [
-#        {"variable": "KE_sample", "type": "float"},
-#        {"variable": "spectrum_fit", "type": "float"},
         {"variable": "Q", "type": "float"},
-        {"variable": "S", "type": "float"},
-        {"variable": "B_1kev", "type": "float"},
-        {"variable": "B", "type": "float"},
-        {"variable": "A", "type": "float"},
-        {"variable": "signal_frac", "type": "float"},
+        {"variable": "mass", "type": "float"},
         {"variable": "KEmin", "type": "float"},
         {"variable": "sigma", "type": "float"},
-        {"variable": "mass", "type": "float"},
+        {"variable": "B_1kev", "type": "float"},
+        {"variable": "S", "type": "float"},
+        {"variable": "KE_sample", "type": "float"},
+        {"variable": "spectrum_fit", "type": "float"},
         {"variable": "divergent__", "root_alias": "divergence", "type": "float"},
         {"variable": "energy__", "root_alias": "energy", "type": "float"},
-        {"variable": "lp__", "root_alias": "LogLikelihood", "type": "float"}
+        {"variable": "lp_prob", "root_alias": "lp_prob", "type": "float"}
     ]}
     
     aposteriori_config = {
-        "n_bins_x": 3,
-        "n_bins_y": 3,
-        "variables": ['Q' 'sigma', 'lp_prob'],
-        "title": "aposteriori_distribution",
+        "n_bins_x": 10,
+        "n_bins_y": 10,
+        "variables": ['Q', 'KEmin', 'lp_prob'],
+        "title": "Q_vs_Kmin",
+        "output_path": "./plots"
+    }
+    
+    div_plot_config = {
+        "n_bins_x": 10,
+        "n_bins_y": 10,
+        "variables": ['Q', 'sigma', 'KEmin', 'mass'],
+        "title": "div_plot",
         "output_path": "./plots"
     }
     
@@ -218,9 +218,10 @@ def StanDataAnalysis(data, fit_parameters=None, root_file='tritium_analysis.root
     analysisProcessor.Configure(analyzer_config)
     writerProcessor.Configure(posteriors_writer_config)
     aposterioriPlotter.Configure(aposteriori_config)
+    divPlotter.Configure(div_plot_config)
 
     #Make data and scattering parameters accessible to analyzers
-    analysisProcessor.data = {'N_data': [len(data[F_or_K])]} #List format will be changed
+    analysisProcessor.data = {'N_data': [len(data[F_or_K])]} #List format here will be changed
     if F_or_K == 'K':
         analysisProcessor.data = {'KE':data['K']}
     elif F_or_K == 'F':
@@ -230,14 +231,22 @@ def StanDataAnalysis(data, fit_parameters=None, root_file='tritium_analysis.root
     rReaderProcessor.Run()
     analysisProcessor.data = rReaderProcessor.data
 
-    #Run analysis and save results
+    #Run analysis
     analysisProcessor.Run()
     results = analysisProcessor.results
+    
+    #Save results
+    writerProcessor.data = results
     writerProcessor.Run()
     
-    #Plot results
+    #Plot Q vs. Kmin results
     aposterioriPlotter.data = results
-
+    aposterioriPlotter.Run()
+    
+    #Plot 2D grid of divergent points
+    divPlotter.data = results
+    divPlotter.Run()
+    
     return results
 
 
