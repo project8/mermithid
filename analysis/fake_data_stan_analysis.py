@@ -1,7 +1,7 @@
 #
 # fake_data_stan_analysis.py
 # Author: T. E. Weiss
-# Date modified: April 30, 2020
+# Date modified: May 3, 2020
 #
 # This script generates fake data, then analyzes the data in Stan to infer posteriors.
 # Pathnames configured for running from: scripts/Phase-II-official-analysis/fake-data-study/
@@ -9,9 +9,11 @@
 
 """
 To-do:
-    - Add function that runs multiple pseudo-experiments and tracks convergence issues
-    - Implement processors in morpho a) for pre-generation sampling and b) for continuous-variable calibration
-    - Improve comments (e.g. describing Stan priors)
+    - In FakeExperimentEnsemble, add:
+        1. Tracking of convergence issues, so that a summary of problems can be saved/printed
+        2. An option to parallelize with slurm instead of multiprocessing
+    - Run morpho processors a) for pre-generation sampling and b) for continuous-variable calibration (once the processors have been tested sufficiently)
+    - Improve some comments (e.g. describing Stan priors)
 """
 
 
@@ -22,12 +24,15 @@ import matplotlib.pyplot as plt
 
 #Importing constants from mermithid
 from mermithid.misc.Constants import *
+from mermithid.processors.TritiumSpectrum.FakeDataGenerator import FakeDataGenerator
 #Importing processors from morpho
-from morpho.processors.sampling import PyStanSamplingProcessor
+from morpho.processors.sampling import PyStanSamplingProcessor, PriorSamplingProcessor
 from morpho.processors.plots import APosterioriDistribution, Histo2dDivergence
 from morpho.processors.IO import IOROOTProcessor, IORProcessor
 
 #Defining processors
+priorSampler = PriorSamplingProcessor("sample")
+specGen = FakeDataGenerator("specGen")
 writerProcessor = IOROOTProcessor("writer")
 readerProcessor = IOROOTProcessor("reader")
 rReaderProcessor = IORProcessor("reader")
@@ -36,18 +41,75 @@ aposterioriPlotter = APosterioriDistribution("posterioriDistrib")
 divPlotter = Histo2dDivergence("2dDivergence")
 
 
-def GenerateFakeData(inputs_dict, root_file="tritium_analysis.root"):
+def DefineGeneratorInputs(root_file='./results/tritium_analysis.root'):
+    #UNTESTED!
+    """
+    Samples inputs to a fake data generator from priors, then combines them in a dictionary with fixed inputs to the generator. Saves all the inputs to a root file.
+    
+    Returns:
+        generator_inputs: dictionary of all inputs to a fake data generator
+    """
+    prior_sampler_config = {
+    "fixed_inputs": {
+        'KEmax': QT2()+1000.,
+        'Nscatters': 20
+        },
+    "priors": [
+        {'name': 'Q', 'prior_dist': 'normal', 'prior_params': [QT2(), 0.07]},
+        {'name': 'mass', 'prior_dist': 'gamma', 'prior_params': [1.135, 0.4344]},
+        {'name': 'KEmin', 'prior_dist': 'normal', 'prior_params': [16323., 5.]},
+        {'name': 'sigma', 'prior_dist': 'normal', 'prior_params': [18.6, 3.]},
+        {'name': 'S', 'prior_dist': 'normal', 'prior_params': [3300, 57.45]},
+        {'name': 'B_1kev', 'prior_dist': 'gamma', 'prior_params': [0.25, 0.4]},
+        {'name': 'scattering_prob', 'prior_dist': 'beta', 'prior_params': [55, 17]},
+        {'name': 'err_from_B', 'prior_dist': 'gamma', 'prior_params': [10, 0.05]}
+        ]
+    }
+    
+    inputs_writer_config = {
+    "action": "write",
+    "tree_name": "input",
+    "filename": root_file,
+    "variables": [
+        {"variable": "KEmax", "type": "float"},
+        {"variable": "Nscatters", "type":"int"},
+        {"variable": "Q", "type": "float"},
+        {"variable": "mass", "type": "float"},
+        {"variable": "KEmin", "type": "float"},
+        {"variable": "sigma", "type": "float"},
+        {"variable": "S", "type": "float"},
+        {"variable": "B_1kev", "type": "float"},
+        {"variable": "scattering_prob", "type": "float"},
+        {"variable": "err_from_B", "type": "float"},
+    ]}
+    
+    #Configuration step
+    priorSampler.Configure(prior_sampler_config)
+    writerProcessor.Configure(inputs_writer_config)
+    
+    #Sampling inputs
+    priorSampler.Run()
+    generator_inputs = priorSampler.results
+    
+    #Saving results
+    writerProcessor.data = generator_inputs
+    writerProcessor.Run()
+    
+    return generator_inputs
+
+
+def GenerateFakeData(inputs_dict, root_file="./results/tritium_analysis.root"):
     """
     Generates fake Phase II tritium beta spectrum data, saves the data to a root file, and plots it.
     
     Arguments:
-    - inputs_dict: a dictionary of parameter values inputted to the fake data generator.
+    - inputs_dict: dictionary of parameter values inputted to the fake data generator.
     
-    The returned "results" above is a dictionary that includes:
-    1) keys: K (energy), F (frequency)
-    2) mapped values: energy, frequency
+   Returns:
+   - results: dict with
+        1) keys: K (energy), F (frequency)
+        2) mapped values: energy, frequency
     """
-    from mermithid.processors.TritiumSpectrum.FakeDataGenerator import FakeDataGenerator
     specGen_config = {
         "apply_efficiency": True,
         "efficiency_path": "../phase2_detection_efficiency_curve/combined_energy_corrected_count_rates/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
@@ -62,6 +124,7 @@ def GenerateFakeData(inputs_dict, root_file="tritium_analysis.root"):
         "B_1kev": inputs_dict["B_1kev"],
         "scattering_prob": inputs_dict["scattering_prob"],
         "err_from_B": inputs_dict["err_from_B"],
+        "Nscatters": inputs_dict["Nscatters"],
         "B_field": 0.9578186017836624,
         "n_steps": 60000,
     }
@@ -76,17 +139,17 @@ def GenerateFakeData(inputs_dict, root_file="tritium_analysis.root"):
         {"variable": "F", "type": "float"}
     ]}
     
-    specGen = FakeDataGenerator("specGen")
     #Configuration step
     specGen.Configure(specGen_config)
     writerProcessor.Configure(data_writer_config)
+    #Generate data
     specGen.Run()
     results = specGen.results
-    # Save data points
+    #Save data points
     writerProcessor.data = results
     writerProcessor.Run()
     
-    # plot histograms of generated data
+    #Plot histograms of generated data
     Kgen = results['K']
     Fgen = results['F']
 
@@ -110,7 +173,7 @@ def GenerateFakeData(inputs_dict, root_file="tritium_analysis.root"):
     return results
 
 
-def StanDataAnalysis(data, fit_parameters=None, root_file='tritium_analysis.root', F_or_K='F', stan_files_location='../../morpho_models/', model_code='tritium_model/models/tritium_phase_II_analyzer_unbinned.stan', scattering_params_R='simplified_scattering_params.R', plot_divs=True):
+def StanTritiumAnalysis(data, fit_parameters=None, root_file='./results/tritium_analysis.root', F_or_K='F', stan_files_location='../../morpho_models/', model_code='tritium_model/models/tritium_phase_II_analyzer_unbinned.stan', scattering_params_R='simplified_scattering_params.R'):
     """
     Analyzes frequency or kinetic energy data using a Stan model. Saves and plots posteriors.
     
@@ -123,7 +186,6 @@ def StanDataAnalysis(data, fit_parameters=None, root_file='tritium_analysis.root
         5) stan_files_location: string; path to directory that contains folders with Stan function files, models, and model caches
         6) model_code: string; path to Stan model (absolute, or path from within stan_files_location)
         7) scattering_params_R: string; path to R file containing parameters employed for Stan scattering model
-        8) plot_divs: boolean; if True, creates plot showing where in parameter space divergences occured
         
     """
     #Read in scattering parameters from file
@@ -197,28 +259,10 @@ def StanDataAnalysis(data, fit_parameters=None, root_file='tritium_analysis.root
         {"variable": "lp_prob", "root_alias": "lp_prob", "type": "float"}
     ]}
     
-    aposteriori_config = {
-        "n_bins_x": 10,
-        "n_bins_y": 10,
-        "variables": ['Q', 'KEmin', 'lp_prob'],
-        "title": "Q_vs_Kmin",
-        "output_path": "./plots"
-    }
-    
-    div_plot_config = {
-        "n_bins_x": 10,
-        "n_bins_y": 10,
-        "variables": ['Q', 'sigma', 'KEmin', 'mass'],
-        "title": "div_plot",
-        "output_path": "./plots"
-    }
-    
     #Configuration step
     rReaderProcessor.Configure(scattering_reader_config)
     analysisProcessor.Configure(analyzer_config)
     writerProcessor.Configure(posteriors_writer_config)
-    aposterioriPlotter.Configure(aposteriori_config)
-    divPlotter.Configure(div_plot_config)
 
     #Make data and scattering parameters accessible to analyzers
     analysisProcessor.data = {'N_data': [len(data[F_or_K])]} #List format here will be changed
@@ -239,35 +283,109 @@ def StanDataAnalysis(data, fit_parameters=None, root_file='tritium_analysis.root
     writerProcessor.data = results
     writerProcessor.Run()
     
-    #Plot Q vs. Kmin results
-    aposterioriPlotter.data = results
-    aposterioriPlotter.Run()
-    
-    #Plot 2D grid of divergent points
-    divPlotter.data = results
-    divPlotter.Run()
-    
     return results
 
 
-def PerformFakeExperiment():
-    root_file = "results/fake_data_and_results.root"
+def PlotStanResults(posteriors, correlation_vars=['Q', 'KEmin', 'lp_prob'], divergence_vars=['Q', 'sigma', 'mass']):
+    """
+    Creates and saves two plots:
+        a) posteriors and correlations between them, and
+        b) plot showing where in parameter space Hamiltonian Monte Carlo divergences occured.
+        
+    Required argument:
+        1) posteriors: dict; output of the PyStanSamplingProcessor
+    Optional arguments:
+        2) correlation_vars: list of strings; names of variables to be included in correlation plot
+        3) divergence_vars: list of strings; names of variables to be included in divergences plot
+    """
+    aposteriori_config = {
+        "n_bins_x": 50,
+        "n_bins_y": 50,
+        "variables": correlation_vars,
+        "title": "Q_vs_Kmin",
+        "output_path": "./plots"
+    }
     
-    #Define inputs to the data generator (later, these will be sampled using a different processor)
-    inputs_dict = {"Q":QT2(), "mass":0.2, "KEmin":16323, "KEmax":19573.24, "sigma":18.6, "S":3300, "B_1kev":0.1, "scattering_prob":0.77, "err_from_B":0.5}
-    #Save those inputs to one branch of a root file
+    div_plot_config = {
+        "n_bins_x": 50,
+        "n_bins_y": 50,
+        "variables": divergence_vars,
+        "title": "div_plot",
+        "output_path": "./plots"
+    }
+    
+    #Configuration step
+    aposterioriPlotter.Configure(aposteriori_config)
+    divPlotter.Configure(div_plot_config)
+    
+    #Plots correlations between posteriors
+    aposterioriPlotter.data = posteriors
+    aposterioriPlotter.Run()
+    
+    #Plot 2D grid of divergent points
+    divPlotter.data = posteriors
+    divPlotter.Run()
+
+
+def PerformFakeExperiment(root_filename, plot_results=False, parallelized=True):
+    """
+    Generate fake tritium data and analyze it in Stan. If plot_results==True, create correlation and divergence plots.
+    
+    Saves generation inputs, generation results, and analysis results to different trees of one ROOT file.
+    """
+    if parallelized==True:
+        flist = root_filename.split('/')
+        logger.info("----------MORPHO RUN #{}----------".format(flist[len(flist)-1][0]))
+    
+    #Sample inputs to the data generator and save to one branch of a root file:
+    #inputs_dict = DefineGeneratorInputs(root_filename)
+    
+    #For now, fixing inputs:
+    inputs_dict = {"Q":QT2(), "mass":0.2, "KEmin":16323, "KEmax":19573.24, "sigma":18.6, "S":3300, "B_1kev":0.1, "scattering_prob":0.77, "err_from_B":0.5, "Nscatters":20}
     
     #Generate data using the inputs and save data
-    tritium_data = GenerateFakeData(inputs_dict, root_file)
+    tritium_data = GenerateFakeData(inputs_dict, root_filename)
     
     #Analyze data and save posteriors
-    StanDataAnalysis(tritium_data, root_file=root_file, F_or_K='K')
+    posteriors = StanTritiumAnalysis(tritium_data, root_file=root_filename, F_or_K='K')
+    
+    #Optionally plot posteriors
+    if plot_results == True:
+        PlotStanResults(posteriors)
+        
+    #Dictionary containing Stan convergence diagnostics information
+    #return analysis_diagnostics
 
 
-#def FakeExperimentEnsemble(n_runs):
+def FakeExperimentEnsemble(n_runs, root_basename, wait_before_runs=0, parallelize=True, n_processes=4):
+    """
+    To-do: add parallelization option for a Slurm environment.
+    
+    n_runs: int; number of pseudo-experiments to be performed
+    root_basename: str; results are saved in rootfiles labeled by root_basename and the pseudo-experiment number
+    wait_before_runs: int or float; number of seconds to pause between the start of one pseudo-experiment and the start of the next
+    """
+    logger.info("PERFORMING {} MORPHO PSEUDO-EXPERIMENTS".format(n_runs))
+    
+    if parallelize == False:
+        root_filenames = []
+        for i in range(n_runs):
+            time.sleep(i*wait_before_runs) #Optionally stagger the runs slightly, either for debugging/clarity of output, or to avoid any possible memory overflows
+            logger.info("----------MORPHO RUN #{}----------".format(i))
+            temp_root_name = "./results/"+str(i)+root_basename
+            root_filenames.append(temp_root_name)
+            PerformFakeExperiment(temp_root_name)
+    else:
+        from multiprocessing import Pool
+        root_filenames = ["./results/"+str(i)+root_basename for i in range(n_runs)]
+        with Pool(n_processes) as p:
+            p.map(PerformFakeExperiment, root_filenames)
+    #_print_diag_summary(analysis_diagnostics)
+    
+    return root_filenames
 
 
 if __name__ == '__main__':
-    PerformFakeExperiment()
+    root_files = FakeExperimentEnsemble(1, "fake_data_and_results.root", wait_before_runs=30)
     
     
