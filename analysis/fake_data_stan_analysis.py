@@ -42,7 +42,6 @@ divPlotter = Histo2dDivergence("2dDivergence")
 
 
 def DefineGeneratorInputs(root_file='./results/tritium_analysis.root'):
-    #UNTESTED!
     """
     Samples inputs to a fake data generator from priors, then combines them in a dictionary with fixed inputs to the generator. Saves all the inputs to a root file.
     
@@ -92,7 +91,8 @@ def DefineGeneratorInputs(root_file='./results/tritium_analysis.root'):
     generator_inputs = priorSampler.results
     
     #Saving results
-    writerProcessor.data = generator_inputs
+    gen_inputs_root = {key:[value] for key, value in generator_inputs.items()}
+    writerProcessor.data = gen_inputs_root
     writerProcessor.Run()
     
     return generator_inputs
@@ -338,10 +338,10 @@ def PerformFakeExperiment(root_filename, plot_results=False, parallelized=True):
         logger.info("----------MORPHO RUN #{}----------".format(flist[len(flist)-1][0]))
     
     #Sample inputs to the data generator and save to one branch of a root file:
-    #inputs_dict = DefineGeneratorInputs(root_filename)
+    inputs_dict = DefineGeneratorInputs(root_filename)
     
-    #For now, fixing inputs:
-    inputs_dict = {"Q":QT2(), "mass":0.2, "KEmin":16323, "KEmax":19573.24, "sigma":18.6, "S":3300, "B_1kev":0.1, "scattering_prob":0.77, "err_from_B":0.5, "Nscatters":20}
+    #If fixing all inputs:
+    #inputs_dict = {"Q":QT2(), "mass":0.2, "KEmin":16323, "KEmax":19573.24, "sigma":18.6, "S":3300, "B_1kev":0.1, "scattering_prob":0.77, "err_from_B":0.5, "Nscatters":20}
     
     #Generate data using the inputs and save data
     tritium_data = GenerateFakeData(inputs_dict, root_filename)
