@@ -26,11 +26,11 @@ __all__ = []
 __all__.append(__name__)
 
 # Natural constants
-kr_line = 17.8260 # keV
-kr_line_width = 2.83 # eV
-e_charge = 1.60217662*10**(-19) # Coulombs , charge of electron
-m_e = 9.10938356*10**(-31) # Kilograms , mass of electron
-mass_energy_electron = 510.9989461 # keV
+kr_line = Constants.kr_line() # 17.8260 keV
+kr_line_width = Constants.kr_line_width() # 2.83 eV
+e_charge = Constants.e_charge() # 1.60217662*10**(-19) Coulombs , charge of electron
+m_e = Constants.m_e() # 9.10938356*10**(-31) Kilograms , mass of electron
+mass_energy_electron = Constants.m_electron()/1000 # 510.9989461 keV
 
 # A lorentzian function
 def lorentzian(x_array,x0,FWHM):
@@ -55,11 +55,7 @@ def gaussian_sigma_to_FWHM(sigma):
 
 # calculating combinatorics n choose r
 def ncr(n, r):
-    r = min(r, n-r)
-    if r == 0: return 1
-    res = 1
-    for k in range(1,r+1):
-        res = res*(n-k+1)/k
+    res = sp.misc.comb(n, r)
     return res
 
 #returns array with energy loss/ oscillator strength data
@@ -257,7 +253,6 @@ class ComplexLineShape(BaseProcessor):
         histogram = data_hist_freq
         bins = freq_bins
         guess = np.where(np.array(histogram) == np.max(histogram))[0][0]
-        print(guess)
         kr17kev_in_hz = guess*(bins[1]-bins[0])+bins[0]
         #self.B_field = B(17.8, kr17kev_in_hz + 0)
         self.results = self.fit_data(freq_bins, data_hist_freq, self.shakeSpectrumClassInstance)
@@ -317,8 +312,6 @@ class ComplexLineShape(BaseProcessor):
 
         f_e_loss = get_eloss_spec(energy_loss_array, f, kr_line)
         f_normed = self.normalize(f_e_loss)
-        #plt.plot(energy_loss_array, f_e_loss)
-        #plt.show()
         return f_normed
 
     # Convolves a function with the single scatter function, on the SELA
@@ -339,12 +332,9 @@ class ComplexLineShape(BaseProcessor):
             scatter_num_array = range(2, self.max_scatters+1)
             current_scatter = first_scatter
             scatter_spectra_single_gas[gas_type][str(1).zfill(2)] = current_scatter
-            # x = std_eV_array() # diagnostic
             for i in scatter_num_array:
                 current_scatter = self.another_scatter(current_scatter, gas_type)
                 scatter_spectra_single_gas[gas_type][str(i).zfill(2)] = current_scatter
-            # plt.plot(x,current_scatter) # diagnostic
-            # plt.show() # diagnostic
         scatter_spectra = {}
         scatter_spectra['{}_{}'.format(self.gases[0], self.gases[1])] = {}
         for i in range(1, self.max_scatters+1):
@@ -443,7 +433,7 @@ class ComplexLineShape(BaseProcessor):
                 self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
                 current_full_spectrum += current_working_spectrum*ncr(n, r)\
                 *(prob_parameter*p)**(r)*(prob_parameter*q)**(n-r)
-                # print(n, r, n-r)
+
         for n in range(max_comprehensive_scatters + 1, max_scatters + 1):
             current_working_spectrum = \
             scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
@@ -458,11 +448,7 @@ class ComplexLineShape(BaseProcessor):
             current_working_spectrum = \
             self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
             current_full_spectrum += current_working_spectrum*(prob_parameter*q)**(n)        
-            # print(n)
-        
-        # plt.plot(en_array,current_working_spectrum) # diagnostic
-        # plt.show() # diagnostic
-        # current_full_spectrum = normalize(current_full_spectrum)
+
         return current_full_spectrum
 
 

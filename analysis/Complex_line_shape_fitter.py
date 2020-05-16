@@ -16,11 +16,11 @@ class ComplexLineShapeTests(unittest.TestCase):
     def test_complex_lineshape(self):
         from mermithid.processors.IO import IOCicadaProcessor
         from mermithid.processors.misc.ComplexLineShape import ComplexLineShape
-        from mermithid.misc.Constants import seconds_per_year, tritium_endpoint
+
 
         reader_config = {
             "action": "read",
-            "filename": "/host/ShallowTrap8603-8669.root",
+            "filename": "/tests/events_000007031_katydid_v2.13.0_concat.root",
             "object_type": "TMultiTrackEventData",
             "object_name": "multiTrackEvents:Event",
             "use_katydid": False,
