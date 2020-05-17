@@ -7,3 +7,4 @@ services:
     volumes:
       # share a subdirectory from the host to /host in the docker (can be edited)
       - ~/mermithid_share:/host
+      - ~/mermithid_phaseII/mermithid:/host-mermithid

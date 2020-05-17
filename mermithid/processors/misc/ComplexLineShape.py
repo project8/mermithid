@@ -7,8 +7,8 @@ Date: 4/8/20
 from __future__ import absolute_import
 
 import numpy as np
-import scipy as sp
 from scipy.optimize import curve_fit
+from scipy.special import comb
 from scipy import integrate , signal, interpolate
 import os
 import time
@@ -52,11 +52,6 @@ def gaussian_FWHM_to_sigma(FWHM):
 def gaussian_sigma_to_FWHM(sigma):
     FWHM = sigma*(2*np.sqrt(2*np.log(2)))
     return FWHM
-
-# calculating combinatorics n choose r
-def ncr(n, r):
-    res = sp.misc.comb(n, r)
-    return res
 
 #returns array with energy loss/ oscillator strength data
 def read_oscillator_str_file(filename):
@@ -229,7 +224,7 @@ class ComplexLineShape(BaseProcessor):
         self.bins_choice = reader.read_param(params, 'bins_choice', [])
         self.gases = reader.read_param(params, 'gases', ["H2","Kr"])
         self.max_scatters = reader.read_param(params, 'max_scatters', 20)
-        self.max_comprehensive_scatters = reader.read_param(params, 'max_comprehensive_scatters', 4)
+        self.max_comprehensive_scatters = reader.read_param(params, 'max_comprehensive_scatters', 20)
         # This is an important parameter which determines how finely resolved
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
@@ -255,7 +250,7 @@ class ComplexLineShape(BaseProcessor):
         guess = np.where(np.array(histogram) == np.max(histogram))[0][0]
         kr17kev_in_hz = guess*(bins[1]-bins[0])+bins[0]
         #self.B_field = B(17.8, kr17kev_in_hz + 0)
-        self.results = self.fit_data(freq_bins, data_hist_freq, self.shakeSpectrumClassInstance)
+        self.results = self.fit_data(freq_bins, data_hist_freq)
 
         return True
 
@@ -284,9 +279,7 @@ class ComplexLineShape(BaseProcessor):
     # Only to be used for functions evaluated on the SELA
     def normalize(self, f):
         x_arr = self.std_eV_array()
-        f_norm = sp.integrate.simps(f,x=x_arr)
-        # if  f_norm < 0.99 or f_norm > 1.01:
-        #     print(f_norm)
+        f_norm = integrate.simps(f,x=x_arr)
         f_normed = f/f_norm
         return f_normed
 
@@ -317,7 +310,7 @@ class ComplexLineShape(BaseProcessor):
     # Convolves a function with the single scatter function, on the SELA
     def another_scatter(self, input_spectrum, gas_type):
         single = self.single_scatter_f(gas_type)
-        f = sp.signal.convolve(single,input_spectrum,mode='same')
+        f = signal.convolve(single,input_spectrum,mode='same')
         f_normed = self.normalize(f)
         return f_normed
 
@@ -347,7 +340,7 @@ class ComplexLineShape(BaseProcessor):
             for j in range(1, i):
                 H2_scatter = scatter_spectra_single_gas[self.gases[0]][str(j).zfill(2)]
                 Kr_scatter = scatter_spectra_single_gas[self.gases[1]][str(i-j).zfill(2)]
-                total_scatter = self.normalize(sp.signal.convolve(H2_scatter, Kr_scatter, mode='same'))
+                total_scatter = self.normalize(signal.convolve(H2_scatter, Kr_scatter, mode='same'))
                 scatter_spectra['{}_{}'.format(self.gases[0], self.gases[1])]['{}_{}'.format(str(j).zfill(2), str(i-j).zfill(2))] = total_scatter
         np.save(
         self.path_to_osc_strengths_files+'scatter_spectra_file/scatter_spectra.npy', 
@@ -398,57 +391,76 @@ class ComplexLineShape(BaseProcessor):
     def convolve_gaussian(self, func_to_convolve,gauss_FWHM_eV):
         sigma = gaussian_FWHM_to_sigma(gauss_FWHM_eV)
         resolution_f = self.std_gaussian(sigma)
-        ans = sp.signal.convolve(resolution_f,func_to_convolve,mode='same')
+        ans = signal.convolve(resolution_f,func_to_convolve,mode='same')
         ans_normed = self.normalize(ans)
         return ans_normed
 
-
-    def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitted_peak='shake'):
+    def make_spectrum(self, gauss_FWHM_eV, scale_of_first_order_peak, share_of_gas1_in_first_order_peak, amplitude_decreasing_rate_for_higher_order_peaks, emitted_peak='shake'):
         gases = self.gases
         max_scatters = self.max_scatters
         max_comprehensive_scatters = self.max_comprehensive_scatters
         current_path = self.path_to_osc_strengths_files
-        # check_existence_of_scatter_files()
         #filenames = list_files('scatter_spectra_files')
-        p = scatter_proportion
-        q = 1 - p
-        scatter_spectra = np.load(
-        current_path + 'scatter_spectra_file/scatter_spectra.npy', allow_pickle = True
-        )
+        a = share_of_gas1_in_first_order_peak*scale_of_first_order_peak
+        b = (1 - share_of_gas1_in_first_order_peak)*scale_of_first_order_peak
+        p = amplitude_decreasing_rate_for_higher_order_peaks
+        scatter_spectra = np.load(current_path + 'scatter_spectra_file/scatter_spectra.npy', allow_pickle = True)
         en_array = self.std_eV_array()
         current_full_spectrum = np.zeros(len(en_array))
         if emitted_peak == 'lorentzian':
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
-        current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
+        current_working_spectrum = self.convolve_gaussian(current_working_spectrum,gauss_FWHM_eV)
         zeroth_order_peak = current_working_spectrum
-        current_full_spectrum += current_working_spectrum
-        for n in range(1, max_comprehensive_scatters + 1):
-            for r in range(0, n + 1):
+        current_full_spectrum += zeroth_order_peak
+
+        current_working_spectrum = \
+        scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
+        ['{}_{}'.format(str(1).zfill(2), str(0).zfill(2))]
+        current_working_spectrum = \
+        self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+        first_order_peak1 = current_working_spectrum
+        current_full_spectrum += a*first_order_peak1
+
+        current_working_spectrum = \
+        scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
+        ['{}_{}'.format(str(0).zfill(2), str(1).zfill(2))]
+        current_working_spectrum = \
+        self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+        first_order_peak2 = current_working_spectrum
+        current_full_spectrum += b*first_order_peak2
+
+        for n in range(2, max_comprehensive_scatters + 1):
+            for r in range(0, n):
                 current_working_spectrum = \
                 scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
-                ['{}_{}'.format(str(r).zfill(2), str(n-r).zfill(2))]
+                ['{}_{}'.format(str(r).zfill(2), str(n-r-1).zfill(2))]
+
                 current_working_spectrum = \
-                self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
-                current_full_spectrum += current_working_spectrum*ncr(n, r)\
-                *(prob_parameter*p)**(r)*(prob_parameter*q)**(n-r)
+                self.normalize(signal.convolve(first_order_peak1, current_working_spectrum, mode='same'))
+                current_full_spectrum += a*current_working_spectrum*comb(n-1, r)\
+                *(p)**(n-1)
+
+                current_working_spectrum = \
+                self.normalize(signal.convolve(first_order_peak2, current_working_spectrum, mode='same'))
+                current_full_spectrum += b*current_working_spectrum*comb(n-1, r)\
+                *(p)**(n-1)
 
         for n in range(max_comprehensive_scatters + 1, max_scatters + 1):
             current_working_spectrum = \
             scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
-            ['{}_{}'.format(str(n).zfill(2), str(0).zfill(2))]
+            ['{}_{}'.format(str(n-1).zfill(2), str(0).zfill(2))]
             current_working_spectrum = \
-            self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
-            current_full_spectrum += current_working_spectrum*(prob_parameter*p)**(n)
+            self.normalize(signal.convolve(first_order_peak1, current_working_spectrum, mode='same'))
+            current_full_spectrum += current_working_spectrum*(p)**(n-1)
 
             current_working_spectrum = \
             scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
-            ['{}_{}'.format(str(0).zfill(2), str(n).zfill(2))]
+            ['{}_{}'.format(str(0).zfill(2), str(n-1).zfill(2))]
             current_working_spectrum = \
-            self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
-            current_full_spectrum += current_working_spectrum*(prob_parameter*q)**(n)        
-
+            self.normalize(signal.convolve(first_order_peak2, current_working_spectrum, mode='same'))
+            current_full_spectrum += current_working_spectrum*(p)**(n-1)        
         return current_full_spectrum
 
 
@@ -466,15 +478,16 @@ class ComplexLineShape(BaseProcessor):
         FWHM_G_eV = p0[0]
         line_pos_keV = p0[1]
         amplitude = p0[2]
-        prob_parameter = p0[3]
-        scatter_proportion = p0[4]
+        scale_of_first_order_peak = p0[3]
+        share_of_gas1_in_first_order_peak = p0[4]
+        amplitude_decreasing_rate_for_higher_order_peaks = p0[5]
     
         line_pos_eV = line_pos_keV*1000.
         x_eV_minus_line = x_eV - line_pos_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
     
-        full_spectrum = self.make_spectrum(FWHM_G_eV, prob_parameter, scatter_proportion)
+        full_spectrum = self.make_spectrum(FWHM_G_eV, scale_of_first_order_peak, share_of_gas1_in_first_order_peak, amplitude_decreasing_rate_for_higher_order_peaks)
         full_spectrum_rev = flip_array(full_spectrum)
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
@@ -487,7 +500,7 @@ class ComplexLineShape(BaseProcessor):
     # You must also supply a guess for the self.B_field present for the run;
     # 0.959 T is usually sufficient.
 
-    def fit_data(self, freq_bins, data_hist_freq, print_params=True):
+    def fit_data(self, freq_bins, data_hist_freq):
         t = time.time()
         self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
@@ -502,38 +515,39 @@ class ComplexLineShape(BaseProcessor):
         line_pos_keV_max = bins_keV[len(bins_keV)-1]
         amplitude_min = 1e-5
         amplitude_max = np.sum(data_hist)*3
-        prob_parameter_min = 1e-5
-        prob_parameter_max = 1
-        scatter_proportion_min = 1e-5
-        scatter_proportion_max = 1
+        scale_of_first_order_peak_min = 1e-5
+        scale_of_first_order_peak_max = 1
+        share_of_gas1_in_first_order_peak_min = 1e-5
+        share_of_gas1_in_first_order_peak_max = 1
+        amplitude_decreasing_rate_for_higher_order_peaks_min = 1e-5
+        amplitude_decreasing_rate_for_higher_order_peaks_max = 1
         # Initial guesses for curve_fit
         FWHM_guess = 5
         line_pos_guess = bins_keV[np.argmax(data_hist)]
         amplitude_guess = np.sum(data_hist)/2
-        prob_parameter_guess = 0.5
-        scatter_proportion_guess = 0.9
-        p0_guess = [FWHM_guess, line_pos_guess, amplitude_guess, prob_parameter_guess, scatter_proportion_guess] 
-        p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, prob_parameter_min, scatter_proportion_min],  
-                    [FWHM_eV_max, line_pos_keV_max, amplitude_max, prob_parameter_max, scatter_proportion_max])
+        scale_of_first_order_peak_guess = 0.5
+        share_of_gas1_in_first_order_peak_guess = 0.5
+        amplitude_decreasing_rate_for_higher_order_peaks_guess = 0.5
+        p0_guess = [FWHM_guess, line_pos_guess, amplitude_guess, scale_of_first_order_peak_guess, share_of_gas1_in_first_order_peak_guess, amplitude_decreasing_rate_for_higher_order_peaks_guess] 
+        p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, scale_of_first_order_peak_min, share_of_gas1_in_first_order_peak_min, amplitude_decreasing_rate_for_higher_order_peaks_min],  
+                    [FWHM_eV_max, line_pos_keV_max, amplitude_max, scale_of_first_order_peak_max, share_of_gas1_in_first_order_peak_max, amplitude_decreasing_rate_for_higher_order_peaks_max])
         # Actually do the fitting
         params , cov = curve_fit(self.spectrum_func,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p0_guess,bounds=p0_bounds)
         # Name each of the resulting parameters and errors
-        ################### Generalize to N Gases ###########################
         FWHM_G_eV_fit = params[0]
         line_pos_keV_fit = params[1]
-        #starting at index 2, grabs every other entry. (which is how scattering probs are filled in for N gases)
         amplitude_fit = params[2]
-        prob_parameter_fit = params[3]
-        scatter_proportion_fit = params[4]
-        total_counts_fit = amplitude_fit
+        scale_of_first_order_peak_fit = params[3]
+        share_of_gas1_in_first_order_peak_fit = params[4]
+        amplitude_decreasing_rate_for_higher_order_peaks_fit = params[5]
 
         perr = np.sqrt(np.diag(cov))
         FWHM_eV_G_fit_err = perr[0]
         line_pos_keV_fit_err = perr[1]
         amplitude_fit_err = perr[2]
-        prob_parameter_fit_err = perr[3]
-        scatter_proportion_fit_err = perr[4]
-        total_counts_fit_err = amplitude_fit_err
+        scale_of_first_order_peak_fit_err = perr[3]
+        share_of_gas1_in_first_order_peak_fit_err = perr[4]
+        amplitude_decreasing_rate_for_higher_order_peaks_fit_err = perr[5]
     
         fit = self.spectrum_func(bins_keV[0:-1],*params)
 
@@ -550,15 +564,16 @@ class ComplexLineShape(BaseProcessor):
         output_string += '-----------------\n'
         output_string += 'Amplitude = {}'.format(round(amplitude_fit,2))+' +/- {}'.format(round(amplitude_fit_err,2)) + '\n'
         output_string += '-----------------\n'
-        output_string += 'Probability parameter \n= ' + "{:.2e}".format(prob_parameter_fit)\
-        +' +/- ' + "{:.2e}".format(prob_parameter_fit_err)+'\n'
+        output_string += 'Scale of first order peak\n= ' + "{:.2e}".format(scale_of_first_order_peak_fit)\
+        +' +/- ' + "{:.2e}".format(scale_of_first_order_peak_fit_err)+'\n'
         output_string += '-----------------\n'
-        output_string += '{} Scatter proportion \n= '.format(self.gases[0]) + "{:.2e}".format(scatter_proportion_fit)\
-        +' +/- ' + "{:.2e}".format(scatter_proportion_fit_err)+'\n'
+        output_string += 'Share of {} in first order peak\n= {:.2e}'.format(self.gases[0], share_of_gas1_in_first_order_peak_fit)\
+        + ' +/- ' + '{:.2e}\n'.format(share_of_gas1_in_first_order_peak_fit_err)
         output_string += '-----------------\n'
-#         output_string += 'Total counts = '+"{}".format(round(total_counts_fit,2))\
-#         +' +/- '+"{}".format(round(total_counts_fit_err,2))+'\n'
-#         output_string += '-----------------\n'
+        output_string += 'Amplitude decreasing rate\n for higher order peaks\n= {:.2e}'.format(amplitude_decreasing_rate_for_higher_order_peaks_fit)\
+        + ' +/- ' + "{:.2e}\n".format(amplitude_decreasing_rate_for_higher_order_peaks_fit_err)
+        output_string += '-----------------\n'
+        elapsed = time.time() - t
         output_string += 'Fit completed in '+str(round(elapsed,2))+'s'+'\n'
         dictionary_of_fit_results = {
         'output_string': output_string,
@@ -573,10 +588,12 @@ class ComplexLineShape(BaseProcessor):
         'line_pos_Hz_fit_err': line_pos_Hz_fit_err,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
-        'prob_parameter_fit': prob_parameter_fit,
-        'prob_parameter_fit_err': prob_parameter_fit_err,
-        'scatter_proportion_fit': scatter_proportion_fit,
-        'scatter_proportion_fit_err': scatter_proportion_fit_err,
+        'scale_of_first_order_peak_fit': scale_of_first_order_peak_fit,
+        'scale_of_first_order_peak_fit_err': scale_of_first_order_peak_fit_err,
+        'share_of_gas1_in_first_order_peak_fit': share_of_gas1_in_first_order_peak_fit,
+        'share_of_gas1_in_first_order_peak_fit_err': share_of_gas1_in_first_order_peak_fit_err,
+        'amplitude_decreasing_rate_for_higher_order_peaks_fit': amplitude_decreasing_rate_for_higher_order_peaks_fit,
+        'amplitude_decreasing_rate_for_higher_order_peaks_fit_err': amplitude_decreasing_rate_for_higher_order_peaks_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq
