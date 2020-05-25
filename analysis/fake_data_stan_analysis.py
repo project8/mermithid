@@ -34,7 +34,6 @@ from morpho.processors.IO import IOROOTProcessor, IORProcessor
 priorSampler = PriorSamplingProcessor("sample")
 specGen = FakeDataGenerator("specGen")
 writerProcessor = IOROOTProcessor("writer")
-readerProcessor = IOROOTProcessor("reader")
 rReaderProcessor = IORProcessor("reader")
 analysisProcessor = PyStanSamplingProcessor("analyzer")
 aposterioriPlotter = APosterioriDistribution("posterioriDistrib")
@@ -203,9 +202,9 @@ def StanTritiumAnalysis(data, fit_parameters=None, root_file='./results/tritium_
         #***Add "temp_" when I switch to cmdstan.***
         "model_name": stan_files_location+"tritium_model/models/tritium_phase_II_analyzer_unbinned",
         "cache_dir": stan_files_location+"tritium_model/cache",
-        "warmup": 50,
-        "iter": 100,
-        "chain": 1,
+        "warmup": 60, #Increase this for a real run
+        "iter": 80, #Same
+        "chain": 1, #Same
         "control": {'adapt_delta':0.90},
         "init": {
             "sigma": 18.6,
@@ -352,12 +351,26 @@ def PerformFakeExperiment(root_filename, plot_results=False, parallelized=True):
     #Optionally plot posteriors
     if plot_results == True:
         PlotStanResults(posteriors)
-        
-    #Dictionary containing Stan convergence diagnostics information
-    #return analysis_diagnostics
 
 
-def FakeExperimentEnsemble(n_runs, root_basename, wait_before_runs=0, parallelize=True, n_processes=4):
+def CalibrateResults(root_filenames, vars_to_calibrate, cred_interval=[0.05, 0.95]):
+    from morpho.processors.diagnostics.CalibrationProcessor import CalibrationProcessor
+    calibrator = CalibrationProcessor("calib")
+
+    calib_config = {
+    "files": root_filenames,
+    "in_param_names": vars_to_calibrate,
+    "cred_interval": cred_interval,
+    "verbose": False
+    }
+    #Configuration step
+    calibrator.Configure(calib_config)
+    
+    #Calibrating results
+    calibrator.Run()
+
+
+def FakeExperimentEnsemble(n_runs, root_basename, wait_before_runs=0, parallelize=True, n_processes=4, vars_to_calibrate=['Q']):
     """
     To-do: add parallelization option for a Slurm environment.
     
@@ -382,10 +395,13 @@ def FakeExperimentEnsemble(n_runs, root_basename, wait_before_runs=0, paralleliz
             p.map(PerformFakeExperiment, root_filenames)
     #_print_diag_summary(analysis_diagnostics)
     
-    return root_filenames
+    coverages = CalibrateResults(root_filenames, vars_to_calibrate)
+    
+    return coverages
 
 
 if __name__ == '__main__':
-    root_files = FakeExperimentEnsemble(1, "fake_data_and_results.root", wait_before_runs=30)
+    interest_vars = ['Q', 'mass', 'KEmin', 'sigma', 'S', 'B_1kev']
+    FakeExperimentEnsemble(2, "fake_data_and_results.root", wait_before_runs=30, vars_to_calibrate=interest_vars)
     
     
