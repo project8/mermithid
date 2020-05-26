@@ -1,7 +1,7 @@
 #
 # fake_data_stan_analysis.py
 # Author: T. E. Weiss
-# Date modified: May 3, 2020
+# Date modified: May 25, 2020
 #
 # This script generates fake data, then analyzes the data in Stan to infer posteriors.
 # Pathnames configured for running from: scripts/Phase-II-official-analysis/fake-data-study/
@@ -12,7 +12,7 @@ To-do:
     - In FakeExperimentEnsemble, add:
         1. Tracking of convergence issues, so that a summary of problems can be saved/printed
         2. An option to parallelize with slurm instead of multiprocessing
-    - Run morpho processors a) for pre-generation sampling and b) for continuous-variable calibration (once the processors have been tested sufficiently)
+    - Run morpho processor for ensemble-analysis plotting, once it has been tested sufficiently
     - Improve some comments (e.g. describing Stan priors)
 """
 
@@ -27,7 +27,7 @@ from mermithid.misc.Constants import *
 from mermithid.processors.TritiumSpectrum.FakeDataGenerator import FakeDataGenerator
 #Importing processors from morpho
 from morpho.processors.sampling import PyStanSamplingProcessor, PriorSamplingProcessor
-from morpho.processors.plots import APosterioriDistribution, Histo2dDivergence
+from morpho.processors.plots import Histogram, APosterioriDistribution, Histo2dDivergence
 from morpho.processors.IO import IOROOTProcessor, IORProcessor
 
 #Defining processors
@@ -36,6 +36,7 @@ specGen = FakeDataGenerator("specGen")
 writerProcessor = IOROOTProcessor("writer")
 rReaderProcessor = IORProcessor("reader")
 analysisProcessor = PyStanSamplingProcessor("analyzer")
+histPlotter = Histogram("histo")
 aposterioriPlotter = APosterioriDistribution("posterioriDistrib")
 divPlotter = Histo2dDivergence("2dDivergence")
 
@@ -50,7 +51,8 @@ def DefineGeneratorInputs(root_file='./results/tritium_analysis.root'):
     prior_sampler_config = {
     "fixed_inputs": {
         'KEmax': QT2()+1000.,
-        'Nscatters': 20
+        'Nscatters': 20,
+        'B_field': 0.9578186017836624
         },
     "priors": [
         {'name': 'Q', 'prior_dist': 'normal', 'prior_params': [QT2(), 0.07]},
@@ -124,7 +126,7 @@ def GenerateFakeData(inputs_dict, root_file="./results/tritium_analysis.root"):
         "scattering_prob": inputs_dict["scattering_prob"],
         "err_from_B": inputs_dict["err_from_B"],
         "Nscatters": inputs_dict["Nscatters"],
-        "B_field": 0.9578186017836624,
+        "B_field": inputs_dict["B_field"],
         "n_steps": 60000,
     }
     
@@ -137,37 +139,27 @@ def GenerateFakeData(inputs_dict, root_file="./results/tritium_analysis.root"):
         {"variable": "K", "root_alias":"KE", "type": "float"},
         {"variable": "F", "type": "float"}
     ]}
+    histo_config = {
+        "variables": "K",
+        "n_bins_x": 100,
+        "output_path": "./results/",
+        "title": "Psuedo-data",
+        "format": "pdf"
+    }
     
     #Configuration step
     specGen.Configure(specGen_config)
     writerProcessor.Configure(data_writer_config)
+    histPlotter.Configure(histo_config)
     #Generate data
     specGen.Run()
     results = specGen.results
     #Save data points
     writerProcessor.data = results
     writerProcessor.Run()
-    
     #Plot histograms of generated data
-    Kgen = results['K']
-    Fgen = results['F']
-
-    plt.figure(figsize=(7, 7))
-    plt.subplot(211)
-    n, b, _ = plt.hist(Kgen, bins=100, label='Fake data')
-    plt.plot(specGen.Koptions, specGen.probs/(specGen.Koptions[1]-specGen.Koptions[0])*(b[1]-b[0])*len(Kgen), label='Model')
-    plt.xlabel('K [eV]')
-    plt.ylabel('N')
-    plt.legend()
-
-    plt.subplot(212)
-    n, b, p = plt.hist(Fgen, bins=100, label='Fake data')
-    plt.xlabel('F [Hz]')
-    plt.ylabel('N')
-    plt.legend()
-
-    plt.tight_layout()
-    plt.savefig('GeneratedData.png', dpi=100)
+    histPlotter.data = {key:val.tolist() for key, val in results.items()}
+    histPlotter.Run()
     
     return results
 
@@ -326,7 +318,7 @@ def PlotStanResults(posteriors, correlation_vars=['Q', 'KEmin', 'lp_prob'], dive
     divPlotter.Run()
 
 
-def PerformFakeExperiment(root_filename, plot_results=False, parallelized=True):
+def PerformFakeExperiment(root_filename, plot_results=True, parallelized=True):
     """
     Generate fake tritium data and analyze it in Stan. If plot_results==True, create correlation and divergence plots.
     
@@ -339,9 +331,6 @@ def PerformFakeExperiment(root_filename, plot_results=False, parallelized=True):
     #Sample inputs to the data generator and save to one branch of a root file:
     inputs_dict = DefineGeneratorInputs(root_filename)
     
-    #If fixing all inputs:
-    #inputs_dict = {"Q":QT2(), "mass":0.2, "KEmin":16323, "KEmax":19573.24, "sigma":18.6, "S":3300, "B_1kev":0.1, "scattering_prob":0.77, "err_from_B":0.5, "Nscatters":20}
-    
     #Generate data using the inputs and save data
     tritium_data = GenerateFakeData(inputs_dict, root_filename)
     
@@ -351,7 +340,7 @@ def PerformFakeExperiment(root_filename, plot_results=False, parallelized=True):
     #Optionally plot posteriors
     if plot_results == True:
         PlotStanResults(posteriors)
-
+    
 
 def CalibrateResults(root_filenames, vars_to_calibrate, cred_interval=[0.05, 0.95]):
     from morpho.processors.diagnostics.CalibrationProcessor import CalibrationProcessor
@@ -393,15 +382,16 @@ def FakeExperimentEnsemble(n_runs, root_basename, wait_before_runs=0, paralleliz
         root_filenames = ["./results/"+str(i)+root_basename for i in range(n_runs)]
         with Pool(n_processes) as p:
             p.map(PerformFakeExperiment, root_filenames)
-    #_print_diag_summary(analysis_diagnostics)
-    
+            
     coverages = CalibrateResults(root_filenames, vars_to_calibrate)
     
     return coverages
 
 
 if __name__ == '__main__':
+    root_filenames=['./results/0fake_data_and_results.root']
     interest_vars = ['Q', 'mass', 'KEmin', 'sigma', 'S', 'B_1kev']
-    FakeExperimentEnsemble(2, "fake_data_and_results.root", wait_before_runs=30, vars_to_calibrate=interest_vars)
+    #coverages = CalibrateResults(root_filenames, interest_vars)
+    FakeExperimentEnsemble(1, "fake_data_and_results.root", wait_before_runs=30, vars_to_calibrate=interest_vars)
     
     
