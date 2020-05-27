@@ -603,15 +603,15 @@ class ComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
-    def make_spectrum_1(self, gauss_FWHM_eV, share_of_gas1_in_first_order_peak, amplitude_decreasing_rate_for_higher_order_peaks, emitted_peak='shake'):
+    def make_spectrum_1(self, gauss_FWHM_eV, share_of_gas1_in_first_order_peak, amplitude_decreasing_rate, emitted_peak='shake'):
         gases = self.gases
         max_scatters = self.max_scatters
         max_comprehensive_scatters = self.max_comprehensive_scatters
         current_path = self.path_to_osc_strengths_files
-        scale_of_first_order_peak = amplitude_decreasing_rate_for_higher_order_peaks
+        scale_of_first_order_peak = amplitude_decreasing_rate
         a = share_of_gas1_in_first_order_peak*scale_of_first_order_peak
         b = (1 - share_of_gas1_in_first_order_peak)*scale_of_first_order_peak
-        p = amplitude_decreasing_rate_for_higher_order_peaks
+        p = amplitude_decreasing_rate
         scatter_spectra = np.load(current_path + 'scatter_spectra_file/scatter_spectra.npy', allow_pickle = True)
         en_array = self.std_eV_array()
         current_full_spectrum = np.zeros(len(en_array))
@@ -684,14 +684,14 @@ class ComplexLineShape(BaseProcessor):
         line_pos_keV = p0[1]
         amplitude = p0[2]
         share_of_gas1_in_first_order_peak = p0[3]
-        amplitude_decreasing_rate_for_higher_order_peaks = p0[4]
+        amplitude_decreasing_rate = p0[4]
     
         line_pos_eV = line_pos_keV*1000.
         x_eV_minus_line = x_eV - line_pos_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
     
-        full_spectrum = self.make_spectrum_1(FWHM_G_eV, share_of_gas1_in_first_order_peak, amplitude_decreasing_rate_for_higher_order_peaks)
+        full_spectrum = self.make_spectrum_1(FWHM_G_eV, share_of_gas1_in_first_order_peak, amplitude_decreasing_rate)
         full_spectrum_rev = flip_array(full_spectrum)
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
@@ -714,17 +714,17 @@ class ComplexLineShape(BaseProcessor):
             amplitude_max = np.sum(data_hist)*3
             share_of_gas1_in_first_order_peak_min = 1e-5
             share_of_gas1_in_first_order_peak_max = 1
-            amplitude_decreasing_rate_for_higher_order_peaks_min = 1e-5
-            amplitude_decreasing_rate_for_higher_order_peaks_max = 1
+            amplitude_decreasing_rate_min = 1e-5
+            amplitude_decreasing_rate_max = 1
             # Initial guesses for curve_fit
             FWHM_guess = 5
             line_pos_guess = bins_keV[np.argmax(data_hist)]
             amplitude_guess = np.sum(data_hist)/2
             share_of_gas1_in_first_order_peak_guess = 0.5
-            amplitude_decreasing_rate_for_higher_order_peaks_guess = 0.5
-            p0_guess = [FWHM_guess, line_pos_guess, amplitude_guess, share_of_gas1_in_first_order_peak_guess, amplitude_decreasing_rate_for_higher_order_peaks_guess] 
-            p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, share_of_gas1_in_first_order_peak_min, amplitude_decreasing_rate_for_higher_order_peaks_min],  
-                        [FWHM_eV_max, line_pos_keV_max, amplitude_max, share_of_gas1_in_first_order_peak_max, amplitude_decreasing_rate_for_higher_order_peaks_max])
+            amplitude_decreasing_rate_guess = 0.5
+            p0_guess = [FWHM_guess, line_pos_guess, amplitude_guess, share_of_gas1_in_first_order_peak_guess, amplitude_decreasing_rate_guess] 
+            p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, share_of_gas1_in_first_order_peak_min, amplitude_decreasing_rate_min],  
+                        [FWHM_eV_max, line_pos_keV_max, amplitude_max, share_of_gas1_in_first_order_peak_max, amplitude_decreasing_rate_max])
             # Actually do the fitting
             params , cov = curve_fit(self.spectrum_func_1,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p0_guess,bounds=p0_bounds)
             # Name each of the resulting parameters and errors
@@ -732,14 +732,14 @@ class ComplexLineShape(BaseProcessor):
             line_pos_keV_fit = params[1]
             amplitude_fit = params[2]
             share_of_gas1_in_first_order_peak_fit = params[3]
-            amplitude_decreasing_rate_for_higher_order_peaks_fit = params[4]
+            amplitude_decreasing_rate_fit = params[4]
 
             perr = np.sqrt(np.diag(cov))
             FWHM_eV_G_fit_err = perr[0]
             line_pos_keV_fit_err = perr[1]
             amplitude_fit_err = perr[2]
             share_of_gas1_in_first_order_peak_fit_err = perr[3]
-            amplitude_decreasing_rate_for_higher_order_peaks_fit_err = perr[4]
+            amplitude_decreasing_rate_fit_err = perr[4]
     
             fit = self.spectrum_func_1(bins_keV[0:-1],*params)
 
@@ -759,8 +759,8 @@ class ComplexLineShape(BaseProcessor):
             output_string += 'Share of {} in first order peak\n= {:.2e}'.format(self.gases[0], share_of_gas1_in_first_order_peak_fit)\
             + ' +/- ' + '{:.2e}\n'.format(share_of_gas1_in_first_order_peak_fit_err)
             output_string += '-----------------\n'
-            output_string += 'Amplitude decreasing rate\n for higher order peaks\n= {:.2e}'.format(amplitude_decreasing_rate_for_higher_order_peaks_fit)\
-            + ' +/- ' + "{:.2e}\n".format(amplitude_decreasing_rate_for_higher_order_peaks_fit_err)
+            output_string += 'Amplitude decreasing rate\n = {:.2e}'.format(amplitude_decreasing_rate_fit)\
+            + ' +/- ' + "{:.2e}\n".format(amplitude_decreasing_rate_fit_err)
             output_string += '-----------------\n'
             elapsed = time.time() - t
             output_string += 'Fit completed in '+str(round(elapsed,2))+'s'+'\n'
@@ -779,8 +779,8 @@ class ComplexLineShape(BaseProcessor):
             'B_field_fit_err': B_field_fit_err,
             'share_of_gas1_in_first_order_peak_fit': share_of_gas1_in_first_order_peak_fit,
             'share_of_gas1_in_first_order_peak_fit_err': share_of_gas1_in_first_order_peak_fit_err,
-            'amplitude_decreasing_rate_for_higher_order_peaks_fit': amplitude_decreasing_rate_for_higher_order_peaks_fit,
-            'amplitude_decreasing_rate_for_higher_order_peaks_fit_err': amplitude_decreasing_rate_for_higher_order_peaks_fit_err,
+            'amplitude_decreasing_rate_fit': amplitude_decreasing_rate_fit,
+            'amplitude_decreasing_rate_fit_err': amplitude_decreasing_rate_fit_err,
             'amplitude_fit': amplitude_fit,
             'amplitude_fit_err': amplitude_fit_err,
             'data_hist_freq': data_hist_freq
