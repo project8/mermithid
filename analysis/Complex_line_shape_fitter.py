@@ -30,7 +30,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             'bins_choice': np.linspace(0,90e6,1000),
             'gases': ["H2","Kr"],
             'max_scatters': 20,
-            'decouple_main_peak_from_tail': True,
+            'decouple_main_peak_from_tail': False,
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,
