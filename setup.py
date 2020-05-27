@@ -20,7 +20,7 @@ on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 
 # Change tag and version number below
 MORPHO_TAG = "v2.6.0"
-MORPHO_HASH = '61131695fea31e50042828b227a4477e378bebfa'
+MORPHO_HASH = '0f57cdc5babc0f679f58b44fde2cc4fe46774b77'
 
 # Don't touch below
 MORPHO_VERSION='{}-0-g{}'.format(MORPHO_TAG,MORPHO_HASH[:7])
