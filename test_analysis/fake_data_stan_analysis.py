@@ -20,11 +20,12 @@ To-do:
 #import unittest
 from morpho.utilities import morphologging
 logger = morphologging.getLogger(__name__)
-import matplotlib.pyplot as plt
+import numpy as np
 
 #Importing constants from mermithid
 from mermithid.misc.Constants import *
 from mermithid.processors.TritiumSpectrum.FakeDataGenerator import FakeDataGenerator
+from mermithid.processors.misc.TritiumAndEfficiencyBinner import TritiumAndEfficiencyBinner
 #Importing processors from morpho
 from morpho.processors.sampling import PyStanSamplingProcessor, PriorSamplingProcessor
 from morpho.processors.plots import Histogram, APosterioriDistribution, Histo2dDivergence
@@ -50,19 +51,18 @@ def DefineGeneratorInputs(root_file='./results/tritium_analysis.root'):
     """
     prior_sampler_config = {
     "fixed_inputs": {
-        'KEmax': QT2()+1000.,
         'Nscatters': 20,
-        'B_field': 0.9578186017836624
+        'minf': 1353.125e+06 - 40e+06 + 24.5e+09, #In Hz
+        'err_from_B': 0.
         },
     "priors": [
         {'name': 'Q', 'prior_dist': 'normal', 'prior_params': [QT2(), 0.07]},
-        {'name': 'mass', 'prior_dist': 'gamma', 'prior_params': [1.135, 0.4344]},
-        {'name': 'KEmin', 'prior_dist': 'normal', 'prior_params': [16323., 5.]},
-        {'name': 'sigma', 'prior_dist': 'normal', 'prior_params': [18.6, 3.]},
-        {'name': 'S', 'prior_dist': 'normal', 'prior_params': [3300, 57.45]},
-        {'name': 'B_1kev', 'prior_dist': 'gamma', 'prior_params': [0.25, 0.4]},
-        {'name': 'scattering_prob', 'prior_dist': 'beta', 'prior_params': [55, 17]},
-        {'name': 'err_from_B', 'prior_dist': 'gamma', 'prior_params': [10, 0.05]}
+        {'name': 'mass', 'prior_dist': 'gamma', 'prior_params': [1.1532, 0.4291]},
+        {'name': 'sigma', 'prior_dist': 'normal', 'prior_params': [17.7084, 1.14658]}, #From Ali's complex lineshape fits. Final states not yet included.
+        {'name': 'S', 'prior_dist': 'normal', 'prior_params': [3300, 57.45]}, #To be replaced with better prior
+        {'name': 'B_1kev', 'prior_dist': 'gamma', 'prior_params': [0.25, 0.05]}, #To be replaced with better prior
+        {'name': 'survival_prob', 'prior_dist': 'beta', 'prior_params': [32, 60]}, #Centered approximately around 0.35. To be replaced given complex lineshape result/systematic assessment
+        {'name': 'Bfield', 'prior_dist': 'normal', 'prior_params': [0.9574762, 1.51e-6]}, #From complex lineshape fit to calibration data. More sig figs on mean needed?
         ]
     }
     
@@ -71,16 +71,16 @@ def DefineGeneratorInputs(root_file='./results/tritium_analysis.root'):
     "tree_name": "input",
     "filename": root_file,
     "variables": [
-        {"variable": "KEmax", "type": "float"},
         {"variable": "Nscatters", "type":"int"},
+        {"variable": "minf", "type": "float"},
+        {"variable": "err_from_B", "type": "float"},
         {"variable": "Q", "type": "float"},
         {"variable": "mass", "type": "float"},
-        {"variable": "KEmin", "type": "float"},
         {"variable": "sigma", "type": "float"},
         {"variable": "S", "type": "float"},
         {"variable": "B_1kev", "type": "float"},
-        {"variable": "scattering_prob", "type": "float"},
-        {"variable": "err_from_B", "type": "float"},
+        {"variable": "survival_prob", "type": "float"},
+        {"variable": "Bfield", "type": "float"}
     ]}
     
     #Configuration step
@@ -99,9 +99,9 @@ def DefineGeneratorInputs(root_file='./results/tritium_analysis.root'):
     return generator_inputs
 
 
-def GenerateFakeData(inputs_dict, root_file="./results/tritium_analysis.root", bin_data=True):
+def GenerateFakeData(inputs_dict):
     """
-    Generates fake Phase II tritium beta spectrum data, saves the data to a root file, and plots it.
+    Generates fake Phase II tritium beta spectrum data and plots it.
     
     Arguments:
     - inputs_dict: dictionary of parameter values inputted to the fake data generator.
@@ -118,58 +118,100 @@ def GenerateFakeData(inputs_dict, root_file="./results/tritium_analysis.root", b
         "return_frequency": True,
         "Q": inputs_dict["Q"],
         "mass": inputs_dict["mass"],
-        "Kmin": inputs_dict["KEmin"],
-        "Kmax": inputs_dict["KEmax"],
+        "minf": inputs_dict["minf"],
         "scattering_sigma": inputs_dict["sigma"],
         "S": inputs_dict["S"],
         "B_1kev": inputs_dict["B_1kev"],
-        "scattering_prob": inputs_dict["scattering_prob"],
+        "survival_prob": inputs_dict["survival_prob"],
         "err_from_B": inputs_dict["err_from_B"],
         "Nscatters": inputs_dict["Nscatters"],
-        "B_field": inputs_dict["B_field"],
+        "B_field": inputs_dict["Bfield"],
         "n_steps": 60000,
     }
     
+    histo_config = {
+        "variables": "F",
+        "n_bins_x": 110,
+        "output_path": "./results/",
+        "title": "0Psuedo-data",
+        "format": "pdf"
+    }
+    
+    #Configuration step
+    specGen.Configure(specGen_config)
+    histPlotter.Configure(histo_config)
+    #Generate data
+    specGen.Run()
+    results = specGen.results
+    #Plot histograms of generated data
+    histPlotter.data = {'F':results['F'].tolist()}
+    histPlotter.Run()
+    
+    return results
+
+
+def BinAndSaveData(tritium_data, nbins, root_file="./results/tritium_analysis.root"):
+    binner_config = {
+        "energy_or_frequency": 'frequency',
+        "variables": "F",
+        "title": "corrected_spectrum",
+        "efficiency_filepath": "../phase2_detection_efficiency_curve/combined_energy_corrected_count_rates/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
+        'bins': np.linspace(tritium_data['minf'], tritium_data['maxf'], nbins),
+        'fss_bins': False # If fss_bins is True, bins is ignored and overridden
+        }
+        
+    binner = TritiumAndEfficiencyBinner("binner")
+    binner.Configure(binner_config)
+    binner.data = tritium_data
+    binner.Run()
+    results = binner.results
+    stan_inputs = {'freq':results['F'], 'N':results['N'], 'eff_means':results['bin_efficiencies'], 'minf':tritium_data['minf'], 'maxf':tritium_data['maxf']}
+    results['minf'], results['maxf'] = tritium_data['minf'], tritium_data['maxf']
+
+    data_writer_config = {
+        "action": "write",
+        "tree_name": "data",
+        "file_option": "update",
+        "filename": root_file,
+        "variables": [
+        {"variable": "freq", "type": "float"},
+        {"variable": "N", "type":"float"},
+        {"variable": "eff_means", "type":"float"},
+        ]}
+    #It would be nice to save energies, too, but okay if not.
+    # {"variable": "K", "root_alias":"KE", "type": "float"}
+
+    #Save data points
+    writerProcessor.Configure(data_writer_config)
+    writerProcessor.data = stan_inputs
+    writerProcessor.Run()
+
+    return stan_inputs
+    
+    
+    
+def SaveUnbinnedData(tritium_data, root_file="./results/tritium_analysis.root"):
+
     data_writer_config = {
     "action": "write",
     "tree_name": "data",
     "file_option": "update",
     "filename": root_file,
     "variables": [
-        {"variable": "K", "root_alias":"KE", "type": "float"},
-        {"variable": "F", "type": "float"},
-        {"variable": "N", "type":"float"}
+    {"variable": "K", "root_alias":"KE", "type": "float"},
+    {"variable": "F", "type": "float", "root_alias":"freq"}
     ]}
-    
-    #Configuration step
-    specGen.Configure(specGen_config)
-    writerProcessor.Configure(data_writer_config)
-    histPlotter.Configure(histo_config)
-    #Generate data
-    specGen.Run()
-    results = specGen.results
+
     #Save data points
-    writerProcessor.data = results
+    writerProcessor.Configure(data_writer_config)
+    writerProcessor.data = tritium_data
     writerProcessor.Run()
-    
-    if bin_data == False:
-        #Plot histograms of generated data
-        histo_config = {
-            "variables": "K",
-            "n_bins_x": 300,
-            "output_path": "./results/",
-            "title": "0Psuedo-data",
-            "format": "pdf"
-        }
-        histPlotter.data = {key:val.tolist() for key, val in results.items()}
-        histPlotter.Run()
-    else:
-        #Other plotter?
-    
+
     return results
 
 
-def StanTritiumAnalysis(data, fit_parameters=None, root_file='./results/tritium_analysis.root', F_or_K='F', stan_files_location='../../morpho_models/', model_code='tritium_model/models/tritium_phase_II_analyzer_unbinned.stan', scattering_params_R='simplified_scattering_params.R'):
+
+def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/tritium_analysis.root', stan_files_location='../../morpho_models/', model_code='tritium_model/models/tritium_phase_II_analyzer_binned.stan', scattering_params_R='simplified_scattering_params.R'):
     """
     Analyzes frequency or kinetic energy data using a Stan model. Saves and plots posteriors.
     
@@ -183,8 +225,6 @@ def StanTritiumAnalysis(data, fit_parameters=None, root_file='./results/tritium_
         6) model_code: string; path to Stan model (absolute, or path from within stan_files_location)
         7) scattering_params_R: string; path to R file containing parameters employed for Stan scattering model
     """
-    #Load eff_means!!
-    
     #Read in scattering parameters from file
     scattering_reader_config = {
         "action": "read",
@@ -197,80 +237,83 @@ def StanTritiumAnalysis(data, fit_parameters=None, root_file='./results/tritium_
     analyzer_config = {
         "model_code": stan_files_location+model_code,
         "function_files_location": stan_files_location+"functions",
-        #***Add "temp_" when I switch to cmdstan.***
-        "model_name": stan_files_location+"tritium_model/models/tritium_phase_II_analyzer_unbinned",
+        #***Add "temp_" when switching to cmdstan.***
+        "model_name": stan_files_location+"tritium_model/models/tritium_phase_II_analyzer_binned", #Binned version of Stan model
         "cache_dir": stan_files_location+"tritium_model/cache",
-        "warmup": 60, #Increase this for a real run
-        "iter": 80, #Same
-        "chain": 1, #Same
-        "control": {'adapt_delta':0.90},
+        "warmup": 60, #Increase for real run (to 3000-4000)
+        "iter": 80, #Increase for real run (to 6000-8000)
+        "chain": 1, #Increase for real run (to 3-4)
+        "control": {'adapt_delta':0.95},
         "init": {
-            "sigma": 18.6,
+            "sigma": 17.7084,
+            "survival_prob": 0.35,
             "Q": 18573.24,
             "mass": 0.2,
-            "KEmin": 16323.,
+            "Bfield": 0.957476,
+            #"KEmin": 16000.,
             "S": 3300.,
-            "B_1kev": 0.1,
+            "B_1kev": 0.0125,
             "B": 0.35,
-            "A2": 9762.5
+            "rate_factor": 58000
         },
         "input_data": {
-            "KEmin_ctr": 16323.,
-            "KEmin_std": 5.,
-            "KEmax": 19573.24,
-            "sigma_ctr": 18.6,
-            "sigma_std": 3.,
-            "err_from_B": 0.5,
+            "sigma_ctr": 17.7084, #sigma params from Ali's complex lineshape fits.
+            "sigma_std": 1.14658, #Final states not yet included.
+            "err_from_B": 0.001, #Tiny smearing from f_c->K conversion
+            "Bfield_ctr": 0.9574762, #From complex lineshape fit to calibration
+            "Bfield_std": 1.51e-06, #data. More sig figs on mean needed?
+            "survival_prob_alpha": 32, #Centered around ~0.35. To be replaced
+            "survival_prob_beta": 60, #given complex lineshape result+systematics
             "Q_ctr": QT2(),
-            "Q_std": 75., #350
-            "m_alpha": 1.135,
-            "m_beta": 2.302,
-            "S_ctr": 3300.,
-            "S_std": 100, #50.
-            "B_1kev_alpha": 0.25,
-            "B_1kev_beta": 2.5,
-            "slope": 0.000390369173, #1.
-            "intercept": -6.00337656, #20380.5153
-            "scattering_prob": 0.77,
-            "Nscatters": 20
+            "Q_std": 75.,
+            "m_alpha": 1.1532,
+            "m_beta": 2.33046,
+            "S_ctr": 3300., #To be updated
+            "S_std": 100,
+            "B_1kev_alpha": 0.25, #To be updated
+            "B_1kev_beta": 20,
+            "KEscale": 16323, #This enables the option of cmdstan running
+#            "slope": 0.000390369173, #For efficiency modeling with unbinned data
+#            "intercept": -6.00337656,
+            "Nscatters": 16 #Because peaks>16 in simplified linesahpe have means->inf as FWHM->0
         },
-        "interestParams": ['Q', 'mass', 'KEmin', 'sigma', 'S', 'B_1kev', 'KE_sample', 'spectrum_fit'],
+        "interestParams": ['Q', 'mass','survival_prob', 'Bfield', 'sigma', 'S', 'B_1kev', 'KEmin'], #Update Stan fitted point generation, then save 'KE_sample' and 'spectrum_fit'
     }
     
     posteriors_writer_config = {
-    "action": "write",
-    "tree_name": "analysis",
-    "file_option": "update",
-    "filename": root_file,
-    "variables": [
-        {"variable": "Q", "type": "float"},
-        {"variable": "mass", "type": "float"},
-        {"variable": "KEmin", "type": "float"},
-        {"variable": "sigma", "type": "float"},
-        {"variable": "B_1kev", "type": "float"},
-        {"variable": "S", "type": "float"},
-        {"variable": "KE_sample", "type": "float"},
-        {"variable": "spectrum_fit", "type": "float"},
-        {"variable": "divergent__", "root_alias": "divergence", "type": "float"},
-        {"variable": "energy__", "root_alias": "energy", "type": "float"},
-        {"variable": "lp_prob", "root_alias": "lp_prob", "type": "float"}
-    ]}
+        "action": "write",
+        "tree_name": "analysis",
+        "file_option": "update",
+        "filename": root_file,
+        "variables": [
+            {"variable": "Q", "type": "float"},
+            {"variable": "mass", "type": "float"},
+            {"variable": "survival_prob", "type": "float"},
+            {"variable": "Bfield", "type": "float"},
+            {"variable": "sigma", "type": "float"},
+            {"variable": "S", "type": "float"},
+            {"variable": "B_1kev", "type": "float"},
+            {"variable": "KEmin", "type": "float"},
+#            {"variable": "KE_sample", "type": "float"},
+#            {"variable": "spectrum_fit", "type": "float"},
+            {"variable": "divergent__", "root_alias": "divergence", "type": "float"},
+            {"variable": "energy__", "root_alias": "energy", "type": "float"},
+            {"variable": "lp_prob", "root_alias": "lp_prob", "type": "float"}
+        ]}
     
     #Configuration step
     rReaderProcessor.Configure(scattering_reader_config)
     analysisProcessor.Configure(analyzer_config)
     writerProcessor.Configure(posteriors_writer_config)
 
-    #Make data and scattering parameters accessible to analyzers
-    analysisProcessor.data = {'N_data': [len(data[F_or_K])]} #List format here will be changed
-    if F_or_K == 'K':
-        analysisProcessor.data = {'KE':data['K']}
-    elif F_or_K == 'F':
-        analysisProcessor.data = {'F':data['F']}
-    else:
-        logger.warning("Input 'F_or_K'='F' for frequency or 'K' for energy.")
+    #Make data accessible to analyzer
+    analysisProcessor.data = tritium_data
+    analysisProcessor.data = {'Nbins': len(tritium_data['N'])}
+    
+    #Make scattering parameters accessible to analyzer
     rReaderProcessor.Run()
-    analysisProcessor.data = rReaderProcessor.data
+    pi = rReaderProcessor.data
+    analysisProcessor.data = {key:val[:analysisProcessor.data['Nscatters']] for key, val in pi.items()}
 
     #Run analysis
     analysisProcessor.Run()
@@ -283,7 +326,7 @@ def StanTritiumAnalysis(data, fit_parameters=None, root_file='./results/tritium_
     return results
 
 
-def PlotStanResults(posteriors, correlation_vars=['Q', 'KEmin', 'lp_prob'], divergence_vars=['Q', 'sigma', 'mass']):
+def PlotStanResults(posteriors, correlation_vars=['Q', 'mass'], divergence_vars=['Q', 'sigma', 'survival_prob']):
     """
     Creates and saves two plots:
         a) posteriors and correlations between them, and
@@ -296,7 +339,7 @@ def PlotStanResults(posteriors, correlation_vars=['Q', 'KEmin', 'lp_prob'], dive
         3) divergence_vars: list of strings; names of variables to be included in divergences plot
     """
     aposteriori_config = {
-        "n_bins_x": 50,
+        "n_bins_x": 50, #Potentially increase more Stan iterations are used
         "n_bins_y": 50,
         "variables": correlation_vars,
         "title": "Q_vs_Kmin",
@@ -324,7 +367,7 @@ def PlotStanResults(posteriors, correlation_vars=['Q', 'KEmin', 'lp_prob'], dive
     divPlotter.Run()
 
 
-def PerformFakeExperiment(root_filename, plot_results=True, parallelized=True):
+def PerformFakeExperiment(root_filename, plot_results=True, parallelized=True, bin_data=True):
     """
     Generate fake tritium data and analyze it in Stan. If plot_results==True, create correlation and divergence plots.
     
@@ -337,16 +380,23 @@ def PerformFakeExperiment(root_filename, plot_results=True, parallelized=True):
     #Sample inputs to the data generator and save to one branch of a root file:
     inputs_dict = DefineGeneratorInputs(root_filename)
     
-    #Generate data using the inputs and save data
-    tritium_data = GenerateFakeData(inputs_dict, root_filename)
-    """
+    #Generate data using the inputs
+    tritium_data_unbinned = GenerateFakeData(inputs_dict)
+    
+    #Optionally bin data, then save it
+    if bin_data:
+        nbins = 110
+        tritium_data = BinAndSaveData(tritium_data_unbinned, nbins, root_filename)
+    else:
+        tritium_data = SaveUnbinnedData(tritium_data, root_filename)
+    
     #Analyze data and save posteriors
-    posteriors = StanTritiumAnalysis(tritium_data, root_file=root_filename, F_or_K='K')
+    posteriors = StanTritiumAnalysis(tritium_data, root_file=root_filename)
     
     #Optionally plot posteriors
     if plot_results == True:
         PlotStanResults(posteriors)
-    """
+    
 
 def CalibrateResults(root_filenames, vars_to_calibrate, cred_interval=[0.05, 0.95]):
     from morpho.processors.diagnostics.CalibrationProcessor import CalibrationProcessor
@@ -361,7 +411,6 @@ def CalibrateResults(root_filenames, vars_to_calibrate, cred_interval=[0.05, 0.9
     #Configuration step
     calibrator.Configure(calib_config)
     
-    #Calibrating results
     calibrator.Run()
 
 
@@ -395,9 +444,9 @@ def FakeExperimentEnsemble(n_runs, root_basename, wait_before_runs=0, paralleliz
 
 
 if __name__ == '__main__':
-    root_filenames=['./results/0fake_data_and_results.root']
-    interest_vars = ['Q', 'mass', 'KEmin', 'sigma', 'S', 'B_1kev']
-    #coverages = CalibrateResults(root_filenames, interest_vars)
+    interest_vars = ['Q', 'mass','survival_prob', 'Bfield', 'sigma', 'S', 'B_1kev']
+    #root_files = ['./results/0fake_data_and_results.root']
     FakeExperimentEnsemble(1, "fake_data_and_results.root", wait_before_runs=30, vars_to_calibrate=interest_vars)
     
-    
+    #CalibrateResults(root_files, interest_vars)
+
