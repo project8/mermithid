@@ -18,22 +18,10 @@ except Exception as err:
 
 on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 
-# Change tag and version number below
-MORPHO_TAG = "v2.5.0"
-MORPHO_HASH = '3ac7e8cd8056ed71741f83e1659093ac8b9c0963'
-
-# Don't touch below
-MORPHO_VERSION='{}-0-g{}'.format(MORPHO_TAG,MORPHO_HASH[:7])
-MORPHO_DEP_LINK = 'git+https://github.com/morphoorg/morpho.git@{0}#egg=morpho-{1}'.format(MORPHO_HASH,MORPHO_VERSION)
-MORPHO_REQ = "morpho=={0}".format(MORPHO_VERSION)
-
 requirements = []
 extras_require = {
-    'core':['colorlog', MORPHO_REQ],
-    'doc': ['sphinx','sphinx_rtd_theme','sphinxcontrib-programoutput', 'six', 'colorlog', MORPHO_REQ]
-}
-dep_links = {
-    MORPHO_DEP_LINK
+    'core':['colorlog', 'morpho'],
+    'doc': ['sphinx','sphinx_rtd_theme','sphinxcontrib-programoutput', 'six', 'colorlog', 'morpho']
 }
 
 if on_rtd:
@@ -54,7 +42,6 @@ setup(
     packages=find_packages(),
     install_requires=requirements,
     extras_require=extras_require,
-    dependency_links=dep_links,
     url='http://www.github.com/project8/mermithid',
     author = "M. Guigue",
     maintainer = "M. Guigue (PNNL)",
