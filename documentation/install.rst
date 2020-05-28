@@ -26,9 +26,9 @@ Inside your virtual environement, install mermithid: ::
 
 	source ~/path/to/the/virtual/environment/bin/activate # activate the virtual environement
 	echo $PYTHONPATH # make sure the build folder above is in this path
-	pip install . --process-dependency-links
+	pip install . -e ./morpho
 
-(The `--process-dependency-links` is here to install the right morpho version from github.)
+(The `-e ./morpho` is here to install the morpho version located in the `mermithid` top directory.)
 
 Docker installation
 --------------------

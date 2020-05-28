@@ -21,7 +21,6 @@ RUN mkdir -p $MERMITHID_BUILD_PREFIX &&\
 ########################
 FROM mermithid_common as mermithid_done
 
-# COPY . /tmp_source
 COPY analysis /tmp_source/analysis
 COPY Cicada /tmp_source/Cicada
 COPY documentation /tmp_source/documentation
@@ -51,4 +50,3 @@ RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
     pip3 install . -e ./morpho --prefix $MERMITHID_BUILD_PREFIX &&\
     /bin/true
 
-    
