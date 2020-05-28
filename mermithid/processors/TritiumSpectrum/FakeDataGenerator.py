@@ -20,7 +20,6 @@ from mermithid.misc.FakeTritiumDataFunctions import *
 logger = morphologging.getLogger(__name__)
 
 
-
 __all__ = []
 __all__.append(__name__)
 
@@ -126,6 +125,7 @@ class FakeDataGenerator(BaseProcessor):
         # get efficiency dictionary
         if self.apply_efficiency:
             self.efficiency_dict = self.load_efficiency_curve()
+            np.random.seed()
         else:
             self.efficiency_dict = None
 
@@ -152,7 +152,6 @@ class FakeDataGenerator(BaseProcessor):
 
 
     def InternalRun(self):
-
 
 
         Kgen = self.generate_unbinned_data(self.Q, self.m,
@@ -243,7 +242,9 @@ class FakeDataGenerator(BaseProcessor):
 
         if efficiency_dict is not None:
             logger.info('Evaluating efficiencies')
-            efficiency, _ = efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
+            efficiency_mean, efficiency_error = efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
+            efficiency = np.random.normal(efficiency_mean, efficiency_error)
+
         else:
             efficiency, _ = 1, 0
 
@@ -271,7 +272,7 @@ class FakeDataGenerator(BaseProcessor):
         time2 = time.time()
         logger.info('... background rate took {} s'.format(time2 - time1))
 
-        if err_from_B != None:
+        if err_from_B != None and err_from_B != 0.:
             dE = self.Koptions[1] - self.Koptions[0]
             #n_dE = round(max_energy/dE) #Number of steps for the narrow gaussian for energies > 0
             n_dE = 10*err_from_B/dE
@@ -290,7 +291,6 @@ class FakeDataGenerator(BaseProcessor):
         probsS = np.array(ratesS)/rate_sumS
         probsB = np.array(ratesB)/rate_sumB
         self.probs = (S*probsS + B*probsB)/(S+B)
-
 
         logger.info('Generating data')
         time4 = time.time()

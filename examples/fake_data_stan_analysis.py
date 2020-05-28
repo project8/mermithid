@@ -99,7 +99,7 @@ def DefineGeneratorInputs(root_file='./results/tritium_analysis.root'):
     return generator_inputs
 
 
-def GenerateFakeData(inputs_dict, root_file="./results/tritium_analysis.root"):
+def GenerateFakeData(inputs_dict, root_file="./results/tritium_analysis.root", bin_data=True):
     """
     Generates fake Phase II tritium beta spectrum data, saves the data to a root file, and plots it.
     
@@ -132,20 +132,14 @@ def GenerateFakeData(inputs_dict, root_file="./results/tritium_analysis.root"):
     
     data_writer_config = {
     "action": "write",
-    "tree_name": "gen_results",
+    "tree_name": "data",
     "file_option": "update",
     "filename": root_file,
     "variables": [
         {"variable": "K", "root_alias":"KE", "type": "float"},
-        {"variable": "F", "type": "float"}
+        {"variable": "F", "type": "float"},
+        {"variable": "N", "type":"float"}
     ]}
-    histo_config = {
-        "variables": "K",
-        "n_bins_x": 100,
-        "output_path": "./results/",
-        "title": "Psuedo-data",
-        "format": "pdf"
-    }
     
     #Configuration step
     specGen.Configure(specGen_config)
@@ -157,9 +151,20 @@ def GenerateFakeData(inputs_dict, root_file="./results/tritium_analysis.root"):
     #Save data points
     writerProcessor.data = results
     writerProcessor.Run()
-    #Plot histograms of generated data
-    histPlotter.data = {key:val.tolist() for key, val in results.items()}
-    histPlotter.Run()
+    
+    if bin_data == False:
+        #Plot histograms of generated data
+        histo_config = {
+            "variables": "K",
+            "n_bins_x": 300,
+            "output_path": "./results/",
+            "title": "0Psuedo-data",
+            "format": "pdf"
+        }
+        histPlotter.data = {key:val.tolist() for key, val in results.items()}
+        histPlotter.Run()
+    else:
+        #Other plotter?
     
     return results
 
@@ -177,8 +182,9 @@ def StanTritiumAnalysis(data, fit_parameters=None, root_file='./results/tritium_
         5) stan_files_location: string; path to directory that contains folders with Stan function files, models, and model caches
         6) model_code: string; path to Stan model (absolute, or path from within stan_files_location)
         7) scattering_params_R: string; path to R file containing parameters employed for Stan scattering model
-        
     """
+    #Load eff_means!!
+    
     #Read in scattering parameters from file
     scattering_reader_config = {
         "action": "read",
@@ -333,14 +339,14 @@ def PerformFakeExperiment(root_filename, plot_results=True, parallelized=True):
     
     #Generate data using the inputs and save data
     tritium_data = GenerateFakeData(inputs_dict, root_filename)
-    
+    """
     #Analyze data and save posteriors
     posteriors = StanTritiumAnalysis(tritium_data, root_file=root_filename, F_or_K='K')
     
     #Optionally plot posteriors
     if plot_results == True:
         PlotStanResults(posteriors)
-    
+    """
 
 def CalibrateResults(root_filenames, vars_to_calibrate, cred_interval=[0.05, 0.95]):
     from morpho.processors.diagnostics.CalibrationProcessor import CalibrationProcessor
