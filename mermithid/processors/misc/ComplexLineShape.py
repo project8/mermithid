@@ -225,7 +225,9 @@ class ComplexLineShape(BaseProcessor):
         self.gases = reader.read_param(params, 'gases', ["H2","Kr"])
         self.max_scatters = reader.read_param(params, 'max_scatters', 20)
         self.max_comprehensive_scatters = reader.read_param(params, 'max_comprehensive_scatters', 20)
-        self.decouple_main_peak_from_tail = reader.read_param(params, 'decouple_main_peak_from_tail', True)
+        self.fix_scatter_proportion = reader.read_param(params, 'fix_scatter_proportion', True)
+        if self.fix_scatter_proportion == True:
+            self.scatter_proportion = reader.read_param(params, 'gas1_scatter_proportion', 0.8)
         # This is an important parameter which determines how finely resolved
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
@@ -252,7 +254,6 @@ class ComplexLineShape(BaseProcessor):
         kr17kev_in_hz = guess*(bins[1]-bins[0])+bins[0]
         #self.B_field = B(17.8, kr17kev_in_hz + 0)
         if self.fix_scatter_proportion == True:
-            self.scatter_proportion = 0.8
             self.results = self.fit_data_1(freq_bins, data_hist_freq)
         else:
             self.results = self.fit_data(freq_bins, data_hist_freq)
@@ -400,7 +401,7 @@ class ComplexLineShape(BaseProcessor):
         ans_normed = self.normalize(ans)
         return ans_normed
 
-def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitted_peak='shake'):
+    def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitted_peak='shake'):
         gases = self.gases
         max_scatters = self.max_scatters
         max_comprehensive_scatters = self.max_comprehensive_scatters
@@ -427,23 +428,23 @@ def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitt
                 scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
                 ['{}_{}'.format(str(r).zfill(2), str(n-r).zfill(2))]
                 current_working_spectrum = \
-                self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
-                current_full_spectrum += current_working_spectrum*ncr(n, r)\
+                self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+                current_full_spectrum += current_working_spectrum*comb(n, r)\
                 *(prob_parameter*p)**(r)*(prob_parameter*q)**(n-r)
-                # print(n, r, n-r)
+
         for n in range(max_comprehensive_scatters + 1, max_scatters + 1):
             current_working_spectrum = \
             scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
             ['{}_{}'.format(str(n).zfill(2), str(0).zfill(2))]
             current_working_spectrum = \
-            self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+            self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
             current_full_spectrum += current_working_spectrum*(prob_parameter*p)**(n)
 
             current_working_spectrum = \
             scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
             ['{}_{}'.format(str(0).zfill(2), str(n).zfill(2))]
             current_working_spectrum = \
-            self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+            self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
             current_full_spectrum += current_working_spectrum*(prob_parameter*q)**(n)
         return current_full_spectrum
 
@@ -604,8 +605,8 @@ def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitt
                 scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
                 ['{}_{}'.format(str(r).zfill(2), str(n-r).zfill(2))]
                 current_working_spectrum = \
-                self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
-                current_full_spectrum += current_working_spectrum*ncr(n, r)\
+                self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+                current_full_spectrum += current_working_spectrum*comb(n, r)\
                 *(prob_parameter*p)**(r)*(prob_parameter*q)**(n-r)
                 # print(n, r, n-r)
         for n in range(max_comprehensive_scatters + 1, max_scatters + 1):
@@ -613,14 +614,14 @@ def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitt
             scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
             ['{}_{}'.format(str(n).zfill(2), str(0).zfill(2))]
             current_working_spectrum = \
-            self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+            self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
             current_full_spectrum += current_working_spectrum*(prob_parameter*p)**(n)
 
             current_working_spectrum = \
             scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
             ['{}_{}'.format(str(0).zfill(2), str(n).zfill(2))]
             current_working_spectrum = \
-            self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+            self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
             current_full_spectrum += current_working_spectrum*(prob_parameter*q)**(n)
         return current_full_spectrum
 
@@ -643,7 +644,7 @@ def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitt
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
 
-        full_spectrum = self.make_spectrum(FWHM_G_eV, prob_parameter,)
+        full_spectrum = self.make_spectrum_1(FWHM_G_eV, prob_parameter,)
         full_spectrum_rev = flip_array(full_spectrum)
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
@@ -675,7 +676,7 @@ def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitt
         p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, prob_parameter_min],  
                     [FWHM_eV_max, line_pos_keV_max, amplitude_max, prob_parameter_max])
         # Actually do the fitting
-        params , cov = curve_fit(self.spectrum_func,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p0_guess,bounds=p0_bounds)
+        params , cov = curve_fit(self.spectrum_func_1,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p0_guess,bounds=p0_bounds)
         # Name each of the resulting parameters and errors
         ################### Generalize to N Gases ###########################
         FWHM_G_eV_fit = params[0]
@@ -692,7 +693,7 @@ def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitt
         prob_parameter_fit_err = perr[3]
         total_counts_fit_err = amplitude_fit_err
     
-        fit = self.spectrum_func(bins_keV[0:-1],*params)
+        fit = self.spectrum_func_1(bins_keV[0:-1],*params)
 
         line_pos_Hz_fit , line_pos_Hz_fit_err = energy_guess_to_frequency(line_pos_keV_fit, line_pos_keV_fit_err, self.B_field)
         B_field_fit , B_field_fit_err = central_frequency_to_B_field(line_pos_Hz_fit, line_pos_Hz_fit_err)
@@ -712,9 +713,6 @@ def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitt
         output_string += 'Probability parameter \n= ' + "{:.2e}".format(prob_parameter_fit)\
         +' +/- ' + "{:.2e}".format(prob_parameter_fit_err)+'\n'
         output_string += '-----------------\n'
-        output_string += '{} Scatter proportion \n= '.format(self.gases[0]) + "{:.2e}".format(scatter_proportion_fit)\
-        +' +/- ' + "{:.2e}".format(scatter_proportion_fit_err)+'\n'
-        output_string += '-----------------\n'
         output_string += 'Fit completed in '+str(round(elapsed,2))+'s'+'\n'
         dictionary_of_fit_results = {
         'output_string': output_string,
@@ -731,8 +729,6 @@ def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitt
         'B_field_fit_err': B_field_fit_err,
         'prob_parameter_fit': prob_parameter_fit,
         'prob_parameter_fit_err': prob_parameter_fit_err,
-        'scatter_proportion_fit': scatter_proportion_fit,
-        'scatter_proportion_fit_err': scatter_proportion_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq

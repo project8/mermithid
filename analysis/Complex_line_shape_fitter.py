@@ -31,6 +31,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             'gases': ["H2","Kr"],
             'max_scatters': 20,
             'fix_scatter_proportion': True,
+            'gas1_scatter_proportion': 0.8,
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,
