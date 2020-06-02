@@ -21,7 +21,8 @@ RUN mkdir -p $MERMITHID_BUILD_PREFIX &&\
 ########################
 FROM mermithid_common as mermithid_done
 
-COPY analysis /tmp_source/analysis
+# Commented out for now: should be changed to whatever is needed later
+# COPY analysis /tmp_source/analysis
 COPY Cicada /tmp_source/Cicada
 COPY documentation /tmp_source/documentation
 COPY morpho /tmp_source/morpho
