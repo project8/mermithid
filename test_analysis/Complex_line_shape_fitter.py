@@ -2,6 +2,8 @@
 Reads in data and fits it with complex lineshape model.
 Author: E. Machado, Y.-H. Sun, E. Novitski
 Date: 4/8/20
+
+There are two options available for fitting: fix_scatter_proportion = True and False.
 '''
 
 import numpy as np
@@ -30,13 +32,14 @@ class ComplexLineShapeTests(unittest.TestCase):
             'bins_choice': np.linspace(0,90e6,1000),
             'gases': ["H2","Kr"],
             'max_scatters': 20,
-            'fix_scatter_proportion': False,
+            'fix_scatter_proportion': True,
             'gas1_scatter_proportion': 0.8,
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,
             'RF_ROI_MIN': 25850000000.0,
             'B_field': 0.957810722501,
+            # shake_spectrum_parameters.json can be found at https://github.com/project8/scripts/tree/master/yuhao/line_shape_fitting/data
             'shake_spectrum_parameters_json_path': '/host/shake_spectrum_parameters.json',
             'path_to_osc_strengths_files': '/host/'
         }
