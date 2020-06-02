@@ -163,9 +163,9 @@ class ComplexLineShape(BaseProcessor):
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
 
-        if not os.path.exist(self.shake_spectrum_parameters_json_path):
+        if not os.path.exists(self.shake_spectrum_parameters_json_path):
             raise IOError('Shake spectrum path does not exist')
-        if not os.path.exist(self.path_to_osc_strengths_files):
+        if not os.path.exists(self.path_to_osc_strengths_files):
             raise IOError('Path to osc strengths files does not exist')
 
     def InternalRun(self):
