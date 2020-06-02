@@ -56,7 +56,6 @@ class ComplexLineShapeTests(unittest.TestCase):
         for key in data.keys():
             logger.info("{} -> size = {}".format(key,len(data[key])))
 
-        #print(data['StartFrequency'])
         start_frequency_array = np.array(data['StartFrequency'])
 
         complexLineShape.data = data
@@ -65,8 +64,6 @@ class ComplexLineShapeTests(unittest.TestCase):
 
         results = complexLineShape.results
         logger.info(results['output_string'])
-#        print(type(results['data_hist_freq']))
-#        print(len(results['data_hist_freq']))
 
         # plot fit with shake spectrum
         plt.rcParams.update({'font.size': 20})
