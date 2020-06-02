@@ -16,7 +16,7 @@ import sys
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.misc import Constants
-from mermithid.misc.ShakeSpectrum import ShakeSpectrumClass
+from mermithid.misc import ComplexLineShapeUtilities
 
 logger = morphologging.getLogger(__name__)
 
@@ -25,121 +25,121 @@ logger = morphologging.getLogger(__name__)
 __all__ = []
 __all__.append(__name__)
 
-# Natural constants
-kr_line = Constants.kr_line() # 17.8260 keV
-kr_line_width = Constants.kr_line_width() # 2.83 eV
-e_charge = Constants.e_charge() # 1.60217662*10**(-19) Coulombs , charge of electron
-m_e = Constants.m_e() # 9.10938356*10**(-31) Kilograms , mass of electron
-mass_energy_electron = Constants.m_electron()/1000 # 510.9989461 keV
+## Natural constants
+#kr_line = Constants.kr_line() # 17.8260 keV
+#kr_line_width = Constants.kr_line_width() # 2.83 eV
+#e_charge = Constants.e_charge() # 1.60217662*10**(-19) Coulombs , charge of electron
+#m_e = Constants.m_e() # 9.10938356*10**(-31) Kilograms , mass of electron
+#mass_energy_electron = Constants.m_electron()/1000 # 510.9989461 keV
 
-# A lorentzian function
-def lorentzian(x_array,x0,FWHM):
-    HWHM = FWHM/2.
-    func = (1./np.pi)*HWHM/((x_array-x0)**2.+HWHM**2.)
-    return func
-
-# A gaussian function
-def gaussian(x_array,A,sigma,mu):
-    f = A*(1./(sigma*np.sqrt(2*np.pi)))*np.exp(-(((x_array-mu)/sigma)**2.)/2.)
-    return f
-
-# Converts a gaussian's FWHM to sigma
-def gaussian_FWHM_to_sigma(FWHM):
-    sigma = FWHM/(2*np.sqrt(2*np.log(2)))
-    return sigma
-
-# Converts a gaussian's sigma to FWHM
-def gaussian_sigma_to_FWHM(sigma):
-    FWHM = sigma*(2*np.sqrt(2*np.log(2)))
-    return FWHM
-
-#returns array with energy loss/ oscillator strength data
-def read_oscillator_str_file(filename):
-    f = open(filename, "r")
-    lines = f.readlines()
-    f.close()
-    energyOsc = [[],[]] #2d array of energy losses, oscillator strengths
-
-    for line in lines:
-        if line != "" and line[0]!="#":
-            raw_data = [float(i) for i in line.split("\t")]
-            energyOsc[0].append(raw_data[0])
-            energyOsc[1].append(raw_data[1])
-
-    energyOsc = np.array(energyOsc)
-    ### take data and sort by energy
-    sorted_indices = energyOsc[0].argsort()
-    energyOsc[0] = energyOsc[0][sorted_indices]
-    energyOsc[1] = energyOsc[1][sorted_indices]
-    return energyOsc
-
-# A sub function for the scatter function. Found in
-# "Energy loss of 18 keV electrons in gaseous T and quench condensed D films"
-# by V.N. Aseev et al. 2000
-def aseev_func_tail(energy_loss_array, gas_type):
-    if gas_type=="H2":
-        A2, omeg2, eps2 = 0.195, 14.13, 10.60
-    elif gas_type=="Kr":
-        A2, omeg2, eps2 = 0.4019, 22.31, 16.725
-    return A2*omeg2**2./(omeg2**2.+4*(energy_loss_array-eps2)**2.)
-
-#convert oscillator strength into energy loss spectrum
-def get_eloss_spec(e_loss, oscillator_strength, kr_line): #energies in eV
-    kinetic_en = kr_line * 1000
-    e_rydberg = 13.605693009 #rydberg energy (eV)
-    a0 = 5.291772e-11 #bohr radius
-    return np.where(e_loss>0 , 4.*np.pi*a0**2 * e_rydberg / (kinetic_en * e_loss) * oscillator_strength * np.log(4. * kinetic_en * e_loss / (e_rydberg**3.) ), 0)
-
-# Takes only the nonzero bins of a histogram
-def get_only_nonzero_bins(bins,hist):
-    nonzero_idx = np.where(hist!=0)
-    hist_nonzero = hist[nonzero_idx]
-    hist_err = np.sqrt(hist_nonzero)
-    bins_nonzero = bins[nonzero_idx]
-    return bins_nonzero , hist_nonzero , hist_err
-
-# Flips an array left-to-right. Useful for converting between energy and frequency
-def flip_array(array):
-    flipped = np.fliplr([array]).flatten()
-    return flipped
-
-# Given energy in keV and the self.B_field of the trap, returns frequency in Hz
-def energy_to_frequency(energy_vec, B_field):
-    freq_vec = (e_charge*B_field/((2.*np.pi*m_e)*(1+energy_vec/mass_energy_electron)))
-    return freq_vec
-
-# Given frequency in Hz and the self.B_field of the trap, returns energy in keV
-def frequency_to_energy(freq_vec,B_field):
-    energy_vec = (e_charge*B_field/((2.*np.pi*m_e*freq_vec))-1)*mass_energy_electron
-    return energy_vec
-
-# Converts an energy to frequency using a guess for magnetic field. Can handle errors too
-def energy_guess_to_frequency(energy_guess,energy_guess_err,B_field_guess):
-    frequency = energy_to_frequency(energy_guess,B_field_guess)
-    const = e_charge*B_field_guess/(2.*np.pi*m_e)
-    frequency_err = const/(1+energy_guess/mass_energy_electron)**2*energy_guess_err/mass_energy_electron
-    return frequency , frequency_err
-
-# Given a frequency and error, converts those to B field values assuming the line is the 17.8 keV line
-def central_frequency_to_B_field(central_freq,central_freq_err):
-    const = (2.*np.pi*m_e)*(1+kr_line/mass_energy_electron)/e_charge
-    B_field = const*central_freq
-    B_field_err = const*central_freq_err
-    return B_field , B_field_err
-
-# given a FWHM for the lorentian component and the FWHM for the gaussian component,
-# this function estimates the FWHM of the resulting voigt distribution
-def FWHM_voigt(FWHM_L,FWHM_G):
-    FWHM_V = 0.5346*FWHM_L+np.sqrt(0.2166*FWHM_L**2+FWHM_G**2)
-    return FWHM_V
-
-# Returns the name of the current directory
-def get_current_dir():
-    current_path = os.path.abspath(os.getcwd())
-    stripped_path = [s.strip('\n') for s in current_path]
-    stripped_path = stripped_path[0].split('/')
-    current_dir = stripped_path[len(stripped_path)-1]
-    return current_dir
+## A lorentzian function
+#def lorentzian(x_array,x0,FWHM):
+#    HWHM = FWHM/2.
+#    func = (1./np.pi)*HWHM/((x_array-x0)**2.+HWHM**2.)
+#    return func
+#
+## A gaussian function
+#def gaussian(x_array,A,sigma,mu):
+#    f = A*(1./(sigma*np.sqrt(2*np.pi)))*np.exp(-(((x_array-mu)/sigma)**2.)/2.)
+#    return f
+#
+## Converts a gaussian's FWHM to sigma
+#def gaussian_FWHM_to_sigma(FWHM):
+#    sigma = FWHM/(2*np.sqrt(2*np.log(2)))
+#    return sigma
+#
+## Converts a gaussian's sigma to FWHM
+#def gaussian_sigma_to_FWHM(sigma):
+#    FWHM = sigma*(2*np.sqrt(2*np.log(2)))
+#    return FWHM
+#
+##returns array with energy loss/ oscillator strength data
+#def read_oscillator_str_file(filename):
+#    f = open(filename, "r")
+#    lines = f.readlines()
+#    f.close()
+#    energyOsc = [[],[]] #2d array of energy losses, oscillator strengths
+#
+#    for line in lines:
+#        if line != "" and line[0]!="#":
+#            raw_data = [float(i) for i in line.split("\t")]
+#            energyOsc[0].append(raw_data[0])
+#            energyOsc[1].append(raw_data[1])
+#
+#    energyOsc = np.array(energyOsc)
+#    ### take data and sort by energy
+#    sorted_indices = energyOsc[0].argsort()
+#    energyOsc[0] = energyOsc[0][sorted_indices]
+#    energyOsc[1] = energyOsc[1][sorted_indices]
+#    return energyOsc
+#
+## A sub function for the scatter function. Found in
+## "Energy loss of 18 keV electrons in gaseous T and quench condensed D films"
+## by V.N. Aseev et al. 2000
+#def aseev_func_tail(energy_loss_array, gas_type):
+#    if gas_type=="H2":
+#        A2, omeg2, eps2 = 0.195, 14.13, 10.60
+#    elif gas_type=="Kr":
+#        A2, omeg2, eps2 = 0.4019, 22.31, 16.725
+#    return A2*omeg2**2./(omeg2**2.+4*(energy_loss_array-eps2)**2.)
+#
+##convert oscillator strength into energy loss spectrum
+#def get_eloss_spec(e_loss, oscillator_strength, kr_line): #energies in eV
+#    kinetic_en = kr_line * 1000
+#    e_rydberg = 13.605693009 #rydberg energy (eV)
+#    a0 = 5.291772e-11 #bohr radius
+#    return np.where(e_loss>0 , 4.*np.pi*a0**2 * e_rydberg / (kinetic_en * e_loss) * oscillator_strength * np.log(4. * kinetic_en * e_loss / (e_rydberg**3.) ), 0)
+#
+## Takes only the nonzero bins of a histogram
+#def get_only_nonzero_bins(bins,hist):
+#    nonzero_idx = np.where(hist!=0)
+#    hist_nonzero = hist[nonzero_idx]
+#    hist_err = np.sqrt(hist_nonzero)
+#    bins_nonzero = bins[nonzero_idx]
+#    return bins_nonzero , hist_nonzero , hist_err
+#
+## Flips an array left-to-right. Useful for converting between energy and frequency
+#def flip_array(array):
+#    flipped = np.fliplr([array]).flatten()
+#    return flipped
+#
+## Given energy in keV and the self.B_field of the trap, returns frequency in Hz
+#def energy_to_frequency(energy_vec, B_field):
+#    freq_vec = (e_charge*B_field/((2.*np.pi*m_e)*(1+energy_vec/mass_energy_electron)))
+#    return freq_vec
+#
+## Given frequency in Hz and the self.B_field of the trap, returns energy in keV
+#def frequency_to_energy(freq_vec,B_field):
+#    energy_vec = (e_charge*B_field/((2.*np.pi*m_e*freq_vec))-1)*mass_energy_electron
+#    return energy_vec
+#
+## Converts an energy to frequency using a guess for magnetic field. Can handle errors too
+#def energy_guess_to_frequency(energy_guess,energy_guess_err,B_field_guess):
+#    frequency = energy_to_frequency(energy_guess,B_field_guess)
+#    const = e_charge*B_field_guess/(2.*np.pi*m_e)
+#    frequency_err = const/(1+energy_guess/mass_energy_electron)**2*energy_guess_err/mass_energy_electron
+#    return frequency , frequency_err
+#
+## Given a frequency and error, converts those to B field values assuming the line is the 17.8 keV line
+#def central_frequency_to_B_field(central_freq,central_freq_err):
+#    const = (2.*np.pi*m_e)*(1+kr_line/mass_energy_electron)/e_charge
+#    B_field = const*central_freq
+#    B_field_err = const*central_freq_err
+#    return B_field , B_field_err
+#
+## given a FWHM for the lorentian component and the FWHM for the gaussian component,
+## this function estimates the FWHM of the resulting voigt distribution
+#def FWHM_voigt(FWHM_L,FWHM_G):
+#    FWHM_V = 0.5346*FWHM_L+np.sqrt(0.2166*FWHM_L**2+FWHM_G**2)
+#    return FWHM_V
+#
+## Returns the name of the current directory
+#def get_current_dir():
+#    current_path = os.path.abspath(os.getcwd())
+#    stripped_path = [s.strip('\n') for s in current_path]
+#    stripped_path = stripped_path[0].split('/')
+#    current_dir = stripped_path[len(stripped_path)-1]
+#    return current_dir
 
 class ComplexLineShape(BaseProcessor):
 
@@ -171,7 +171,7 @@ class ComplexLineShape(BaseProcessor):
     def InternalRun(self):
 
         # Read shake parameters from JSON file
-        self.shakeSpectrumClassInstance = ShakeSpectrumClass(self.shake_spectrum_parameters_json_path, self.std_eV_array())
+        self.shakeSpectrumClassInstance = ComplexLineShapeUtilities.ShakeSpectrumClass(self.shake_spectrum_parameters_json_path, self.std_eV_array())
 
         # number_of_events = len(self.data['StartFrequency'])
         # self.results = number_of_events
@@ -211,7 +211,7 @@ class ComplexLineShape(BaseProcessor):
     # A gaussian centered at 0 eV with variable width, on the SELA
     def std_gaussian(self, sigma):
         x_array = self.std_eV_array()
-        ans = gaussian(x_array,1,sigma,0)
+        ans = ComplexLineShapeUtilities.gaussian(x_array,1,sigma,0)
         return ans
     # normalizes a function, but depends on binning.
     # Only to be used for functions evaluated on the SELA
@@ -327,7 +327,7 @@ class ComplexLineShape(BaseProcessor):
 
     # Given a function evaluated on the SELA, convolves it with a gaussian
     def convolve_gaussian(self, func_to_convolve,gauss_FWHM_eV):
-        sigma = gaussian_FWHM_to_sigma(gauss_FWHM_eV)
+        sigma = ComplexLineShapeUtilities.gaussian_FWHM_to_sigma(gauss_FWHM_eV)
         resolution_f = self.std_gaussian(sigma)
         ans = signal.convolve(resolution_f,func_to_convolve,mode='same')
         ans_normed = self.normalize(ans)
@@ -387,7 +387,7 @@ class ComplexLineShape(BaseProcessor):
         en_loss_array = self.std_eV_array()
         en_loss_array_min = en_loss_array[0]
         en_loss_array_max = en_loss_array[len(en_loss_array)-1]
-        en_array_rev = flip_array(-1*en_loss_array)
+        en_array_rev = ComplexLineShapeUtilities.flip_array(-1*en_loss_array)
         f = np.zeros(len(x_keV))
         f_intermediate = np.zeros(len(x_keV))
 
@@ -403,7 +403,7 @@ class ComplexLineShape(BaseProcessor):
         nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
     
         full_spectrum = self.make_spectrum(FWHM_G_eV, prob_parameter, scatter_proportion)
-        full_spectrum_rev = flip_array(full_spectrum)
+        full_spectrum_rev = ComplexLineShapeUtilities.flip_array(full_spectrum)
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
         return f
@@ -419,10 +419,10 @@ class ComplexLineShape(BaseProcessor):
         t = time.time()
         self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
-        bins_keV = frequency_to_energy(bins_Hz,self.B_field)
-        bins_keV = flip_array(bins_keV)
-        data_hist = flip_array(data_hist_freq)
-        bins_keV_nonzero , data_hist_nonzero , data_hist_err = get_only_nonzero_bins(bins_keV, data_hist)
+        bins_keV = ComplexLineShapeUtilities.frequency_to_energy(bins_Hz,self.B_field)
+        bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
+        data_hist = ComplexLineShapeUtilities.flip_array(data_hist_freq)
+        bins_keV_nonzero , data_hist_nonzero , data_hist_err = ComplexLineShapeUtilities.get_only_nonzero_bins(bins_keV, data_hist)
         # Bounds for curve_fit
         FWHM_eV_min = 1e-5
         FWHM_eV_max = (bins_keV[len(bins_keV)-1] - bins_keV[0])*1000
@@ -465,10 +465,10 @@ class ComplexLineShape(BaseProcessor):
     
         fit = self.spectrum_func(bins_keV[0:-1],*params)
 
-        line_pos_Hz_fit , line_pos_Hz_fit_err = energy_guess_to_frequency(line_pos_keV_fit, line_pos_keV_fit_err, self.B_field)
-        B_field_fit , B_field_fit_err = central_frequency_to_B_field(line_pos_Hz_fit, line_pos_Hz_fit_err)
-        fit_Hz = flip_array(fit)
-        bins_keV = bins_keV - line_pos_keV_fit + kr_line
+        line_pos_Hz_fit , line_pos_Hz_fit_err = ComplexLineShapeUtilities.energy_guess_to_frequency(line_pos_keV_fit, line_pos_keV_fit_err, self.B_field)
+        B_field_fit , B_field_fit_err = ComplexLineShapeUtilities.central_frequency_to_B_field(line_pos_Hz_fit, line_pos_Hz_fit_err)
+        fit_Hz = ComplexLineShapeUtilities.flip_array(fit)
+        bins_keV = bins_keV - line_pos_keV_fit + Constants.kr_line()
         FWHM_eV_fit = FWHM_G_eV_fit
         FWHM_eV_fit_err = FWHM_eV_G_fit_err
         elapsed = time.time() - t
@@ -562,7 +562,7 @@ class ComplexLineShape(BaseProcessor):
         en_loss_array = self.std_eV_array()
         en_loss_array_min = en_loss_array[0]
         en_loss_array_max = en_loss_array[len(en_loss_array)-1]
-        en_array_rev = flip_array(-1*en_loss_array)
+        en_array_rev = ComplexLineShapeUtilities.flip_array(-1*en_loss_array)
         f = np.zeros(len(x_keV))
         f_intermediate = np.zeros(len(x_keV))
 
@@ -577,7 +577,7 @@ class ComplexLineShape(BaseProcessor):
         nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
 
         full_spectrum = self.make_spectrum_1(FWHM_G_eV, prob_parameter,)
-        full_spectrum_rev = flip_array(full_spectrum)
+        full_spectrum_rev = ComplexLineShapeUtilities.flip_array(full_spectrum)
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
         return f
@@ -586,10 +586,10 @@ class ComplexLineShape(BaseProcessor):
         t = time.time()
         self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
-        bins_keV = frequency_to_energy(bins_Hz,self.B_field)
-        bins_keV = flip_array(bins_keV)
-        data_hist = flip_array(data_hist_freq)
-        bins_keV_nonzero , data_hist_nonzero , data_hist_err = get_only_nonzero_bins(bins_keV, data_hist)
+        bins_keV = ComplexLineShapeUtilities.frequency_to_energy(bins_Hz,self.B_field)
+        bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
+        data_hist = ComplexLineShapeUtilities.flip_array(data_hist_freq)
+        bins_keV_nonzero , data_hist_nonzero , data_hist_err = ComplexLineShapeUtilities.get_only_nonzero_bins(bins_keV, data_hist)
         # Bounds for curve_fit
         FWHM_eV_min = 1e-5
         FWHM_eV_max = (bins_keV[len(bins_keV)-1] - bins_keV[0])*1000
@@ -627,10 +627,10 @@ class ComplexLineShape(BaseProcessor):
     
         fit = self.spectrum_func_1(bins_keV[0:-1],*params)
 
-        line_pos_Hz_fit , line_pos_Hz_fit_err = energy_guess_to_frequency(line_pos_keV_fit, line_pos_keV_fit_err, self.B_field)
-        B_field_fit , B_field_fit_err = central_frequency_to_B_field(line_pos_Hz_fit, line_pos_Hz_fit_err)
-        fit_Hz = flip_array(fit)
-        bins_keV = bins_keV - line_pos_keV_fit + kr_line
+        line_pos_Hz_fit , line_pos_Hz_fit_err = ComplexLineShapeUtilities.energy_guess_to_frequency(line_pos_keV_fit, line_pos_keV_fit_err, self.B_field)
+        B_field_fit , B_field_fit_err = ComplexLineShapeUtilities.central_frequency_to_B_field(line_pos_Hz_fit, line_pos_Hz_fit_err)
+        fit_Hz = ComplexLineShapeUtilities.flip_array(fit)
+        bins_keV = bins_keV - line_pos_keV_fit + Constants.kr_line()
         FWHM_eV_fit = FWHM_G_eV_fit
         FWHM_eV_fit_err = FWHM_eV_G_fit_err
         elapsed = time.time() - t
@@ -666,4 +666,3 @@ class ComplexLineShape(BaseProcessor):
         'data_hist_freq': data_hist_freq
         }
         return dictionary_of_fit_results
-
