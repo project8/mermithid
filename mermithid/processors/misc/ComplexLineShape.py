@@ -424,7 +424,6 @@ class ComplexLineShape(BaseProcessor):
                 self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
                 current_full_spectrum += current_working_spectrum*comb(n, r)\
                 *(prob_parameter*p)**(r)*(prob_parameter*q)**(n-r)
-                # print(n, r, n-r)
         for n in range(max_comprehensive_scatters + 1, max_scatters + 1):
             current_working_spectrum = \
             scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\

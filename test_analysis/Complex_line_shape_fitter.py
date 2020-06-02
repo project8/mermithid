@@ -64,7 +64,7 @@ class ComplexLineShapeTests(unittest.TestCase):
         complexLineShape.Run()
 
         results = complexLineShape.results
-        print(results['output_string'])
+        logger.info(results['output_string'])
 #        print(type(results['data_hist_freq']))
 #        print(len(results['data_hist_freq']))
 
