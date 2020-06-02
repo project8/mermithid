@@ -1,7 +1,7 @@
 #
 # fake_data_stan_analysis.py
 # Author: T. E. Weiss
-# Date modified: May 25, 2020
+# Date modified: June 2, 2020
 #
 # This script generates fake data, then analyzes the data in Stan to infer posteriors.
 # Pathnames configured for running from: scripts/Phase-II-official-analysis/fake-data-study/
@@ -13,7 +13,6 @@ To-do:
         1. Tracking of convergence issues, so that a summary of problems can be saved/printed
         2. An option to parallelize with slurm instead of multiprocessing
     - Run morpho processor for ensemble-analysis plotting, once it has been tested sufficiently
-    - Improve some comments (e.g. describing Stan priors)
 """
 
 
@@ -59,9 +58,9 @@ def DefineGeneratorInputs(root_file='./results/tritium_analysis.root'):
         {'name': 'Q', 'prior_dist': 'normal', 'prior_params': [QT2(), 0.07]},
         {'name': 'mass', 'prior_dist': 'gamma', 'prior_params': [1.1532, 0.4291]},
         {'name': 'sigma', 'prior_dist': 'normal', 'prior_params': [17.7084, 1.14658]}, #From Ali's complex lineshape fits. Final states not yet included.
-        {'name': 'S', 'prior_dist': 'normal', 'prior_params': [3300, 57.45]}, #To be replaced with better prior
-        {'name': 'B_1kev', 'prior_dist': 'gamma', 'prior_params': [0.25, 0.05]}, #To be replaced with better prior
-        {'name': 'survival_prob', 'prior_dist': 'beta', 'prior_params': [32, 60]}, #Centered approximately around 0.35. To be replaced given complex lineshape result/systematic assessment
+        {'name': 'S', 'prior_dist': 'poisson', 'prior_params': [3300.]},
+        {'name': 'B_1kev', 'prior_dist': 'lognormal', 'prior_params': [-3.826151398234498, 2.1673316326073935]},
+        {'name': 'survival_prob', 'prior_dist': 'beta', 'prior_params': [55, 17]}, #Centered approximately around 0.77. To be replaced given complex lineshape result/systematic assessment
         {'name': 'Bfield', 'prior_dist': 'normal', 'prior_params': [0.9574762, 1.51e-6]}, #From complex lineshape fit to calibration data. More sig figs on mean needed?
         ]
     }
@@ -113,7 +112,7 @@ def GenerateFakeData(inputs_dict):
     """
     specGen_config = {
         "apply_efficiency": True,
-        "efficiency_path": "../phase2_detection_efficiency_curve/combined_energy_corrected_count_rates/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
+        "efficiency_path": "../analysis_input/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
         "detailed_or_simplified_lineshape": "detailed",
         "return_frequency": True,
         "Q": inputs_dict["Q"],
@@ -126,12 +125,12 @@ def GenerateFakeData(inputs_dict):
         "err_from_B": inputs_dict["err_from_B"],
         "Nscatters": inputs_dict["Nscatters"],
         "B_field": inputs_dict["Bfield"],
-        "n_steps": 60000,
+        "n_steps": 100000,
     }
     
     histo_config = {
         "variables": "F",
-        "n_bins_x": 110,
+        "n_bins_x": 65,
         "output_path": "./results/",
         "title": "0Psuedo-data",
         "format": "pdf"
@@ -155,7 +154,7 @@ def BinAndSaveData(tritium_data, nbins, root_file="./results/tritium_analysis.ro
         "energy_or_frequency": 'frequency',
         "variables": "F",
         "title": "corrected_spectrum",
-        "efficiency_filepath": "../phase2_detection_efficiency_curve/combined_energy_corrected_count_rates/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
+        "efficiency_filepath": "../analysis_input/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
         'bins': np.linspace(tritium_data['minf'], tritium_data['maxf'], nbins),
         'fss_bins': False # If fss_bins is True, bins is ignored and overridden
         }
@@ -211,7 +210,7 @@ def SaveUnbinnedData(tritium_data, root_file="./results/tritium_analysis.root"):
 
 
 
-def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/tritium_analysis.root', stan_files_location='../../morpho_models/', model_code='tritium_model/models/tritium_phase_II_analyzer_binned.stan', scattering_params_R='simplified_scattering_params.R'):
+def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/tritium_analysis.root', stan_files_location='../stan_models/', model_code='phase2/models/tritium_phase_II_analyzer_binned.stan', scattering_params_R='../analysis_input/simplified_scattering_params.R'):
     """
     Analyzes frequency or kinetic energy data using a Stan model. Saves and plots posteriors.
     
@@ -238,23 +237,21 @@ def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/
         "model_code": stan_files_location+model_code,
         "function_files_location": stan_files_location+"functions",
         #***Add "temp_" when switching to cmdstan.***
-        "model_name": stan_files_location+"tritium_model/models/tritium_phase_II_analyzer_binned", #Binned version of Stan model
-        "cache_dir": stan_files_location+"tritium_model/cache",
-        "warmup": 60, #Increase for real run (to 3000-4000)
-        "iter": 80, #Increase for real run (to 6000-8000)
-        "chain": 1, #Increase for real run (to 3-4)
-        "control": {'adapt_delta':0.95},
+        "model_name": stan_files_location+"phase2/models/tritium_phase_II_analyzer_binned", #Binned version of Stan model
+        "cache_dir": stan_files_location+"phase2/cache",
+        "warmup": 4000, #Increase for real run (to 3000-5000)
+        "iter": 8000, #Increase for real run (to 6000-9000)
+        "chain": 3, #Increase for real run (to 3-4)
+        "control": {'adapt_delta':0.97},
         "init": {
             "sigma": 17.7084,
-            "survival_prob": 0.35,
+            "survival_prob": 0.77,
             "Q": 18573.24,
             "mass": 0.2,
-            "Bfield": 0.957476,
-            #"KEmin": 16000.,
+            "Bfield": 0.9574762,
             "S": 3300.,
-            "B_1kev": 0.0125,
-            "B": 0.35,
-            "rate_factor": 58000
+            "B_1kev": 0.0217933282798889,
+            "B": 0.3,
         },
         "input_data": {
             "sigma_ctr": 17.7084, #sigma params from Ali's complex lineshape fits.
@@ -262,22 +259,20 @@ def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/
             "err_from_B": 0.001, #Tiny smearing from f_c->K conversion
             "Bfield_ctr": 0.9574762, #From complex lineshape fit to calibration
             "Bfield_std": 1.51e-06, #data. More sig figs on mean needed?
-            "survival_prob_alpha": 32, #Centered around ~0.35. To be replaced
-            "survival_prob_beta": 60, #given complex lineshape result+systematics
+            "survival_prob_alpha": 55, #Centered around ~0.77. To be replaced
+            "survival_prob_beta": 17, #given complex lineshape result+systematics
             "Q_ctr": QT2(),
             "Q_std": 75.,
             "m_alpha": 1.1532,
             "m_beta": 2.33046,
-            "S_ctr": 3300., #To be updated
-            "S_std": 100,
-            "B_1kev_alpha": 0.25, #To be updated
-            "B_1kev_beta": 20,
+            "B_1kev_logctr": -3.826151398234498,
+            "B_1kev_logstd": 2.1673316326073935,
             "KEscale": 16323, #This enables the option of cmdstan running
 #            "slope": 0.000390369173, #For efficiency modeling with unbinned data
 #            "intercept": -6.00337656,
             "Nscatters": 16 #Because peaks>16 in simplified linesahpe have means->inf as FWHM->0
         },
-        "interestParams": ['Q', 'mass','survival_prob', 'Bfield', 'sigma', 'S', 'B_1kev', 'KEmin'], #Update Stan fitted point generation, then save 'KE_sample' and 'spectrum_fit'
+        "interestParams": ['Q', 'mass', 'survival_prob', 'Bfield', 'sigma', 'S', 'B_1kev', 'KEmin', 'KE_sample', 'Nfit_signal', 'Nfit_bkgd'],
     }
     
     posteriors_writer_config = {
@@ -294,8 +289,9 @@ def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/
             {"variable": "S", "type": "float"},
             {"variable": "B_1kev", "type": "float"},
             {"variable": "KEmin", "type": "float"},
-#            {"variable": "KE_sample", "type": "float"},
-#            {"variable": "spectrum_fit", "type": "float"},
+            {"variable": "KE_sample", "type": "float"},
+            {"variable": "Nfit_signal", "type": "float"},
+            {"variable": "Nfit_bkgd", "type": "float"},
             {"variable": "divergent__", "root_alias": "divergence", "type": "float"},
             {"variable": "energy__", "root_alias": "energy", "type": "float"},
             {"variable": "lp_prob", "root_alias": "lp_prob", "type": "float"}
@@ -326,7 +322,7 @@ def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/
     return results
 
 
-def PlotStanResults(posteriors, correlation_vars=['Q', 'mass'], divergence_vars=['Q', 'sigma', 'survival_prob']):
+def PlotStanResults(posteriors, correlation_vars=['Q', 'mass'], divergence_vars=['Q', 'Bfield', 'survival_prob']):
     """
     Creates and saves two plots:
         a) posteriors and correlations between them, and
@@ -339,7 +335,7 @@ def PlotStanResults(posteriors, correlation_vars=['Q', 'mass'], divergence_vars=
         3) divergence_vars: list of strings; names of variables to be included in divergences plot
     """
     aposteriori_config = {
-        "n_bins_x": 50, #Potentially increase more Stan iterations are used
+        "n_bins_x": 50, #Potentially increase
         "n_bins_y": 50,
         "variables": correlation_vars,
         "title": "Q_vs_Kmin",
@@ -385,7 +381,7 @@ def PerformFakeExperiment(root_filename, plot_results=True, parallelized=True, b
     
     #Optionally bin data, then save it
     if bin_data:
-        nbins = 110
+        nbins = 65
         tritium_data = BinAndSaveData(tritium_data_unbinned, nbins, root_filename)
     else:
         tritium_data = SaveUnbinnedData(tritium_data, root_filename)
@@ -422,7 +418,11 @@ def FakeExperimentEnsemble(n_runs, root_basename, wait_before_runs=0, paralleliz
     root_basename: str; results are saved in rootfiles labeled by root_basename and the pseudo-experiment number
     wait_before_runs: int or float; number of seconds to pause between the start of one pseudo-experiment and the start of the next
     """
-    logger.info("PERFORMING {} MORPHO PSEUDO-EXPERIMENTS".format(n_runs))
+    if n_runs==1:
+        logger.info("PERFORMING 1 MORPHO PSEUDO-EXPERIMENT")
+    else:
+        logger.info("PERFORMING {} MORPHO PSEUDO-EXPERIMENTS".format(n_runs))
+
     
     if parallelize == False:
         root_filenames = []
@@ -445,8 +445,4 @@ def FakeExperimentEnsemble(n_runs, root_basename, wait_before_runs=0, paralleliz
 
 if __name__ == '__main__':
     interest_vars = ['Q', 'mass','survival_prob', 'Bfield', 'sigma', 'S', 'B_1kev']
-    #root_files = ['./results/0fake_data_and_results.root']
     FakeExperimentEnsemble(1, "fake_data_and_results.root", wait_before_runs=30, vars_to_calibrate=interest_vars)
-    
-    #CalibrateResults(root_files, interest_vars)
-
