@@ -356,7 +356,8 @@ class ComplexLineShape(BaseProcessor):
         FWHM_eV_fit = FWHM_G_eV_fit
         FWHM_eV_fit_err = FWHM_eV_G_fit_err
         elapsed = time.time() - t
-        output_string = 'B field = {:.6e}'.format(B_field_fit)+' +/- '+ '{:.2e} T\n'.format(B_field_fit_err)
+        output_string = '\n'
+        output_string += 'B field = {:.6e}'.format(B_field_fit)+' +/- '+ '{:.2e} T\n'.format(B_field_fit_err)
         output_string += '-----------------\n'
         output_string += 'Gaussian FWHM = '+str(round(FWHM_G_eV_fit,2))+' +/- '+str(round(FWHM_eV_G_fit_err,2))+' eV\n'
         output_string += '-----------------\n'
@@ -517,7 +518,8 @@ class ComplexLineShape(BaseProcessor):
         FWHM_eV_fit = FWHM_G_eV_fit
         FWHM_eV_fit_err = FWHM_eV_G_fit_err
         elapsed = time.time() - t
-        output_string = 'B field = {:.6e}'.format(B_field_fit)+' +/- '+ '{:.2e} T\n'.format(B_field_fit_err)
+        output_string = '\n'
+        output_string += 'B field = {:.6e}'.format(B_field_fit)+' +/- '+ '{:.2e} T\n'.format(B_field_fit_err)
         output_string += '-----------------\n'
         output_string += 'Gaussian FWHM = '+str(round(FWHM_G_eV_fit,2))+' +/- '+str(round(FWHM_eV_G_fit_err,2))+' eV\n'
         output_string += '-----------------\n'
