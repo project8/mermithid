@@ -39,8 +39,8 @@ class ComplexLineShapeTests(unittest.TestCase):
             'num_points_in_std_array': 10000,
             'RF_ROI_MIN': 25850000000.0,
             'B_field': 0.957810722501,
-            # shake_spectrum_parameters.json can be found at https://github.com/project8/scripts/tree/master/yuhao/line_shape_fitting/data
-            'shake_spectrum_parameters_json_path': '/host/shake_spectrum_parameters.json',
+            # shake_spectrum_parameters.json and oscillator strength data can be found at https://github.com/project8/scripts/tree/master/yuhao/line_shape_fitting/data
+            'shake_spectrum_parameters_json_path': '/host-mermithid/mermithid/misc/shake_spectrum_parameters.json',
             'path_to_osc_strengths_files': '/host/'
         }
 
