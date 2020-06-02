@@ -24,7 +24,7 @@ def test_complex_lineshape():
         "variables": ['StartTimeInAcq','StartFrequency']
     }
     complexLineShape_config = {
-        'bins_choice': np.linspace(0,90e6,1000),
+        'bins_choice': np.linspace(0,100e6,1000),
         'gases': ["H2","Kr"],
         'max_scatters': 20,
         'fix_scatter_proportion': True,
@@ -58,7 +58,7 @@ def test_complex_lineshape():
     complexLineShape.Run()
 
     results = complexLineShape.results
-    print(results['output_string'])
+    logger.info(results['output_string'])
 
 
     # plot fit with shake spectrum
