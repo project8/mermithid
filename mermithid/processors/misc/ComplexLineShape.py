@@ -285,7 +285,7 @@ class ComplexLineShape(BaseProcessor):
         scatter_spectra
         )
         elapsed = time.time() - t
-        print('File generated in '+str(elapsed)+'s')
+        logger.info('File generated in '+str(elapsed)+'s')
         return
 
     # Checks for the existence of a directory called 'scatter_spectra_file'
@@ -297,12 +297,12 @@ class ComplexLineShape(BaseProcessor):
     def check_existence_of_scatter_file(self, regenerate = False):
         gases = self.gases
         if regenerate == True:
-            print('generate fresh scatter file')
+            logger.info('generate fresh scatter file')
             self.generate_scatter_convolution_file()
         else: 
             stuff_in_dir = os.listdir(self.path_to_osc_strengths_files)
             if 'scatter_spectra_file' not in stuff_in_dir:
-                print('Scatter spectra folder not found, generating')
+                logger.info('Scatter spectra folder not found, generating')
                 os.mkdir(self.path_to_osc_strengths_files+'scatter_spectra_file')
                 time.sleep(2)
                 self.generate_scatter_convolution_file()
@@ -314,14 +314,14 @@ class ComplexLineShape(BaseProcessor):
                 test_file = self.path_to_osc_strengths_files+'scatter_spectra_file/scatter_spectra.npy' 
                 test_dict = np.load(test_file, allow_pickle = True)
                 if list(test_dict.item().keys())[0] != '{}_{}'.format(gases[0], gases[1]):
-                    print('first entry not matching, generating fresh files')
+                    logger.info('first entry not matching, generating fresh files')
                     self.generate_scatter_convolution_file()
                 elif len(test_dict.item()['{}_{}'.format(gases[0], gases[1])]) \
                             != (1 + self.max_scatters+1)*(self.max_scatters+1)/2 - 1:
-                    print('Number of scatters not matching, generating fresh files')
+                    logger.info('Number of scatters not matching, generating fresh files')
                 elif len(test_dict.item()['{}_{}'.format(gases[0], gases[1])]['01_00'])\
                 != self.num_points_in_std_array:
-                    print('Binning do not match standard array, generating fresh files')
+                    logger.info('Binning do not match standard array, generating fresh files')
                     self.generate_scatter_convolution_file()
         return
 
