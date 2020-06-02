@@ -112,7 +112,7 @@ def GenerateFakeData(inputs_dict):
     """
     specGen_config = {
         "apply_efficiency": True,
-        "efficiency_path": "../analysis_input/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
+        "efficiency_path": "../phase2_detection_efficiency_curve/combined_energy_corrected_count_rates/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
         "detailed_or_simplified_lineshape": "detailed",
         "return_frequency": True,
         "Q": inputs_dict["Q"],
@@ -154,7 +154,7 @@ def BinAndSaveData(tritium_data, nbins, root_file="./results/tritium_analysis.ro
         "energy_or_frequency": 'frequency',
         "variables": "F",
         "title": "corrected_spectrum",
-        "efficiency_filepath": "../analysis_input/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
+        "efficiency_filepath": "../phase2_detection_efficiency_curve/combined_energy_corrected_count_rates/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
         'bins': np.linspace(tritium_data['minf'], tritium_data['maxf'], nbins),
         'fss_bins': False # If fss_bins is True, bins is ignored and overridden
         }
@@ -210,7 +210,7 @@ def SaveUnbinnedData(tritium_data, root_file="./results/tritium_analysis.root"):
 
 
 
-def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/tritium_analysis.root', stan_files_location='../stan_models/', model_code='phase2/models/tritium_phase_II_analyzer_binned.stan', scattering_params_R='../analysis_input/simplified_scattering_params.R'):
+def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/tritium_analysis.root', stan_files_location='../../morpho_models/', model_code='tritium_model/models/tritium_phase_II_analyzer_binned.stan', scattering_params_R='simplified_scattering_params.R'):
     """
     Analyzes frequency or kinetic energy data using a Stan model. Saves and plots posteriors.
     
@@ -237,8 +237,8 @@ def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/
         "model_code": stan_files_location+model_code,
         "function_files_location": stan_files_location+"functions",
         #***Add "temp_" when switching to cmdstan.***
-        "model_name": stan_files_location+"phase2/models/tritium_phase_II_analyzer_binned", #Binned version of Stan model
-        "cache_dir": stan_files_location+"phase2/cache",
+        "model_name": stan_files_location+"tritium_model/models/tritium_phase_II_analyzer_binned", #Binned version of Stan model
+        "cache_dir": stan_files_location+"tritium_model/cache",
         "warmup": 4000, #Increase for real run (to 3000-5000)
         "iter": 8000, #Increase for real run (to 6000-9000)
         "chain": 3, #Increase for real run (to 3-4)
