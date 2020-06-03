@@ -18,8 +18,8 @@ class FakeDataGenerationTest(unittest.TestCase):
 
         specGen_config = {
             "apply_efficiency": False,
-            "efficiency_path": "/host/input_data/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
-            "simplified_lineshape_path": "/host/input_data/simplified_scattering_params.txt",
+            "efficiency_path": "./combined_energy_corrected_eff_at_quad_trap_frequencies.json",
+            "simplified_lineshape_path": None,
             "detailed_or_simplified_lineshape": "detailed", #"simplified" or "detailed"
             "use_lineshape": False, # if False only gaussian smearing is applied
             "return_frequency": True,
