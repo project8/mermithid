@@ -4,6 +4,20 @@ Validation Log
 Log
 ---
 
+
+Version: v
+~~~~~~~~~~~~~~~~
+
+Release Date: 
+'''''''''''''''''''''''''''''
+
+New features:
+'''''''''''''
+
+* morpho as git submodule
+* morpho version v2.7.0
+
+
 Version: v1.1.12
 ~~~~~~~~~~~~~~~~
 

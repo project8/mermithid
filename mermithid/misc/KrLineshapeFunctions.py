@@ -41,10 +41,9 @@ num_points_in_std_array = 10000
 # with number of points equal to num_points_in_std_array. All convolutions
 # will be carried out on this particular discretization
 def std_eV_array():
+    emin = -1000
     emax = 1000
-    d = emax/num_points_in_std_array
-    emin = -round(emax/d)*d
-    array = np.arange(emin,emax+d,d)
+    array = np.linspace(emin,emax,num_points_in_std_array)
     return array
 
 # A lorentzian function
@@ -83,9 +82,9 @@ def std_dirac():
     ans[np.abs(x_array)==min_x] = 1.
     logger.warning('Spectrum will be shifted by lineshape by {} eV'.format(min_x))
     if min_x > 0.1:
-        logger.error('Lineshape will shift spectrum by > 0.1 eV')
+        logger.warning('Lineshape will shift spectrum by > 0.1 eV')
     if min_x > 1.:
-        logger.error('Lineshape will shift spectrum by > 1 eV')
+        logger.warning('Lineshape will shift spectrum by > 1 eV')
         raise ValueError('problem with std_eV_array()')
     return ans
 
