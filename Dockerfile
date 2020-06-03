@@ -21,9 +21,14 @@ RUN mkdir -p $MERMITHID_BUILD_PREFIX &&\
 ########################
 FROM mermithid_common as mermithid_done
 
+# Commented out for now: should be changed to whatever is needed later
+# COPY analysis /tmp_source/analysis
 COPY Cicada /tmp_source/Cicada
+COPY documentation /tmp_source/documentation
+COPY morpho /tmp_source/morpho
 COPY mermithid /tmp_source/mermithid
 COPY Phylloxera /tmp_source/Phylloxera
+COPY tests /tmp_source/tests
 COPY CMakeLists.txt /tmp_source/CMakeLists.txt
 COPY setup.py /tmp_source/setup.py
 COPY .git /tmp_source/.git
@@ -33,7 +38,7 @@ COPY tests $MERMITHID_BUILD_PREFIX/tests
 # repeat the cmake command to get the change of install prefix to set correctly (a package_builder known issue)
 RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
     cd /tmp_source &&\
-    mkdir build &&\
+    mkdir -p build &&\
     cd build &&\
     cmake -D CMAKE_BUILD_TYPE=$MERMITHID_BUILD_TYPE \
         -D CMAKE_INSTALL_PREFIX:PATH=$MERMITHID_BUILD_PREFIX \
@@ -43,10 +48,6 @@ RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
         -D CMAKE_SKIP_INSTALL_RPATH:BOOL=True .. &&\
     make -j3 install &&\
     cd /tmp_source &&\
-    pip3 install . --process-dependency-links --prefix $MERMITHID_BUILD_PREFIX &&\
+    pip3 install . -e ./morpho --prefix $MERMITHID_BUILD_PREFIX &&\
     /bin/true
 
-########################
-FROM mermithid_common
-
-COPY --from=mermithid_done $MERMITHID_BUILD_PREFIX $MERMITHID_BUILD_PREFIX
