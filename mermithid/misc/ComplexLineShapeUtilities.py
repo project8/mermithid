@@ -3,10 +3,10 @@ import json
 from mermithid.misc import Constants, ConversionFunctions
 
 # Natural constants
-kr_17keV_line = Constants.kr_17keV_line() # 17.8260 keV
-kr_17keV_line_width = Constants.kr_17keV_line_width() # 2.83 eV
+kr_17keV_line = Constants.kr_k_line_e()/1000 # 17.8260 keV
+kr_17keV_line_width = Constants.kr_k_line_width() # 2.83 eV
 e_charge = Constants.e() # 1.60217662*10**(-19) Coulombs , charge of electron
-m_e = Constants.m_e() # 9.10938356*10**(-31) Kilograms , mass of electron
+m_e = Constants.m_electron()*Constants.e()/((Constants.c())**2) # 9.10938356*10**(-31) Kilograms , mass of electron
 mass_energy_electron = Constants.m_electron()/1000 # 510.9989461 keV
 
 # A lorentzian function
@@ -98,7 +98,7 @@ def flip_array(array):
 #    return energy_vec
 
 # Converts an energy to frequency using a guess for magnetic field. Can handle errors too
-def energy_guess_to_frequency(energy_guess,energy_guess_err,B_field_guess):
+def energy_guess_to_frequency(energy_guess, energy_guess_err, B_field_guess):
     frequency = ConversionFunctions.Frequency(energy_guess*1000, B_field_guess)
     const = e_charge*B_field_guess/(2.*np.pi*m_e)
     frequency_err = const/(1+energy_guess/mass_energy_electron)**2*energy_guess_err/mass_energy_electron

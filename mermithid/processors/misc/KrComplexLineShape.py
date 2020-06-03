@@ -368,7 +368,7 @@ class KrComplexLineShape(BaseProcessor):
         line_pos_Hz_fit , line_pos_Hz_fit_err = ComplexLineShapeUtilities.energy_guess_to_frequency(line_pos_keV_fit, line_pos_keV_fit_err, self.B_field)
         B_field_fit , B_field_fit_err = ComplexLineShapeUtilities.central_frequency_to_B_field(line_pos_Hz_fit, line_pos_Hz_fit_err)
         fit_Hz = ComplexLineShapeUtilities.flip_array(fit)
-        bins_keV = bins_keV - line_pos_keV_fit + Constants.kr_17keV_line()
+        bins_keV = bins_keV - line_pos_keV_fit + Constants.kr_k_line_e()/1000
         FWHM_eV_fit = FWHM_G_eV_fit
         FWHM_eV_fit_err = FWHM_eV_G_fit_err
         elapsed = time.time() - t
@@ -532,7 +532,7 @@ class KrComplexLineShape(BaseProcessor):
         line_pos_Hz_fit , line_pos_Hz_fit_err = ComplexLineShapeUtilities.energy_guess_to_frequency(line_pos_keV_fit, line_pos_keV_fit_err, self.B_field)
         B_field_fit , B_field_fit_err = ComplexLineShapeUtilities.central_frequency_to_B_field(line_pos_Hz_fit, line_pos_Hz_fit_err)
         fit_Hz = ComplexLineShapeUtilities.flip_array(fit)
-        bins_keV = bins_keV - line_pos_keV_fit + Constants.kr_17keV_line()
+        bins_keV = bins_keV - line_pos_keV_fit + Constants.kr_k_line_e()/1000
         FWHM_eV_fit = FWHM_G_eV_fit
         FWHM_eV_fit_err = FWHM_eV_G_fit_err
         elapsed = time.time() - t
