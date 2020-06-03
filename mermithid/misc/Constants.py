@@ -41,6 +41,5 @@ def V0(): return 76. #Nuclear screening potential of orbital electron cloud of t
 def mu_diff_hel_trit(): return 5.107 #Difference between magnetic moments of helion and triton, for recoil effects correction
 
 # Kr specific constants
-
 def kr_k_line_e(): return 17.824576*1e3
 def kr_k_line_width(): return 2.83

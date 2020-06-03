@@ -38,10 +38,10 @@ These are two possible ways of installing and working with mermithid.
 3. Install mermithid:
 
   ```bash
-  pip install . --process-dependency-links
+  pip install . -e ./morpho
   ```
 
-   (The `--process-dependency-links` is here to install morpho.)
+   (The `-e ./morpho` is here to install morpho as an egg.)
 
 ### Docker installation
 

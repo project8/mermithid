@@ -122,6 +122,7 @@ class TritiumTests(unittest.TestCase):
         specFit.data = result
         histo.Run()
         specFit.Run()
+        print(specFit.result)
 
 
 if __name__ == '__main__':
