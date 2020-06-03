@@ -2,6 +2,21 @@
 Fits data to complex lineshape model.
 Author: E. Machado, Y.-H. Sun, E. Novitski
 Date: 4/8/20
+
+This processor takes in frequency data in binned histogram and fit the histogram with two gas scattering complex line shape model.
+
+Configurable parameters:
+
+There are two options available for fitting: fix_scatter_proportion = True and False.
+gases: array for names of the two gases involved in the scattering process.
+max_scatter: max number of scatterings for only single gas scatterings.
+max_comprehansive_scatter: max number of scatterings for all cross scatterings.
+scatter_proportion: when fix_scatter_proportion is set as true, gives the fixed scatter proportion.
+num_points_in_std_array: number of points for std_array defining how finely the scatter calculations are.
+RF_ROI_MIN: can be found from meta data.
+B_field: can be put in hand or found by position of the peak of the frequency histogram.
+shake_spectrum_parameters_json_path: path to json file storing shake spectrum parameters.
+path_to_osc_strength_files: path to oscillator strength files.
 '''
 
 from __future__ import absolute_import
@@ -15,8 +30,7 @@ import time
 import sys
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
-from mermithid.misc import Constants
-from mermithid.misc import ComplexLineShapeUtilities
+from mermithid.misc import Constants, ComplexLineShapeUtilities, ConversionFunctions
 
 logger = morphologging.getLogger(__name__)
 
@@ -303,7 +317,7 @@ class KrComplexLineShape(BaseProcessor):
         t = time.time()
         self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
-        bins_keV = ComplexLineShapeUtilities.frequency_to_energy(bins_Hz,self.B_field)
+        bins_keV = ConversionFunctions.frequency_to_energy(bins_Hz, self.B_field)
         bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
         data_hist = ComplexLineShapeUtilities.flip_array(data_hist_freq)
         bins_keV_nonzero , data_hist_nonzero , data_hist_err = ComplexLineShapeUtilities.get_only_nonzero_bins(bins_keV, data_hist)
@@ -470,7 +484,7 @@ class KrComplexLineShape(BaseProcessor):
         t = time.time()
         self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
-        bins_keV = ComplexLineShapeUtilities.frequency_to_energy(bins_Hz,self.B_field)
+        bins_keV = ConversionFunctions.frequency_to_energy(bins_Hz, self.B_field)
         bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
         data_hist = ComplexLineShapeUtilities.flip_array(data_hist_freq)
         bins_keV_nonzero , data_hist_nonzero , data_hist_err = ComplexLineShapeUtilities.get_only_nonzero_bins(bins_keV, data_hist)

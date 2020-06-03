@@ -18,7 +18,7 @@ def fine_structure_constant(): return 0.0072973525664   # fine structure constan
 
 def m_electron(): return  510998.9461			# Electron mass in eV
 def m_e(): return 9.10938356*10**(-31) # Kilograms , mass of electron
-def e_charge(): return 1.60217662*10**(-19) # Coulombs , charge of electron
+def e(): return 1.60217662*10**(-19) # Coulombs , charge of electron
 
 #  Tritium-specific constants
 

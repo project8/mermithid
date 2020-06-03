@@ -2,8 +2,6 @@
 Reads in data and fits it with complex lineshape model.
 Author: E. Machado, Y.-H. Sun, E. Novitski
 Date: 4/8/20
-
-There are two options available for fitting: fix_scatter_proportion = True and False.
 '''
 
 import numpy as np

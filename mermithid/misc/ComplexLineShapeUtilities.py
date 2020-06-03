@@ -1,11 +1,11 @@
 import numpy as np
 import json
-from mermithid.misc import Constants
+from mermithid.misc import Constants, ConversionFunctions
 
 # Natural constants
 kr_17keV_line = Constants.kr_17keV_line() # 17.8260 keV
 kr_17keV_line_width = Constants.kr_17keV_line_width() # 2.83 eV
-e_charge = Constants.e_charge() # 1.60217662*10**(-19) Coulombs , charge of electron
+e_charge = Constants.e() # 1.60217662*10**(-19) Coulombs , charge of electron
 m_e = Constants.m_e() # 9.10938356*10**(-31) Kilograms , mass of electron
 mass_energy_electron = Constants.m_electron()/1000 # 510.9989461 keV
 
@@ -80,19 +80,19 @@ def flip_array(array):
     flipped = np.fliplr([array]).flatten()
     return flipped
 
-# Given energy in keV and the self.B_field of the trap, returns frequency in Hz
-def energy_to_frequency(energy_vec, B_field):
-    freq_vec = (e_charge*B_field/((2.*np.pi*m_e)*(1+energy_vec/mass_energy_electron)))
-    return freq_vec
-
-# Given frequency in Hz and the self.B_field of the trap, returns energy in keV
-def frequency_to_energy(freq_vec,B_field):
-    energy_vec = (e_charge*B_field/((2.*np.pi*m_e*freq_vec))-1)*mass_energy_electron
-    return energy_vec
+## Given energy in keV and the self.B_field of the trap, returns frequency in Hz
+#def energy_to_frequency(energy_vec, B_field):
+#    freq_vec = (e_charge*B_field/((2.*np.pi*m_e)*(1+energy_vec/mass_energy_electron)))
+#    return freq_vec
+#
+## Given frequency in Hz and the self.B_field of the trap, returns energy in keV
+#def frequency_to_energy(freq_vec,B_field):
+#    energy_vec = (e_charge*B_field/((2.*np.pi*m_e*freq_vec))-1)*mass_energy_electron
+#    return energy_vec
 
 # Converts an energy to frequency using a guess for magnetic field. Can handle errors too
 def energy_guess_to_frequency(energy_guess,energy_guess_err,B_field_guess):
-    frequency = energy_to_frequency(energy_guess,B_field_guess)
+    frequency = ConversionFunctions.energy_to_frequency(energy_guess, B_field_guess)
     const = e_charge*B_field_guess/(2.*np.pi*m_e)
     frequency_err = const/(1+energy_guess/mass_energy_electron)**2*energy_guess_err/mass_energy_electron
     return frequency , frequency_err
