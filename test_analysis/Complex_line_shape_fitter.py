@@ -17,7 +17,7 @@ class ComplexLineShapeTests(unittest.TestCase):
 
     def test_complex_lineshape(self):
         from mermithid.processors.IO import IOCicadaProcessor
-        from mermithid.processors.misc.ComplexLineShape import ComplexLineShape
+        from mermithid.processors.misc.KrComplexLineShape import KrComplexLineShape
 
 
         reader_config = {
@@ -46,7 +46,7 @@ class ComplexLineShapeTests(unittest.TestCase):
         }
 
         b = IOCicadaProcessor("reader")
-        complexLineShape = ComplexLineShape("complexLineShape")
+        complexLineShape = KrComplexLineShape("complexLineShape")
 
         b.Configure(reader_config)
         complexLineShape.Configure(complexLineShape_config)
@@ -74,7 +74,7 @@ class ComplexLineShapeTests(unittest.TestCase):
         label = 'data\n total counts = {}\n'.format(len(data['StartFrequency']))
         )
         plt.plot(results['bins_Hz'][0:-1]/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
-        plt.legend(loc = 'upper left')
+        plt.legend(loc = 'upper left', fontsize = 12)
         plt.xlabel('frequency GHz')
         plt.title('fit with shake spectrum 2 gas scattering')
         plt.savefig('/host/plots/fit_shake_2_gas_0.png')

@@ -30,5 +30,5 @@ def tritium_endpoint(): return 18.6E+3 # Tritium endpoint value
 
 # Kr-specific constants
 
-def kr_line(): return 17.8260 # keV
-def kr_line_width(): return 2.83 # eV
+def kr_17keV_line(): return 17.824576 # keV
+def kr_17keV_line_width(): return 2.83 # eV
