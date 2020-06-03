@@ -317,9 +317,11 @@ class KrComplexLineShape(BaseProcessor):
         t = time.time()
         self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
+        bins_Hz = 0.5*(bins_Hz[1:] + bins_Hz[:-1])
         bins_keV = ConversionFunctions.Energy(bins_Hz, self.B_field)/1000
         bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
         data_hist = ComplexLineShapeUtilities.flip_array(data_hist_freq)
+        #data_hist_err = ComplexLineShapeUtilities.get_hist_err_bins(data_hist)
         bins_keV_nonzero , data_hist_nonzero , data_hist_err = ComplexLineShapeUtilities.get_only_nonzero_bins(bins_keV, data_hist)
         # Bounds for curve_fit
         FWHM_eV_min = 1e-5
@@ -342,7 +344,7 @@ class KrComplexLineShape(BaseProcessor):
         p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, prob_parameter_min, scatter_proportion_min],  
                     [FWHM_eV_max, line_pos_keV_max, amplitude_max, prob_parameter_max, scatter_proportion_max])
         # Actually do the fitting
-        params , cov = curve_fit(self.spectrum_func,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p0_guess,bounds=p0_bounds)
+        params , cov = curve_fit(self.spectrum_func, bins_keV_nonzero, data_hist_nonzero, sigma=data_hist_err, p0=p0_guess, bounds=p0_bounds)
         # Name each of the resulting parameters and errors
         ################### Generalize to N Gases ###########################
         FWHM_G_eV_fit = params[0]
@@ -361,7 +363,7 @@ class KrComplexLineShape(BaseProcessor):
         scatter_proportion_fit_err = perr[4]
         total_counts_fit_err = amplitude_fit_err
     
-        fit = self.spectrum_func(bins_keV[0:-1],*params)
+        fit = self.spectrum_func(bins_keV,*params)
 
         line_pos_Hz_fit , line_pos_Hz_fit_err = ComplexLineShapeUtilities.energy_guess_to_frequency(line_pos_keV_fit, line_pos_keV_fit_err, self.B_field)
         B_field_fit , B_field_fit_err = ComplexLineShapeUtilities.central_frequency_to_B_field(line_pos_Hz_fit, line_pos_Hz_fit_err)
@@ -484,9 +486,11 @@ class KrComplexLineShape(BaseProcessor):
         t = time.time()
         self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
+        bins_Hz = 0.5*(bins_Hz[1:] + bins_Hz[:-1])
         bins_keV = ConversionFunctions.Energy(bins_Hz, self.B_field)/1000
         bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
         data_hist = ComplexLineShapeUtilities.flip_array(data_hist_freq)
+        #data_hist_err = ComplexLineShapeUtilities.get_hist_err_bins(data_hist)
         bins_keV_nonzero , data_hist_nonzero , data_hist_err = ComplexLineShapeUtilities.get_only_nonzero_bins(bins_keV, data_hist)
         # Bounds for curve_fit
         FWHM_eV_min = 1e-5
@@ -506,7 +510,7 @@ class KrComplexLineShape(BaseProcessor):
         p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, prob_parameter_min],  
                     [FWHM_eV_max, line_pos_keV_max, amplitude_max, prob_parameter_max])
         # Actually do the fitting
-        params , cov = curve_fit(self.spectrum_func_1,bins_keV_nonzero,data_hist_nonzero,sigma=data_hist_err,p0=p0_guess,bounds=p0_bounds)
+        params , cov = curve_fit(self.spectrum_func_1, bins_keV_nonzero, data_hist_nonzero, sigma=data_hist_err, p0=p0_guess, bounds=p0_bounds)
         # Name each of the resulting parameters and errors
         ################### Generalize to N Gases ###########################
         FWHM_G_eV_fit = params[0]
@@ -523,7 +527,7 @@ class KrComplexLineShape(BaseProcessor):
         prob_parameter_fit_err = perr[3]
         total_counts_fit_err = amplitude_fit_err
     
-        fit = self.spectrum_func_1(bins_keV[0:-1],*params)
+        fit = self.spectrum_func_1(bins_keV,*params)
 
         line_pos_Hz_fit , line_pos_Hz_fit_err = ComplexLineShapeUtilities.energy_guess_to_frequency(line_pos_keV_fit, line_pos_keV_fit_err, self.B_field)
         B_field_fit , B_field_fit_err = ComplexLineShapeUtilities.central_frequency_to_B_field(line_pos_Hz_fit, line_pos_Hz_fit_err)

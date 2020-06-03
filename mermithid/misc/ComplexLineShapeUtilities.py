@@ -75,6 +75,13 @@ def get_only_nonzero_bins(bins,hist):
     bins_nonzero = bins[nonzero_idx]
     return bins_nonzero , hist_nonzero , hist_err
 
+# Takes bins of a histogram and return the errs
+def get_hist_err_bins(hist):
+    hist_err = np.sqrt(hist)
+    zero_idx = np.where(hist == 0)
+    hist_err[zero_idx] = 1e-5
+    return hist_err
+
 # Flips an array left-to-right. Useful for converting between energy and frequency
 def flip_array(array):
     flipped = np.fliplr([array]).flatten()

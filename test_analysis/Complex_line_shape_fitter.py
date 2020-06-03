@@ -30,7 +30,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             'bins_choice': np.linspace(0,90e6,1000),
             'gases': ["H2","Kr"],
             'max_scatters': 20,
-            'fix_scatter_proportion': True,
+            'fix_scatter_proportion': False,
             # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
             'gas1_scatter_proportion': 0.8,
             # This is an important parameter which determines how finely resolved
@@ -68,10 +68,10 @@ class ComplexLineShapeTests(unittest.TestCase):
         plt.rcParams.update({'font.size': 20})
         plt.figure(figsize=(15,9))
         plt.step(
-        results['bins_Hz'][0:-1]/1e9, results['data_hist_freq'],
+        results['bins_Hz']/1e9, results['data_hist_freq'],
         label = 'data\n total counts = {}\n'.format(len(data['StartFrequency']))
         )
-        plt.plot(results['bins_Hz'][0:-1]/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
+        plt.plot(results['bins_Hz']/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
         plt.legend(loc = 'upper left', fontsize = 12)
         plt.xlabel('frequency GHz')
         plt.title('fit with shake spectrum 2 gas scattering')
