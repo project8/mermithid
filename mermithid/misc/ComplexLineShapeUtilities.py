@@ -92,7 +92,7 @@ def flip_array(array):
 
 # Converts an energy to frequency using a guess for magnetic field. Can handle errors too
 def energy_guess_to_frequency(energy_guess,energy_guess_err,B_field_guess):
-    frequency = ConversionFunctions.energy_to_frequency(energy_guess, B_field_guess)
+    frequency = ConversionFunctions.Frequency(energy_guess*1000, B_field_guess)
     const = e_charge*B_field_guess/(2.*np.pi*m_e)
     frequency_err = const/(1+energy_guess/mass_energy_electron)**2*energy_guess_err/mass_energy_electron
     return frequency , frequency_err

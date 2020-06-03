@@ -20,7 +20,7 @@ class ComplexLineShapeTests(unittest.TestCase):
 
         reader_config = {
             "action": "read",
-            "filename": "/host-mermithid/tests/events_000007031_katydid_v2.13.0_concat.root",
+            "filename": "/host/ShallowTrap8603-8669.root",
             "object_type": "TMultiTrackEventData",
             "object_name": "multiTrackEvents:Event",
             "use_katydid": False,

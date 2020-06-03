@@ -33,13 +33,3 @@ def Energy(F, B=1):
     else:
         gamma = (e()*B)/(2.0*np.pi*emass_kg) * 1/(F)
         return (gamma-1)*m_electron()
-
-# Given energy in keV and the B_field of the trap, returns frequency in Hz
-def energy_to_frequency(energy_vec, B_field):
-    freq_vec = (e()*B_field/((2.*np.pi*m_e())*(1+energy_vec/(m_electron()/1000))))
-    return freq_vec
-
-# Given frequency in Hz and the B_field of the trap, returns energy in keV
-def frequency_to_energy(freq_vec,B_field):
-    energy_vec = (e()*B_field/((2.*np.pi*m_e()*freq_vec))-1)*m_electron()/1000
-    return energy_vec

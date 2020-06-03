@@ -317,7 +317,7 @@ class KrComplexLineShape(BaseProcessor):
         t = time.time()
         self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
-        bins_keV = ConversionFunctions.frequency_to_energy(bins_Hz, self.B_field)
+        bins_keV = ConversionFunctions.Energy(bins_Hz, self.B_field)/1000
         bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
         data_hist = ComplexLineShapeUtilities.flip_array(data_hist_freq)
         bins_keV_nonzero , data_hist_nonzero , data_hist_err = ComplexLineShapeUtilities.get_only_nonzero_bins(bins_keV, data_hist)
@@ -484,7 +484,7 @@ class KrComplexLineShape(BaseProcessor):
         t = time.time()
         self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
-        bins_keV = ConversionFunctions.frequency_to_energy(bins_Hz, self.B_field)
+        bins_keV = ConversionFunctions.Energy(bins_Hz, self.B_field)/1000
         bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
         data_hist = ComplexLineShapeUtilities.flip_array(data_hist_freq)
         bins_keV_nonzero , data_hist_nonzero , data_hist_err = ComplexLineShapeUtilities.get_only_nonzero_bins(bins_keV, data_hist)
