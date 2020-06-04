@@ -9,8 +9,11 @@ Version: v1.2.0
 ~~~~~~~~~~~~~~~~
 
 Release Date: Thur June 4 2020
+''''''''''''''''''''''''''''''
 
 New features:
+'''''''''''''
+
 * This release provides a complete framework to perform a preliminary analysis of the Tritium beta-decay energy spectrum with the aim of extracting the Tritium endpoint energy.
 * Implemented the Mermithid processors required in the analysis chain
 * Added test scripts for the processors
