@@ -75,7 +75,7 @@ class MultiChannelCicadaReader(IOProcessor):
             if len(self.variables) == 1:
                 self.data[self.channel_ids[i]] = {self.variables[0]: self.data[self.channel_ids[i]]}
 
-            self.data[self.channel_ids[i]]['TotalLifetime'] = self.get_total_live_time_from_root_rile(self.file_name[i])
+            self.data[self.channel_ids[i]]['TotalLifetime'] = self.get_total_live_time_from_root_file(self.file_name[i])
 
 
         if 'StartFrequency' in self.variables:
@@ -109,7 +109,7 @@ class MultiChannelCicadaReader(IOProcessor):
         logger.error("End user analysis: cannot write reconstruction algorithm output")
         raise
 
-    def get_total_live_time_from_root_rile(self, path_to_root_file):
+    def get_total_live_time_from_root_file(self, path_to_root_file):
         f = TFile.Open(path_to_root_file, 'read')
         list_of_keys = f.GetListOfKeys()
 
