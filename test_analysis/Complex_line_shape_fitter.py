@@ -8,7 +8,7 @@ import numpy as np
 import unittest
 import matplotlib.pyplot as plt
 
-from morpho.utilities import morphologging
+from morpho.utilities import morphologging, parser
 logger = morphologging.getLogger(__name__)
 
 class ComplexLineShapeTests(unittest.TestCase):
@@ -39,7 +39,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             'RF_ROI_MIN': 25850000000.0,
             'B_field': 0.957810722501,
             # shake_spectrum_parameters.json and oscillator strength data can be found at https://github.com/project8/scripts/tree/master/yuhao/line_shape_fitting/data
-            'shake_spectrum_parameters_json_path': '/host-mermithid/mermithid/misc/shake_spectrum_parameters.json',
+            'shake_spectrum_parameters_json_path': '../mermithid/misc/shake_spectrum_parameters.json',
             'path_to_osc_strengths_files': '/host/'
         }
 
@@ -75,7 +75,20 @@ class ComplexLineShapeTests(unittest.TestCase):
         plt.legend(loc = 'upper left', fontsize = 12)
         plt.xlabel('frequency GHz')
         plt.title('fit with shake spectrum 2 gas scattering')
-        plt.savefig('/host/plots/fit_shake_2_gas_0.png')
+        plt.savefig('fit_shake_2_gas_0.png')
 
 if __name__ == '__main__':
+
+    args = parser.parse_args(False)
+
+
+    logger = morphologging.getLogger('morpho',
+                                     level=args.verbosity,
+                                     stderr_lb=args.stderr_verbosity,
+                                     propagate=False)
+    logger = morphologging.getLogger(__name__,
+                                     level=args.verbosity,
+                                     stderr_lb=args.stderr_verbosity,
+                                     propagate=False)
+
     unittest.main()
