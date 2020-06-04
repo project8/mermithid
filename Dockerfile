@@ -38,6 +38,8 @@ COPY tests $MERMITHID_BUILD_PREFIX/tests
 # repeat the cmake command to get the change of install prefix to set correctly (a package_builder known issue)
 RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
     cd /tmp_source &&\
+    echo "Submodule" &&\
+    git submodule update --init --recursive &&\
     mkdir -p build &&\
     cd build &&\
     cmake -D CMAKE_BUILD_TYPE=$MERMITHID_BUILD_TYPE \
