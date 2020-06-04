@@ -72,6 +72,8 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
             self.output_bin_variable='KE'
         elif self.energy_or_frequency == 'frequency':
             self.output_bin_variable='F'
+        else:
+            return False
 
         self.efficiency_file_content = self.GetEfficiencyFileContent()
 
@@ -81,6 +83,11 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
             self.bins = np.append(self.bins, [self.bin_centers[-1]+(self.bin_centers[1]-self.bin_centers[0])/2])
         else:
             self.bin_centers = self.bins[0:-1]+0.5*(self.bins[1]-self.bins[0])
+            
+        if not self.efficiency_file_content == self.GetEfficiencyFileContent():
+            logger.error("Failed reading efficiency file")
+            return False
+        
         return True
 
     def InternalRun(self):
