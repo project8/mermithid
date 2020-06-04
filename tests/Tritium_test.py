@@ -6,7 +6,7 @@ Date: Apr 1 2018
 
 import unittest
 
-from morpho.utilities import morphologging
+from morpho.utilities import morphologging, parser
 logger = morphologging.getLogger(__name__)
 
 
@@ -122,7 +122,22 @@ class TritiumTests(unittest.TestCase):
         specFit.data = result
         histo.Run()
         specFit.Run()
+        print(specFit.result)
 
 
 if __name__ == '__main__':
+
+    args = parser.parse_args(False)
+
+
+    logger = morphologging.getLogger('morpho',
+                                     level=args.verbosity,
+                                     stderr_lb=args.stderr_verbosity,
+                                     propagate=False)
+    logger = morphologging.getLogger(__name__,
+                                     level=args.verbosity,
+                                     stderr_lb=args.stderr_verbosity,
+                                     propagate=False)
+
+
     unittest.main()
