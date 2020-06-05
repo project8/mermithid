@@ -28,6 +28,7 @@ class MultiChannelCicadaReader(IOProcessor):
             object_type: class of the object to read in the file
             object_name: name of the tree followed by the name of the object
             use_katydid: retro-compatibility to Katydid namespace
+            read_livetimes: read livetimes from root files
             channel_ids: key list that will be used for storing the file content, length determines how many files are read
             rf_roi_min_freqs: list of frequencies that is added to all frequencies read from ROOT file, has to match length of channel ids
             channel_transition_ranges: list of frequency ranges for each channel
@@ -37,6 +38,7 @@ class MultiChannelCicadaReader(IOProcessor):
         self.object_type = reader.read_param(params,"object_type","TMultiTrackEventData")
         self.object_name = reader.read_param(params,"object_name","multiTrackEvents:Event")
         self.use_katydid = reader.read_param(params,"use_katydid",False)
+        self.read_livetimes = reader.read_param(params, "read_livetimes", False)
 
         self.channel_ids = reader.read_param(params, "channel_ids", ['a', 'b', 'c'])
         self.rf_roi_min_freqs = reader.read_param(params, "rf_roi_min_freqs", [0, 0, 0])
@@ -75,7 +77,8 @@ class MultiChannelCicadaReader(IOProcessor):
             if len(self.variables) == 1:
                 self.data[self.channel_ids[i]] = {self.variables[0]: self.data[self.channel_ids[i]]}
 
-            self.data[self.channel_ids[i]]['TotalLifetime'] = self.get_total_live_time_from_root_file(self.file_name[i])
+            if self.read_livetimes:
+                self.data[self.channel_ids[i]]['TotalLifetime'] = self.get_total_live_time_from_root_file(self.file_name[i])
 
 
         if 'StartFrequency' in self.variables:
@@ -110,6 +113,7 @@ class MultiChannelCicadaReader(IOProcessor):
         raise
 
     def get_total_live_time_from_root_file(self, path_to_root_file):
+        logger.info('Reading livetimes from file')
         f = TFile.Open(path_to_root_file, 'read')
         list_of_keys = f.GetListOfKeys()
 
