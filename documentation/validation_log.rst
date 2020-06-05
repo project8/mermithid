@@ -5,17 +5,20 @@ Log
 ---
 
 
-Version: v
+Version: v1.2.0
 ~~~~~~~~~~~~~~~~
 
-Release Date: 
-'''''''''''''''''''''''''''''
+Release Date: Thur June 4 2020
+''''''''''''''''''''''''''''''
 
 New features:
 '''''''''''''
 
-* morpho as git submodule
-* morpho version v2.7.0
+* This release provides a complete framework to perform a preliminary analysis of the Tritium beta-decay energy spectrum with the aim of extracting the Tritium endpoint energy.
+* Implemented the Mermithid processors required in the analysis chain
+* Added test scripts for the processors
+* Implemented Morpho as a git submodule
+* Updated Morpho version to v2.7.0
 
 
 Version: v1.1.12
@@ -63,7 +66,7 @@ Release Date: Mon Jul 22 2019
 New features:
 '''''''''''''
 
-* P8 Compute Dependencies image update to v0.7.0 
+* P8 Compute Dependencies image update to v0.7.0
 
 Version: v1.1.8
 ~~~~~~~~~~~~~~~
@@ -173,4 +176,3 @@ Fixes:
 '''''''''''''
 
 * Various comments from users
-

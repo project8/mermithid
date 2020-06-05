@@ -7,7 +7,7 @@ Updated: Apr 19 2020
 
 import unittest
 
-from morpho.utilities import morphologging
+from morpho.utilities import morphologging, parser
 logger = morphologging.getLogger(__name__)
 
 import matplotlib.pyplot as plt
@@ -49,6 +49,7 @@ class IOTests(unittest.TestCase):
             "object_type": "TMultiTrackEventData",
             "object_name": "multiTrackEvents:Event",
             "use_katydid": False,
+            "read_livetimes": False,
             "variables": ['StartFrequency', 'StartTimeInRunC'],
             "merged_frequency_variable": "F"
         }
@@ -85,4 +86,17 @@ class IOTests(unittest.TestCase):
         plt.savefig('multi_channel_reader_test.png', dpi=200)
 
 if __name__ == '__main__':
+
+    args = parser.parse_args(False)
+
+
+    logger = morphologging.getLogger('morpho',
+                                     level=args.verbosity,
+                                     stderr_lb=args.stderr_verbosity,
+                                     propagate=False)
+    logger = morphologging.getLogger(__name__,
+                                     level=args.verbosity,
+                                     stderr_lb=args.stderr_verbosity,
+                                     propagate=False)
+
     unittest.main()

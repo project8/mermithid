@@ -129,7 +129,7 @@ class KrComplexLineShape(BaseProcessor):
         f = 0 * energy_loss_array
 
         input_filename = self.path_to_osc_strengths_files + gas_type + "OscillatorStrength.txt"
-        energy_fOsc = read_oscillator_str_file(input_filename)
+        energy_fOsc = ComplexLineShapeUtilities.read_oscillator_str_file(input_filename)
         fData = interpolate.interp1d(energy_fOsc[0], energy_fOsc[1], kind='linear')
         for i in range(len(energy_loss_array)):
             if energy_loss_array[i] < energy_fOsc[0][0]:
@@ -137,9 +137,9 @@ class KrComplexLineShape(BaseProcessor):
             elif energy_loss_array[i] <= energy_fOsc[0][-1]:
                 f[i] = fData(energy_loss_array[i])
             else:
-                f[i] = aseev_func_tail(energy_loss_array[i], gas_type)
+                f[i] = ComplexLineShapeUtilities.aseev_func_tail(energy_loss_array[i], gas_type)
 
-        f_e_loss = get_eloss_spec(energy_loss_array, f, kr_line)
+        f_e_loss = ComplexLineShapeUtilities.get_eloss_spec(energy_loss_array, f, Constants.kr_k_line_e())
         f_normed = self.normalize(f_e_loss)
         return f_normed
 
