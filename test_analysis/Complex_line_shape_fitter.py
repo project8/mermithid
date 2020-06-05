@@ -79,16 +79,4 @@ class ComplexLineShapeTests(unittest.TestCase):
 
 if __name__ == '__main__':
 
-    args = parser.parse_args(False)
-
-
-    logger = morphologging.getLogger('morpho',
-                                     level=args.verbosity,
-                                     stderr_lb=args.stderr_verbosity,
-                                     propagate=False)
-    logger = morphologging.getLogger(__name__,
-                                     level=args.verbosity,
-                                     stderr_lb=args.stderr_verbosity,
-                                     propagate=False)
-
     unittest.main()

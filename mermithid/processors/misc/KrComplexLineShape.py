@@ -137,9 +137,9 @@ class KrComplexLineShape(BaseProcessor):
             elif energy_loss_array[i] <= energy_fOsc[0][-1]:
                 f[i] = fData(energy_loss_array[i])
             else:
-                f[i] = aseev_func_tail(energy_loss_array[i], gas_type)
+                f[i] = ComplexLineShapeUtilities.aseev_func_tail(energy_loss_array[i], gas_type)
 
-        f_e_loss = get_eloss_spec(energy_loss_array, f, kr_line)
+        f_e_loss = ComplexLineShapeUtilities.get_eloss_spec(energy_loss_array, f, Constants.kr_k_line_e())
         f_normed = self.normalize(f_e_loss)
         return f_normed
 
