@@ -245,8 +245,10 @@ class FakeDataGenerator(BaseProcessor):
         if efficiency_dict is not None:
             logger.info('Evaluating efficiencies')
             efficiency_mean, efficiency_error = efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
+            logger.info("Sampling efficiencies given means and uncertainties")
             efficiency = np.random.normal(efficiency_mean, efficiency_error)
-
+            eff_negative = (efficiency<0.)
+            efficiency[eff_negative] = 0. #Whenever this occurs, efficiency_mean=0 and efficiency_error=1
         else:
             efficiency, _ = 1, 0
 
