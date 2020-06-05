@@ -55,8 +55,6 @@ class ComplexLineShapeTests(unittest.TestCase):
         for key in data.keys():
             logger.info("{} -> size = {}".format(key,len(data[key])))
 
-        start_frequency_array = np.array(data['StartFrequency'])
-
         complexLineShape.data = data
 
         complexLineShape.Run()
