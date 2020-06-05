@@ -76,6 +76,9 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
             return False
 
         self.efficiency_file_content = self.GetEfficiencyFileContent()
+        if not self.efficiency_file_content == self.GetEfficiencyFileContent():
+            logger.error("Failed reading efficiency file")
+            return False
 
         if self.fss_bins == True:
             self.bin_centers = self.efficiency_file_content['frequencies']
@@ -84,9 +87,13 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         else:
             self.bin_centers = self.bins[0:-1]+0.5*(self.bins[1]-self.bins[0])
 
-        if not self.efficiency_file_content == self.GetEfficiencyFileContent():
-            logger.error("Failed reading efficiency file")
-            return False
+            # check that frequency bins are withing good frequency region
+            if self.bins[-1] > np.max(self.efficiency_file_content['frequencies']):
+                logger.error('Bin edge above FSS frequency region. FSS region is {} - {} GHz'.format(np.min(self.efficiency_file_content['frequencies'])*1e-9, np.max(self.efficiency_file_content['frequencies'])*1e-9))
+                return False
+            elif self.bins[0] < np.min(self.efficiency_file_content['frequencies']):
+                logger.warning('Bin edge below FSS frequency region. As long as tritium endpoint is higher (in frequency) this is not a problem. FSS region is {} - {} GHz'.format(np.min(self.efficiency_file_content['frequencies'])*1e-9, np.max(self.efficiency_file_content['frequencies'])*1e-9))
+
 
         return True
 
