@@ -62,7 +62,7 @@ class TritiumAndEfficiencyBinner(BaseProcessor):
         self.bins = reader.read_param(params, 'bins', [])
         self.asInteger = reader.read_param(params, 'asInteger', False)
         self.energy_or_frequency = reader.read_param(params, 'energy_or_frequency', 'energy') #Currently only set up to use frequency
-        self.efficiency_filepath = reader.read_param(params, 'efficiency_filepath', 'combined_energy_corrected_eff_at_quad_trap_frequencies.json')
+        self.efficiency_filepath = reader.read_param(params, 'efficiency_filepath', '')
         self.fss_bins = reader.read_param(params, "fss_bins", False)
         # If self.fss_bins is True, self.bins is ignored and overwritten
 
