@@ -100,7 +100,7 @@ class FakeDataGenerator(BaseProcessor):
         #paths
         self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
         #self.detailed_scattering_path = reader.read_param(params, 'detailed_scattering_path', None)
-        self.efficiency_path = reader.read_param(params, 'efficiency_path', '/host/input_data/combined_energy_corrected_eff_at_quad_trap_frequencies.json')
+        self.efficiency_path = reader.read_param(params, 'efficiency_path', '')
 
         #options
         self.use_lineshape = reader.read_param(params, 'use_lineshape', True)
@@ -145,7 +145,7 @@ class FakeDataGenerator(BaseProcessor):
             ROIbound = [self.minf]
         else:
             ROIbound = [self.Kmin, self.Kmax]
-            
+
         Kgen = self.generate_unbinned_data(self.Q, self.m,
                                            ROIbound,
                                            self.S, self.B_1kev,
