@@ -45,7 +45,7 @@ class TritiumBinningTests(unittest.TestCase):
         tritiumAndEfficiencyBinner_config = {
             "energy_or_frequency": 'frequency', #Currently only set up to use frequency
             "variables": "F",
-            'bins': np.linspace(24.5e9+1300e6, 24.5e9+1550e6, 25),
+            'bins': np.arange(24.5e9+1300e6, 24.5e9+1490e6, 5e6),
             'fss_bins': False, # If fss_bins is True, bins is ignored and overwritten
             'efficiency_filepath': 'combined_energy_corrected_eff_at_quad_trap_frequencies.json'
         }
@@ -64,6 +64,25 @@ class TritiumBinningTests(unittest.TestCase):
         tritiumAndEfficiencyBinner.data = data
         tritiumAndEfficiencyBinner.Run()
         results = tritiumAndEfficiencyBinner.results
+
+        # run again with fss bins
+        tritiumAndEfficiencyBinner_config['fss_bins'] = True
+        tritiumAndEfficiencyBinner.Configure(tritiumAndEfficiencyBinner_config)
+        tritiumAndEfficiencyBinner.Run()
+        results2 = tritiumAndEfficiencyBinner.results
+
+
+        plt.figure()
+
+        eff1 = np.array(results['bin_efficiencies'])
+        eff2 = np.array(results2['bin_efficiencies'])
+        plt.plot(np.array(results['F'])-24.5e9, eff1/np.mean(eff1[eff1>0]), label='Piecewise integrated', marker='.')
+        plt.plot(np.array(results2['F'])-24.5e9, eff2/np.mean(eff2[eff2>0]), label='FSS bin center', marker='.')
+        plt.xlabel('Frequency - 24.5 GHz [Hz]')
+        plt.ylabel('Efficiency')
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig('TritiumAndEfficiencyBinnerOutputIntegrationComparison.png')
 
         plt.figure()
         plt.subplot(1,2,1)
