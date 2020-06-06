@@ -5,6 +5,21 @@ Log
 ---
 
 
+Version: v1.2.1
+~~~~~~~~~~~~~~~~
+
+Release Date: Fri June 5 2020
+''''''''''''''''''''''''''''''
+
+Fixes:
+'''''''''''''
+
+* Removed the hard-coded path of the efficiency file in the FakeDataGenerator.py
+* Made it optional to read the livetime from the root files in MultiChannelCicadaReader.py
+* Added features that prevent the frequency window for analysis from going beyond the maximum FSS frequency in TritiumAndEfficiencyBinner.py
+* Fixed function callings in KrComplexLineShape.py
+
+
 Version: v1.2.0
 ~~~~~~~~~~~~~~~~
 
