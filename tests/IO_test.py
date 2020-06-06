@@ -49,6 +49,7 @@ class IOTests(unittest.TestCase):
             "object_type": "TMultiTrackEventData",
             "object_name": "multiTrackEvents:Event",
             "use_katydid": False,
+            "read_livetimes": False,
             "variables": ['StartFrequency', 'StartTimeInRunC'],
             "merged_frequency_variable": "F"
         }

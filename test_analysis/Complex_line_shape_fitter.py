@@ -55,8 +55,6 @@ class ComplexLineShapeTests(unittest.TestCase):
         for key in data.keys():
             logger.info("{} -> size = {}".format(key,len(data[key])))
 
-        start_frequency_array = np.array(data['StartFrequency'])
-
         complexLineShape.data = data
 
         complexLineShape.Run()
@@ -78,17 +76,5 @@ class ComplexLineShapeTests(unittest.TestCase):
         plt.savefig('fit_shake_2_gas_0.png')
 
 if __name__ == '__main__':
-
-    args = parser.parse_args(False)
-
-
-    logger = morphologging.getLogger('morpho',
-                                     level=args.verbosity,
-                                     stderr_lb=args.stderr_verbosity,
-                                     propagate=False)
-    logger = morphologging.getLogger(__name__,
-                                     level=args.verbosity,
-                                     stderr_lb=args.stderr_verbosity,
-                                     propagate=False)
 
     unittest.main()
