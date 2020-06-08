@@ -48,7 +48,11 @@ RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
         -D CMAKE_SKIP_INSTALL_RPATH:BOOL=True .. &&\
     make -j3 install &&\
     cd /tmp_source &&\
-    ls -altrh morpho &&\
-    pip3 install . -e ./morpho --prefix $MERMITHID_BUILD_PREFIX &&\
+#    ls -altrh morpho &&\
+    pip3 install . ./morpho --prefix $MERMITHID_BUILD_PREFIX &&\
     /bin/true
 
+########################
+FROM mermithid_common
+
+COPY --from=mermithid_done $MERMITHID_BUILD_PREFIX $MERMITHID_BUILD_PREFIX
