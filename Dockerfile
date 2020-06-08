@@ -3,7 +3,7 @@ FROM project8/p8compute_dependencies:v0.9.0 as mermithid_common
 ARG build_type=Release
 ENV MERMITHID_BUILD_TYPE=$build_type
 
-ENV MERMITHID_TAG=v1.2.1
+ENV MERMITHID_TAG=v1.2.2
 ENV MERMITHID_BUILD_PREFIX=/usr/local/p8/mermithid/$MERMITHID_TAG
 
 RUN mkdir -p $MERMITHID_BUILD_PREFIX &&\
@@ -48,7 +48,11 @@ RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
         -D CMAKE_SKIP_INSTALL_RPATH:BOOL=True .. &&\
     make -j3 install &&\
     cd /tmp_source &&\
-    ls -altrh morpho &&\
-    pip3 install . -e ./morpho --prefix $MERMITHID_BUILD_PREFIX &&\
+#    ls -altrh morpho &&\
+    pip3 install . ./morpho --prefix $MERMITHID_BUILD_PREFIX &&\
     /bin/true
 
+########################
+FROM mermithid_common
+
+COPY --from=mermithid_done $MERMITHID_BUILD_PREFIX $MERMITHID_BUILD_PREFIX
