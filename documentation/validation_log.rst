@@ -5,6 +5,19 @@ Log
 ---
 
 
+Version: v1.2.2
+~~~~~~~~~~~~~~~~
+
+Release Date: Fri June 8 2020
+''''''''''''''''''''''''''''''
+
+Fixes:
+'''''''''''''
+
+* Morpho install is done as a release install instead of with the `-e` flag
+* Installed files are copied to a fresh copy of the container
+
+
 Version: v1.2.1
 ~~~~~~~~~~~~~~~~
 
