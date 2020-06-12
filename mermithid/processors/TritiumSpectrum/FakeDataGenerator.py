@@ -51,6 +51,7 @@ class FakeDataGenerator(BaseProcessor):
         - survival_prob: lineshape parameter - ratio of n+t/nth peak
         - scattering_sigma [eV]: lineshape parameter - 0-th peak gaussian broadening standard deviation
         - NScatters: lineshape parameter - number of scatters included in lineshape
+        - scatter_proportion: fraction of hydrogen in complex lineshape
         - simplified_scattering_path: path to simplified lineshape parameters
         - path_to_detailed_scatter_spectra_dir: path to oscillator and or scatter_spectra_file
         - efficiency_path: path to efficiency vs. frequency (and uncertainties)
@@ -91,11 +92,11 @@ class FakeDataGenerator(BaseProcessor):
         self.err_from_B = reader.read_param(params, 'err_from_B', 0.) #In eV, kinetic energy error from f_c --> K conversion
 
 
-        #Simplified scattering model parameters
+        #Scattering model parameters
         self.survival_prob = reader.read_param(params, 'survival_prob', 0.77)
         self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
         self.NScatters = reader.read_param(params, 'NScatters', 20)
-
+        self.scatter_proportion = reader.read_param(params, 'scatter_proportion', 0.8)
 
         #paths
         self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
@@ -140,10 +141,10 @@ class FakeDataGenerator(BaseProcessor):
                 # Setup and configure lineshape processor
                 complexLineShape_config = {
                     'gases': ["H2","He"],
-                    'max_scatters': 20,
+                    'max_scatters': self.NScatters,
                     'fix_scatter_proportion': True,
                     # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
-                    'gas1_scatter_proportion': 0.8,
+                    'gas1_scatter_proportion': self.scatter_proportion,
                     # This is an important parameter which determines how finely resolved
                     # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
                     'num_points_in_std_array': 10000,
