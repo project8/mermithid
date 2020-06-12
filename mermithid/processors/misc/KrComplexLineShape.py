@@ -54,6 +54,7 @@ class KrComplexLineShape(BaseProcessor):
         self.fix_scatter_proportion = reader.read_param(params, 'fix_scatter_proportion', True)
         if self.fix_scatter_proportion == True:
             self.scatter_proportion = reader.read_param(params, 'gas1_scatter_proportion', 0.8)
+        self.normalize_lineshape = reader.read_params('normalize_lineshape', False)
         # This is an important parameter which determines how finely resolved
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
@@ -267,10 +268,12 @@ class KrComplexLineShape(BaseProcessor):
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
         elif emitted_peak == 'dirac':
-            current_working_spectrum = std_dirac()
+            current_working_spectrum = self.std_dirac()
         current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
+        if self.normalize_lineshape==True:
+            norm = 1
         for n in range(1, max_comprehensive_scatters + 1):
             for r in range(0, n + 1):
                 current_working_spectrum = \
@@ -280,6 +283,9 @@ class KrComplexLineShape(BaseProcessor):
                 self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
                 current_full_spectrum += current_working_spectrum*comb(n, r)\
                 *(prob_parameter*p)**(r)*(prob_parameter*q)**(n-r)
+                if self.normalize_lineshape==True:
+                    norm += comb(n, r)\
+                    *(prob_parameter*p)**(r)*(prob_parameter*q)**(n-r)
 
         for n in range(max_comprehensive_scatters + 1, max_scatters + 1):
             current_working_spectrum = \
@@ -288,6 +294,8 @@ class KrComplexLineShape(BaseProcessor):
             current_working_spectrum = \
             self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
             current_full_spectrum += current_working_spectrum*(prob_parameter*p)**(n)
+            if self.normalize_lineshape==True:
+                norm += (prob_parameter*p)**(n)
 
             current_working_spectrum = \
             scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
@@ -295,7 +303,12 @@ class KrComplexLineShape(BaseProcessor):
             current_working_spectrum = \
             self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
             current_full_spectrum += current_working_spectrum*(prob_parameter*q)**(n)
-        return current_full_spectrum
+            if self.normalize_lineshape==True:
+                norm += (prob_parameter*q)**(n)
+        if self.normalize_lineshape==True:
+            return current_full_spectrum/norm
+        else:
+            return current_full_spectrum
 
     # Produces a spectrum in real energy that can now be evaluated off of the SELA.
     #def spectrum_func(x_keV,FWHM_G_eV,line_pos_keV,scatter_prob,amplitude):
@@ -449,10 +462,12 @@ class KrComplexLineShape(BaseProcessor):
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
         elif emitted_peak == 'dirac':
-            current_working_spectrum = std_dirac()
+            current_working_spectrum = self.std_dirac()
         current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
+        if self.normalize_lineshape==True:
+            norm = 1
         for n in range(1, max_comprehensive_scatters + 1):
             for r in range(0, n + 1):
                 current_working_spectrum = \
@@ -462,6 +477,9 @@ class KrComplexLineShape(BaseProcessor):
                 self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
                 current_full_spectrum += current_working_spectrum*comb(n, r)\
                 *(prob_parameter*p)**(r)*(prob_parameter*q)**(n-r)
+                if self.normalize_lineshape==True:
+                    norm += comb(n, r)\
+                    *(prob_parameter*p)**(r)*(prob_parameter*q)**(n-r)
         for n in range(max_comprehensive_scatters + 1, max_scatters + 1):
             current_working_spectrum = \
             scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
@@ -469,6 +487,8 @@ class KrComplexLineShape(BaseProcessor):
             current_working_spectrum = \
             self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
             current_full_spectrum += current_working_spectrum*(prob_parameter*p)**(n)
+            if self.normalize_lineshape==True:
+                norm += (prob_parameter*p)**(n)
 
             current_working_spectrum = \
             scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
@@ -476,7 +496,12 @@ class KrComplexLineShape(BaseProcessor):
             current_working_spectrum = \
             self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
             current_full_spectrum += current_working_spectrum*(prob_parameter*q)**(n)
-        return current_full_spectrum
+            if self.normalize_lineshape==True:
+                norm += (prob_parameter*q)**(n)
+        if self.normalize_lineshape==True:
+            return current_full_spectrum/norm
+        else:
+            return current_full_spectrum
 
     def spectrum_func_1(self, x_keV, *p0):
         x_eV = x_keV*1000.
