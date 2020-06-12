@@ -84,6 +84,7 @@ class KrComplexLineShape(BaseProcessor):
         kr17kev_in_hz = guess*(bins[1]-bins[0])+bins[0]
         #self.B_field = B(17.8, kr17kev_in_hz + 0)
         if self.fix_scatter_proportion == True:
+            logger.info('Scatter proportion fixed')
             self.results = self.fit_data_1(freq_bins, data_hist_freq)
         else:
             self.results = self.fit_data(freq_bins, data_hist_freq)
@@ -127,7 +128,6 @@ class KrComplexLineShape(BaseProcessor):
     def single_scatter_f(self, gas_type):
         energy_loss_array = self.std_eV_array()
         f = 0 * energy_loss_array
-
         input_filename = self.path_to_osc_strengths_files + gas_type + "OscillatorStrength.txt"
         energy_fOsc = ComplexLineShapeUtilities.read_oscillator_str_file(input_filename)
         fData = interpolate.interp1d(energy_fOsc[0], energy_fOsc[1], kind='linear')
@@ -151,7 +151,7 @@ class KrComplexLineShape(BaseProcessor):
         return f_normed
 
     # Convolves the scatter functions and saves
-    # the results to a .npy file.    
+    # the results to a .npy file.
     def generate_scatter_convolution_file(self):
         t = time.time()
         scatter_spectra_single_gas = {}
@@ -179,7 +179,7 @@ class KrComplexLineShape(BaseProcessor):
                 total_scatter = self.normalize(signal.convolve(H2_scatter, Kr_scatter, mode='same'))
                 scatter_spectra['{}_{}'.format(self.gases[0], self.gases[1])]['{}_{}'.format(str(j).zfill(2), str(i-j).zfill(2))] = total_scatter
         np.save(
-        self.path_to_osc_strengths_files+'scatter_spectra_file/scatter_spectra.npy', 
+        self.path_to_osc_strengths_files+'scatter_spectra_file/scatter_spectra.npy',
         scatter_spectra
         )
         elapsed = time.time() - t
@@ -191,13 +191,13 @@ class KrComplexLineShape(BaseProcessor):
     # If not, this function calls generate_scatter_convolution_file.
     # This function also checks to make sure that the scatter file have the correct
     # number of entries and correct number of points in the SELA, and if not, it generates a fresh file.
-    # When the variable regenerate is set as True, it generates a fresh file   
+    # When the variable regenerate is set as True, it generates a fresh file
     def check_existence_of_scatter_file(self, regenerate = False):
         gases = self.gases
         if regenerate == True:
             logger.info('generate fresh scatter file')
             self.generate_scatter_convolution_file()
-        else: 
+        else:
             stuff_in_dir = os.listdir(self.path_to_osc_strengths_files)
             if 'scatter_spectra_file' not in stuff_in_dir:
                 logger.info('Scatter spectra folder not found, generating')
@@ -209,7 +209,7 @@ class KrComplexLineShape(BaseProcessor):
                 strippeddirs = [s.strip('\n') for s in directory]
                 if 'scatter_spectra.npy' not in strippeddirs:
                     self.generate_scatter_convolution_file()
-                test_file = self.path_to_osc_strengths_files+'scatter_spectra_file/scatter_spectra.npy' 
+                test_file = self.path_to_osc_strengths_files+'scatter_spectra_file/scatter_spectra.npy'
                 test_dict = np.load(test_file, allow_pickle = True)
                 if list(test_dict.item().keys())[0] != '{}_{}'.format(gases[0], gases[1]):
                     logger.info('first entry not matching, generating fresh files')
@@ -294,12 +294,12 @@ class KrComplexLineShape(BaseProcessor):
         amplitude = p0[2]
         prob_parameter = p0[3]
         scatter_proportion = p0[4]
-    
+
         line_pos_eV = line_pos_keV*1000.
         x_eV_minus_line = x_eV - line_pos_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
-    
+
         full_spectrum = self.make_spectrum(FWHM_G_eV, prob_parameter, scatter_proportion)
         full_spectrum_rev = ComplexLineShapeUtilities.flip_array(full_spectrum)
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
@@ -340,8 +340,8 @@ class KrComplexLineShape(BaseProcessor):
         amplitude_guess = np.sum(data_hist)/2
         prob_parameter_guess = 0.5
         scatter_proportion_guess = 0.9
-        p0_guess = [FWHM_guess, line_pos_guess, amplitude_guess, prob_parameter_guess, scatter_proportion_guess] 
-        p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, prob_parameter_min, scatter_proportion_min],  
+        p0_guess = [FWHM_guess, line_pos_guess, amplitude_guess, prob_parameter_guess, scatter_proportion_guess]
+        p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, prob_parameter_min, scatter_proportion_min],
                     [FWHM_eV_max, line_pos_keV_max, amplitude_max, prob_parameter_max, scatter_proportion_max])
         # Actually do the fitting
         params , cov = curve_fit(self.spectrum_func, bins_keV_nonzero, data_hist_nonzero, sigma=data_hist_err, p0=p0_guess, bounds=p0_bounds)
@@ -362,7 +362,7 @@ class KrComplexLineShape(BaseProcessor):
         prob_parameter_fit_err = perr[3]
         scatter_proportion_fit_err = perr[4]
         total_counts_fit_err = amplitude_fit_err
-    
+
         fit = self.spectrum_func(bins_keV,*params)
 
         line_pos_Hz_fit , line_pos_Hz_fit_err = ComplexLineShapeUtilities.energy_guess_to_frequency(line_pos_keV_fit, line_pos_keV_fit_err, self.B_field)
@@ -506,8 +506,8 @@ class KrComplexLineShape(BaseProcessor):
         line_pos_guess = bins_keV[np.argmax(data_hist)]
         amplitude_guess = np.sum(data_hist)/2
         prob_parameter_guess = 0.5
-        p0_guess = [FWHM_guess, line_pos_guess, amplitude_guess, prob_parameter_guess] 
-        p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, prob_parameter_min],  
+        p0_guess = [FWHM_guess, line_pos_guess, amplitude_guess, prob_parameter_guess]
+        p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, prob_parameter_min],
                     [FWHM_eV_max, line_pos_keV_max, amplitude_max, prob_parameter_max])
         # Actually do the fitting
         params , cov = curve_fit(self.spectrum_func_1, bins_keV_nonzero, data_hist_nonzero, sigma=data_hist_err, p0=p0_guess, bounds=p0_bounds)
@@ -526,7 +526,7 @@ class KrComplexLineShape(BaseProcessor):
         amplitude_fit_err = perr[2]
         prob_parameter_fit_err = perr[3]
         total_counts_fit_err = amplitude_fit_err
-    
+
         fit = self.spectrum_func_1(bins_keV,*params)
 
         line_pos_Hz_fit , line_pos_Hz_fit_err = ComplexLineShapeUtilities.energy_guess_to_frequency(line_pos_keV_fit, line_pos_keV_fit_err, self.B_field)
