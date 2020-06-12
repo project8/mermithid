@@ -137,13 +137,11 @@ class FakeDataGenerator(BaseProcessor):
 
                 logger.info('Path to scatter_spectra_file: {}'.format(self.detailed_scatter_spectra_path))
 
-                if not os.path.exists(full_path):
-                    raise IOError('{} does not exist'.format(full_path))
 
                 # lineshape params
                 self.SimpParams = [self.scattering_sigma*2*math.sqrt(2*math.log(2)), self.survival_prob]
 
-                # complex lineshape object
+
                 # Setup and configure lineshape processor
                 complexLineShape_config = {
                     'gases': ["H2","He"],
@@ -158,11 +156,12 @@ class FakeDataGenerator(BaseProcessor):
                     'base_shape': 'lorentzian', # needs to be replaced by dirac
                     'path_to_osc_strengths_files': self.detailed_scatter_spectra_path
                 }
-
-                # create complex lineshape object and configure
+                logger.info('Setting up complex lineshape object')
                 self.complexLineShape = KrComplexLineShape("complexLineShape")
                 logger.info('Configuring complex lineshape')
                 self.complexLineShape.Configure(complexLineShape_config)
+                logger.info('Checking existence of scatter spectra files')
+                self.complexLineShape.check_existence_of_scatter_file()
             else:
                 raise ValueError("'detailed_or_simplified' is neither 'detailed' nor 'simplified'")
 

@@ -130,7 +130,7 @@ class KrComplexLineShape(BaseProcessor):
     def single_scatter_f(self, gas_type):
         energy_loss_array = self.std_eV_array()
         f = 0 * energy_loss_array
-        input_filename = self.path_to_osc_strengths_files + gas_type + "OscillatorStrength.txt"
+        input_filename = os.path.join(self.path_to_osc_strengths_files,  "{}OscillatorStrength.txt".format(gas_type))
         energy_fOsc = ComplexLineShapeUtilities.read_oscillator_str_file(input_filename)
         fData = interpolate.interp1d(energy_fOsc[0], energy_fOsc[1], kind='linear')
         for i in range(len(energy_loss_array)):
@@ -181,7 +181,7 @@ class KrComplexLineShape(BaseProcessor):
                 total_scatter = self.normalize(signal.convolve(H2_scatter, Kr_scatter, mode='same'))
                 scatter_spectra['{}_{}'.format(self.gases[0], self.gases[1])]['{}_{}'.format(str(j).zfill(2), str(i-j).zfill(2))] = total_scatter
         np.save(
-        self.path_to_osc_strengths_files+'scatter_spectra_file/scatter_spectra.npy',
+        os.path.join(self.path_to_osc_strengths_files, 'scatter_spectra_file/scatter_spectra.npy'),
         scatter_spectra
         )
         elapsed = time.time() - t
@@ -211,7 +211,7 @@ class KrComplexLineShape(BaseProcessor):
                 strippeddirs = [s.strip('\n') for s in directory]
                 if 'scatter_spectra.npy' not in strippeddirs:
                     self.generate_scatter_convolution_file()
-                test_file = self.path_to_osc_strengths_files+'scatter_spectra_file/scatter_spectra.npy'
+                test_file = os.path.join(self.path_to_osc_strengths_files, 'scatter_spectra_file/scatter_spectra.npy')
                 test_dict = np.load(test_file, allow_pickle = True)
                 if list(test_dict.item().keys())[0] != '{}_{}'.format(gases[0], gases[1]):
                     logger.info('first entry not matching, generating fresh files')
