@@ -128,13 +128,19 @@ class FakeDataGenerator(BaseProcessor):
                                                         self.survival_prob,
                                                         self.NScatters)
             elif self.lineshape=='detailed':
+                # check path exists
                 if 'scatter_spectra_file' in self.detailed_scatter_spectra_path:
                     full_path = self.detailed_scatter_spectra_path
                     self.detailed_scatter_spectra_path, _ = os.path.split(full_path)
+                else:
+                    full_path = os.path.join(self.detailed_scatter_spectra_path, 'scatter_spectra_file')
+
                 logger.info('Path to scatter_spectra_file: {}'.format(self.detailed_scatter_spectra_path))
 
-                if not os.path.exists(os.path.join(self.detailed_scatter_spectra_path, scatter_spectra_file)):
+                if not os.path.exists(full_path):
                     raise IOError('{} does not exist'.format(full_path))
+
+                # lineshape params
                 self.SimpParams = [self.scattering_sigma*2*math.sqrt(2*math.log(2)), self.survival_prob]
 
                 # complex lineshape object
