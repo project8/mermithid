@@ -18,7 +18,7 @@ logger = morphologging.getLogger(__name__)
 
 from mermithid.misc.Constants import *
 from mermithid.misc.ConversionFunctions import *
-from mermithid.misc.KrLineshapeFunctions import *
+#from mermithid.misc.KrLineshapeFunctions import *
 
 
 """
@@ -171,8 +171,8 @@ def bkgd_rate():
 
 
 ##Lineshape option: In this case, simply a Gaussian
-#def gaussian(x,a):
-#    return 1/((2.*np.pi)**0.5*a[0])*(np.exp(-0.5*((x-a[1])/a[0])**2))
+def gaussian(x,a):
+    return 1/((2.*np.pi)**0.5*a[0])*(np.exp(-0.5*((x-a[1])/a[0])**2))
 
 
 #Normalized simplified linesahape with scattering
