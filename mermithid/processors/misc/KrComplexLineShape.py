@@ -17,6 +17,7 @@ RF_ROI_MIN: can be found from meta data.
 B_field: can be put in hand or found by position of the peak of the frequency histogram.
 shake_spectrum_parameters_json_path: path to json file storing shake spectrum parameters.
 path_to_osc_strength_files: path to oscillator strength files.
+base_shape: "shake" or "lorentzian"
 '''
 
 from __future__ import absolute_import
@@ -59,9 +60,10 @@ class KrComplexLineShape(BaseProcessor):
         self.RF_ROI_MIN = reader.read_param(params, 'RF_ROI_MIN', 25850000000.0)
         self.B_field = reader.read_param(params, 'B_field', 0.957810722501)
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
+        self.base_shape = reader.read_param(params, 'base_shape', 'shake')
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
 
-        if not os.path.exists(self.shake_spectrum_parameters_json_path):
+        if self.base_shape=='shake' and not os.path.exists(self.shake_spectrum_parameters_json_path):
             raise IOError('Shake spectrum path does not exist')
         if not os.path.exists(self.path_to_osc_strengths_files):
             raise IOError('Path to osc strengths files does not exist')
@@ -104,7 +106,7 @@ class KrComplexLineShape(BaseProcessor):
     # A lorentzian line centered at 0 eV, with 2.83 eV width on the SELA
     def std_lorenztian_17keV(self):
         x_array = self.std_eV_array()
-        ans = lorentzian(x_array,0,kr_line_width)
+        ans = ComplexLineShapeUtilities.lorentzian(x_array,0,ComplexLineShapeUtilities.kr_17keV_line_width)
         return ans
 
     # A gaussian centered at 0 eV with variable width, on the SELA
@@ -421,7 +423,7 @@ class KrComplexLineShape(BaseProcessor):
         p = self.scatter_proportion
         q = 1 - p
         scatter_spectra = np.load(
-        current_path + 'scatter_spectra_file/scatter_spectra.npy', allow_pickle = True
+        os.path.join(current_path,'scatter_spectra_file/scatter_spectra.npy'), allow_pickle = True
         )
         en_array = self.std_eV_array()
         current_full_spectrum = np.zeros(len(en_array))
@@ -476,7 +478,7 @@ class KrComplexLineShape(BaseProcessor):
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
 
-        full_spectrum = self.make_spectrum_1(FWHM_G_eV, prob_parameter,)
+        full_spectrum = self.make_spectrum_1(FWHM_G_eV, prob_parameter,emitted_peak=self.base_shape)
         full_spectrum_rev = ComplexLineShapeUtilities.flip_array(full_spectrum)
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
