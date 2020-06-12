@@ -110,8 +110,8 @@ class KrComplexLineShape(BaseProcessor):
         return ans
 
     #A Dirac delta functin
-    def std_dirac():
-        x_array = std_eV_array()
+    def std_dirac(self):
+        x_array = self.std_eV_array()
         ans = np.zeros(len(x_array))
         min_x = np.min(np.abs(x_array))
         ans[np.abs(x_array)==min_x] = 1.
@@ -218,7 +218,7 @@ class KrComplexLineShape(BaseProcessor):
             stuff_in_dir = os.listdir(self.path_to_osc_strengths_files)
             if 'scatter_spectra_file' not in stuff_in_dir:
                 logger.info('Scatter spectra folder not found, generating')
-                os.mkdir(self.path_to_osc_strengths_files+'scatter_spectra_file')
+                os.mkdir(os.path.join(self.path_to_osc_strengths_files,'scatter_spectra_file'))
                 time.sleep(2)
                 self.generate_scatter_convolution_file()
             else:
@@ -449,7 +449,7 @@ class KrComplexLineShape(BaseProcessor):
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
         elif emitted_peak == 'dirac':
-            current_working_spectrum = std_dirac()
+            current_working_spectrum = self.std_dirac()
         current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
