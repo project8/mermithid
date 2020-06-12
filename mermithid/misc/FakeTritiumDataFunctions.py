@@ -265,7 +265,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
 
-        lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., ls_params[0], 0, ls_params[1], 1)
+        lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., ls_params[0], 0, ls_params[1])
 
     beta_rates = np.zeros(len(K))
     for i,ke in enumerate(K):
@@ -296,7 +296,7 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
-        lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., ls_params[0], 0, ls_params[1], 1)
+        lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., ls_params[0], 0, ls_params[1])
 
     bkgd_rates = np.full(len(K), bkgd_rate())
     if len(K) < len(K_lineshape):

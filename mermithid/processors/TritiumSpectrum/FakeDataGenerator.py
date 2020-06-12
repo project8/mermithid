@@ -96,7 +96,7 @@ class FakeDataGenerator(BaseProcessor):
         self.survival_prob = reader.read_param(params, 'survival_prob', 0.77)
         self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
         self.NScatters = reader.read_param(params, 'NScatters', 20)
-        self.scatter_proportion = reader.read_param(params, 'scatter_proportion', 0.8)
+        self.scatter_proportion = reader.read_param(params, 'scatter_proportion', 1.0)
 
         #paths
         self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
@@ -155,7 +155,7 @@ class FakeDataGenerator(BaseProcessor):
                     # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
                     'num_points_in_std_array': 10000,
                     'B_field': self.B_field,
-                    'base_shape': 'lorentzian', # needs to be replaced by dirac
+                    'base_shape': 'dirac',
                     'path_to_osc_strengths_files': self.detailed_scatter_spectra_path
                 }
 

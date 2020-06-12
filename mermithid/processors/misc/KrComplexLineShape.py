@@ -17,7 +17,7 @@ RF_ROI_MIN: can be found from meta data.
 B_field: can be put in hand or found by position of the peak of the frequency histogram.
 shake_spectrum_parameters_json_path: path to json file storing shake spectrum parameters.
 path_to_osc_strength_files: path to oscillator strength files.
-base_shape: "shake" or "lorentzian"
+base_shape: "shake", "lorentzian" or "dirac"
 '''
 
 from __future__ import absolute_import
@@ -108,6 +108,21 @@ class KrComplexLineShape(BaseProcessor):
         x_array = self.std_eV_array()
         ans = ComplexLineShapeUtilities.lorentzian(x_array,0,ComplexLineShapeUtilities.kr_17keV_line_width)
         return ans
+
+    #A Dirac delta functin
+    def std_dirac():
+        x_array = std_eV_array()
+        ans = np.zeros(len(x_array))
+        min_x = np.min(np.abs(x_array))
+        ans[np.abs(x_array)==min_x] = 1.
+        logger.warning('Spectrum will be shifted by lineshape by {} eV'.format(min_x))
+        if min_x > 0.1:
+            logger.warning('Lineshape will shift spectrum by > 0.1 eV')
+        if min_x > 1.:
+            logger.warning('Lineshape will shift spectrum by > 1 eV')
+            raise ValueError('problem with std_eV_array()')
+        return ans
+
 
     # A gaussian centered at 0 eV with variable width, on the SELA
     def std_gaussian(self, sigma):
@@ -251,6 +266,8 @@ class KrComplexLineShape(BaseProcessor):
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
+        elif emitted_peak == 'dirac':
+            current_working_spectrum = std_dirac()
         current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
@@ -431,6 +448,8 @@ class KrComplexLineShape(BaseProcessor):
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
+        elif emitted_peak == 'dirac':
+            current_working_spectrum = std_dirac()
         current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
