@@ -54,7 +54,7 @@ class KrComplexLineShape(BaseProcessor):
         self.fix_scatter_proportion = reader.read_param(params, 'fix_scatter_proportion', True)
         if self.fix_scatter_proportion == True:
             self.scatter_proportion = reader.read_param(params, 'gas1_scatter_proportion', 0.8)
-        self.normalize_lineshape = reader.read_params('normalize_lineshape', False)
+        self.normalize_lineshape = reader.read_param(params, 'normalize_lineshape', False)
         # This is an important parameter which determines how finely resolved
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
