@@ -25,7 +25,7 @@ class FakeDataGenerationTest(unittest.TestCase):
             "use_lineshape": False, # if False only gaussian smearing is applied
             "return_frequency": True,
             "scattering_sigma": 18.6, # only used if use_lineshape = True
-            "scattering_prob": 0.77, # only used if use_lineshape = True
+            "survival_prob": 0.77, # only used if use_lineshape = True
             "scatter_proportion": 0.8, # only used if use_lineshape = True and lineshape = detailed
             "B_field": 0.9578186017836624,
             "S": 4500, # number of tritium events
