@@ -60,6 +60,8 @@ def aseev_func_tail(energy_loss_array, gas_type):
         A2, omeg2, eps2 = 0.4019, 22.31, 16.725
     elif gas_type=="He":
         A2, omeg2, eps2 = 0.1187, 33.40, 10.43
+    elif gas_type=="Ar":
+        A2, omeg2, eps2 = 0.3344, 21.91, 21.14
     return A2*omeg2**2./(omeg2**2.+4*(energy_loss_array-eps2)**2.)
 
 #convert oscillator strength into energy loss spectrum
