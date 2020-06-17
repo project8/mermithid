@@ -72,29 +72,7 @@ class BinnedDataFitter(BaseProcessor):
 
         self.hist, _ = np.histogram(self.data[self.namedata], self.bins)
 
-
-        # Now minimize neg log likelihood using iMinuit
-        logger.info('This is the plan:')
-        logger.info('Fitting data consisting of {} elements'.format(np.sum(self.hist)))
-        logger.info('Fit parameters: {}'.format(self.parameter_names))
-        logger.info('Initial values: {}'.format(self.initial_values))
-        logger.info('Initial error: {}'.format(self.parameter_errors))
-        logger.info('Fixed in fit: {}'.format(self.fixes))
-        logger.info('Print level: {}'.format(self.print_level))
-        logger.info('Constrained parameters: {}'.format([self.parameter_names[i] for i in self.constrained_parameters]))
-
-        m_binned = Minuit.from_array_func(self.negPoissonLogLikelihood,
-                                      self.initial_values,
-                                      error=self.parameter_errors,
-                                      errordef = 0.5, limit = self.limits,
-                                      name=self.parameter_names,
-                                      fix=self.fixes, print_level=self.print_level)
-
-
-        # minimze
-        m_binned.migrad(resume=False)
-        result_array = m_binned.np_values()
-        error_array = m_binned.np_errors()
+        result_array, error_array = self.fit()
 
         # save results
         self.results = {}
@@ -103,8 +81,9 @@ class BinnedDataFitter(BaseProcessor):
         for i, k in enumerate(self.parameter_names):
             self.results[k] = {'value': result_array[i], 'error': error_array[i]}
 
-
         return True
+
+
 
     def PDF(self, x, A, mu, sigma):
         """
@@ -112,6 +91,40 @@ class BinnedDataFitter(BaseProcessor):
         """
         f = A*(1/(sigma*np.sqrt(2*np.pi)))*np.exp(-(((x-mu)/sigma)**2.)/2.)
         return f
+
+
+
+    def fit(self):
+        # Now minimize neg log likelihood using iMinuit
+        if self.print_level == 1:
+            logger.info('This is the plan:')
+            logger.info('Fitting data consisting of {} elements'.format(np.sum(self.hist)))
+            logger.info('Fit parameters: {}'.format(self.parameter_names))
+            logger.info('Initial values: {}'.format(self.initial_values))
+            logger.info('Initial error: {}'.format(self.parameter_errors))
+            logger.info('Fixed in fit: {}'.format(self.fixes))
+            logger.info('Constrained parameters: {}'.format([self.parameter_names[i] for i in self.constrained_parameters]))
+
+        m_binned = Minuit.from_array_func(self.negPoissonLogLikelihood,
+                                      self.initial_values,
+                                      error=self.parameter_errors,
+                                      errordef = 0.5, limit = self.limits,
+                                      name=self.parameter_names,
+                                      fix=self.fixes,
+                                      print_level=self.print_level,
+                                      throw_nan=True
+                                      )
+
+
+        # minimze
+        m_binned.migrad(resume=False)
+        self.param_states = m_binned.get_param_states()
+        self.m_binned = m_binned
+
+        # results
+        result_array = m_binned.np_values()
+        error_array = m_binned.np_errors()
+        return result_array, error_array
 
 
     def PoissonLogLikelihood(self, params):
