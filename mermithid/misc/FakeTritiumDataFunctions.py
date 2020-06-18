@@ -18,7 +18,8 @@ logger = morphologging.getLogger(__name__)
 
 from mermithid.misc.Constants import *
 from mermithid.misc.ConversionFunctions import *
-from mermithid.misc.KrLineshapeFunctions import *
+#from mermithid.misc.KrLineshapeFunctions import *
+
 
 """
 Constants and functions used by processors/TritiumSpectrum/FakeDataGenerator.py
@@ -170,8 +171,8 @@ def bkgd_rate():
 
 
 ##Lineshape option: In this case, simply a Gaussian
-#def gaussian(x,a):
-#    return 1/((2.*np.pi)**0.5*a[0])*(np.exp(-0.5*((x-a[1])/a[0])**2))
+def gaussian(x,a):
+    return 1/((2.*np.pi)**0.5*a[0])*(np.exp(-0.5*((x-a[1])/a[0])**2))
 
 
 #Normalized simplified linesahape with scattering
@@ -245,7 +246,7 @@ def convolved_bkgd_rate(K, Kmin, Kmax, lineshape, ls_params, min_energy, max_ene
 
 #Convolution of signal and lineshape using scipy.signal.convolve
 def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
-                                   lineshape, ls_params, min_energy, max_energy):
+                                   lineshape, ls_params, min_energy, max_energy, complexLineShape):
     """K is an array-like object
     """
     logger.info('Using scipy convolve')
@@ -263,7 +264,8 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
-        lineshape_rates = spectrum_func(K_lineshape/1000., ls_params[0], 0, ls_params[1], 1)
+
+        lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., ls_params[0], 0, 1, ls_params[1])
 
     beta_rates = np.zeros(len(K))
     for i,ke in enumerate(K):
@@ -278,7 +280,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
 
 
 #Convolution of background and lineshape using scipy.signal.convolve
-def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, max_energy):
+def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, max_energy, complexLineShape):
     """K is an array-like object
     """
     energy_half_range = max(max_energy, abs(min_energy))
@@ -294,7 +296,7 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
-        lineshape_rates = spectrum_func(K_lineshape/1000., ls_params[0], 0, ls_params[1], 1)
+        lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., ls_params[0], 0, 1, ls_params[1])
 
     bkgd_rates = np.full(len(K), bkgd_rate())
     if len(K) < len(K_lineshape):

@@ -16,7 +16,7 @@ import os
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.misc.FakeTritiumDataFunctions import *
-
+from mermithid.processors.misc.KrComplexLineShape import KrComplexLineShape
 logger = morphologging.getLogger(__name__)
 
 
@@ -51,8 +51,9 @@ class FakeDataGenerator(BaseProcessor):
         - survival_prob: lineshape parameter - ratio of n+t/nth peak
         - scattering_sigma [eV]: lineshape parameter - 0-th peak gaussian broadening standard deviation
         - NScatters: lineshape parameter - number of scatters included in lineshape
+        - scatter_proportion: fraction of hydrogen in complex lineshape
         - simplified_scattering_path: path to simplified lineshape parameters
-        #- detailed_scattering_path: path to H2 scattering files for detailed lineshape
+        - path_to_detailed_scatter_spectra_dir: path to oscillator and or scatter_spectra_file
         - efficiency_path: path to efficiency vs. frequency (and uncertainties)
         - use_lineshape (boolean): determines whether tritium spectrum is smeared by lineshape.
           If False, it will only be smeared with a Gaussian
@@ -91,15 +92,15 @@ class FakeDataGenerator(BaseProcessor):
         self.err_from_B = reader.read_param(params, 'err_from_B', 0.) #In eV, kinetic energy error from f_c --> K conversion
 
 
-        #Simplified scattering model parameters
+        #Scattering model parameters
         self.survival_prob = reader.read_param(params, 'survival_prob', 0.77)
         self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
         self.NScatters = reader.read_param(params, 'NScatters', 20)
-
+        self.scatter_proportion = reader.read_param(params, 'scatter_proportion', 1.0)
 
         #paths
         self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
-        #self.detailed_scattering_path = reader.read_param(params, 'detailed_scattering_path', None)
+        self.detailed_scatter_spectra_path = reader.read_param(params, 'path_to_detailed_scatter_spectra_dir', '.')
         self.efficiency_path = reader.read_param(params, 'efficiency_path', '')
 
         #options
@@ -108,6 +109,8 @@ class FakeDataGenerator(BaseProcessor):
         self.apply_efficiency = reader.read_param(params, 'apply_efficiency', False)
         self.return_frequency = reader.read_param(params, 'return_frequency', True)
 
+        # nwill be replaced with complex lineshape object if detailed lineshape is used
+        self.complexLineShape = None
 
         # get file content if needed
         # get efficiency dictionary
@@ -125,9 +128,41 @@ class FakeDataGenerator(BaseProcessor):
                                                         self.survival_prob,
                                                         self.NScatters)
             elif self.lineshape=='detailed':
-                if not os.path.exists('./scatter_spectra_files'):
-                    raise IOError('./scatter_spectra_files does not exist')
+                # check path exists
+                if 'scatter_spectra_file' in self.detailed_scatter_spectra_path:
+                    full_path = self.detailed_scatter_spectra_path
+                    self.detailed_scatter_spectra_path, _ = os.path.split(full_path)
+                else:
+                    full_path = os.path.join(self.detailed_scatter_spectra_path, 'scatter_spectra_file')
+
+                logger.info('Path to scatter_spectra_file: {}'.format(self.detailed_scatter_spectra_path))
+
+
+                # lineshape params
                 self.SimpParams = [self.scattering_sigma*2*math.sqrt(2*math.log(2)), self.survival_prob]
+
+
+                # Setup and configure lineshape processor
+                complexLineShape_config = {
+                    'gases': ["H2","He"],
+                    'max_scatters': self.NScatters,
+                    'fix_scatter_proportion': True,
+                    # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
+                    'gas1_scatter_proportion': self.scatter_proportion,
+                    # This is an important parameter which determines how finely resolved
+                    # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
+                    'num_points_in_std_array': 10000,
+                    'B_field': self.B_field,
+                    'base_shape': 'dirac',
+                    'normalize_lineshape': True,
+                    'path_to_osc_strengths_files': self.detailed_scatter_spectra_path
+                }
+                logger.info('Setting up complex lineshape object')
+                self.complexLineShape = KrComplexLineShape("complexLineShape")
+                logger.info('Configuring complex lineshape')
+                self.complexLineShape.Configure(complexLineShape_config)
+                logger.info('Checking existence of scatter spectra files')
+                self.complexLineShape.check_existence_of_scatter_file()
             else:
                 raise ValueError("'detailed_or_simplified' is neither 'detailed' nor 'simplified'")
 
@@ -257,7 +292,7 @@ class FakeDataGenerator(BaseProcessor):
         time0 = time.time()
 
         if array_method == True:
-            ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean, mass, Kmin, lineshape, params, min_energy, max_energy)
+            ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean, mass, Kmin, lineshape, params, min_energy, max_energy, self.complexLineShape)
         else:
             ratesS = [convolved_spectral_rate(K, Q_mean, mass, Kmin, lineshape, params, min_energy, max_energy) for K in self.Koptions]
 
@@ -269,7 +304,7 @@ class FakeDataGenerator(BaseProcessor):
 
         # background
         if array_method == True:
-            ratesB = convolved_bkgd_rate_arrays(self.Koptions, Kmin, Kmax, lineshape, params, min_energy, max_energy)
+            ratesB = convolved_bkgd_rate_arrays(self.Koptions, Kmin, Kmax, lineshape, params, min_energy, max_energy, self.complexLineShape)
         else:
             ratesB = [convolved_bkgd_rate(K, Kmin, Kmax, lineshape, params, min_energy, max_energy) for K in self.Koptions]
 
