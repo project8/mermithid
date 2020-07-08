@@ -73,8 +73,18 @@ class ComplexLineShapeTests(unittest.TestCase):
         plt.plot(results['bins_Hz']/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
         plt.legend(loc = 'upper left', fontsize = 12)
         plt.xlabel('frequency GHz')
-        plt.title('fit with shake spectrum 2 gas scattering')
-        plt.savefig('/host/plots/fit_shake_2_gas_0.png')
+        plot_title = 'fit with {} gas scattering'.format(len(complexLineShape_config['gases']))
+        if complexLineShape_config['fix_scatter_proportion'] == True:
+            str_gas_scatter_proportion = ''
+            for i in range(len(complexLineShape_config['gases'])):
+                str_gas_scatter_proportion += complexLineShape_config['gases'][i]
+                str_gas_scatter_proportion += ': '
+                str_gas_scatter_proportion += str(complexLineShape_config['gas_scatter_proportion'][i])
+                str_gas_scatter_proportion += ' '
+            plot_title += '\n with fixed scatter proportion \n {}'.format(str_gas_scatter_proportion)
+        plt.title(plot_title)
+        plt.tight_layout()
+        plt.savefig('/host/plots/fit_with_{}_gas_scattering.png'.format(len(complexLineShape_config['gases'])))
 
 if __name__ == '__main__':
 

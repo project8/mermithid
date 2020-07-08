@@ -186,9 +186,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                         else:
                             scatter_to_add = scatter_spectra_single_gas[gas_type][str(component).zfill(2)]
                             current_full_scatter = self.normalize(signal.convolve(current_full_scatter, scatter_to_add, mode='same'))                
-                scatter_spectra[entry_str] = current_full_scatter
-        logger.info(len(scatter_spectra)) 
-        logger.info(self.path_to_scatter_spectra_file + 'scatter_spectra.npy')     
+                scatter_spectra[entry_str] = current_full_scatter      
         np.save(self.path_to_scatter_spectra_file + 'scatter_spectra.npy', scatter_spectra)
         elapsed = time.time() - t
         logger.info('Files generated in '+str(elapsed)+'s')
@@ -212,9 +210,8 @@ class MultiGasComplexLineShape(BaseProcessor):
                 self.generate_scatter_convolution_file()
             test_file = self.path_to_scatter_spectra_files+'scatter_spectra.npy' 
             test_dict = np.load(test_file, allow_pickle = True)
-            M = self.max_scatters
             N = len(self.gases)
-            if len(test_dict.item()) != comb(M + N -1, N -1):
+            if len(test_dict.item()) != sum([comb(M + N -1, N -1) for M in range(1, max_scatters+1)]):
                 logger.info('Number of scatter combinations not matching, generating fresh files')
                 self.generate_scatter_convolution_file()
         return
@@ -262,7 +259,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(len(self.gases))):
                     coefficient = coefficient/factorial(component)*p[i]**component*prob_parameter**M
-                current_full_spectrum += coefficient*current_working_spectrum
+                current_full_spectrum += q*coefficient*current_working_spectrum
         return current_full_spectrum
 
     # Produces a spectrum in real energy that can now be evaluated off of the SELA.
@@ -331,7 +328,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         N = len(gases)
         p0_guess = [FWHM_guess, line_pos_guess, amplitude_guess, prob_parameter_guess] + [scatter_proportion_guess]*(N-1)
         p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, prob_parameter_min] + [scatter_proportion_min]*(N-1),  
-                    [FWHM_eV_max, line_pos_keV_max, amplitude_max, prob_parameter_max] + [scatter_proportion_max]*(N-1))
+                    [FWHM_eV_max, line_pos_keV_max, amplitude_max, prob_parameter_max] + [scatter_proportion_max]*(N-1) )
         # Actually do the fitting
         params , cov = curve_fit(self.spectrum_func, bins_keV_nonzero, data_hist_nonzero, sigma=data_hist_err, p0=p0_guess, bounds=p0_bounds)
         # Name each of the resulting parameters and errors
@@ -360,9 +357,20 @@ class MultiGasComplexLineShape(BaseProcessor):
         bins_keV = bins_keV - line_pos_keV_fit + Constants.kr_k_line_e()/1000
         FWHM_eV_fit = FWHM_G_eV_fit
         FWHM_eV_fit_err = FWHM_eV_G_fit_err
+        
+        nonzero_bins_index = np.where(data_hist_freq != 0)[0]
+        zero_bins_index = np.where(data_hist_freq == 0)[0]
+        fit_Hz_nonzero = fit_Hz[nonzero_bins_index]  
+        data_Hz_nonzero = data_hist_freq[nonzero_bins_index] 
+        fit_Hz_zero = fit_Hz['fit_Hz'][zero_bins_index]
+        data_Hz_zero = data_hist_freq[zero_bins_index]
+        chi2 = sum((fit_Hz_nonzero - data_Hz_nonzero)**2/data_Hz_nonzero) + sum((fit_Hz_nonzero - data_Hz_nonzero)**2/fit_Hz_nonzero)
+        reduced_chi2 = chi2/(len(data_hist_freq)-4-len(self.gases)+1)
         elapsed = time.time() - t
         output_string = '\n'
-        output_string += 'B field = {:.6e}'.format(B_field_fit)+' +/- '+ '{:.2e} T\n'.format(B_field_fit_err)
+        output_string += 'Reduced chi^2 = {:.2e}\n$'.format(reduced_chi2)
+        output_string += '-----------------\n'
+        output_string += 'B field = {:.8e}'.format(B_field_fit)+' +/- '+ '{:.4e} T\n'.format(B_field_fit_err)
         output_string += '-----------------\n'
         output_string += 'Gaussian FWHM = '+str(round(FWHM_G_eV_fit,2))+' +/- '+str(round(FWHM_eV_G_fit_err,2))+' eV\n'
         output_string += '-----------------\n'
@@ -373,8 +381,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         output_string += 'Probability parameter \n= ' + "{:.2e}".format(prob_parameter_fit)\
         +' +/- ' + "{:.2e}".format(prob_parameter_fit_err)+'\n'
         output_string += '-----------------\n'
-        for i in range(len(gases)):
-            output_string += '{} Scatter proportion \n= '.format(gases[i]) + "{:.2e}".format(scatter_proportion_fit[i])\
+        for i in range(len(self.gases)):
+            output_string += '{} Scatter proportion \n= '.format(gases[i]) + "{:.8e}".format(scatter_proportion_fit[i])\
             +' +/- ' + "{:.2e}".format(scatter_proportion_fit_err[i])+'\n'
             output_string += '-----------------\n'
         output_string += 'Fit completed in '+str(round(elapsed,2))+'s'+'\n'
@@ -397,7 +405,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'scatter_proportion_fit_err': scatter_proportion_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
-        'data_hist_freq': data_hist_freq
+        'data_hist_freq': data_hist_freq,
+        'reduced_chi2': reduced_chi2
         }
         return dictionary_of_fit_results
 
@@ -514,9 +523,20 @@ class MultiGasComplexLineShape(BaseProcessor):
         bins_keV = bins_keV - line_pos_keV_fit + Constants.kr_k_line_e()/1000
         FWHM_eV_fit = FWHM_G_eV_fit
         FWHM_eV_fit_err = FWHM_eV_G_fit_err
+
+        nonzero_bins_index = np.where(data_hist_freq != 0)[0]
+        zero_bins_index = np.where(data_hist_freq == 0)[0]
+        fit_Hz_nonzero = fit_Hz[nonzero_bins_index]  
+        data_Hz_nonzero = data_hist_freq[nonzero_bins_index] 
+        fit_Hz_zero = fit_Hz[zero_bins_index]
+        data_Hz_zero = data_hist_freq[zero_bins_index]
+        chi2 = sum((fit_Hz_nonzero - data_Hz_nonzero)**2/data_Hz_nonzero) + sum((fit_Hz_nonzero - data_Hz_nonzero)**2/fit_Hz_nonzero)
+        reduced_chi2 = chi2/(len(data_hist_freq)-4)
         elapsed = time.time() - t
         output_string = '\n'
-        output_string += 'B field = {:.6e}'.format(B_field_fit)+' +/- '+ '{:.2e} T\n'.format(B_field_fit_err)
+        output_string += 'Reduced chi^2 = {:.2e}\n'.format(reduced_chi2)
+        output_string += '-----------------\n'
+        output_string += 'B field = {:.8e}'.format(B_field_fit)+' +/- '+ '{:.4e} T\n'.format(B_field_fit_err)
         output_string += '-----------------\n'
         output_string += 'Gaussian FWHM = '+str(round(FWHM_G_eV_fit,2))+' +/- '+str(round(FWHM_eV_G_fit_err,2))+' eV\n'
         output_string += '-----------------\n'
@@ -545,6 +565,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         'prob_parameter_fit_err': prob_parameter_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
-        'data_hist_freq': data_hist_freq
+        'data_hist_freq': data_hist_freq,
+        'reduced_chi2': reduced_chi2
         }
         return dictionary_of_fit_results
