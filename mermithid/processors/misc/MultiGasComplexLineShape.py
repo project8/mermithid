@@ -187,7 +187,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                             scatter_to_add = scatter_spectra_single_gas[gas_type][str(component).zfill(2)]
                             current_full_scatter = self.normalize(signal.convolve(current_full_scatter, scatter_to_add, mode='same'))                
                 scatter_spectra[entry_str] = current_full_scatter      
-        np.save(self.path_to_scatter_spectra_file + 'scatter_spectra.npy', scatter_spectra)
+        np.save(os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy'), scatter_spectra)
         elapsed = time.time() - t
         logger.info('Files generated in '+str(elapsed)+'s')
         return
@@ -208,12 +208,19 @@ class MultiGasComplexLineShape(BaseProcessor):
             strippeddirs = [s.strip('\n') for s in directory]
             if 'scatter_spectra.npy' not in strippeddirs:
                 self.generate_scatter_convolution_file()
-            test_file = self.path_to_scatter_spectra_files+'scatter_spectra.npy' 
+            test_file = os.path.join(self.path_to_scatter_spectra_files, 'scatter_spectra.npy') 
             test_dict = np.load(test_file, allow_pickle = True)
             N = len(self.gases)
             if len(test_dict.item()) != sum([comb(M + N -1, N -1) for M in range(1, max_scatters+1)]):
                 logger.info('Number of scatter combinations not matching, generating fresh files')
                 self.generate_scatter_convolution_file()
+                test_dict = np.load(test_file, allow_pickle = True)
+            gas_str = gases[0] + '01'
+            for gas in self.gases[1:]:
+                gas_str += gas + '00' 
+            if gas_str not in list(test_dict.item().keys()):
+                print('Gas species not matching, generating fresh files')
+                generate_scatter_convolution_files()
         return
 
     # Given a function evaluated on the SELA, convolves it with a gaussian
@@ -233,8 +240,9 @@ class MultiGasComplexLineShape(BaseProcessor):
         p = np.zeros(len(gases))
         p[0:-1] = scatter_proportion
         p[-1] = 1 - sum(scatter_proportion)
+        scatter_spectra_file_path = os.path.join(current_path, 'scatter_spectra.npy')
         scatter_spectra = np.load(
-        current_path + 'scatter_spectra.npy', allow_pickle = True
+        os.path.join(scatter_spectra_file_path, allow_pickle = True
         )
         en_array = self.std_eV_array()
         current_full_spectrum = np.zeros(len(en_array))
@@ -417,8 +425,9 @@ class MultiGasComplexLineShape(BaseProcessor):
         #filenames = list_files('scatter_spectra_files')
         p = np.zeros(len(gases))
         p = self.scatter_proportion
+        scatter_spectra_file_path = os.path.join(current_path, 'scatter_spectra.npy')
         scatter_spectra = np.load(
-        current_path + 'scatter_spectra.npy', allow_pickle = True
+        scatter_spectra_file_path, allow_pickle = True
         )
         en_array = self.std_eV_array()
         current_full_spectrum = np.zeros(len(en_array))
