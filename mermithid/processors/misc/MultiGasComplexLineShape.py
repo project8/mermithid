@@ -67,6 +67,7 @@ class MultiGasComplexLineShape(BaseProcessor):
             raise IOError('Shake spectrum path does not exist')
         if not os.path.exists(self.path_to_osc_strengths_files):
             raise IOError('Path to osc strengths files does not exist')
+        return True
 
     def InternalRun(self):
 
