@@ -124,6 +124,10 @@ class BinnedDataFitter(BaseProcessor):
         # results
         result_array = m_binned.np_values()
         error_array = m_binned.np_errors()
+
+        if self.print_level == 1:
+            logger.info('Fit results: {}'.format(result_array))
+            logger.info('Errors: {}'.format(error_array))
         return result_array, error_array
 
 
