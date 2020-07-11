@@ -198,20 +198,20 @@ class MultiGasComplexLineShape(BaseProcessor):
     # This function also checks to make sure that the scatter file have the correct
     # number of entries and correct number of points in the SELA, and if not, it generates a fresh file.
     # When the variable regenerate is set as True, it generates a fresh file   
-    def check_existence_of_scatter_file(self, regenerate = True):
+    def check_existence_of_scatter_file(self, regenerate = False):
         gases = self.gases
         if regenerate == True:
             logger.info('generate fresh scatter file')
             self.generate_scatter_convolution_file()
         else:         
-            directory = os.listdir(self.path_to_scatter_spectra_files)
+            directory = os.listdir(self.path_to_scatter_spectra_file)
             strippeddirs = [s.strip('\n') for s in directory]
             if 'scatter_spectra.npy' not in strippeddirs:
                 self.generate_scatter_convolution_file()
-            test_file = os.path.join(self.path_to_scatter_spectra_files, 'scatter_spectra.npy') 
+            test_file = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy') 
             test_dict = np.load(test_file, allow_pickle = True)
             N = len(self.gases)
-            if len(test_dict.item()) != sum([comb(M + N -1, N -1) for M in range(1, max_scatters+1)]):
+            if len(test_dict.item()) != sum([comb(M + N -1, N -1) for M in range(1, self.max_scatters+1)]):
                 logger.info('Number of scatter combinations not matching, generating fresh files')
                 self.generate_scatter_convolution_file()
                 test_dict = np.load(test_file, allow_pickle = True)
@@ -242,7 +242,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         p[-1] = 1 - sum(scatter_proportion)
         scatter_spectra_file_path = os.path.join(current_path, 'scatter_spectra.npy')
         scatter_spectra = np.load(
-        os.path.join(scatter_spectra_file_path, allow_pickle = True
+        scatter_spectra_file_path, allow_pickle = True
         )
         en_array = self.std_eV_array()
         current_full_spectrum = np.zeros(len(en_array))
