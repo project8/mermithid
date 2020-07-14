@@ -69,6 +69,8 @@ class KrComplexLineShape(BaseProcessor):
         if not os.path.exists(self.path_to_osc_strengths_files):
             raise IOError('Path to osc strengths files does not exist')
 
+        return True
+
     def InternalRun(self):
 
         # Read shake parameters from JSON file
@@ -281,7 +283,7 @@ class KrComplexLineShape(BaseProcessor):
                 self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
                 current_full_spectrum += current_working_spectrum*comb(n, r)\
                 *(prob_parameter*p)**(r)*(prob_parameter*q)**(n-r)
-                
+
         for n in range(max_comprehensive_scatters + 1, max_scatters + 1):
             current_working_spectrum = \
             scatter_spectra.item()['{}_{}'.format(gases[0], gases[1])]\
