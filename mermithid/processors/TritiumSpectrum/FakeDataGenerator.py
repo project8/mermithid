@@ -110,7 +110,7 @@ class FakeDataGenerator(BaseProcessor):
         self.apply_efficiency = reader.read_param(params, 'apply_efficiency', False)
         self.return_frequency = reader.read_param(params, 'return_frequency', True)
 
-        # nwill be replaced with complex lineshape object if detailed lineshape is used
+        # will be replaced with complex lineshape object if detailed lineshape is used
         self.complexLineShape = None
 
         # get file content if needed
@@ -150,7 +150,8 @@ class FakeDataGenerator(BaseProcessor):
                     # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
                     'gas1_scatter_proportion': self.scatter_proportion,
                     # This is an important parameter which determines how finely resolved
-                    # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
+                    # the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to
+                    # be increased for larger datasets.
                     'num_points_in_std_array': 10000,
                     'B_field': self.B_field,
                     'base_shape': 'dirac',
