@@ -67,7 +67,8 @@ class FakeDataGenerator(BaseProcessor):
         self.m = reader.read_param(params, 'neutrino_mass', 0.2) #Neutrino mass (eV)
         self.Kmin = reader.read_param(params, 'Kmin', self.Q-self.m-2300)  #Energy corresponding to lower bound of frequency ROI (eV)
         self.Kmax = reader.read_param(params, 'Kmax', self.Q-self.m+1000)   #Same, for upper bound (eV)
-        self.minf = reader.read_param(params, 'minf', 25.8e+9) #Minimum frequency
+        self.minf = reader.read_param(params, 'minf', 25813125000.0) #Minimum frequency
+        self.maxf = reader.read_param(params, 'maxf', None)
         if self.Kmax <= self.Kmin:
             logger.error("Kmax <= Kmin!")
             return False
@@ -175,7 +176,10 @@ class FakeDataGenerator(BaseProcessor):
     def InternalRun(self):
 
         if self.return_frequency:
-            ROIbound = [self.minf]
+            if self.maxf == None:
+                ROIbound = [self.minf]
+            else:
+                ROIbound = [self.minf, self.maxf]
         else:
             ROIbound = [self.Kmin, self.Kmax]
 
@@ -246,10 +250,13 @@ class FakeDataGenerator(BaseProcessor):
 
         if self.return_frequency:
             minf = ROIbound[0]
-            if efficiency_dict is not None:
-                maxf = max(efficiency_dict['frequencies'])
+            if len(ROIbound)==2:
+                maxf = ROIbound[1]
             else:
-                maxf = max(self.load_efficiency_curve()['frequencies'])
+                if efficiency_dict is not None:
+                    maxf = max(efficiency_dict['frequencies'])
+                else:
+                    maxf = max(self.load_efficiency_curve()['frequencies'])
             Kmax, Kmin = Energy(minf, B_field), Energy(maxf, B_field)
         else:
             Kmin, Kmax = ROIbound[0], ROIbound[1]
