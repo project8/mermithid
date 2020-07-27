@@ -67,7 +67,8 @@ class FakeDataGenerator(BaseProcessor):
         self.m = reader.read_param(params, 'neutrino_mass', 0.2) #Neutrino mass (eV)
         self.Kmin = reader.read_param(params, 'Kmin', self.Q-self.m-2300)  #Energy corresponding to lower bound of frequency ROI (eV)
         self.Kmax = reader.read_param(params, 'Kmax', self.Q-self.m+1000)   #Same, for upper bound (eV)
-        self.minf = reader.read_param(params, 'minf', 25.8e+9) #Minimum frequency
+        self.minf = reader.read_param(params, 'minf', 25813125000.0) #Minimum frequency
+        self.maxf = reader.read_param(params, 'maxf', None)
         if self.Kmax <= self.Kmin:
             logger.error("Kmax <= Kmin!")
             return False
@@ -110,7 +111,7 @@ class FakeDataGenerator(BaseProcessor):
         self.apply_efficiency = reader.read_param(params, 'apply_efficiency', False)
         self.return_frequency = reader.read_param(params, 'return_frequency', True)
 
-        # nwill be replaced with complex lineshape object if detailed lineshape is used
+        # will be replaced with complex lineshape object if detailed lineshape is used
         self.complexLineShape = None
 
         # get file content if needed
@@ -142,7 +143,6 @@ class FakeDataGenerator(BaseProcessor):
                 # lineshape params
                 self.SimpParams = [self.scattering_sigma*2*math.sqrt(2*math.log(2)), self.survival_prob]
 
-
                 # Setup and configure lineshape processor
                 complexLineShape_config = {
                     'gases': ["H2","He"],
@@ -151,11 +151,11 @@ class FakeDataGenerator(BaseProcessor):
                     # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
                     'gas1_scatter_proportion': self.scatter_proportion,
                     # This is an important parameter which determines how finely resolved
-                    # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
+                    # the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to
+                    # be increased for larger datasets.
                     'num_points_in_std_array': 10000,
                     'B_field': self.B_field,
                     'base_shape': 'dirac',
-                    'normalize_lineshape': True,
                     'path_to_osc_strengths_files': self.detailed_scatter_spectra_path
                 }
                 logger.info('Setting up complex lineshape object')
@@ -178,7 +178,10 @@ class FakeDataGenerator(BaseProcessor):
     def InternalRun(self):
 
         if self.return_frequency:
-            ROIbound = [self.minf]
+            if self.maxf == None:
+                ROIbound = [self.minf]
+            else:
+                ROIbound = [self.minf, self.maxf]
         else:
             ROIbound = [self.Kmin, self.Kmax]
 
@@ -249,10 +252,13 @@ class FakeDataGenerator(BaseProcessor):
 
         if self.return_frequency:
             minf = ROIbound[0]
-            if efficiency_dict is not None:
-                maxf = max(efficiency_dict['frequencies'])
+            if len(ROIbound)==2:
+                maxf = ROIbound[1]
             else:
-                maxf = max(self.load_efficiency_curve()['frequencies'])
+                if efficiency_dict is not None:
+                    maxf = max(efficiency_dict['frequencies'])
+                else:
+                    maxf = max(self.load_efficiency_curve()['frequencies'])
             Kmax, Kmin = Energy(minf, B_field), Energy(maxf, B_field)
         else:
             Kmin, Kmax = ROIbound[0], ROIbound[1]

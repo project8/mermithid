@@ -18,8 +18,6 @@ logger = morphologging.getLogger(__name__)
 
 from mermithid.misc.Constants import *
 from mermithid.misc.ConversionFunctions import *
-#from mermithid.misc.KrLineshapeFunctions import *
-
 
 """
 Constants and functions used by processors/TritiumSpectrum/FakeDataGenerator.py
@@ -170,12 +168,12 @@ def bkgd_rate():
     return 1.
 
 
-##Lineshape option: In this case, simply a Gaussian
+#Lineshape option: In this case, simply a Gaussian
 def gaussian(x,a):
     return 1/((2.*np.pi)**0.5*a[0])*(np.exp(-0.5*((x-a[1])/a[0])**2))
 
 
-#Normalized simplified linesahape with scattering
+#Normalized simplified lineshape with scattering
 def simplified_ls(K, Kcenter, FWHM, prob, p0, p1, p2, p3):
     sig0 = FWHM/float(2*np.sqrt(2*np.log(2)))
     shape = gaussian(K, [sig0, Kcenter])
