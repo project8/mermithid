@@ -118,7 +118,7 @@ class BinnedDataFitter(BaseProcessor):
 
         # minimze
         m_binned.migrad(resume=False)
-        self.param_states = m_binned.get_param_states()
+        self.param_states = m_binned.params
         self.m_binned = m_binned
 
         # results
@@ -133,8 +133,6 @@ class BinnedDataFitter(BaseProcessor):
 
     def PoissonLogLikelihood(self, params):
 
-        # binned data
-        hist = self.hist
 
         # expectation
         pdf_return = self.PDF(self.bin_centers, *params)
@@ -143,15 +141,18 @@ class BinnedDataFitter(BaseProcessor):
         else:
             expectation = pdf_return
 
+        if np.min(expectation) < 0:
+            logger.error('Expectation contains negative numbers. They will be excluded but something could be horribly wrong.')
+
         # exclude bins where expectation is <= zero or nan
         index = np.where(expectation>0)
 
         # poisson log likelihoood
-        ll = (hist[index]*np.log(expectation[index]) - expectation[index]).sum()
+        ll = (self.hist[index]*np.log(expectation[index]) - expectation[index]).sum()
 
         # extended ll: poisson total number of events
         N = np.nansum(expectation)
-        extended_ll = -N+np.sum(hist)*np.log(N)+ll
+        extended_ll = -N+np.sum(self.hist)*np.log(N)+ll
         return extended_ll
 
 
@@ -162,8 +163,7 @@ class BinnedDataFitter(BaseProcessor):
 
         # constrained parameters
         if len(self.constrained_parameters) > 0:
-            for i in range(len(self.constrained_parameters)):
-                i_param = self.constrained_parameters[i]
-                neg_ll += 0.5 * ((params[i_param] - self.constrained_means[i])/ self.constrained_widths[i])**2
+            for i, param in enumerate(self.constrained_parameters):
+                neg_ll += 0.5 * ((params[param] - self.constrained_means[i])/ self.constrained_widths[i])**2
 
         return neg_ll
