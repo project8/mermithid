@@ -91,7 +91,6 @@ class FakeDataGenerator(BaseProcessor):
         self.B =self.A_b*self.runtime*(self.Kmax-self.Kmin) #Background poisson rate
         self.poisson_stats = reader.read_param(params, 'poisson_stats', True)
         self.err_from_B = reader.read_param(params, 'err_from_B', 0.) #In eV, kinetic energy error from f_c --> K conversion
-        self.efficiency_tilt = reader.read_param(params, 'efficiency_tilt', 0.) # per keV
 
 
         #Scattering model parameters
@@ -287,11 +286,6 @@ class FakeDataGenerator(BaseProcessor):
         if efficiency_dict is not None:
             logger.info('Evaluating efficiencies')
             efficiency_mean, efficiency_error = efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
-            slope = self.efficiency_tilt/(1e3)
-            logger.info('Tilted efficiencies: {}'.format(self.efficiency_tilt))
-            efficiency_mean *= (1+slope*(self.Koptions-17.83e3))
-            efficiency_error *= (1+slope*(self.Koptions-17.83e3))
-
             logger.info("Sampling efficiencies given means and uncertainties")
             efficiency = np.random.normal(efficiency_mean, efficiency_error)
             eff_negative = (efficiency<0.)
