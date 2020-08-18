@@ -48,14 +48,14 @@ class FittersTest(unittest.TestCase):
         error_list = results['param_errors']
         x = negll_fitter.bin_centers
         hist = negll_fitter.hist
-        hist_fit = negll_fitter.PDF(x, *result_list)
+        hist_fit = negll_fitter.model(x, *result_list)
         residuals = (hist-hist_fit)/np.sqrt(hist_fit)
 
         plt.rcParams.update({'font.size': 20})
         plt.figure(figsize=(10,10))
         plt.subplot(211)
         plt.errorbar(x, hist, np.sqrt(hist), drawstyle='steps-mid', label='Binned data')
-        plt.plot(x, negll_fitter.PDF(x, *result_list), label='Fit')
+        plt.plot(x, negll_fitter.model(x, *result_list), label='Fit')
         plt.xlabel(negll_fitter.namedata)
         plt.ylabel('Counts')
         plt.legend()

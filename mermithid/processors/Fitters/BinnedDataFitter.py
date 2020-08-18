@@ -1,8 +1,10 @@
 '''
 Author: C. Claessens
 Date:6/12/2020
-Description: Configure with arbitrary histogram and pdf.
-Minimizes poisson loglikelihood using iMinuit.
+Description:
+    Minimizes poisson loglikelihood using iMinuit.
+    Configure with arbitrary histogram and model.
+    The model should consist of a pdf multiplied with a free amplitude parameter representing the total number of events.
 
 '''
 
@@ -85,9 +87,9 @@ class BinnedDataFitter(BaseProcessor):
 
 
 
-    def PDF(self, x, A, mu, sigma):
+    def model(self, x, A, mu, sigma):
         """
-        Overwrite by whatever PDF
+        Overwrite by whatever Model
         """
         f = A*(1/(sigma*np.sqrt(2*np.pi)))*np.exp(-(((x-mu)/sigma)**2.)/2.)
         return f
@@ -135,11 +137,11 @@ class BinnedDataFitter(BaseProcessor):
 
 
         # expectation
-        pdf_return = self.PDF(self.bin_centers, *params)
-        if np.shape(pdf_return)[0] == 2:
-            expectation, expectation_error = pdf_return
+        model_return = self.model(self.bin_centers, *params)
+        if np.shape(model_return)[0] == 2:
+            expectation, expectation_error = model_return
         else:
-            expectation = pdf_return
+            expectation = model_return
 
         if np.min(expectation) < 0:
             logger.error('Expectation contains negative numbers. They will be excluded but something could be horribly wrong.')
