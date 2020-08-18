@@ -177,11 +177,13 @@ class FakeDataGenerator(BaseProcessor):
 
         # check final states file existence
         if self.molecular_final_states:
-            if not os.path.exists(self.final_states_file):
-                logger.error('Final states file not found')
-                return False
+            logger.info('Going to use molecular final states from Bodine et al 2015')
+            with open(self.final_states_file, 'r') as infile:
+                a = json.load(infile)
+                index = np.where(np.array(a['Probability'])[:-1]>0)
+                self.final_state_array = [np.array(a['Binding energy'])[index], np.array(a['Probability'])[index]]
         else:
-            self.final_states_file = None
+            self.final_state_array = [0, 1]
 
         return True
 
@@ -313,7 +315,7 @@ class FakeDataGenerator(BaseProcessor):
         if array_method == True:
             ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean, mass, Kmin,
                                                     lineshape, params, min_energy, max_energy,
-                                                    self.complexLineShape, self.final_states_file)
+                                                    self.complexLineShape, self.final_state_array)
         else:
             ratesS = [convolved_spectral_rate(K, Q_mean, mass, Kmin, lineshape, params, min_energy, max_energy) for K in self.Koptions]
 

@@ -159,43 +159,35 @@ def beta_rates(K, Q, mnu, index):
 
 
 # Unsmeared eta spectrum without a lower energy bound
-def spectral_rate(K, Q, mnu, final_states_file):
-
-    # load final state energies and probabilities
-    if final_states_file is None:
-        final_state_array = [0, 1]
-    else:
-        with open(final_states_file, 'r') as infile:
-            a = json.load(infile)
-            index = np.where(np.array(a['Probability'])[:-1]>0)
-            final_state_array = [np.array(a['Binding energy'])[index], np.array(a['Probability'])[index]]
-
-
+def spectral_rate(K, Q, mnu, final_state_array):
 
     if isinstance(K, list) or isinstance(K, np.ndarray):
         N_states = len(final_state_array[0])
         beta_rates_array = np.zeros([N_states, len(K)])
-        Q_states = Q+final_state_array[0]
 
+        Q_states = Q+final_state_array[0]-np.max(final_state_array[0])
 
-        #K2d = [K for i in range(N_states)]
+        # plt.figure()
+        # plt.plot(Q_states, final_state_array[1])
+        # plt.plot(Q+final_state_array[0], final_state_array[1])
+        # plt.savefig('q_states.png')
+
         index = [np.where(K < Q_states[i]-mnu) for i in range(N_states)]
 
-
         beta_rates_array = [beta_rates(K, Q_states[i], mnu, index[i])*final_state_array[1][i] for i in range(N_states)]
-
         to_return = np.nansum(beta_rates_array, axis=0)/np.nansum(final_state_array[1])
 
 
-        #comparison = beta_rates(K, Q_states[0], mnu, index[0])
+        # comparison = beta_rates(K, Q, mnu, np.where(K < Q - mnu))
 
-        #plt.figure()
-        #plt.plot(K[comparison>0], 1-to_return[comparison>0]/comparison[comparison>0])
-        #plt.ylabel('Final states spectrum relative difference')
-        #plt.xlabel('Energy')
-        #plt.tight_layout()
-        #plt.yscale('log')
-        #plt.savefig('final_state_included_spectrum.png')
+        # plt.figure()
+        # plt.plot(K[comparison>0], 1-to_return[comparison>0]/comparison[comparison>0], marker='', linestyle='-', markersize=1)
+        # plt.ylabel('Final states spectrum relative difference')
+        # plt.xlabel('Energy')
+        # plt.xlim(Q-100, Q+10)
+        # plt.tight_layout()
+        # #plt.yscale('log')
+        # plt.savefig('final_state_included_spectrum.png')
         return to_return
 
     else:
@@ -301,7 +293,7 @@ def convolved_bkgd_rate(K, Kmin, Kmax, lineshape, ls_params, min_energy, max_ene
 #Convolution of signal and lineshape using scipy.signal.convolve
 def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
                                    lineshape, ls_params, min_energy, max_energy,
-                                   complexLineShape, final_states_file):
+                                   complexLineShape, final_state_array):
     """K is an array-like object
     """
     logger.info('Using scipy convolve')
@@ -322,9 +314,9 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
 
         lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., ls_params[0], 0, 1, ls_params[1])
 
-    beta_rates = spectral_rate(K, Q, mnu, final_states_file) #np.zeros(len(K))
+    beta_rates = spectral_rate(K, Q, mnu, final_state_array) #np.zeros(len(K))
     #for i,ke in enumerate(K):
-    #    beta_rates[i] = spectral_rate(ke, Q, mnu, final_states_file)
+    #    beta_rates[i] = spectral_rate(ke, Q, mnu, final_state_array)
 
     #Convolving
     convolved = convolve(beta_rates, lineshape_rates, mode='same')
