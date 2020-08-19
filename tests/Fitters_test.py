@@ -38,11 +38,12 @@ class FittersTest(unittest.TestCase):
         # histogramming could be done by processor
         binned_data, _ = np.histogram(random_data['K'], config_dict['bins'])
         binned_data_dict = {'N': binned_data}
+
+        # setup processor
         negll_fitter = BinnedDataFitter('iminuit_processor')
         negll_fitter.Configure(config_dict)
-        negll_fitter.data = binned_data_dict #random_data
 
-        # before running: overwrite model
+        # define new model and overwrite processor's model
         def gaussian(x, A, mu, sigma):
             """
             This is the same function that is implemented as default model
@@ -52,7 +53,8 @@ class FittersTest(unittest.TestCase):
 
         negll_fitter.model = gaussian
 
-        # now run
+        # hand over data and run
+        negll_fitter.data = binned_data_dict #random_data
         negll_fitter.Run()
 
         # collect fit results
@@ -90,7 +92,7 @@ class FittersTest(unittest.TestCase):
         plt.legend()
 
 
-        plt.savefig('iminit_fit.png')
+        plt.savefig('iminuit_fit.png')
 
 
 
