@@ -21,34 +21,56 @@ class FittersTest(unittest.TestCase):
 
         logger.info('iMinuit fit test')
         config_dict = {
-            'variables': 'K',
+            'variables': 'N',
             'bins': np.linspace(-3, 3, 100),
             'parameter_names': ['A', 'mu', 'sigma'],
             'initial_values': [100, 0, 1],
             'limits': [[0, None], [None, None], [0, None]],
             'constrained_parameter_indices': [],
             'constrained_parameter_means': [0.5],
-            'constrained_parameter_widths': [1]
+            'constrained_parameter_widths': [1],
+            'binned_data': True
 
             }
 
         random_data = {'K': np.random.randn(10000)*0.5+1}
+
+        # histogramming could be done by processor
+        binned_data, _ = np.histogram(random_data['K'], config_dict['bins'])
+        binned_data_dict = {'N': binned_data}
         negll_fitter = BinnedDataFitter('iminuit_processor')
         negll_fitter.Configure(config_dict)
-        negll_fitter.data = random_data
+        negll_fitter.data = binned_data_dict #random_data
+
+        # before running: overwrite model
+        def gaussian(x, A, mu, sigma):
+            """
+            This is the same function that is implemented as default model
+            """
+            f = A*(1/(sigma*np.sqrt(2*np.pi)))*np.exp(-(((x-mu)/sigma)**2.)/2.)
+            return f
+
+        negll_fitter.model = gaussian
+
+        # now run
         negll_fitter.Run()
 
+        # collect fit results
         results = negll_fitter.results
+        result_list = results['param_values']
+        error_list = results['param_errors']
 
         for k in results.keys():
             logger.info('{}: {}'.format(k, results[k]))
 
 
-        result_list = results['param_values']
-        error_list = results['param_errors']
+
+        # get bins histogram and fit curve from processor for plotting
         x = negll_fitter.bin_centers
         hist = negll_fitter.hist
         hist_fit = negll_fitter.model(x, *result_list)
+
+        # calculate normalized residuals
         residuals = (hist-hist_fit)/np.sqrt(hist_fit)
 
         plt.rcParams.update({'font.size': 20})

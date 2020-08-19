@@ -29,21 +29,22 @@ class BinnedDataFitter(BaseProcessor):
     '''
     Processor that
     Args:
-        variables
-        parameter_names
-        initial_values
-        limits
-        fixed
-        bins
-        print_level
-        constrained_parameter_indices
-        constrained_parameter_means
-        constrained_parameter_widths
+        variables: dictionary key under which data is stored
+        parameter_names: names of model parameters
+        initial_values: list of parameter initial values
+        limits: parameter limits given as [lower, upper] for each parameter
+        fixed: boolean list of same length as parameters. Only un-fixed parameters will be fitted
+        bins: bins for data histogram
+        binned_data: if True data is assumed to already be histogrammed
+        print_level: if 1 fit plan and result summaries are printed
+        constrained_parameter_indices: list of indices indicating which parameters are contraint. Contstraints will be Gaussian.
+        constrained_parameter_means: Mean of Gaussian constraint
+        constrained_parameter_widths: Standard deviation of Gaussian constrained
 
     Inputs:
         data:
     Output:
-        result: dictionary containing
+        result: dictionary containing fit results and uncertainties
     '''
     def InternalConfigure(self, params):
         '''
@@ -57,6 +58,7 @@ class BinnedDataFitter(BaseProcessor):
         self.limits = reader.read_param(params, 'limits', [[None, None], [None, None], [None, None]])
         self.fixes = reader.read_param(params, 'fixed', [False, False, False])
         self.bins = reader.read_param(params, 'bins', np.linspace(-2, 2, 100))
+        self.binned_data = reader.read_param(params, 'binned_data', False)
         self.print_level = reader.read_param(params, 'print_level', 1)
 
         self.constrained_parameters = reader.read_param(params, 'constrained_parameter_indices', [])
@@ -72,7 +74,15 @@ class BinnedDataFitter(BaseProcessor):
     def InternalRun(self):
         logger.info('namedata: {}'.format(self.namedata))
 
-        self.hist, _ = np.histogram(self.data[self.namedata], self.bins)
+        if self.binned_data:
+            logger.info('Data is already binned. Getting binned data')
+            self.hist = self.data[self.namedata]
+            if len(self.hist) != len(self.bin_centers):
+                logger.error('Number of bins and histogram entries do not match')
+                raise ValueError('Number of bins and histogram entries do not match')
+        else:
+            logger.info('Data is unbinned. Will histogram before fitting.')
+            self.hist, _ = np.histogram(self.data[self.namedata], self.bins)
 
         result_array, error_array = self.fit()
 
