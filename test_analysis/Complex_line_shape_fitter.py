@@ -7,6 +7,8 @@ Date: 4/8/20
 import numpy as np
 import unittest
 import matplotlib.pyplot as plt
+from root_numpy import tree2array
+import ROOT as r
 
 from morpho.utilities import morphologging, parser
 logger = morphologging.getLogger(__name__)
@@ -27,12 +29,12 @@ class ComplexLineShapeTests(unittest.TestCase):
             "variables": ['StartTimeInAcq','StartFrequency']
         }
         complexLineShape_config = {
-            'bins_choice': np.linspace(0,90e6,1000),
-            'gases': ["H2","Kr","He","Ar"],
-            'max_scatters': 18,
+            'bins_choice': np.linspace(0e6, 90e6, 1000),
+            'gases': ["H2","Kr"],
+            'max_scatters': 20,
             'fix_scatter_proportion': True,
             # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
-            'gas_scatter_proportion': [0.61, 0.04, 0.34, 0.01],
+            'gas_scatter_proportion': [0.61, 0.39],
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,
@@ -73,7 +75,7 @@ class ComplexLineShapeTests(unittest.TestCase):
         plt.plot(results['bins_Hz']/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
         plt.legend(loc = 'upper left', fontsize = 12)
         plt.xlabel('frequency GHz')
-        plot_title = 'fit with {} gas scattering'.format(len(complexLineShape_config['gases']))
+        plot_title = 'fit shallow trap 7418 with {} gas scattering'.format(len(complexLineShape_config['gases']))
         if complexLineShape_config['fix_scatter_proportion'] == True:
             str_gas_scatter_proportion = ''
             for i in range(len(complexLineShape_config['gases'])):
@@ -84,7 +86,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             plot_title += '\n with fixed scatter proportion \n {}'.format(str_gas_scatter_proportion)
         plt.title(plot_title)
         plt.tight_layout()
-        plt.savefig('/host/plots/fit_with_{}_gas_scattering.png'.format(len(complexLineShape_config['gases'])))
+        plt.savefig('/host/plots/fit_shallow_trap_7418_with_{}_gas_scattering.png'.format(len(complexLineShape_config['gases'])))
 
 if __name__ == '__main__':
 
