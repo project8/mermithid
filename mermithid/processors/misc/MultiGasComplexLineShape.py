@@ -62,6 +62,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
         self.path_to_scatter_spectra_file = reader.read_param(params, 'path_to_scatter_spectra_file', '/host/')
+        self.path_to_missing_track_radiation_loss_data_numpy_file = '/host'
 
         if not os.path.exists(self.shake_spectrum_parameters_json_path):
             raise IOError('Shake spectrum path does not exist')
@@ -152,6 +153,20 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = signal.convolve(single,input_spectrum,mode='same')
         f_normed = self.normalize(f)
         return f_normed
+    
+    def radiation_loss_f(self):
+        radiation_loss_data_file_path = self.path_to_missing_track_radiation_loss_data_numpy_file + '/missing_track_radiation_loss.npy'
+        data_for_missing_track_radiation_loss = np.load(radiation_loss_data_file_path, allow_pickle = True)
+        x_data_for_histogram = f_radiation_energy_loss_interp = data_for_missing_track_radiation_loss.item()['histogram_eV']['x_data']
+        energy_loss_array = self.std_eV_array()
+        f_radiation_energy_loss = 0 * energy_loss_array
+        f_radiation_energy_loss_interp = data_for_missing_track_radiation_loss.item()['histogram_eV']['interp']
+        for i in range(len(energy_loss_array)):
+            if energy_loss_array[i] >= x_data_for_histogram[0] and energy_loss_array[i] <= x_data_for_histogram[-1]:
+                f_radiation_energy_loss[i] = f_radiation_energy_loss_interp(energy_loss_array[i])
+            else:
+                f_radiation_energy_loss[i] = 0
+        return f_radiation_energy_loss
 
     # Convolves the scatter functions and saves
     # the results to a .npy file.    
@@ -159,14 +174,17 @@ class MultiGasComplexLineShape(BaseProcessor):
         t = time.time()
         scatter_spectra_single_gas = {}
         for gas_type in self.gases:
+            f_radiation_loss = self.radiation_loss_f()
             scatter_spectra_single_gas[gas_type] = {}
             first_scatter = self.single_scatter_f(gas_type)
+            first_scatter = self.normalize(signal.convolve(first_scatter, f_radiation_loss, mode = 'same'))
             scatter_num_array = range(2, self.max_scatters+1)
             current_scatter = first_scatter
             scatter_spectra_single_gas[gas_type][str(1).zfill(2)] = current_scatter
             # x = std_eV_array() # diagnostic
             for i in scatter_num_array:
                 current_scatter = self.another_scatter(current_scatter, gas_type)
+                current_scatter = self.normalize(signal.convolve(current_scatter, f_radiation_loss, mode = 'same'))
                 scatter_spectra_single_gas[gas_type][str(i).zfill(2)] = current_scatter
         N = len(self.gases)
         scatter_spectra = {}
@@ -199,7 +217,7 @@ class MultiGasComplexLineShape(BaseProcessor):
     # This function also checks to make sure that the scatter file have the correct
     # number of entries and correct number of points in the SELA, and if not, it generates a fresh file.
     # When the variable regenerate is set as True, it generates a fresh file   
-    def check_existence_of_scatter_file(self, regenerate = False):
+    def check_existence_of_scatter_file(self, regenerate = True):
         gases = self.gases
         if regenerate == True:
             logger.info('generate fresh scatter file')
@@ -258,17 +276,16 @@ class MultiGasComplexLineShape(BaseProcessor):
         for M in range(1, self.max_scatters + 1):
             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
             for combination in gas_scatter_combinations:
-                print(combination)
                 entry_str = ''
                 for component, gas_type in zip(combination, self.gases):
                     entry_str += gas_type
                     entry_str += str(component).zfill(2)
                 current_working_spectrum = scatter_spectra.item()[entry_str]
-                current_working_spectrum = normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+                current_working_spectrum = self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(len(self.gases))):
                     coefficient = coefficient/factorial(component)*p[i]**component*prob_parameter**M
-                current_full_spectrum += q*coefficient*current_working_spectrum
+                current_full_spectrum += coefficient*current_working_spectrum
         return current_full_spectrum
 
     # Produces a spectrum in real energy that can now be evaluated off of the SELA.
@@ -334,7 +351,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         amplitude_guess = np.sum(data_hist)/2
         prob_parameter_guess = 0.5
         scatter_proportion_guess = 0.5
-        N = len(gases)
+        N = len(self.gases)
         p0_guess = [FWHM_guess, line_pos_guess, amplitude_guess, prob_parameter_guess] + [scatter_proportion_guess]*(N-1)
         p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, prob_parameter_min] + [scatter_proportion_min]*(N-1),  
                     [FWHM_eV_max, line_pos_keV_max, amplitude_max, prob_parameter_max] + [scatter_proportion_max]*(N-1) )
@@ -344,10 +361,10 @@ class MultiGasComplexLineShape(BaseProcessor):
         ################### Generalize to N Gases ###########################
         FWHM_G_eV_fit = params[0]
         line_pos_keV_fit = params[1]
-        #starting at index 2, grabs every other entry. (which is how scattering probs are filled in for N gases)
         amplitude_fit = params[2]
         prob_parameter_fit = params[3]
-        scatter_proportion_fit = params[4:3+N]+[1- sum(params[4:3+N])]
+        #starting at index 4, grabs every other entry. (which is how scattering probs are filled in for N gases)
+        scatter_proportion_fit = list(params[4:3+N])+[1- sum(params[4:3+N])]
         total_counts_fit = amplitude_fit
 
         perr = np.sqrt(np.diag(cov))
@@ -355,7 +372,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         line_pos_keV_fit_err = perr[1]
         amplitude_fit_err = perr[2]
         prob_parameter_fit_err = perr[3]
-        scatter_proportion_fit_err = perr[4:3+N]+[np.sqrt(perr[4:3+N]**2)]
+        scatter_proportion_fit_err = list(perr[4:3+N])+[np.sqrt(sum(perr[4:3+N]**2))]
         total_counts_fit_err = amplitude_fit_err
     
         fit = self.spectrum_func(bins_keV,*params)
@@ -371,13 +388,13 @@ class MultiGasComplexLineShape(BaseProcessor):
         zero_bins_index = np.where(data_hist_freq == 0)[0]
         fit_Hz_nonzero = fit_Hz[nonzero_bins_index]  
         data_Hz_nonzero = data_hist_freq[nonzero_bins_index] 
-        fit_Hz_zero = fit_Hz['fit_Hz'][zero_bins_index]
+        fit_Hz_zero = fit_Hz[zero_bins_index]
         data_Hz_zero = data_hist_freq[zero_bins_index]
         chi2 = sum((fit_Hz_nonzero - data_Hz_nonzero)**2/data_Hz_nonzero) + sum((fit_Hz_nonzero - data_Hz_nonzero)**2/fit_Hz_nonzero)
         reduced_chi2 = chi2/(len(data_hist_freq)-4-len(self.gases)+1)
         elapsed = time.time() - t
         output_string = '\n'
-        output_string += 'Reduced chi^2 = {:.2e}\n$'.format(reduced_chi2)
+        output_string += 'Reduced chi^2 = {:.2e}\n'.format(reduced_chi2)
         output_string += '-----------------\n'
         output_string += 'B field = {:.8e}'.format(B_field_fit)+' +/- '+ '{:.4e} T\n'.format(B_field_fit_err)
         output_string += '-----------------\n'
@@ -391,7 +408,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         +' +/- ' + "{:.2e}".format(prob_parameter_fit_err)+'\n'
         output_string += '-----------------\n'
         for i in range(len(self.gases)):
-            output_string += '{} Scatter proportion \n= '.format(gases[i]) + "{:.8e}".format(scatter_proportion_fit[i])\
+            output_string += '{} Scatter proportion \n= '.format(self.gases[i]) + "{:.8e}".format(scatter_proportion_fit[i])\
             +' +/- ' + "{:.2e}".format(scatter_proportion_fit_err[i])+'\n'
             output_string += '-----------------\n'
         output_string += 'Fit completed in '+str(round(elapsed,2))+'s'+'\n'
