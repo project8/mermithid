@@ -290,30 +290,28 @@ class MultiGasComplexLineShape(BaseProcessor):
 
     # Produces a spectrum in real energy that can now be evaluated off of the SELA.
     #def spectrum_func(x_keV,FWHM_G_eV,line_pos_keV,scatter_prob,amplitude):
-    def spectrum_func(self, x_keV, *p0):
-        x_eV = x_keV*1000.
-        en_loss_array = self.std_eV_array()
-        en_loss_array_min = en_loss_array[0]
-        en_loss_array_max = en_loss_array[len(en_loss_array)-1]
-        en_array_rev = ComplexLineShapeUtilities.flip_array(-1*en_loss_array)
-        f = np.zeros(len(x_keV))
-        f_intermediate = np.zeros(len(x_keV))
-
-        FWHM_G_eV = p0[0]
-        line_pos_keV = p0[1]
+    def spectrum_func(self, bins_Hz, *p0):
+        B_field = p0[0]
+        FWHM_G_eV = p0[1]
         amplitude = p0[2]
         prob_parameter = p0[3]
         N = len(self.gases)
         scatter_proportion = p0[4:3+N]
-    
-        line_pos_eV = line_pos_keV*1000.
-        x_eV_minus_line = x_eV - line_pos_eV
+        
+        x_eV = ConversionFunctions.Energy(bins_Hz, B_field)
+        en_loss_array = self.std_eV_array()
+        en_loss_array_min = en_loss_array[0]
+        en_loss_array_max = en_loss_array[len(en_loss_array)-1]
+        en_array_rev = ComplexLineShapeUtilities.flip_array(-1*en_loss_array)
+        f = np.zeros(len(x_eV))
+        f_intermediate = np.zeros(len(x_eV))
+
+        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
-        nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
-    
+        nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
+
         full_spectrum = self.make_spectrum(FWHM_G_eV, prob_parameter, scatter_proportion)
-        full_spectrum_rev = ComplexLineShapeUtilities.flip_array(full_spectrum)
-        f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
+        f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum)
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
         return f
 
@@ -329,38 +327,34 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
         bins_Hz = 0.5*(bins_Hz[1:] + bins_Hz[:-1])
-        bins_keV = ConversionFunctions.Energy(bins_Hz, self.B_field)/1000
-        bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
-        data_hist = ComplexLineShapeUtilities.flip_array(data_hist_freq)
-        #data_hist_err = ComplexLineShapeUtilities.get_hist_err_bins(data_hist)
-        bins_keV_nonzero , data_hist_nonzero , data_hist_err = ComplexLineShapeUtilities.get_only_nonzero_bins(bins_keV, data_hist)
+        bins_Hz_nonzero , data_hist_nonzero , data_hist_err = ComplexLineShapeUtilities.get_only_nonzero_bins(bins_Hz, data_hist_freq)
+        # Initial guesses for curve_fit
+        FWHM_guess = 5
+        B_field_guess = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[np.argmax(data_hist_freq)])
+        amplitude_guess = np.sum(data_hist_freq)/2
+        prob_parameter_guess = 0.5
+        scatter_proportion_guess = 0.5
         # Bounds for curve_fit
+        B_field_min = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[0])
+        B_field_max = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[-1])
         FWHM_eV_min = 1e-5
-        FWHM_eV_max = (bins_keV[len(bins_keV)-1] - bins_keV[0])*1000
-        line_pos_keV_min = bins_keV[0]
-        line_pos_keV_max = bins_keV[len(bins_keV)-1]
+        FWHM_eV_max = ConversionFunctions.Energy(bins_Hz[0], B_field_guess) - ConversionFunctions.Energy(bins_Hz[-1], B_field_guess)
         amplitude_min = 1e-5
-        amplitude_max = np.sum(data_hist)*3
+        amplitude_max = np.sum(data_hist_freq)*3
         prob_parameter_min = 1e-5
         prob_parameter_max = 1
         scatter_proportion_min = 1e-5
         scatter_proportion_max = 1
-        # Initial guesses for curve_fit
-        FWHM_guess = 5
-        line_pos_guess = bins_keV[np.argmax(data_hist)]
-        amplitude_guess = np.sum(data_hist)/2
-        prob_parameter_guess = 0.5
-        scatter_proportion_guess = 0.5
         N = len(self.gases)
-        p0_guess = [FWHM_guess, line_pos_guess, amplitude_guess, prob_parameter_guess] + [scatter_proportion_guess]*(N-1)
-        p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, prob_parameter_min] + [scatter_proportion_min]*(N-1),  
-                    [FWHM_eV_max, line_pos_keV_max, amplitude_max, prob_parameter_max] + [scatter_proportion_max]*(N-1) )
+        p0_guess = [B_field_guess, FWHM_guess, amplitude_guess, prob_parameter_guess] + [scatter_proportion_guess]*(N-1)
+        p0_bounds = ([B_field_min, FWHM_eV_min, amplitude_min, prob_parameter_min] + [scatter_proportion_min]*(N-1),  
+                    [B_field_max, FWHM_eV_max, amplitude_max, prob_parameter_max] + [scatter_proportion_max]*(N-1) )
         # Actually do the fitting
-        params , cov = curve_fit(self.spectrum_func, bins_keV_nonzero, data_hist_nonzero, sigma=data_hist_err, p0=p0_guess, bounds=p0_bounds)
+        params , cov = curve_fit(self.spectrum_func, bins_Hz_nonzero, data_hist_nonzero, sigma=data_hist_err, p0=p0_guess, bounds=p0_bounds)
         # Name each of the resulting parameters and errors
         ################### Generalize to N Gases ###########################
-        FWHM_G_eV_fit = params[0]
-        line_pos_keV_fit = params[1]
+        B_field_fit = params[0]
+        FWHM_eV_fit = params[1]
         amplitude_fit = params[2]
         prob_parameter_fit = params[3]
         #starting at index 4, grabs every other entry. (which is how scattering probs are filled in for N gases)
@@ -368,21 +362,17 @@ class MultiGasComplexLineShape(BaseProcessor):
         total_counts_fit = amplitude_fit
 
         perr = np.sqrt(np.diag(cov))
-        FWHM_eV_G_fit_err = perr[0]
-        line_pos_keV_fit_err = perr[1]
+        B_field_fit_err = perr[0]
+        FWHM_eV_fit_err = perr[1]
         amplitude_fit_err = perr[2]
         prob_parameter_fit_err = perr[3]
         scatter_proportion_fit_err = list(perr[4:3+N])+[np.sqrt(sum(perr[4:3+N]**2))]
         total_counts_fit_err = amplitude_fit_err
     
-        fit = self.spectrum_func(bins_keV,*params)
-
-        line_pos_Hz_fit , line_pos_Hz_fit_err = ComplexLineShapeUtilities.energy_guess_to_frequency(line_pos_keV_fit, line_pos_keV_fit_err, self.B_field)
-        B_field_fit , B_field_fit_err = ComplexLineShapeUtilities.central_frequency_to_B_field(line_pos_Hz_fit, line_pos_Hz_fit_err)
-        fit_Hz = ComplexLineShapeUtilities.flip_array(fit)
-        bins_keV = bins_keV - line_pos_keV_fit + Constants.kr_k_line_e()/1000
-        FWHM_eV_fit = FWHM_G_eV_fit
-        FWHM_eV_fit_err = FWHM_eV_G_fit_err
+        fit_Hz = self.spectrum_func(bins_Hz, *params)
+        fit_keV = ComplexLineShapeUtilities.flip_array(fit_Hz)
+        bins_keV = ConversionFunctions.Energy(bins_Hz, B_field_fit)/1000
+        bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
         
         nonzero_bins_index = np.where(data_hist_freq != 0)[0]
         zero_bins_index = np.where(data_hist_freq == 0)[0]
@@ -398,9 +388,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         output_string += '-----------------\n'
         output_string += 'B field = {:.8e}'.format(B_field_fit)+' +/- '+ '{:.4e} T\n'.format(B_field_fit_err)
         output_string += '-----------------\n'
-        output_string += 'Gaussian FWHM = '+str(round(FWHM_G_eV_fit,2))+' +/- '+str(round(FWHM_eV_G_fit_err,2))+' eV\n'
-        output_string += '-----------------\n'
-        output_string += 'Line position \n= '+str(round(line_pos_Hz_fit,2))+' +/- '+str(round(line_pos_Hz_fit_err,2))+' Hz\n'
+        output_string += 'Gaussian FWHM = '+str(round(FWHM_eV_fit,2))+' +/- '+str(round(FWHM_eV_fit_err,2))+' eV\n'
         output_string += '-----------------\n'
         output_string += 'Amplitude = {}'.format(round(amplitude_fit,2))+' +/- {}'.format(round(amplitude_fit_err,2)) + '\n'
         output_string += '-----------------\n'
@@ -416,15 +404,13 @@ class MultiGasComplexLineShape(BaseProcessor):
         'output_string': output_string,
         'cov': cov,
         'bins_keV': bins_keV,
-        'fit': fit,
+        'fit': fit_keV,
         'bins_Hz': bins_Hz,
         'fit_Hz': fit_Hz,
-        'FWHM_eV_fit': FWHM_eV_fit,
-        'FWHM_eV_fit_err': FWHM_eV_fit_err,
-        'line_pos_Hz_fit': line_pos_Hz_fit,
-        'line_pos_Hz_fit_err': line_pos_Hz_fit_err,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
+        'FWHM_eV_fit': FWHM_eV_fit,
+        'FWHM_eV_fit_err': FWHM_eV_fit_err,
         'prob_parameter_fit': prob_parameter_fit,
         'prob_parameter_fit_err': prob_parameter_fit_err,
         'scatter_proportion_fit': scatter_proportion_fit,
@@ -472,24 +458,23 @@ class MultiGasComplexLineShape(BaseProcessor):
                 current_full_spectrum += coefficient*current_working_spectrum
         return current_full_spectrum
 
-    def spectrum_func_1(self, x_keV, *p0):
-        x_eV = x_keV*1000.
+    def spectrum_func_1(self, bins_Hz, *p0):
+        B_field = p0[0]
+        FWHM_G_eV = p0[1]
+        amplitude = p0[2]
+        prob_parameter = p0[3]
+        
+        x_eV = ConversionFunctions.Energy(bins_Hz, B_field)
         en_loss_array = self.std_eV_array()
         en_loss_array_min = en_loss_array[0]
         en_loss_array_max = en_loss_array[len(en_loss_array)-1]
         en_array_rev = ComplexLineShapeUtilities.flip_array(-1*en_loss_array)
-        f = np.zeros(len(x_keV))
-        f_intermediate = np.zeros(len(x_keV))
+        f = np.zeros(len(x_eV))
+        f_intermediate = np.zeros(len(x_eV))
 
-        FWHM_G_eV = p0[0]
-        line_pos_keV = p0[1]
-        amplitude = p0[2]
-        prob_parameter = p0[3]
-
-        line_pos_eV = line_pos_keV*1000.
-        x_eV_minus_line = x_eV - line_pos_eV
+        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
-        nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
+        nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
         full_spectrum = self.make_spectrum_1(FWHM_G_eV, prob_parameter,)
         full_spectrum_rev = ComplexLineShapeUtilities.flip_array(full_spectrum)
@@ -502,54 +487,46 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
         bins_Hz = 0.5*(bins_Hz[1:] + bins_Hz[:-1])
-        bins_keV = ConversionFunctions.Energy(bins_Hz, self.B_field)/1000
-        bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
-        data_hist = ComplexLineShapeUtilities.flip_array(data_hist_freq)
-        #data_hist_err = ComplexLineShapeUtilities.get_hist_err_bins(data_hist)
-        bins_keV_nonzero , data_hist_nonzero , data_hist_err = ComplexLineShapeUtilities.get_only_nonzero_bins(bins_keV, data_hist)
-        # Bounds for curve_fit
-        FWHM_eV_min = 1e-5
-        FWHM_eV_max = (bins_keV[len(bins_keV)-1] - bins_keV[0])*1000
-        line_pos_keV_min = bins_keV[0]
-        line_pos_keV_max = bins_keV[len(bins_keV)-1]
-        amplitude_min = 1e-5
-        amplitude_max = np.sum(data_hist)*3
-        prob_parameter_min = 1e-5
-        prob_parameter_max = 1
+        bins_Hz_nonzero , data_hist_nonzero , data_hist_err = ComplexLineShapeUtilities.get_only_nonzero_bins(bins_Hz, data_hist_freq)
         # Initial guesses for curve_fit
         FWHM_guess = 5
-        line_pos_guess = bins_keV[np.argmax(data_hist)]
-        amplitude_guess = np.sum(data_hist)/2
+        B_field_guess = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[np.argmax(data_hist_freq)])
+        amplitude_guess = np.sum(data_hist_freq)/2
         prob_parameter_guess = 0.5
-        p0_guess = [FWHM_guess, line_pos_guess, amplitude_guess, prob_parameter_guess] 
-        p0_bounds = ([FWHM_eV_min, line_pos_keV_min, amplitude_min, prob_parameter_min],  
-                    [FWHM_eV_max, line_pos_keV_max, amplitude_max, prob_parameter_max])
+        # Bounds for curve_fit
+        B_field_min = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[0])
+        B_field_max = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[-1])
+        FWHM_eV_min = 1e-5
+        FWHM_eV_max = ConversionFunctions.Energy(bins_Hz[0], B_field_guess) - ConversionFunctions.Energy(bins_Hz[-1], B_field_guess)
+        amplitude_min = 1e-5
+        amplitude_max = np.sum(data_hist_freq)*3
+        prob_parameter_min = 1e-5
+        prob_parameter_max = 1
+        
+        p0_guess = [B_field_guess, FWHM_guess, amplitude_guess, prob_parameter_guess] 
+        p0_bounds = ([B_field_min, FWHM_eV_min, amplitude_min, prob_parameter_min],  
+                    [B_field_max, FWHM_eV_max, amplitude_max, prob_parameter_max])
         # Actually do the fitting
-        params , cov = curve_fit(self.spectrum_func_1, bins_keV_nonzero, data_hist_nonzero, sigma=data_hist_err, p0=p0_guess, bounds=p0_bounds)
+        params , cov = curve_fit(self.spectrum_func_1, bins_Hz_nonzero, data_hist_nonzero, sigma=data_hist_err, p0=p0_guess, bounds=p0_bounds)
         # Name each of the resulting parameters and errors
         ################### Generalize to N Gases ###########################
-        FWHM_G_eV_fit = params[0]
-        line_pos_keV_fit = params[1]
-        #starting at index 2, grabs every other entry. (which is how scattering probs are filled in for N gases)
+        B_field_fit = params[0]
+        FWHM_eV_fit = params[1]
         amplitude_fit = params[2]
         prob_parameter_fit = params[3]
         total_counts_fit = amplitude_fit
 
         perr = np.sqrt(np.diag(cov))
-        FWHM_eV_G_fit_err = perr[0]
-        line_pos_keV_fit_err = perr[1]
+        B_field_fit_err = perr[0]
+        FWHM_eV_fit_err = perr[1]
         amplitude_fit_err = perr[2]
         prob_parameter_fit_err = perr[3]
         total_counts_fit_err = amplitude_fit_err
     
-        fit = self.spectrum_func_1(bins_keV,*params)
-
-        line_pos_Hz_fit , line_pos_Hz_fit_err = ComplexLineShapeUtilities.energy_guess_to_frequency(line_pos_keV_fit, line_pos_keV_fit_err, self.B_field)
-        B_field_fit , B_field_fit_err = ComplexLineShapeUtilities.central_frequency_to_B_field(line_pos_Hz_fit, line_pos_Hz_fit_err)
-        fit_Hz = ComplexLineShapeUtilities.flip_array(fit)
-        bins_keV = bins_keV - line_pos_keV_fit + Constants.kr_k_line_e()/1000
-        FWHM_eV_fit = FWHM_G_eV_fit
-        FWHM_eV_fit_err = FWHM_eV_G_fit_err
+        fit_Hz = self.spectrum_func_1(bins_Hz, *params)
+        fit_keV = ComplexLineShapeUtilities.flip_array(fit_Hz)
+        bins_keV = ConversionFunctions.Energy(bins_Hz, B_field_fit)/1000
+        bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
 
         nonzero_bins_index = np.where(data_hist_freq != 0)[0]
         zero_bins_index = np.where(data_hist_freq == 0)[0]
@@ -565,9 +542,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         output_string += '-----------------\n'
         output_string += 'B field = {:.8e}'.format(B_field_fit)+' +/- '+ '{:.4e} T\n'.format(B_field_fit_err)
         output_string += '-----------------\n'
-        output_string += 'Gaussian FWHM = '+str(round(FWHM_G_eV_fit,2))+' +/- '+str(round(FWHM_eV_G_fit_err,2))+' eV\n'
-        output_string += '-----------------\n'
-        output_string += 'Line position \n= '+str(round(line_pos_Hz_fit,2))+' +/- '+str(round(line_pos_Hz_fit_err,2))+' Hz\n'
+        output_string += 'Gaussian FWHM = '+str(round(FWHM_eV_fit,2))+' +/- '+str(round(FWHM_eV_fit_err,2))+' eV\n'
         output_string += '-----------------\n'
         output_string += 'Amplitude = {}'.format(round(amplitude_fit,2))+' +/- {}'.format(round(amplitude_fit_err,2)) + '\n'
         output_string += '-----------------\n'
@@ -579,15 +554,13 @@ class MultiGasComplexLineShape(BaseProcessor):
         'output_string': output_string,
         'cov': cov,
         'bins_keV': bins_keV,
-        'fit': fit,
+        'fit_keV': fit_keV,
         'bins_Hz': bins_Hz,
         'fit_Hz': fit_Hz,
-        'FWHM_eV_fit': FWHM_eV_fit,
-        'FWHM_eV_fit_err': FWHM_eV_fit_err,
-        'line_pos_Hz_fit': line_pos_Hz_fit,
-        'line_pos_Hz_fit_err': line_pos_Hz_fit_err,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
+        'FWHM_eV_fit': FWHM_eV_fit,
+        'FWHM_eV_fit_err': FWHM_eV_fit_err,
         'prob_parameter_fit': prob_parameter_fit,
         'prob_parameter_fit_err': prob_parameter_fit_err,
         'amplitude_fit': amplitude_fit,

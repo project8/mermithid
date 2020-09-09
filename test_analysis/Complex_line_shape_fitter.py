@@ -22,7 +22,7 @@ class ComplexLineShapeTests(unittest.TestCase):
 
         reader_config = {
             "action": "read",
-            "filename": "/host/march_2020_kr_calibration_channel_b_merged.root",
+            "filename": "/host/rid000037179_merged.root",
             "object_type": "TMultiTrackEventData",
             "object_name": "multiTrackEvents:Event",
             "use_katydid": False,
@@ -30,11 +30,11 @@ class ComplexLineShapeTests(unittest.TestCase):
         }
         complexLineShape_config = {
             'bins_choice': np.linspace(0e6, 90e6, 1000),
-            'gases': ["H2","Kr"],
+            'gases': ["H2", "Kr"],
             'max_scatters': 20,
-            'fix_scatter_proportion': True,
+            'fix_scatter_proportion': False,
             # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
-            'gas_scatter_proportion': [0.61, 0.39],
+            'gas_scatter_proportion': [1],
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,
@@ -86,7 +86,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             plot_title += '\n with fixed scatter proportion \n {}'.format(str_gas_scatter_proportion)
         plt.title(plot_title)
         plt.tight_layout()
-        plt.savefig('/host/plots/fit_shallow_trap_7418_with_{}_gas_scattering.png'.format(len(complexLineShape_config['gases'])))
+        plt.savefig('/host/plots/fit_FTC_march_with_{}_gas_scattering.png'.format(len(complexLineShape_config['gases'])))
 
 if __name__ == '__main__':
 

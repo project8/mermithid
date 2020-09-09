@@ -110,11 +110,10 @@ def energy_guess_to_frequency(energy_guess, energy_guess_err, B_field_guess):
     return frequency , frequency_err
 
 # Given a frequency and error, converts those to B field values assuming the line is the 17.8 keV line
-def central_frequency_to_B_field(central_freq,central_freq_err):
+def central_frequency_to_B_field(central_freq):
     const = (2.*np.pi*m_e)*(1+kr_17keV_line/mass_energy_electron)/e_charge
     B_field = const*central_freq
-    B_field_err = const*central_freq_err
-    return B_field , B_field_err
+    return B_field
 
 # given a FWHM for the lorentian component and the FWHM for the gaussian component,
 # this function estimates the FWHM of the resulting voigt distribution
