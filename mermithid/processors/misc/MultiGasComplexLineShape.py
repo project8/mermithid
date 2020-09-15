@@ -68,7 +68,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
         self.path_to_scatter_spectra_file = reader.read_param(params, 'path_to_scatter_spectra_file', '/host/')
-        self.path_to_missing_track_radiation_loss_data_numpy_file = '/host'
+        self.path_to_missing_track_radiation_loss_data_numpy_file = '/host/'
+        self.path_to_ins_resolution_data_txt = '/host/'
 
         if not os.path.exists(self.shake_spectrum_parameters_json_path):
             raise IOError('Shake spectrum path does not exist')
@@ -279,7 +280,25 @@ class MultiGasComplexLineShape(BaseProcessor):
         ans = signal.convolve(resolution_f, func_to_convolve, mode='same')
         ans_normed = self.normalize(ans)
         return ans_normed
-        
+
+    def read_ins_resolution_data(self, path_to_ins_resolution_data_txt):
+        ins_resolution_data = np.loadtxt(path_to_ins_resolution_data_txt+'ins_resolution_all.txt')
+        x_data = ins_resolution_data.T[0]
+        y_data = ins_resolution_data.T[1]
+        y_err_data = ins_resolution_data.T[2]
+        return x_data, y_data, y_err_data
+
+    def convolve_ins_resolution(self, working_spectrum):
+        x_data, y_data, y_err_data = self.read_ins_resolution_data(self.path_to_ins_resolution_data_txt)
+        f = interpolate.interp1d(x_data, y_data)
+        x_array = self.std_eV_array()
+        y_array = np.zeros(len(x_array))
+        index_within_range_of_xdata = np.where((x_array >= x_data[0]) & (x_array <= x_data[-1]))
+        y_array[index_within_range_of_xdata] = f(x_array[index_within_range_of_xdata])
+        convolved_spectrum = signal.convolve(working_spectrum, y_array, mode = 'same')
+        normalized_convolved_spectrum = self.normalize(convolved_spectrum)
+        return normalized_convolved_spectrum
+
     def least_square(self, bin_centers, hist, params):
         # expectation
         expectation = self.spectrum_func_ftc(bin_centers, *params)
@@ -293,6 +312,26 @@ class MultiGasComplexLineShape(BaseProcessor):
         #lsq += ((hist[zero_count_index]- expectation[zero_count_index])**2).sum()
 
         return lsq
+
+    def reduced_chi2_Pearson_Neyman_composite(self, data_hist_freq, fit_Hz, number_of_parameters):
+        nonzero_bins_index = np.where(data_hist_freq != 0)[0]
+        zero_bins_index = np.where(data_hist_freq == 0)[0]
+        fit_Hz_nonzero = fit_Hz[nonzero_bins_index]  
+        data_Hz_nonzero = data_hist_freq[nonzero_bins_index] 
+        fit_Hz_zero = fit_Hz[zero_bins_index]
+        data_Hz_zero = data_hist_freq[zero_bins_index]
+        chi2 = sum((fit_Hz_nonzero - data_Hz_nonzero)**2/data_Hz_nonzero) + sum((fit_Hz_nonzero - data_Hz_nonzero)**2/fit_Hz_nonzero)
+        reduced_chi2 = chi2/(len(data_hist_freq) - number_of_parameters)
+        return reduced_chi2
+
+    # following the expression in the paper Steve BAKER and Robert D. COUSINS, (1984) CLARIFICATION OF THE USE OF CHI-SQUARE AND LIKELIHOOD FUNCTIONS IN FITS TO HISTOGRAMS
+    def reduced_chi2_Poisson(self, data_hist_freq, fit_Hz, number_of_parameters):
+        nonzero_bins_index = np.where(data_hist_freq != 0)
+        chi2 = ((fit_Hz - data_hist_freq + data_hist_freq*np.log(data_hist_freq/fit_Hz))[nonzero_bins_index]).sum()
+        logger.info(chi2)
+        logger.info(len(data_hist_freq) - number_of_parameters)
+        reduced_chi2 = chi2/(len(data_hist_freq) - number_of_parameters)
+        return reduced_chi2
 
     def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitted_peak='shake'):
         gases = self.gases
@@ -631,7 +670,7 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
-        current_working_spectrum = self.convolve_composite_gaussian(current_working_spectrum, self.A_array, self.sigma_array)
+        current_working_spectrum = self.convolve_ins_resolution(current_working_spectrum)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
         N = len(self.gases)
@@ -720,14 +759,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         bins_keV = ConversionFunctions.Energy(bins_Hz, B_field_fit)/1000
         bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
 
-        nonzero_bins_index = np.where(data_hist_freq != 0)[0]
-        zero_bins_index = np.where(data_hist_freq == 0)[0]
-        fit_Hz_nonzero = fit_Hz[nonzero_bins_index]  
-        data_Hz_nonzero = data_hist_freq[nonzero_bins_index] 
-        fit_Hz_zero = fit_Hz[zero_bins_index]
-        data_Hz_zero = data_hist_freq[zero_bins_index]
-        chi2 = sum((fit_Hz_nonzero - data_Hz_nonzero)**2/data_Hz_nonzero) + sum((fit_Hz_nonzero - data_Hz_nonzero)**2/fit_Hz_nonzero)
-        reduced_chi2 = chi2/(len(data_hist_freq)-4)
+        reduced_chi2 = self.reduced_chi2_Poisson(data_hist_freq, fit_Hz, number_of_parameters = 4)
         elapsed = time.time() - t
         output_string = '\n'
         output_string += 'Reduced chi^2 = {:.2e}\n'.format(reduced_chi2)

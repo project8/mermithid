@@ -88,7 +88,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             plot_title += '\n with fixed scatter proportion \n {}'.format(str_gas_scatter_proportion)
         plt.title(plot_title)
         plt.tight_layout()
-        plt.savefig('/host/plots/fit_FTC_oct_with_{}_gas_scattering.png'.format(len(complexLineShape_config['gases'])))
+        plt.savefig('/host/plots/fit_FTC_march_with_{}_gas_scattering.png'.format(len(complexLineShape_config['gases'])))
 
 if __name__ == '__main__':
 
