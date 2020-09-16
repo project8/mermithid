@@ -308,10 +308,18 @@ class MultiGasComplexLineShape(BaseProcessor):
         zero_count_index = np.where(hist==0)
 
         lsq = ((hist[high_count_index]- expectation[high_count_index])**2/hist[high_count_index]).sum()
-        #lsq += ((hist[low_count_index]- expectation[low_count_index])**2/hist[low_count_index]**2).sum()
-        #lsq += ((hist[zero_count_index]- expectation[zero_count_index])**2).sum()
-
+        #lsq += ((hist[low_count_index]- expectation[low_count_index])**2/hist[low_count_index]).sum()
+        lsq += ((hist[zero_count_index]- expectation[zero_count_index])**2).sum()
         return lsq
+
+    def chi2_Poisson(self, bin_centers, data_hist_freq, params):
+        nonzero_bins_index = np.where(data_hist_freq != 0)
+        zero_bins_index = np.where(data_hist_freq == 0)
+        # expectation
+        fit_Hz = self.spectrum_func_ftc(bin_centers, *params)
+        chi2 = 2*((fit_Hz - data_hist_freq + data_hist_freq*np.log(data_hist_freq/fit_Hz))[nonzero_bins_index]).sum()
+        chi2 += 2*(fit_Hz - data_hist_freq)[zero_bins_index].sum()
+        return chi2
 
     def reduced_chi2_Pearson_Neyman_composite(self, data_hist_freq, fit_Hz, number_of_parameters):
         nonzero_bins_index = np.where(data_hist_freq != 0)[0]
@@ -327,9 +335,9 @@ class MultiGasComplexLineShape(BaseProcessor):
     # following the expression in the paper Steve BAKER and Robert D. COUSINS, (1984) CLARIFICATION OF THE USE OF CHI-SQUARE AND LIKELIHOOD FUNCTIONS IN FITS TO HISTOGRAMS
     def reduced_chi2_Poisson(self, data_hist_freq, fit_Hz, number_of_parameters):
         nonzero_bins_index = np.where(data_hist_freq != 0)
-        chi2 = ((fit_Hz - data_hist_freq + data_hist_freq*np.log(data_hist_freq/fit_Hz))[nonzero_bins_index]).sum()
-        logger.info(chi2)
-        logger.info(len(data_hist_freq) - number_of_parameters)
+        zero_bins_index = np.where(data_hist_freq == 0)
+        chi2 = 2*((fit_Hz - data_hist_freq + data_hist_freq*np.log(data_hist_freq/fit_Hz))[nonzero_bins_index]).sum()
+        chi2 += 2*(fit_Hz - data_hist_freq)[zero_bins_index].sum()
         reduced_chi2 = chi2/(len(data_hist_freq) - number_of_parameters)
         return reduced_chi2
 
@@ -734,7 +742,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         logger.info(p0_guess)
         logger.info(p0_bounds)
         # Actually do the fitting
-        m_binned = Minuit.from_array_func(lambda p: self.least_square(bins_Hz, data_hist_freq, p),
+        m_binned = Minuit.from_array_func(lambda p: self.chi2_Poisson(bins_Hz, data_hist_freq, p),
                                         start = p0_guess,
                                         limit = p0_bounds,
                                         throw_nan = True

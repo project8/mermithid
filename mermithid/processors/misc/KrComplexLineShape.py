@@ -60,7 +60,8 @@ class KrComplexLineShape(BaseProcessor):
         self.B_field = reader.read_param(params, 'B_field', 0.957810722501)
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
-
+        self.path_to_ins_resolution_data_txt = '/host/'
+        
         if not os.path.exists(self.shake_spectrum_parameters_json_path):
             raise IOError('Shake spectrum path does not exist')
         if not os.path.exists(self.path_to_osc_strengths_files):
@@ -231,7 +232,25 @@ class KrComplexLineShape(BaseProcessor):
         ans_normed = self.normalize(ans)
         return ans_normed
 
-    def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitted_peak='shake'):
+    def read_ins_resolution_data(self, path_to_ins_resolution_data_txt):
+        ins_resolution_data = np.loadtxt(path_to_ins_resolution_data_txt+'ins_resolution_all.txt')
+        x_data = ins_resolution_data.T[0]
+        y_data = ins_resolution_data.T[1]
+        y_err_data = ins_resolution_data.T[2]
+        return x_data, y_data, y_err_data
+
+    def convolve_ins_resolution(self, working_spectrum):
+        x_data, y_data, y_err_data = self.read_ins_resolution_data(self.path_to_ins_resolution_data_txt)
+        f = interpolate.interp1d(x_data, y_data)
+        x_array = self.std_eV_array()
+        y_array = np.zeros(len(x_array))
+        index_within_range_of_xdata = np.where((x_array >= x_data[0]) & (x_array <= x_data[-1]))
+        y_array[index_within_range_of_xdata] = f(x_array[index_within_range_of_xdata])
+        convolved_spectrum = signal.convolve(working_spectrum, y_array, mode = 'same')
+        normalized_convolved_spectrum = self.normalize(convolved_spectrum)
+        return normalized_convolved_spectrum
+
+    def make_spectrum(self, prob_parameter, scatter_proportion, emitted_peak='shake'):
         gases = self.gases
         max_scatters = self.max_scatters
         max_comprehensive_scatters = self.max_comprehensive_scatters
@@ -249,7 +268,7 @@ class KrComplexLineShape(BaseProcessor):
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
-        current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
+        current_working_spectrum = self.convolve_ins_resolution(current_working_spectrum)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
         for n in range(1, max_comprehensive_scatters + 1):
