@@ -250,8 +250,26 @@ class KrComplexLineShape(BaseProcessor):
         ans = signal.convolve(resolution_f,func_to_convolve,mode='same')
         ans_normed = self.normalize(ans)
         return ans_normed
+        
+    def read_ins_resolution_data(self, path_to_ins_resolution_data_txt):
+        ins_resolution_data = np.loadtxt(path_to_ins_resolution_data_txt+'ins_resolution_all4.txt')
+        x_data = ins_resolution_data.T[0]
+        y_data = ins_resolution_data.T[1]
+        y_err_data = ins_resolution_data.T[2]
+        return x_data, y_data, y_err_data
 
-    def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitted_peak='shake'):
+    def convolve_ins_resolution(self, working_spectrum):
+        x_data, y_data, y_err_data = self.read_ins_resolution_data(self.path_to_ins_resolution_data_txt)
+        f = interpolate.interp1d(x_data, y_data)
+        x_array = self.std_eV_array()
+        y_array = np.zeros(len(x_array))
+        index_within_range_of_xdata = np.where((x_array >= x_data[0]) & (x_array <= x_data[-1]))
+        y_array[index_within_range_of_xdata] = f(x_array[index_within_range_of_xdata])
+        convolved_spectrum = signal.convolve(working_spectrum, y_array, mode = 'same')
+        normalized_convolved_spectrum = self.normalize(convolved_spectrum)
+        return normalized_convolved_spectrum
+
+    def make_spectrum(self, prob_parameter, scatter_proportion, emitted_peak='shake'):
         gases = self.gases
         max_scatters = self.max_scatters
         max_comprehensive_scatters = self.max_comprehensive_scatters
@@ -271,7 +289,7 @@ class KrComplexLineShape(BaseProcessor):
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
         elif emitted_peak == 'dirac':
             current_working_spectrum = self.std_dirac()
-        current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
+        current_working_spectrum = self.convolve_ins_resolution(current_working_spectrum)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
         for n in range(1, max_comprehensive_scatters + 1):
@@ -312,18 +330,17 @@ class KrComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_keV))
         f_intermediate = np.zeros(len(x_keV))
 
-        FWHM_G_eV = p0[0]
-        line_pos_keV = p0[1]
-        amplitude = p0[2]
-        prob_parameter = p0[3]
-        scatter_proportion = p0[4]
+        line_pos_keV = p0[0]
+        amplitude = p0[1]
+        prob_parameter = p0[2]
+        scatter_proportion = p0[3]
 
         line_pos_eV = line_pos_keV*1000.
         x_eV_minus_line = x_eV - line_pos_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
 
-        full_spectrum = self.make_spectrum(FWHM_G_eV, prob_parameter, scatter_proportion)
+        full_spectrum = self.make_spectrum(prob_parameter, scatter_proportion)
         full_spectrum_rev = ComplexLineShapeUtilities.flip_array(full_spectrum)
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
@@ -358,7 +375,6 @@ class KrComplexLineShape(BaseProcessor):
         scatter_proportion_min = 1e-5
         scatter_proportion_max = 1
         # Initial guesses for curve_fit
-        FWHM_guess = 5
         line_pos_guess = bins_keV[np.argmax(data_hist)]
         amplitude_guess = np.sum(data_hist)/2
         prob_parameter_guess = 0.5
@@ -434,7 +450,7 @@ class KrComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
-    def make_spectrum_1(self, gauss_FWHM_eV, prob_parameter, emitted_peak='shake'):
+    def make_spectrum_1(self, prob_parameter, emitted_peak='shake'):
         gases = self.gases
         max_scatters = self.max_scatters
         max_comprehensive_scatters = self.max_comprehensive_scatters
@@ -454,7 +470,7 @@ class KrComplexLineShape(BaseProcessor):
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
         elif emitted_peak == 'dirac':
             current_working_spectrum = self.std_dirac()
-        current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
+        current_working_spectrum = self.convolve_ins_resolution(current_working_spectrum)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
         for n in range(1, max_comprehensive_scatters + 1):
@@ -492,17 +508,16 @@ class KrComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_keV))
         f_intermediate = np.zeros(len(x_keV))
 
-        FWHM_G_eV = p0[0]
-        line_pos_keV = p0[1]
-        amplitude = p0[2]
-        prob_parameter = p0[3]
+        line_pos_keV = p0[0]
+        amplitude = p0[1]
+        prob_parameter = p0[2]
 
         line_pos_eV = line_pos_keV*1000.
         x_eV_minus_line = x_eV - line_pos_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_keV)) if i not in zero_idx]
 
-        full_spectrum = self.make_spectrum_1(FWHM_G_eV, prob_parameter,emitted_peak=self.base_shape)
+        full_spectrum = self.make_spectrum_1(prob_parameter, emitted_peak=self.base_shape)
         full_spectrum_rev = ComplexLineShapeUtilities.flip_array(full_spectrum)
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
