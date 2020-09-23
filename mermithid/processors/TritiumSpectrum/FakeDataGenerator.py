@@ -17,6 +17,7 @@ from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.misc.FakeTritiumDataFunctions import *
 from mermithid.processors.misc.KrComplexLineShape import KrComplexLineShape
+from mermithid.misc import Constants, ComplexLineShapeUtilities, ConversionFunctions
 logger = morphologging.getLogger(__name__)
 
 
@@ -101,7 +102,7 @@ class FakeDataGenerator(BaseProcessor):
 
         #paths
         self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
-        self.detailed_scatter_spectra_path = reader.read_param(params, 'path_to_detailed_scatter_spectra_dir', '.')
+        self.detailed_scatter_spectra_path = reader.read_param(params, 'path_to_detailed_scatter_spectra_dir', '/host')
         self.efficiency_path = reader.read_param(params, 'efficiency_path', '')
 
         #options

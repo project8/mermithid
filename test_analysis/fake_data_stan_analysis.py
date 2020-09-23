@@ -112,7 +112,7 @@ def GenerateFakeData(inputs_dict):
     """
     specGen_config = {
         "apply_efficiency": True,
-        "efficiency_path": "../phase2_detection_efficiency_curve/combined_energy_corrected_count_rates/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
+        "efficiency_path": "../tests/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
         "detailed_or_simplified_lineshape": "detailed",
         "return_frequency": True,
         "Q": inputs_dict["Q"],
@@ -154,7 +154,7 @@ def BinAndSaveData(tritium_data, nbins, root_file="./results/tritium_analysis.ro
         "energy_or_frequency": 'frequency',
         "variables": "F",
         "title": "corrected_spectrum",
-        "efficiency_filepath": "../phase2_detection_efficiency_curve/combined_energy_corrected_count_rates/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
+        "efficiency_filepath": "../tests/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
         'bins': np.linspace(tritium_data['minf'], tritium_data['maxf'], nbins),
         'fss_bins': False # If fss_bins is True, bins is ignored and overridden
         }
