@@ -210,7 +210,7 @@ def SaveUnbinnedData(tritium_data, root_file="./results/tritium_analysis.root"):
 
 
 
-def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/tritium_analysis.root', stan_files_location='../../morpho_models/', model_code='tritium_model/models/tritium_phase_II_analyzer_binned.stan', scattering_params_R='simplified_scattering_params.R'):
+def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/tritium_analysis.root', stan_files_location='/host/morpho_models/', model_code='tritium_model/models/tritium_phase_II_analyzer_binned.stan', scattering_params_R='/host/simplified_scattering_params.R'):
     """
     Analyzes frequency or kinetic energy data using a Stan model. Saves and plots posteriors.
     
