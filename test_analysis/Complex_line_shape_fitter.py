@@ -28,15 +28,13 @@ class ComplexLineShapeTests(unittest.TestCase):
             "variables": ['StartTimeInAcq','StartFrequency']
         }
         complexLineShape_config = {
-            'bins_choice': np.linspace(0e6, 90e6, 1000),
-            'gases': ["H2", "He"],
+            'bins_choice': np.linspace(0e6, 100e6, 1000),
+            'gases': ["H2", "Ar"],
             'max_scatters': 20,
             'fixed_scatter_proportion': True,
+            'fit_ftc':True, # use gaussian instrumental resolution
             # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
             'gas_scatter_proportion': [0.93, 0.02],
-            'fit_ftc': True,
-            'A_array': [0.076, 0.341, 0.381, 0.203],
-            'sigma_array': [5.01, 13.33, 15.40, 11.85],
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,
@@ -77,7 +75,7 @@ class ComplexLineShapeTests(unittest.TestCase):
         plt.plot(results['bins_Hz']/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
         plt.legend(loc = 'upper left', fontsize = 12)
         plt.xlabel('frequency GHz')
-        plot_title = 'fit ftc oct with {} gas scattering'.format(len(complexLineShape_config['gases']))
+        plot_title = 'fit ftc march with {} gas scattering'.format(len(complexLineShape_config['gases']))
         if complexLineShape_config['fixed_scatter_proportion'] == True:
             str_gas_scatter_proportion = ''
             for i in range(len(complexLineShape_config['gases'])):
@@ -88,7 +86,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             plot_title += '\n with fixed scatter proportion \n {}'.format(str_gas_scatter_proportion)
         plt.title(plot_title)
         plt.tight_layout()
-        plt.savefig('/host/plots/fit_FTC_march_with_{}_gas_scattering.png'.format(len(complexLineShape_config['gases'])))
+        plt.savefig('/host/plots/fit_FTC_march_with_{}_gas_scattering_gaussian_ins_res.png'.format(len(complexLineShape_config['gases'])))
 
 if __name__ == '__main__':
 

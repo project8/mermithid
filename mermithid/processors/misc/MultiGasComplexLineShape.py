@@ -55,10 +55,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.fixed_scatter_proportion = reader.read_param(params, 'fixed_scatter_proportion', True)
         if self.fixed_scatter_proportion == True:
             self.scatter_proportion = reader.read_param(params, 'gas_scatter_proportion', [])
-            self.fit_ftc = reader.read_param(params, 'fit_ftc', True)
-            if self.fit_ftc == True:
-                self.A_array = reader.read_param(params, 'A_array', [])
-                self.sigma_array = reader.read_param(params, 'sigma_array', [])
+        self.fit_ftc = reader.read_param(params, 'fit_ftc', True)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', False)
         # This is an important parameter which determines how finely resolved
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
@@ -100,7 +97,10 @@ class MultiGasComplexLineShape(BaseProcessor):
             else:
                 self.results = self.fit_data_1(freq_bins, data_hist_freq)
         else:
-            self.results = self.fit_data(freq_bins, data_hist_freq)
+            if self.fit_ftc == True:
+                self.results = self.fit_data_ftc_1(freq_bins, data_hist_freq)
+            else:
+                self.results = self.fit_data(freq_bins, data_hist_freq)
 
         return True
 
@@ -282,7 +282,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         return ans_normed
 
     def read_ins_resolution_data(self, path_to_ins_resolution_data_txt):
-        ins_resolution_data = np.loadtxt(path_to_ins_resolution_data_txt+'ins_resolution_all.txt')
+        ins_resolution_data = np.loadtxt(path_to_ins_resolution_data_txt+'ins_resolution_all4.txt')
         x_data = ins_resolution_data.T[0]
         y_data = ins_resolution_data.T[1]
         y_err_data = ins_resolution_data.T[2]
@@ -316,7 +316,10 @@ class MultiGasComplexLineShape(BaseProcessor):
         nonzero_bins_index = np.where(data_hist_freq != 0)
         zero_bins_index = np.where(data_hist_freq == 0)
         # expectation
-        fit_Hz = self.spectrum_func_ftc(bin_centers, *params)
+        if self.fit_ftc:
+            fit_Hz = self.spectrum_func_ftc(bin_centers, *params)
+        else:
+            fit_Hz = self.spectrum_func_1(bin_centers, *params)
         chi2 = 2*((fit_Hz - data_hist_freq + data_hist_freq*np.log(data_hist_freq/fit_Hz))[nonzero_bins_index]).sum()
         chi2 += 2*(fit_Hz - data_hist_freq)[zero_bins_index].sum()
         return chi2
@@ -568,8 +571,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
         full_spectrum = self.make_spectrum_1(FWHM_G_eV, prob_parameter,)
-        full_spectrum_rev = ComplexLineShapeUtilities.flip_array(full_spectrum)
-        f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum_rev)
+        f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum)
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
         return f
 
@@ -580,7 +582,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         bins_Hz = 0.5*(bins_Hz[1:] + bins_Hz[:-1])
         bins_Hz_nonzero , data_hist_nonzero , data_hist_err = ComplexLineShapeUtilities.get_only_nonzero_bins(bins_Hz, data_hist_freq)
         # Initial guesses for curve_fit
-        FWHM_guess = 5
+        FWHM_eV_guess = 5
         B_field_guess = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[np.argmax(data_hist_freq)])
         amplitude_guess = np.sum(data_hist_freq)/2
         prob_parameter_guess = 0.5
@@ -594,11 +596,21 @@ class MultiGasComplexLineShape(BaseProcessor):
         prob_parameter_min = 1e-5
         prob_parameter_max = 1
         
-        p0_guess = [B_field_guess, FWHM_guess, amplitude_guess, prob_parameter_guess] 
-        p0_bounds = ([B_field_min, FWHM_eV_min, amplitude_min, prob_parameter_min],  
-                    [B_field_max, FWHM_eV_max, amplitude_max, prob_parameter_max])
+        # p0_guess = [B_field_guess, FWHM_guess, amplitude_guess, prob_parameter_guess] 
+        # p0_bounds = ([B_field_min, FWHM_eV_min, amplitude_min, prob_parameter_min],  
+                    # [B_field_max, FWHM_eV_max, amplitude_max, prob_parameter_max])
         # Actually do the fitting
-        params , cov = curve_fit(self.spectrum_func_1, bins_Hz_nonzero, data_hist_nonzero, sigma=data_hist_err, p0=p0_guess, bounds=p0_bounds)
+        # params , cov = curve_fit(self.spectrum_func_1, bins_Hz_nonzero, data_hist_nonzero, sigma=data_hist_err, p0=p0_guess, bounds=p0_bounds)
+        p0_guess = [B_field_guess, FWHM_eV_guess, amplitude_guess, prob_parameter_guess]
+        p0_bounds = [(B_field_min,B_field_max), (FWHM_eV_min, FWHM_eV_max), (amplitude_min,amplitude_max), (prob_parameter_min, prob_parameter_max)]
+        # Actually do the fitting
+        m_binned = Minuit.from_array_func(lambda p: self.chi2_Poisson(bins_Hz, data_hist_freq, p),
+                                        start = p0_guess,
+                                        limit = p0_bounds,
+                                        throw_nan = True
+                                        )
+        m_binned.migrad()
+        params = m_binned.np_values()
         # Name each of the resulting parameters and errors
         ################### Generalize to N Gases ###########################
         B_field_fit = params[0]
@@ -607,7 +619,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         prob_parameter_fit = params[3]
         total_counts_fit = amplitude_fit
 
-        perr = np.sqrt(np.diag(cov))
+        perr = m_binned.np_errors()
         B_field_fit_err = perr[0]
         FWHM_eV_fit_err = perr[1]
         amplitude_fit_err = perr[2]
@@ -625,8 +637,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         data_Hz_nonzero = data_hist_freq[nonzero_bins_index] 
         fit_Hz_zero = fit_Hz[zero_bins_index]
         data_Hz_zero = data_hist_freq[zero_bins_index]
-        chi2 = sum((fit_Hz_nonzero - data_Hz_nonzero)**2/data_Hz_nonzero) + sum((fit_Hz_nonzero - data_Hz_nonzero)**2/fit_Hz_nonzero)
-        reduced_chi2 = chi2/(len(data_hist_freq)-4)
+        reduced_chi2 = self.reduced_chi2_Poisson(data_hist_freq, fit_Hz, number_of_parameters = 4)
         elapsed = time.time() - t
         output_string = '\n'
         output_string += 'Reduced chi^2 = {:.2e}\n'.format(reduced_chi2)
@@ -643,7 +654,6 @@ class MultiGasComplexLineShape(BaseProcessor):
         output_string += 'Fit completed in '+str(round(elapsed,2))+'s'+'\n'
         dictionary_of_fit_results = {
         'output_string': output_string,
-        'cov': cov,
         'bins_keV': bins_keV,
         'fit_keV': fit_keV,
         'bins_Hz': bins_Hz,
@@ -660,7 +670,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         'reduced_chi2': reduced_chi2
         }
         return dictionary_of_fit_results
-        
+
     def make_spectrum_ftc(self, prob_parameter, emitted_peak='shake'):
         gases = self.gases
         current_path = self.path_to_scatter_spectra_file
@@ -739,8 +749,6 @@ class MultiGasComplexLineShape(BaseProcessor):
         
         p0_guess = [B_field_guess, amplitude_guess, prob_parameter_guess]
         p0_bounds = [(B_field_min,B_field_max), (amplitude_min,amplitude_max), (prob_parameter_min, prob_parameter_max)]
-        logger.info(p0_guess)
-        logger.info(p0_bounds)
         # Actually do the fitting
         m_binned = Minuit.from_array_func(lambda p: self.chi2_Poisson(bins_Hz, data_hist_freq, p),
                                         start = p0_guess,
@@ -767,7 +775,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         bins_keV = ConversionFunctions.Energy(bins_Hz, B_field_fit)/1000
         bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
 
-        reduced_chi2 = self.reduced_chi2_Poisson(data_hist_freq, fit_Hz, number_of_parameters = 4)
+        reduced_chi2 = self.reduced_chi2_Poisson(data_hist_freq, fit_Hz, number_of_parameters = 3)
         elapsed = time.time() - t
         output_string = '\n'
         output_string += 'Reduced chi^2 = {:.2e}\n'.format(reduced_chi2)
@@ -791,6 +799,157 @@ class MultiGasComplexLineShape(BaseProcessor):
         'B_field_fit_err': B_field_fit_err,
         'prob_parameter_fit': prob_parameter_fit,
         'prob_parameter_fit_err': prob_parameter_fit_err,
+        'amplitude_fit': amplitude_fit,
+        'amplitude_fit_err': amplitude_fit_err,
+        'data_hist_freq': data_hist_freq,
+        'reduced_chi2': reduced_chi2
+        }
+        return dictionary_of_fit_results
+
+
+    def make_spectrum_ftc_2(self, prob_parameter, scatter_proportion, emitted_peak='shake'):
+        gases = self.gases
+        current_path = self.path_to_scatter_spectra_file
+        # check_existence_of_scatter_files()
+        #filenames = list_files('scatter_spectra_files')
+        p = np.zeros(len(gases))
+        p[0:-1] = scatter_proportion
+        p[-1] = 1 - sum(scatter_proportion)
+        scatter_spectra_file_path = os.path.join(current_path, 'scatter_spectra.npy')
+        scatter_spectra = np.load(
+        scatter_spectra_file_path, allow_pickle = True
+        )
+        en_array = self.std_eV_array()
+        current_full_spectrum = np.zeros(len(en_array))
+        if emitted_peak == 'lorentzian':
+            current_working_spectrum = self.std_lorenztian_17keV()
+        elif emitted_peak == 'shake':
+            current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
+        current_working_spectrum = self.convolve_ins_resolution(current_working_spectrum)
+        zeroth_order_peak = current_working_spectrum
+        current_full_spectrum += current_working_spectrum
+        N = len(self.gases)
+        for M in range(1, self.max_scatters + 1):
+            gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
+            for combination in gas_scatter_combinations:
+                entry_str = ''
+                for component, gas_type in zip(combination, self.gases):
+                    entry_str += gas_type
+                    entry_str += str(component).zfill(2)
+                current_working_spectrum = scatter_spectra.item()[entry_str]
+                current_working_spectrum = self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+                coefficient = factorial(sum(combination))
+                for component, i in zip(combination, range(len(self.gases))):
+                    coefficient = coefficient/factorial(component)*p[i]**component*prob_parameter**M
+                current_full_spectrum += coefficient*current_working_spectrum
+        return current_full_spectrum
+
+    def spectrum_func_ftc_2(self, bins_Hz, *p0):
+        B_field = p0[0]
+        amplitude = p0[1]
+        prob_parameter = p0[2]
+        N = len(self.gases)
+        scatter_proportion = p0[3:2+N]
+
+        x_eV = ConversionFunctions.Energy(bins_Hz, B_field)
+        en_loss_array = self.std_eV_array()
+        en_loss_array_min = en_loss_array[0]
+        en_loss_array_max = en_loss_array[len(en_loss_array)-1]
+        en_array_rev = ComplexLineShapeUtilities.flip_array(-1*en_loss_array)
+        f = np.zeros(len(x_eV))
+        f_intermediate = np.zeros(len(x_eV))
+
+        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
+        nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
+
+        full_spectrum = self.make_spectrum_ftc_1(prob_parameter, scatter_proportion)
+        f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum)
+        f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
+        return f
+
+    def fit_data_ftc_2(self, freq_bins, data_hist_freq):
+        t = time.time()
+        self.check_existence_of_scatter_file()
+        bins_Hz = freq_bins + self.RF_ROI_MIN
+        bins_Hz = 0.5*(bins_Hz[1:] + bins_Hz[:-1])
+        bins_Hz_nonzero , data_hist_nonzero , data_hist_err = ComplexLineShapeUtilities.get_only_nonzero_bins(bins_Hz, data_hist_freq)
+        # Initial guesses for curve_fit
+        B_field_guess = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[np.argmax(data_hist_freq)])
+        amplitude_guess = np.sum(data_hist_freq)/2
+        prob_parameter_guess = 0.5
+        scatter_proportion_guess = 0.5
+        # Bounds for curve_fit
+        B_field_min = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[0])
+        B_field_max = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[-1])
+        amplitude_min = 1e-5
+        amplitude_max = np.sum(data_hist_freq)*3
+        prob_parameter_min = 1e-5
+        prob_parameter_max = 1
+        scatter_proportion_min = 1e-5
+        scatter_proportion_max = 1
+        N = len(self.gases)
+        p0_guess = [B_field_guess, amplitude_guess, prob_parameter_guess] + (N-1)*[scatter_proportion_guess]
+        p0_bounds = [(B_field_min,B_field_max), (amplitude_min,amplitude_max), (prob_parameter_min, prob_parameter_max)] + (N-1)*[(scatter_proportion_min, scatter_proportion_max)]
+        logger.info(p0_guess)
+        logger.info(p0_bounds)
+        # Actually do the fitting
+        m_binned = Minuit.from_array_func(lambda p: self.chi2_Poisson(bins_Hz, data_hist_freq, p),
+                                        start = p0_guess,
+                                        limit = p0_bounds,
+                                        throw_nan = True
+                                        )
+        m_binned.migrad()
+        params = m_binned.np_values()
+        # Name each of the resulting parameters and errors
+        ################### Generalize to N Gases ###########################
+        B_field_fit = params[0]
+        amplitude_fit = params[1]
+        prob_parameter_fit = params[2]
+        scatter_proportion_fit = list(params[3:2+N])+[1- sum(params[3:2+N])]
+        total_counts_fit = amplitude_fit
+
+        perr = m_binned.np_errors()
+        B_field_fit_err = perr[0]
+        amplitude_fit_err = perr[1]
+        prob_parameter_fit_err = perr[2]
+        scatter_proportion_fit_err = list(perr[3:2+N])+[np.sqrt(sum(perr[3:2+N]**2))]
+        total_counts_fit_err = amplitude_fit_err
+    
+        fit_Hz = self.spectrum_func_ftc_1(bins_Hz, *params)
+        fit_keV = ComplexLineShapeUtilities.flip_array(fit_Hz)
+        bins_keV = ConversionFunctions.Energy(bins_Hz, B_field_fit)/1000
+        bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
+
+        reduced_chi2 = self.reduced_chi2_Poisson(data_hist_freq, fit_Hz, number_of_parameters = 4)
+        elapsed = time.time() - t
+        output_string = '\n'
+        output_string += 'Reduced chi^2 = {:.2e}\n'.format(reduced_chi2)
+        output_string += '-----------------\n'
+        output_string += 'B field = {:.8e}'.format(B_field_fit)+' +/- '+ '{:.4e} T\n'.format(B_field_fit_err)
+        output_string += '-----------------\n'
+        output_string += 'Amplitude = {}'.format(round(amplitude_fit,2))+' +/- {}'.format(round(amplitude_fit_err,2)) + '\n'
+        output_string += '-----------------\n'
+        output_string += 'Probability parameter \n= ' + "{:.2e}".format(prob_parameter_fit)+' +/- ' + "{:.2e}".format(prob_parameter_fit_err)+'\n'
+        output_string += '-----------------\n'
+        for i in range(len(self.gases)):
+            output_string += '{} Scatter proportion \n= '.format(self.gases[i]) + "{:.8e}".format(scatter_proportion_fit[i])\
+            +' +/- ' + "{:.2e}".format(scatter_proportion_fit_err[i])+'\n'
+            output_string += '-----------------\n'
+        output_string += 'Fit completed in '+str(round(elapsed,2))+'s'+'\n'
+        dictionary_of_fit_results = {
+        'output_string': output_string,
+        'perr': perr,
+        'bins_keV': bins_keV,
+        'fit_keV': fit_keV,
+        'bins_Hz': bins_Hz,
+        'fit_Hz': fit_Hz,
+        'B_field_fit': B_field_fit,
+        'B_field_fit_err': B_field_fit_err,
+        'prob_parameter_fit': prob_parameter_fit,
+        'prob_parameter_fit_err': prob_parameter_fit_err,
+        'scatter_proportion_fit': scatter_proportion_fit,
+        'scatter_proportion_fit_err': scatter_proportion_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
