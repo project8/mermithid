@@ -113,6 +113,7 @@ def GenerateFakeData(inputs_dict):
     specGen_config = {
         "apply_efficiency": True,
         "efficiency_path": "../tests/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
+        'path_to_ins_resolution_data_txt': '/host/ins_resolution_all4.txt'
         "detailed_or_simplified_lineshape": "detailed",
         "return_frequency": True,
         "Q": inputs_dict["Q"],
