@@ -157,7 +157,7 @@ class FakeDataGenerator(BaseProcessor):
                     'num_points_in_std_array': 10000,
                     'B_field': self.B_field,
                     'base_shape': 'dirac',
-                    'path_to_osc_strengths_files': self.detailed_scatter_spectra_path
+                    'path_to_osc_strengths_files': self.detailed_scatter_spectra_path,
                     'path_to_ins_resolution_data_txt': self.path_to_ins_resolution_data_txt
                 }
                 logger.info('Setting up complex lineshape object')
