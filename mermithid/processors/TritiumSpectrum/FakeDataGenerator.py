@@ -56,6 +56,7 @@ class FakeDataGenerator(BaseProcessor):
         - simplified_scattering_path: path to simplified lineshape parameters
         - path_to_detailed_scatter_spectra_dir: path to oscillator and or scatter_spectra_file
         - efficiency_path: path to efficiency vs. frequency (and uncertainties)
+        - ins_res_path: path to file with simulated instrumental resolution data
         - use_lineshape (boolean): determines whether tritium spectrum is smeared by lineshape.
           If False, it will only be smeared with a Gaussian
         - detailed_or_simplified_lineshape: If use lineshape, this string determines which lineshape model is used.
@@ -104,6 +105,7 @@ class FakeDataGenerator(BaseProcessor):
         self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
         self.detailed_scatter_spectra_path = reader.read_param(params, 'path_to_detailed_scatter_spectra_dir', '/host')
         self.efficiency_path = reader.read_param(params, 'efficiency_path', '')
+        self.ins_resolution_data_path = reader.read_param(params, 'ins_res_path', '')
 
         #options
         self.use_lineshape = reader.read_param(params, 'use_lineshape', True)
@@ -156,7 +158,8 @@ class FakeDataGenerator(BaseProcessor):
                     'num_points_in_std_array': 10000,
                     'B_field': self.B_field,
                     'base_shape': 'dirac',
-                    'path_to_osc_strengths_files': self.detailed_scatter_spectra_path
+                    'path_to_osc_strengths_files': self.detailed_scatter_spectra_path,
+                    'path_to_ins_resolution_data_txt': self.ins_resolution_data_path
                 }
                 logger.info('Setting up complex lineshape object')
                 self.complexLineShape = KrComplexLineShape("complexLineShape")
