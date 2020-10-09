@@ -63,7 +63,7 @@ class KrComplexLineShape(BaseProcessor):
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
         self.base_shape = reader.read_param(params, 'base_shape', 'shake')
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
-        self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all4.txt')
+        self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all.txt')
 
         if self.base_shape=='shake' and not os.path.exists(self.shake_spectrum_parameters_json_path):
             raise IOError('Shake spectrum path does not exist')
@@ -260,7 +260,9 @@ class KrComplexLineShape(BaseProcessor):
         return x_data, y_data, y_err_data
 
     def convolve_ins_resolution(self, working_spectrum):
-        x_data, y_data, y_err_data = self.read_ins_resolution_data(self.path_to_ins_resolution_data_txt)
+        x_data, y_mean_data, y_err_data = self.read_ins_resolution_data(self.path_to_ins_resolution_data_txt)
+        y_data = np.random.normal(y_mean_data, y_err_data)
+        y_data[y_data<0] = 0
         f = interpolate.interp1d(x_data, y_data)
         x_array = self.std_eV_array()
         y_array = np.zeros(len(x_array))
