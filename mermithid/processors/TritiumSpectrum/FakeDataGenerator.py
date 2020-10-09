@@ -104,8 +104,8 @@ class FakeDataGenerator(BaseProcessor):
         #paths
         self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
         self.detailed_scatter_spectra_path = reader.read_param(params, 'path_to_detailed_scatter_spectra_dir', '/host')
+        self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all.txt')
         self.efficiency_path = reader.read_param(params, 'efficiency_path', '')
-        self.ins_resolution_data_path = reader.read_param(params, 'ins_res_path', '')
 
         #options
         self.use_lineshape = reader.read_param(params, 'use_lineshape', True)
@@ -159,7 +159,7 @@ class FakeDataGenerator(BaseProcessor):
                     'B_field': self.B_field,
                     'base_shape': 'dirac',
                     'path_to_osc_strengths_files': self.detailed_scatter_spectra_path,
-                    'path_to_ins_resolution_data_txt': self.ins_resolution_data_path
+                    'path_to_ins_resolution_data_txt': self.path_to_ins_resolution_data_txt
                 }
                 logger.info('Setting up complex lineshape object')
                 self.complexLineShape = KrComplexLineShape("complexLineShape")

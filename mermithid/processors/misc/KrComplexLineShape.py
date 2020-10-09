@@ -63,7 +63,7 @@ class KrComplexLineShape(BaseProcessor):
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
         self.base_shape = reader.read_param(params, 'base_shape', 'shake')
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
-        self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/')
+        self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all4.txt')
 
         if self.base_shape=='shake' and not os.path.exists(self.shake_spectrum_parameters_json_path):
             raise IOError('Shake spectrum path does not exist')
@@ -253,7 +253,7 @@ class KrComplexLineShape(BaseProcessor):
         return ans_normed
         
     def read_ins_resolution_data(self, path_to_ins_resolution_data_txt):
-        ins_resolution_data = np.loadtxt(path_to_ins_resolution_data_txt+'ins_resolution_all4.txt')
+        ins_resolution_data = np.loadtxt(path_to_ins_resolution_data_txt)
         x_data = ins_resolution_data.T[0]
         y_data = ins_resolution_data.T[1]
         y_err_data = ins_resolution_data.T[2]
