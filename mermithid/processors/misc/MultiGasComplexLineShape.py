@@ -120,6 +120,20 @@ class MultiGasComplexLineShape(BaseProcessor):
         ans = lorentzian(x_array,0,kr_line_width)
         return ans
         
+    #A Dirac delta functin
+    def std_dirac(self):
+        x_array = self.std_eV_array()
+        ans = np.zeros(len(x_array))
+        min_x = np.min(np.abs(x_array))
+        ans[np.abs(x_array)==min_x] = 1.
+        logger.warning('Spectrum will be shifted by lineshape by {} eV'.format(min_x))
+        if min_x > 0.1:
+            logger.warning('Lineshape will shift spectrum by > 0.1 eV')
+        if min_x > 1.:
+            logger.warning('Lineshape will shift spectrum by > 1 eV')
+            raise ValueError('problem with std_eV_array()')
+        return ans
+        
     # A gaussian function
     def gaussian(self, x_array, A, sigma, mu):
         f = A*(1./(sigma*np.sqrt(2*np.pi)))*np.exp(-(((x_array-mu)/sigma)**2.)/2.)
@@ -289,7 +303,9 @@ class MultiGasComplexLineShape(BaseProcessor):
         return x_data, y_data, y_err_data
 
     def convolve_ins_resolution(self, working_spectrum):
-        x_data, y_data, y_err_data = self.read_ins_resolution_data(self.path_to_ins_resolution_data_txt)
+        x_data, y_mean_data, y_err_data = self.read_ins_resolution_data(self.path_to_ins_resolution_data_txt)
+        y_data = np.random.normal(y_mean_data, y_err_data)
+        y_data[y_data<0] = 0
         f = interpolate.interp1d(x_data, y_data)
         x_array = self.std_eV_array()
         y_array = np.zeros(len(x_array))
@@ -694,6 +710,8 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
+        elif emitted_peak == 'dirac':
+            current_working_spectrum = self.std_dirac()
         current_working_spectrum = self.convolve_ins_resolution(current_working_spectrum)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
