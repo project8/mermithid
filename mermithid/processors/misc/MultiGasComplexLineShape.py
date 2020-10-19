@@ -67,6 +67,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.path_to_scatter_spectra_file = reader.read_param(params, 'path_to_scatter_spectra_file', '/host/')
         self.path_to_missing_track_radiation_loss_data_numpy_file = '/host/'
         self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all4.txt')
+        self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/host/res_all_conversion_max25_trap1.txt', 'res_all_conversion_max25_trap2.txt', 'res_all_conversion_max25_trap3.txt', 'res_all_conversion_max25_trap4.txt'])
 
         if not os.path.exists(self.shake_spectrum_parameters_json_path):
             raise IOError('Shake spectrum path does not exist')
@@ -314,7 +315,23 @@ class MultiGasComplexLineShape(BaseProcessor):
         convolved_spectrum = signal.convolve(working_spectrum, y_array, mode = 'same')
         normalized_convolved_spectrum = self.normalize(convolved_spectrum)
         return normalized_convolved_spectrum
-
+    
+    def convolve_ins_resolution_combining_four_trap(self, working_spectrum, weight_array):
+        y_data_array = []
+        y_err_data_array = []
+        for path_to_single_trap_resolution_txt in self.path_to_four_trap_ins_resolution_data_txt:
+            x_data, y_data, y_err_data = read_ins_resolution_data(self, path_to_single_trap_resolution_txt)
+            y_data_array.append(y_data)
+            y_err_data_array.append(y_err_data)
+        y_data_combined = weight_array[0]*y_data_array[0] + weight_array[1]*y_data_array[1] + weight_array[2]*y_data_array[2] + weight_array[3]*x_data_array[3]
+        y_err_data_combined = np.sqrt((weight_array[0]*y_data_array[0])**2 + (weight_array[1]*y_data_array[1])**2 + (weight_array[2]*y_data_array[2])**2 + (weight_array[3]*x_data_array[3])**2)
+        x_array = self.std_eV_array()
+        y_array = np.zeros(len(x_array))
+        index_within_range_of_xdata = np.where((x_array >= x_data[0]) & (x_array <= x_data[-1]))
+        y_array[index_within_range_of_xdata] = f(x_array[index_within_range_of_xdata])
+        convolved_spectrum = signal.convolve(working_spectrum, y_array, mode = 'same')
+        normalized_convolved_spectrum = self.normalize(convolved_spectrum)
+    
     def least_square(self, bin_centers, hist, params):
         # expectation
         expectation = self.spectrum_func_ftc(bin_centers, *params)
