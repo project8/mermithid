@@ -64,6 +64,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
         self.RF_ROI_MIN = reader.read_param(params, 'RF_ROI_MIN', 25850000000.0)
         self.B_field = reader.read_param(params, 'B_field', 0.957810722501)
+        self.base_shape = reader.read_param(params, 'base_shape', 'dirac')
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
         self.path_to_scatter_spectra_file = reader.read_param(params, 'path_to_scatter_spectra_file', '/host/')
@@ -401,7 +402,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         reduced_chi2 = chi2/(len(data_hist_freq) - number_of_parameters)
         return reduced_chi2
 
-    def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitted_peak='shake'):
+    def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitted_peak=self.base_shape):
         gases = self.gases
         max_scatters = self.max_scatters
         current_path = self.path_to_scatter_spectra_file
@@ -575,7 +576,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
-    def make_spectrum_1(self, gauss_FWHM_eV, prob_parameter, emitted_peak='shake'):
+    def make_spectrum_1(self, gauss_FWHM_eV, prob_parameter, emitted_peak=self.base_shape):
         gases = self.gases
         current_path = self.path_to_scatter_spectra_file
         # check_existence_of_scatter_files()
@@ -732,7 +733,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
-    def make_spectrum_ftc(self, prob_parameter, emitted_peak='shake'):
+    def make_spectrum_ftc(self, prob_parameter, emitted_peak=self.base_shape):
         gases = self.gases
         current_path = self.path_to_scatter_spectra_file
         # check_existence_of_scatter_files()
@@ -873,7 +874,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         return dictionary_of_fit_results
 
 
-    def make_spectrum_ftc_2(self, prob_parameter, scatter_proportion, emitted_peak='shake'):
+    def make_spectrum_ftc_2(self, prob_parameter, scatter_proportion, emitted_peak=self.base_shape):
         gases = self.gases
         current_path = self.path_to_scatter_spectra_file
         # check_existence_of_scatter_files()
