@@ -402,7 +402,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         reduced_chi2 = chi2/(len(data_hist_freq) - number_of_parameters)
         return reduced_chi2
 
-    def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitted_peak=self.base_shape):
+    def make_spectrum(self, gauss_FWHM_eV, prob_parameter, scatter_proportion, emitted_peak='shake'):
         gases = self.gases
         max_scatters = self.max_scatters
         current_path = self.path_to_scatter_spectra_file
@@ -417,6 +417,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         )
         en_array = self.std_eV_array()
         current_full_spectrum = np.zeros(len(en_array))
+        emitted_peak = self.base_shape
         if emitted_peak == 'lorentzian':
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
@@ -576,7 +577,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
-    def make_spectrum_1(self, gauss_FWHM_eV, prob_parameter, emitted_peak=self.base_shape):
+    def make_spectrum_1(self, gauss_FWHM_eV, prob_parameter, emitted_peak='shake'):
         gases = self.gases
         current_path = self.path_to_scatter_spectra_file
         # check_existence_of_scatter_files()
@@ -589,6 +590,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         )
         en_array = self.std_eV_array()
         current_full_spectrum = np.zeros(len(en_array))
+        emitted_peak = self.base_shape
         if emitted_peak == 'lorentzian':
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
@@ -733,7 +735,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
-    def make_spectrum_ftc(self, prob_parameter, emitted_peak=self.base_shape):
+    def make_spectrum_ftc(self, prob_parameter, emitted_peak='shake'):
         gases = self.gases
         current_path = self.path_to_scatter_spectra_file
         # check_existence_of_scatter_files()
@@ -746,6 +748,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         )
         en_array = self.std_eV_array()
         current_full_spectrum = np.zeros(len(en_array))
+        emitted_peak = self.base_shape
         if emitted_peak == 'lorentzian':
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
@@ -874,7 +877,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         return dictionary_of_fit_results
 
 
-    def make_spectrum_ftc_2(self, prob_parameter, scatter_proportion, emitted_peak=self.base_shape):
+    def make_spectrum_ftc_2(self, prob_parameter, scatter_proportion, emitted_peak='shake'):
         gases = self.gases
         current_path = self.path_to_scatter_spectra_file
         # check_existence_of_scatter_files()
@@ -888,6 +891,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         )
         en_array = self.std_eV_array()
         current_full_spectrum = np.zeros(len(en_array))
+        emitted_peak = self.baseshape
         if emitted_peak == 'lorentzian':
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
