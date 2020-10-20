@@ -408,6 +408,8 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
+        elif emitted_peak == 'dirac':
+            current_working_spectrum = self.std_dirac()
         current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
@@ -578,6 +580,8 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
+        elif emitted_peak == 'dirac':
+            current_working_spectrum = self.std_dirac()
         current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
@@ -872,6 +876,8 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
+        elif emitted_peak == 'dirac':
+            current_working_spectrum = self.std_dirac()
         current_working_spectrum = self.convolve_ins_resolution(current_working_spectrum)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
