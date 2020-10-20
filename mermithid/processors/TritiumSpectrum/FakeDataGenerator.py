@@ -183,7 +183,8 @@ class FakeDataGenerator(BaseProcessor):
                 index = np.where(np.array(a['Probability'])[:-1]>0)
                 self.final_state_array = [np.array(a['Binding energy'])[index], np.array(a['Probability'])[index]]
         else:
-            self.final_state_array = [0, 1]
+            logger.info('Not using molecular final state spectrum')
+            self.final_state_array = np.array([[0.], [1.]])
 
         return True
 

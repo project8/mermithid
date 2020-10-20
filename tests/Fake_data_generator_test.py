@@ -32,7 +32,7 @@ class FakeDataGenerationTest(unittest.TestCase):
             "n_steps": 10000, # stepsize for pseudo continuous data is: (Kmax_eff-Kmin_eff)/nsteps
             "A_b": 1e-10, # background rate 1/eV/s
             "poisson_stats": True,
-            "molecular_final_states": True,
+            "molecular_final_states": False,
             "final_states_file": "../mermithid/misc/saenz_mfs.json"
         }
 
