@@ -152,6 +152,8 @@ class FakeDataGenerator(BaseProcessor):
                     'fix_scatter_proportion': True,
                     # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
                     'gas1_scatter_proportion': self.scatter_proportion,
+                    'use_simulated_inst_reso': True
+                    'use_combined_four_trap_inst_reso': False
                     # This is an important parameter which determines how finely resolved
                     # the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to
                     # be increased for larger datasets.
@@ -159,7 +161,7 @@ class FakeDataGenerator(BaseProcessor):
                     'B_field': self.B_field,
                     'base_shape': 'dirac',
                     'sample_ins_res_errors': True,
-                    'combine_ins_res_files': True,
+                    'use_combined_four_trap_inst_reso': True,
                     'path_to_osc_strengths_files': self.detailed_scatter_spectra_path
                 }
                 logger.info('Setting up complex lineshape object')

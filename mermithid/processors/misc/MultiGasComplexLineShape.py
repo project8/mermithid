@@ -56,10 +56,9 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.fixed_scatter_proportion = reader.read_param(params, 'fixed_scatter_proportion', True)
         if self.fixed_scatter_proportion == True:
             self.scatter_proportion = reader.read_param(params, 'gas_scatter_proportion', [])
-        self.fit_ftc = reader.read_param(params, 'fit_ftc', True)
+        self.use_simulated_inst_reso = reader.read_param(params, 'use_simulated_inst_reso', True)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', False)
         self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', False)
-        self.combine_ins_resolution_files = reader.read_param(params, 'combine_ins_res_files', False)
         # This is an important parameter which determines how finely resolved
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
@@ -70,6 +69,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.path_to_scatter_spectra_file = reader.read_param(params, 'path_to_scatter_spectra_file', '/host/')
         self.path_to_missing_track_radiation_loss_data_numpy_file = '/host/'
         self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all4.txt')
+        self.use_combined_four_trap_inst_reso = reader.read_param(params, 'use_combined_four_trap_inst_reso', False)
         self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/host/res_all_conversion_max25_trap1.txt', 'res_all_conversion_max25_trap2.txt', 'res_all_conversion_max25_trap3.txt', 'res_all_conversion_max25_trap4.txt'])
 
         if not os.path.exists(self.shake_spectrum_parameters_json_path):
@@ -96,12 +96,12 @@ class MultiGasComplexLineShape(BaseProcessor):
 #         kr17kev_in_hz = guess*(bins[1]-bins[0])+bins[0]
         #self.B_field = B(17.8, kr17kev_in_hz + 0)
         if self.fixed_scatter_proportion == True:
-            if self.fit_ftc == True:
+            if self.use_simulated_inst_reso == True:
                 self.results = self.fit_data_ftc(freq_bins, data_hist_freq)
             else:
                 self.results = self.fit_data_1(freq_bins, data_hist_freq)
         else:
-            if self.fit_ftc == True:
+            if self.use_simulated_inst_reso == True:
                 self.results = self.fit_data_ftc_2(freq_bins, data_hist_freq)
             else:
                 self.results = self.fit_data(freq_bins, data_hist_freq)
@@ -420,6 +420,8 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
+        elif emitted_peak == 'dirac':
+            current_working_spectrum = self.std_dirac()
         current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
@@ -590,6 +592,8 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
+        elif emitted_peak == 'dirac':
+            current_working_spectrum = self.std_dirac()
         current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
@@ -747,7 +751,7 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
         elif emitted_peak == 'dirac':
             current_working_spectrum = self.std_dirac()
-        if self.combine_ins_resolution_files:
+        if self.use_combined_four_trap_inst_reso:
             current_working_spectrum = self.convolve_ins_resolution_combining_four_trap(current_working_spectrum, self.trap_weights)
         else:
             current_working_spectrum = self.convolve_ins_resolution(current_working_spectrum)
@@ -887,10 +891,14 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
-        if self.combine_ins_resolution_files:
+        elif emitted_peak == 'dirac':
+            current_working_spectrum = self.std_dirac()
+
+        if self.use_combined_four_trap_inst_reso:
             current_working_spectrum = self.convolve_ins_resolution_combining_four_trap(current_working_spectrum, self.trap_weights)
         else:
             current_working_spectrum = self.convolve_ins_resolution(current_working_spectrum)
+            
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
         N = len(self.gases)
