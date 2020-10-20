@@ -57,6 +57,8 @@ class MultiGasComplexLineShape(BaseProcessor):
             self.scatter_proportion = reader.read_param(params, 'gas_scatter_proportion', [])
         self.fit_ftc = reader.read_param(params, 'fit_ftc', True)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', False)
+        self.sample_ins_resolution_errors = reader.read_param(params, 'sample_in_errors', False)
+        self.combine_ins_res_files = reader.read_param(params, 'combine_ins_files', False)
         # This is an important parameter which determines how finely resolved
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
@@ -305,7 +307,10 @@ class MultiGasComplexLineShape(BaseProcessor):
 
     def convolve_ins_resolution(self, working_spectrum):
         x_data, y_mean_data, y_err_data = self.read_ins_resolution_data(self.path_to_ins_resolution_data_txt)
-        y_data = np.random.normal(y_mean_data, y_err_data)
+        if self.sample_ins_resolution_errors:
+            y_data = np.random.normal(y_mean_data, y_err_data)
+        else:
+            y_data = y_mean_data
         y_data[y_data<0] = 0
         f = interpolate.interp1d(x_data, y_data)
         x_array = self.std_eV_array()
