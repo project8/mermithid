@@ -67,6 +67,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.path_to_scatter_spectra_file = reader.read_param(params, 'path_to_scatter_spectra_file', '/host/')
         self.path_to_missing_track_radiation_loss_data_numpy_file = '/host/'
         self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all4.txt')
+        self.use_combined_four_trap_inst_reso = reader.read_param(params, 'use_combined_four_trap_inst_reso', False)
         self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/host/res_all_conversion_max25_trap1.txt', 'res_all_conversion_max25_trap2.txt', 'res_all_conversion_max25_trap3.txt', 'res_all_conversion_max25_trap4.txt'])
 
         if not os.path.exists(self.shake_spectrum_parameters_json_path):
@@ -739,7 +740,11 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
         elif emitted_peak == 'dirac':
             current_working_spectrum = self.std_dirac()
-        current_working_spectrum = self.convolve_ins_resolution(current_working_spectrum)
+        if use_combined_four_trap_inst_reso:
+            weight_array = []
+            current_working_spectrum = self.convolve_ins_resolution_combining_four_trap(current_working_spectrum)
+        else: 
+            current_working_spectrum = self.convolve_ins_resolution(current_working_spectrum)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
         N = len(self.gases)
