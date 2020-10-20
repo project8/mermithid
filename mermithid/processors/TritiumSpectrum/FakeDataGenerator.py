@@ -16,7 +16,7 @@ import os
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.misc.FakeTritiumDataFunctions import *
-from mermithid.processors.misc.KrComplexLineShape import KrComplexLineShape
+from mermithid.processors.misc.MultiGasComplexLineShape import MultiGasComplexLineShape
 from mermithid.misc import Constants, ComplexLineShapeUtilities, ConversionFunctions
 logger = morphologging.getLogger(__name__)
 
@@ -158,11 +158,12 @@ class FakeDataGenerator(BaseProcessor):
                     'num_points_in_std_array': 10000,
                     'B_field': self.B_field,
                     'base_shape': 'dirac',
-                    'path_to_osc_strengths_files': self.detailed_scatter_spectra_path,
-                    'path_to_ins_resolution_data_txt': self.path_to_ins_resolution_data_txt
+                    'sample_ins_res_errors': True,
+                    'combine_ins_res_files': True,
+                    'path_to_osc_strengths_files': self.detailed_scatter_spectra_path
                 }
                 logger.info('Setting up complex lineshape object')
-                self.complexLineShape = KrComplexLineShape("complexLineShape")
+                self.complexLineShape = MultiGasComplexLineShape("complexLineShape")
                 logger.info('Configuring complex lineshape')
                 self.complexLineShape.Configure(complexLineShape_config)
                 logger.info('Checking existence of scatter spectra files')

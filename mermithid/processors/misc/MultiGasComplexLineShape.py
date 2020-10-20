@@ -52,13 +52,14 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.bins_choice = reader.read_param(params, 'bins_choice', [])
         self.gases = reader.read_param(params, 'gases', ["H2", "Kr", "He", "Ar"])
         self.max_scatters = reader.read_param(params, 'max_scatters', 20)
+        self.trap_weights = reader.read_param(params, 'trap_weights', {'weights':[0.076,  0.341, 0.381, 0.203], 'errors':[0.01, 0.01, 0.01, 0.01]}) #Weights from Xueying's Sept. 13 slides; errors currently arbitrary
         self.fixed_scatter_proportion = reader.read_param(params, 'fixed_scatter_proportion', True)
         if self.fixed_scatter_proportion == True:
             self.scatter_proportion = reader.read_param(params, 'gas_scatter_proportion', [])
         self.fit_ftc = reader.read_param(params, 'fit_ftc', True)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', False)
-        self.sample_ins_resolution_errors = reader.read_param(params, 'sample_in_errors', False)
-        self.combine_ins_res_files = reader.read_param(params, 'combine_ins_files', False)
+        self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', False)
+        self.combine_ins_resolution_files = reader.read_param(params, 'combine_ins_res_files', False)
         # This is an important parameter which determines how finely resolved
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
@@ -321,7 +322,11 @@ class MultiGasComplexLineShape(BaseProcessor):
         normalized_convolved_spectrum = self.normalize(convolved_spectrum)
         return normalized_convolved_spectrum
         
-    def combine_four_trap_resolution_from_txt(weight_array):
+    def combine_four_trap_resolution_from_txt(trap_weights):
+        if self.sample_ins_resolution_errors:
+            weight_array = np.random.normal(trap_weights['weights'], trap_weights['errors'])
+        else:
+            weight_array = trap_weights['weights']
         y_data_array = []
         y_err_data_array = []
         for path_to_single_trap_resolution_txt in self.path_to_four_trap_ins_resolution_data_txt:
@@ -334,6 +339,8 @@ class MultiGasComplexLineShape(BaseProcessor):
     
     def convolve_ins_resolution_combining_four_trap(self, working_spectrum, weight_array):
         x_data, y_data_combined, y_err_data_combined = self.combine_four_trap_resolution_from_txt(weight_array)
+        if self.sample_ins_resolution_errors:
+            y_data_combined = np.random.normal(y_data_combined, y_err_data)
         f = interpolate.interp1d(x_data, y_data_combined)
         x_array = self.std_eV_array()
         y_array = np.zeros(len(x_array))
@@ -740,7 +747,10 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
         elif emitted_peak == 'dirac':
             current_working_spectrum = self.std_dirac()
-        current_working_spectrum = self.convolve_ins_resolution(current_working_spectrum)
+        if self.combine_ins_resolution_files:
+            current_working_spectrum = self.convolve_ins_resolution_combining_four_trap(current_working_spectrum, self.trap_weights)
+        else:
+            current_working_spectrum = self.convolve_ins_resolution(current_working_spectrum)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
         N = len(self.gases)
@@ -877,7 +887,10 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
-        current_working_spectrum = self.convolve_ins_resolution(current_working_spectrum)
+        if self.combine_ins_resolution_files:
+            current_working_spectrum = self.convolve_ins_resolution_combining_four_trap(current_working_spectrum, self.trap_weights)
+        else:
+            current_working_spectrum = self.convolve_ins_resolution(current_working_spectrum)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
         N = len(self.gases)
