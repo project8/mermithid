@@ -320,8 +320,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         convolved_spectrum = signal.convolve(working_spectrum, y_array, mode = 'same')
         normalized_convolved_spectrum = self.normalize(convolved_spectrum)
         return normalized_convolved_spectrum
-    
-    def convolve_ins_resolution_combining_four_trap(self, working_spectrum, weight_array):
+        
+    def combine_four_trap_resolution_from_txt(weight_array):
         y_data_array = []
         y_err_data_array = []
         for path_to_single_trap_resolution_txt in self.path_to_four_trap_ins_resolution_data_txt:
@@ -330,12 +330,18 @@ class MultiGasComplexLineShape(BaseProcessor):
             y_err_data_array.append(y_err_data)
         y_data_combined = weight_array[0]*y_data_array[0] + weight_array[1]*y_data_array[1] + weight_array[2]*y_data_array[2] + weight_array[3]*x_data_array[3]
         y_err_data_combined = np.sqrt((weight_array[0]*y_data_array[0])**2 + (weight_array[1]*y_data_array[1])**2 + (weight_array[2]*y_data_array[2])**2 + (weight_array[3]*x_data_array[3])**2)
+        return x_data, y_data_combined, y_err_data_combined
+    
+    def convolve_ins_resolution_combining_four_trap(self, working_spectrum, weight_array):
+        x_data, y_data_combined, y_err_data_combined = self.combine_four_trap_resolution_from_txt(weight_array)
+        f = interpolate.interp1d(x_data, y_data_combined)
         x_array = self.std_eV_array()
         y_array = np.zeros(len(x_array))
         index_within_range_of_xdata = np.where((x_array >= x_data[0]) & (x_array <= x_data[-1]))
         y_array[index_within_range_of_xdata] = f(x_array[index_within_range_of_xdata])
         convolved_spectrum = signal.convolve(working_spectrum, y_array, mode = 'same')
         normalized_convolved_spectrum = self.normalize(convolved_spectrum)
+        return normalized_convolved_spectrum
     
     def least_square(self, bin_centers, hist, params):
         # expectation
