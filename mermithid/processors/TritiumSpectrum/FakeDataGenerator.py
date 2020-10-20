@@ -158,7 +158,6 @@ class FakeDataGenerator(BaseProcessor):
                     # the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to
                     # be increased for larger datasets.
                     'num_points_in_std_array': 10000,
-                    'B_field': self.B_field,
                     'base_shape': 'dirac',
                     'sample_ins_res_errors': True,
                     'use_combined_four_trap_inst_reso': True,
@@ -252,7 +251,7 @@ class FakeDataGenerator(BaseProcessor):
         - 'gaussian'
         - 'simplified': Central gaussian + approximated scattering
         - 'detailed': Central gaussian + detailed scattering
-        'params' is a list of the params inputted into the lineshape function. The first entry of the list should be a standard deviation of full width half max that provides the scale of the lineshape width.
+        'params' is a list of the params inputted into the lineshape function. If such a parameter exists, the first entry of the list should be a standard deviation of full width half max that provides the scale of the lineshape width.
         """
         logger.info('Going to generate pseudo-unbinned data with {} lineshape'.format(lineshape))
 
@@ -305,7 +304,7 @@ class FakeDataGenerator(BaseProcessor):
         time0 = time.time()
 
         if array_method == True:
-            ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean, mass, Kmin, lineshape, params, min_energy, max_energy, self.complexLineShape)
+            ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean, mass, Kmin, lineshape, params, min_energy, max_energy, B_field, self.complexLineShape)
         else:
             ratesS = [convolved_spectral_rate(K, Q_mean, mass, Kmin, lineshape, params, min_energy, max_energy) for K in self.Koptions]
 
@@ -317,7 +316,7 @@ class FakeDataGenerator(BaseProcessor):
 
         # background
         if array_method == True:
-            ratesB = convolved_bkgd_rate_arrays(self.Koptions, Kmin, Kmax, lineshape, params, min_energy, max_energy, self.complexLineShape)
+            ratesB = convolved_bkgd_rate_arrays(self.Koptions, Kmin, Kmax, lineshape, params, min_energy, max_energy, B_field, self.complexLineShape)
         else:
             ratesB = [convolved_bkgd_rate(K, Kmin, Kmax, lineshape, params, min_energy, max_energy) for K in self.Koptions]
 
