@@ -57,7 +57,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         if self.fixed_scatter_proportion == True:
             self.scatter_proportion = reader.read_param(params, 'gas_scatter_proportion', [])
         self.use_simulated_inst_reso = reader.read_param(params, 'use_simulated_inst_reso', True)
-        self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', False)
+        self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
         self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', False)
         # This is an important parameter which determines how finely resolved
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
