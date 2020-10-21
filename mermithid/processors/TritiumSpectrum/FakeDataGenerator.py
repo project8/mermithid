@@ -161,7 +161,8 @@ class FakeDataGenerator(BaseProcessor):
                     'base_shape': 'dirac',
                     'sample_ins_res_errors': True,
                     'use_combined_four_trap_inst_reso': True,
-                    'path_to_osc_strengths_files': self.detailed_scatter_spectra_path
+                    'path_to_osc_strengths_files': self.detailed_scatter_spectra_path,
+                    'path_to_scatter_spectra_file':self.detailed_scatter_spectra_path
                 }
                 logger.info('Setting up complex lineshape object')
                 self.complexLineShape = MultiGasComplexLineShape("complexLineShape")

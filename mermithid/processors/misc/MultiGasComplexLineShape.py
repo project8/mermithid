@@ -52,7 +52,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.bins_choice = reader.read_param(params, 'bins_choice', [])
         self.gases = reader.read_param(params, 'gases', ["H2", "Kr", "He", "Ar"])
         self.max_scatters = reader.read_param(params, 'max_scatters', 20)
-        self.trap_weights = reader.read_param(params, 'trap_weights', {'weights':[0.076,  0.341, 0.381, 0.203], 'errors':[0.01, 0.01, 0.01, 0.01]}) #Weights from Xueying's Sept. 13 slides; errors currently arbitrary
+        self.trap_weights = reader.read_param(params, 'trap_weights', {'weights':[0.076,  0.341, 0.381, 0.203], 'errors':[0.003, 0.013, 0.014, 0.02]}) #Weights from Xueying's Sept. 13 slides; errors currently arbitrary
         self.fixed_scatter_proportion = reader.read_param(params, 'fixed_scatter_proportion', True)
         if self.fixed_scatter_proportion == True:
             self.scatter_proportion = reader.read_param(params, 'gas_scatter_proportion', [])
@@ -68,12 +68,12 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
         self.path_to_scatter_spectra_file = reader.read_param(params, 'path_to_scatter_spectra_file', '/host/')
-        self.path_to_missing_track_radiation_loss_data_numpy_file = '/host/'
+        self.path_to_missing_track_radiation_loss_data_numpy_file = reader.read_param(params, 'rad_loss_path', '/termite/analysis_input/complex-lineshape-inputs')
         self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all4.txt')
         self.use_combined_four_trap_inst_reso = reader.read_param(params, 'use_combined_four_trap_inst_reso', False)
-        self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/host/res_all_conversion_max25_trap1.txt', 'res_all_conversion_max25_trap2.txt', 'res_all_conversion_max25_trap3.txt', 'res_all_conversion_max25_trap4.txt'])
+        self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/termite/analysis_input/complex-lineshape-inputs/res_all_conversion_max25_trap1.txt', '/termite/analysis_input/complex-lineshape-inputs/res_all_conversion_max25_trap2.txt', '/termite/analysis_input/complex-lineshape-inputs/res_all_conversion_max25_trap3.txt', '/termite/analysis_input/complex-lineshape-inputs/res_all_conversion_max25_trap4.txt'])
 
-        if not os.path.exists(self.shake_spectrum_parameters_json_path):
+        if not os.path.exists(self.shake_spectrum_parameters_json_path) and self.base_shape=='shake':
             raise IOError('Shake spectrum path does not exist')
         if not os.path.exists(self.path_to_osc_strengths_files):
             raise IOError('Path to osc strengths files does not exist')
@@ -323,7 +323,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         normalized_convolved_spectrum = self.normalize(convolved_spectrum)
         return normalized_convolved_spectrum
         
-    def combine_four_trap_resolution_from_txt(trap_weights):
+    def combine_four_trap_resolution_from_txt(self, trap_weights):
         if self.sample_ins_resolution_errors:
             weight_array = np.random.normal(trap_weights['weights'], trap_weights['errors'])
         else:
@@ -331,17 +331,17 @@ class MultiGasComplexLineShape(BaseProcessor):
         y_data_array = []
         y_err_data_array = []
         for path_to_single_trap_resolution_txt in self.path_to_four_trap_ins_resolution_data_txt:
-            x_data, y_data, y_err_data = read_ins_resolution_data(self, path_to_single_trap_resolution_txt)
+            x_data, y_data, y_err_data = self.read_ins_resolution_data(path_to_single_trap_resolution_txt)
             y_data_array.append(y_data)
             y_err_data_array.append(y_err_data)
-        y_data_combined = weight_array[0]*y_data_array[0] + weight_array[1]*y_data_array[1] + weight_array[2]*y_data_array[2] + weight_array[3]*x_data_array[3]
-        y_err_data_combined = np.sqrt((weight_array[0]*y_data_array[0])**2 + (weight_array[1]*y_data_array[1])**2 + (weight_array[2]*y_data_array[2])**2 + (weight_array[3]*x_data_array[3])**2)
+        y_data_combined = weight_array[0]*y_data_array[0] + weight_array[1]*y_data_array[1] + weight_array[2]*y_data_array[2] + weight_array[3]*y_data_array[3]
+        y_err_data_combined = np.sqrt((weight_array[0]*y_data_array[0])**2 + (weight_array[1]*y_data_array[1])**2 + (weight_array[2]*y_data_array[2])**2 + (weight_array[3]*y_data_array[3])**2)
         return x_data, y_data_combined, y_err_data_combined
     
     def convolve_ins_resolution_combining_four_trap(self, working_spectrum, weight_array):
         x_data, y_data_combined, y_err_data_combined = self.combine_four_trap_resolution_from_txt(weight_array)
         if self.sample_ins_resolution_errors:
-            y_data_combined = np.random.normal(y_data_combined, y_err_data)
+            y_data_combined = np.random.normal(y_data_combined, y_err_data_combined)
         f = interpolate.interp1d(x_data, y_data_combined)
         x_array = self.std_eV_array()
         y_array = np.zeros(len(x_array))
@@ -772,6 +772,8 @@ class MultiGasComplexLineShape(BaseProcessor):
                 current_working_spectrum = scatter_spectra.item()[entry_str]
                 current_working_spectrum = self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
                 coefficient = factorial(sum(combination))
+                print(len(self.gases))
+                print(len(p))
                 for component, i in zip(combination, range(len(self.gases))):
                     coefficient = coefficient/factorial(component)*p[i]**component*prob_parameter**M
                 current_full_spectrum += coefficient*current_working_spectrum
