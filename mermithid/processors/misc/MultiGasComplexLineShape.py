@@ -66,7 +66,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
         self.path_to_scatter_spectra_file = reader.read_param(params, 'path_to_scatter_spectra_file', '/host/')
         self.path_to_missing_track_radiation_loss_data_numpy_file = '/host/'
-        self.path_to_ins_resolution_data_txt = '/host/'
+        self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all4.txt')
 
         if not os.path.exists(self.shake_spectrum_parameters_json_path):
             raise IOError('Shake spectrum path does not exist')
@@ -98,7 +98,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 self.results = self.fit_data_1(freq_bins, data_hist_freq)
         else:
             if self.fit_ftc == True:
-                self.results = self.fit_data_ftc_1(freq_bins, data_hist_freq)
+                self.results = self.fit_data_ftc_2(freq_bins, data_hist_freq)
             else:
                 self.results = self.fit_data(freq_bins, data_hist_freq)
 
@@ -180,7 +180,7 @@ class MultiGasComplexLineShape(BaseProcessor):
     def radiation_loss_f(self):
         radiation_loss_data_file_path = self.path_to_missing_track_radiation_loss_data_numpy_file + '/missing_track_radiation_loss.npy'
         data_for_missing_track_radiation_loss = np.load(radiation_loss_data_file_path, allow_pickle = True)
-        x_data_for_histogram = f_radiation_energy_loss_interp = data_for_missing_track_radiation_loss.item()['histogram_eV']['x_data']
+        x_data_for_histogram = data_for_missing_track_radiation_loss.item()['histogram_eV']['x_data']
         energy_loss_array = self.std_eV_array()
         f_radiation_energy_loss = 0 * energy_loss_array
         f_radiation_energy_loss_interp = data_for_missing_track_radiation_loss.item()['histogram_eV']['interp']
@@ -282,7 +282,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         return ans_normed
 
     def read_ins_resolution_data(self, path_to_ins_resolution_data_txt):
-        ins_resolution_data = np.loadtxt(path_to_ins_resolution_data_txt+'ins_resolution_all4.txt')
+        ins_resolution_data = np.loadtxt(path_to_ins_resolution_data_txt)
         x_data = ins_resolution_data.T[0]
         y_data = ins_resolution_data.T[1]
         y_err_data = ins_resolution_data.T[2]
@@ -316,10 +316,16 @@ class MultiGasComplexLineShape(BaseProcessor):
         nonzero_bins_index = np.where(data_hist_freq != 0)
         zero_bins_index = np.where(data_hist_freq == 0)
         # expectation
-        if self.fit_ftc:
-            fit_Hz = self.spectrum_func_ftc(bin_centers, *params)
+        if self.fixed_scatter_proportion:
+            if self.fit_ftc:
+                fit_Hz = self.spectrum_func_ftc(bin_centers, *params)
+            else:
+                fit_Hz = self.spectrum_func_1(bin_centers, *params)
         else:
-            fit_Hz = self.spectrum_func_1(bin_centers, *params)
+            if self.fit_ftc:
+                fit_Hz = self.spectrum_func_ftc_2(bin_centers, *params)
+            else:
+                fit_Hz = self.spectrum_func(bin_centers, *params)
         chi2 = 2*((fit_Hz - data_hist_freq + data_hist_freq*np.log(data_hist_freq/fit_Hz))[nonzero_bins_index]).sum()
         chi2 += 2*(fit_Hz - data_hist_freq)[zero_bins_index].sum()
         return chi2
@@ -863,7 +869,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
-        full_spectrum = self.make_spectrum_ftc_1(prob_parameter, scatter_proportion)
+        full_spectrum = self.make_spectrum_ftc_2(prob_parameter, scatter_proportion)
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum)
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
         return f
@@ -916,7 +922,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         scatter_proportion_fit_err = list(perr[3:2+N])+[np.sqrt(sum(perr[3:2+N]**2))]
         total_counts_fit_err = amplitude_fit_err
     
-        fit_Hz = self.spectrum_func_ftc_1(bins_Hz, *params)
+        fit_Hz = self.spectrum_func_ftc_2(bins_Hz, *params)
         fit_keV = ComplexLineShapeUtilities.flip_array(fit_Hz)
         bins_keV = ConversionFunctions.Energy(bins_Hz, B_field_fit)/1000
         bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
@@ -932,6 +938,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         output_string += '-----------------\n'
         output_string += 'Probability parameter \n= ' + "{:.2e}".format(prob_parameter_fit)+' +/- ' + "{:.2e}".format(prob_parameter_fit_err)+'\n'
         output_string += '-----------------\n'
+        output_string += ''
         for i in range(len(self.gases)):
             output_string += '{} Scatter proportion \n= '.format(self.gases[i]) + "{:.8e}".format(scatter_proportion_fit[i])\
             +' +/- ' + "{:.2e}".format(scatter_proportion_fit_err[i])+'\n'

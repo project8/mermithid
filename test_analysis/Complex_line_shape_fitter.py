@@ -29,12 +29,12 @@ class ComplexLineShapeTests(unittest.TestCase):
         }
         complexLineShape_config = {
             'bins_choice': np.linspace(0e6, 100e6, 1000),
-            'gases': ["H2", "Ar"],
+            'gases': ["H2", "Kr"],
             'max_scatters': 20,
-            'fixed_scatter_proportion': True,
+            'fixed_scatter_proportion': False,
             'fit_ftc':True, # use gaussian instrumental resolution
             # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
-            'gas_scatter_proportion': [0.93, 0.02],
+            'gas_scatter_proportion': [0.61, 0.34],
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,
@@ -42,7 +42,8 @@ class ComplexLineShapeTests(unittest.TestCase):
             # shake_spectrum_parameters.json and oscillator strength data can be found at https://github.com/project8/scripts/tree/master/yuhao/line_shape_fitting/data
             'shake_spectrum_parameters_json_path': '../mermithid/misc/shake_spectrum_parameters.json',
             'path_to_osc_strengths_files': '/host/',
-            'path_to_scatter_spectra_file': '/host/'
+            'path_to_scatter_spectra_file': '/host/',
+            'path_to_ins_resolution_data_txt': '/host/res_all_conversion_max25.txt'
         }
 
         b = IOCicadaProcessor("reader")
@@ -85,7 +86,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             plot_title += '\n with fixed scatter proportion \n {}'.format(str_gas_scatter_proportion)
         plt.title(plot_title)
         plt.tight_layout()
-        plt.savefig('/host/plots/fit_FTC_march_with_{}_gas_scattering_gaussian_ins_res.png'.format(len(complexLineShape_config['gases'])))
+        plt.savefig('/host/plots/fit_FTC_march_with_{}_gas_scattering_max25_fitting_H2_He.png'.format(len(complexLineShape_config['gases'])))
 
 if __name__ == '__main__':
 
