@@ -19,6 +19,8 @@ logger = morphologging.getLogger(__name__)
 from mermithid.misc.Constants import *
 from mermithid.misc.ConversionFunctions import *
 
+import matplotlib.pyplot as plt
+
 """
 Constants and functions used by processors/TritiumSpectrum/FakeDataGenerator.py
 """
@@ -263,6 +265,12 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
         lineshape_rates = complexLineShape.spectrum_func_ftc(K_lineshape/1000., B_field, 1, ls_params[1])
+        #lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., 0, 1, ls_params[1])
+        plt.plot(K_lineshape/1000., lineshape_rates)
+        plt.xlabel('Energy shift (eV)')
+        plt.ylabel('Complex lineshape rate')
+        plt.savefig('complex_lineshape_rates.pdf')
+        plt.show()
 
     beta_rates = np.zeros(len(K))
     for i,ke in enumerate(K):
@@ -270,6 +278,10 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
 
     #Convolving
     convolved = convolve(beta_rates, lineshape_rates, mode='same')
+    plt.plot(K, convolved)
+    plt.xlabel('Energy (eV)')
+    plt.ylabel('Signal rate')
+    plt.savefig('spectrum_signal.pdf')
     below_Kmin = np.where(K < Kmin)
     np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
     return convolved
@@ -294,6 +306,7 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
         lineshape_rates = complexLineShape.spectrum_func_ftc(K_lineshape/1000., B_field, 1, ls_params[1])
+        #lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., 0, 1, ls_params[1])
 
     bkgd_rates = np.full(len(K), bkgd_rate())
     if len(K) < len(K_lineshape):

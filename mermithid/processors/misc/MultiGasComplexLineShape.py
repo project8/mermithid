@@ -34,6 +34,7 @@ import sys
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.misc import Constants, ComplexLineShapeUtilities, ConversionFunctions
+import matplotlib.pyplot as plt
 
 logger = morphologging.getLogger(__name__)
 
@@ -63,8 +64,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
         self.RF_ROI_MIN = reader.read_param(params, 'RF_ROI_MIN', 25850000000.0)
-        self.B_field = reader.read_param(params, 'B_field', 0.957810722501)
-        self.base_shape = reader.read_param(params, 'base_shape', 'dirac')
+        self.base_shape = reader.read_param(params, 'base_shape', 'shake')
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
         self.path_to_scatter_spectra_file = reader.read_param(params, 'path_to_scatter_spectra_file', '/host/')
@@ -335,18 +335,33 @@ class MultiGasComplexLineShape(BaseProcessor):
             y_data_array.append(y_data)
             y_err_data_array.append(y_err_data)
         y_data_combined = weight_array[0]*y_data_array[0] + weight_array[1]*y_data_array[1] + weight_array[2]*y_data_array[2] + weight_array[3]*y_data_array[3]
-        y_err_data_combined = np.sqrt((weight_array[0]*y_data_array[0])**2 + (weight_array[1]*y_data_array[1])**2 + (weight_array[2]*y_data_array[2])**2 + (weight_array[3]*y_data_array[3])**2)
+        y_err_data_combined = np.sqrt((weight_array[0]*y_err_data_array[0])**2 + (weight_array[1]*y_err_data_array[1])**2 + (weight_array[2]*y_err_data_array[2])**2 + (weight_array[3]*y_err_data_array[3])**2)
         return x_data, y_data_combined, y_err_data_combined
     
     def convolve_ins_resolution_combining_four_trap(self, working_spectrum, weight_array):
         x_data, y_data_combined, y_err_data_combined = self.combine_four_trap_resolution_from_txt(weight_array)
+        plt.errorbar(x_data, y_data_combined, yerr=y_err_data_combined)
+        plt.xlabel('Energy shift (eV)')
+        plt.ylabel('Probability (post-combining traps)')
+        plt.show()
+        plt.savefig('combined_trap_ins_res.pdf')
         if self.sample_ins_resolution_errors:
             y_data_combined = np.random.normal(y_data_combined, y_err_data_combined)
+        plt.plot(x_data, y_data_combined)
+        plt.xlabel('Energy shift (eV)')
+        plt.ylabel('Probability (post-sampling)')
+        plt.show()
+        plt.savefig('sampled_combined_trap_ins_res.pdf')
         f = interpolate.interp1d(x_data, y_data_combined)
         x_array = self.std_eV_array()
         y_array = np.zeros(len(x_array))
         index_within_range_of_xdata = np.where((x_array >= x_data[0]) & (x_array <= x_data[-1]))
         y_array[index_within_range_of_xdata] = f(x_array[index_within_range_of_xdata])
+        plt.plot(x_array, y_array)
+        plt.xlabel('Energy shift (eV)')
+        plt.ylabel('Probability (post-interpolation)')
+        plt.show()
+        plt.savefig('interpolated_combined_trap_ins_res.pdf')
         convolved_spectrum = signal.convolve(working_spectrum, y_array, mode = 'same')
         normalized_convolved_spectrum = self.normalize(convolved_spectrum)
         return normalized_convolved_spectrum
@@ -582,7 +597,6 @@ class MultiGasComplexLineShape(BaseProcessor):
         current_path = self.path_to_scatter_spectra_file
         # check_existence_of_scatter_files()
         #filenames = list_files('scatter_spectra_files')
-        p = np.zeros(len(gases))
         p = self.scatter_proportion
         scatter_spectra_file_path = os.path.join(current_path, 'scatter_spectra.npy')
         scatter_spectra = np.load(
@@ -740,7 +754,6 @@ class MultiGasComplexLineShape(BaseProcessor):
         current_path = self.path_to_scatter_spectra_file
         # check_existence_of_scatter_files()
         #filenames = list_files('scatter_spectra_files')
-        p = np.zeros(len(gases))
         p = self.scatter_proportion
         scatter_spectra_file_path = os.path.join(current_path, 'scatter_spectra.npy')
         scatter_spectra = np.load(
@@ -772,8 +785,6 @@ class MultiGasComplexLineShape(BaseProcessor):
                 current_working_spectrum = scatter_spectra.item()[entry_str]
                 current_working_spectrum = self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
                 coefficient = factorial(sum(combination))
-                print(len(self.gases))
-                print(len(p))
                 for component, i in zip(combination, range(len(self.gases))):
                     coefficient = coefficient/factorial(component)*p[i]**component*prob_parameter**M
                 current_full_spectrum += coefficient*current_working_spectrum

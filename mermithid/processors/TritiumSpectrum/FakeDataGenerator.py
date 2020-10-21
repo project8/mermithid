@@ -149,9 +149,9 @@ class FakeDataGenerator(BaseProcessor):
                 complexLineShape_config = {
                     'gases': ["H2","He"],
                     'max_scatters': self.NScatters,
-                    'fix_scatter_proportion': True,
+                    'fixed_scatter_proportion': True,
                     # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
-                    'gas1_scatter_proportion': self.scatter_proportion,
+                    'gas_scatter_proportion': [self.scatter_proportion, 1.-self.scatter_proportion],
                     'use_simulated_inst_reso': True,
                     'use_combined_four_trap_inst_reso': False,
                     # This is an important parameter which determines how finely resolved
@@ -159,7 +159,7 @@ class FakeDataGenerator(BaseProcessor):
                     # be increased for larger datasets.
                     'num_points_in_std_array': 10000,
                     'base_shape': 'dirac',
-                    'sample_ins_res_errors': True,
+                    'sample_ins_resolution_errors': True,
                     'use_combined_four_trap_inst_reso': True,
                     'path_to_osc_strengths_files': self.detailed_scatter_spectra_path,
                     'path_to_scatter_spectra_file':self.detailed_scatter_spectra_path
@@ -339,6 +339,9 @@ class FakeDataGenerator(BaseProcessor):
 
         ratesS[ratesS<0.] = 0.
         ratesB[ratesB<0.] = 0.
+        print(ratesS)
+        print(len(ratesS))
+        print(ratesS[2000:2010])
         rate_sumS, rate_sumB = np.sum(ratesS), np.sum(ratesB)
         probsS = np.array(ratesS)/rate_sumS
         probsB = np.array(ratesB)/rate_sumB
