@@ -265,7 +265,8 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
         lineshape_rates = complexLineShape.spectrum_func_ftc(K_lineshape/1000., B_field, 1, ls_params[1])
-        #lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., 0, 1, ls_params[1])
+        #lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000.,ls_params[0], 0, 1, ls_params[1])
+        fig = plt.figure()
         plt.plot(K_lineshape/1000., lineshape_rates)
         plt.xlabel('Energy shift (eV)')
         plt.ylabel('Complex lineshape rate')
@@ -278,10 +279,12 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
 
     #Convolving
     convolved = convolve(beta_rates, lineshape_rates, mode='same')
+    fig = plt.figure()
     plt.plot(K, convolved)
     plt.xlabel('Energy (eV)')
     plt.ylabel('Signal rate')
     plt.savefig('spectrum_signal.pdf')
+    plt.show()
     below_Kmin = np.where(K < Kmin)
     np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
     return convolved
@@ -306,7 +309,7 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
         lineshape_rates = complexLineShape.spectrum_func_ftc(K_lineshape/1000., B_field, 1, ls_params[1])
-        #lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., 0, 1, ls_params[1])
+        #lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., ls_params[0], 0, 1, ls_params[1])
 
     bkgd_rates = np.full(len(K), bkgd_rate())
     if len(K) < len(K_lineshape):
