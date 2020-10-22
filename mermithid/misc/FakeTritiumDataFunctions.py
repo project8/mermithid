@@ -20,6 +20,7 @@ from mermithid.misc.Constants import *
 from mermithid.misc.ConversionFunctions import *
 
 import matplotlib.pyplot as plt
+import types
 
 """
 Constants and functions used by processors/TritiumSpectrum/FakeDataGenerator.py
@@ -264,10 +265,10 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
-        lineshape_rates = complexLineShape.spectrum_func_ftc(K_lineshape/1000., B_field, 1, ls_params[1])
+        lineshape_rates = complexLineShape.make_spectrum_ftc(ls_params[1], emitted_peak='dirac')
         #lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000.,ls_params[0], 0, 1, ls_params[1])
         fig = plt.figure()
-        plt.plot(K_lineshape/1000., lineshape_rates)
+        plt.plot(K_lineshape, lineshape_rates)
         plt.xlabel('Energy shift (eV)')
         plt.ylabel('Complex lineshape rate')
         plt.savefig('complex_lineshape_rates.pdf')
@@ -308,7 +309,7 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
-        lineshape_rates = complexLineShape.spectrum_func_ftc(K_lineshape/1000., B_field, 1, ls_params[1])
+        lineshape_rates = complexLineShape.make_spectrum_ftc(ls_params[1], emitted_peak='dirac')
         #lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., ls_params[0], 0, 1, ls_params[1])
 
     bkgd_rates = np.full(len(K), bkgd_rate())

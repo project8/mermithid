@@ -811,6 +811,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
         full_spectrum = self.make_spectrum_ftc(prob_parameter)
+        
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx],en_array_rev,full_spectrum)
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
         return f

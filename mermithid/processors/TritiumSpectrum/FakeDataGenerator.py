@@ -290,6 +290,16 @@ class FakeDataGenerator(BaseProcessor):
         #Options of kinetic energies to be sampled
         self.Koptions = np.arange(Kmin_eff, Kmax_eff, step_size)
 
+        def K_ls_complex():
+            dE = self.Koptions[1] - self.Koptions[0]
+            energy_half_range = max(max_energy, abs(min_energy))
+            n_dE_pos = round(energy_half_range/dE) #Number of steps for the lineshape for energies > 0
+            n_dE_neg = round(energy_half_range/dE) #Same, for energies < 0
+            K_lineshape =  np.arange(-n_dE_neg*dE, n_dE_pos*dE, dE)
+            return K_lineshape
+
+        self.complexLineShape.std_eV_array = K_ls_complex
+
         if efficiency_dict is not None:
             logger.info('Evaluating efficiencies')
             efficiency_mean, efficiency_error = efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
