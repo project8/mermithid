@@ -349,9 +349,6 @@ class FakeDataGenerator(BaseProcessor):
 
         ratesS[ratesS<0.] = 0.
         ratesB[ratesB<0.] = 0.
-        print(ratesS)
-        print(len(ratesS))
-        print(ratesS[2000:2010])
         rate_sumS, rate_sumB = np.sum(ratesS), np.sum(ratesB)
         probsS = np.array(ratesS)/rate_sumS
         probsB = np.array(ratesB)/rate_sumB

@@ -34,7 +34,6 @@ import sys
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.misc import Constants, ComplexLineShapeUtilities, ConversionFunctions
-import matplotlib.pyplot as plt
 
 logger = morphologging.getLogger(__name__)
 
@@ -340,31 +339,13 @@ class MultiGasComplexLineShape(BaseProcessor):
     
     def convolve_ins_resolution_combining_four_trap(self, working_spectrum, weight_array):
         x_data, y_data_combined, y_err_data_combined = self.combine_four_trap_resolution_from_txt(weight_array)
-        fig = plt.figure()
-        plt.errorbar(x_data, y_data_combined, yerr=y_err_data_combined)
-        plt.xlabel('Energy shift (eV)')
-        plt.ylabel('Probability (post-combining traps)')
-        plt.savefig('combined_trap_ins_res.pdf')
-        plt.show()
         if self.sample_ins_resolution_errors:
             y_data_combined = np.random.normal(y_data_combined, y_err_data_combined)
-        fig = plt.figure()
-        plt.plot(x_data, y_data_combined)
-        plt.xlabel('Energy shift (eV)')
-        plt.ylabel('Probability (post-sampling)')
-        plt.savefig('sampled_combined_trap_ins_res.pdf')
-        plt.show()
         f = interpolate.interp1d(x_data, y_data_combined)
         x_array = self.std_eV_array()
         y_array = np.zeros(len(x_array))
         index_within_range_of_xdata = np.where((x_array >= x_data[0]) & (x_array <= x_data[-1]))
         y_array[index_within_range_of_xdata] = f(x_array[index_within_range_of_xdata])
-        fig = plt.figure()
-        plt.plot(x_array, y_array)
-        plt.xlabel('Energy shift (eV)')
-        plt.ylabel('Probability (post-interpolation)')
-        plt.savefig('interpolated_combined_trap_ins_res.pdf')
-        plt.show()
         convolved_spectrum = signal.convolve(working_spectrum, y_array, mode = 'same')
         normalized_convolved_spectrum = self.normalize(convolved_spectrum)
         return normalized_convolved_spectrum
@@ -457,8 +438,8 @@ class MultiGasComplexLineShape(BaseProcessor):
                 current_working_spectrum = self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(len(self.gases))):
-                    coefficient = coefficient/factorial(component)*p[i]**component*prob_parameter**M
-                current_full_spectrum += coefficient*current_working_spectrum
+                    coefficient = coefficient/factorial(component)*p[i]**component
+                current_full_spectrum += coefficient*current_working_spectrum*prob_parameter**M
         return current_full_spectrum
 
     # Produces a spectrum in real energy that can now be evaluated off of the SELA.
@@ -629,8 +610,8 @@ class MultiGasComplexLineShape(BaseProcessor):
                 current_working_spectrum = self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(len(self.gases))):
-                    coefficient = coefficient/factorial(component)*p[i]**component*prob_parameter**M
-                current_full_spectrum += coefficient*current_working_spectrum
+                    coefficient = coefficient/factorial(component)*p[i]**component
+                current_full_spectrum += coefficient*current_working_spectrum*prob_parameter**M
         return current_full_spectrum
 
     def spectrum_func_1(self, bins_Hz, *p0):
@@ -789,8 +770,8 @@ class MultiGasComplexLineShape(BaseProcessor):
                 current_working_spectrum = self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(len(self.gases))):
-                    coefficient = coefficient/factorial(component)*p[i]**component*prob_parameter**M
-                current_full_spectrum += coefficient*current_working_spectrum
+                    coefficient = coefficient/factorial(component)*p[i]**component
+                current_full_spectrum += coefficient*current_working_spectrum*prob_parameter**M
         return current_full_spectrum
 
     def spectrum_func_ftc(self, bins_Hz, *p0):
@@ -935,8 +916,8 @@ class MultiGasComplexLineShape(BaseProcessor):
                 current_working_spectrum = self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(len(self.gases))):
-                    coefficient = coefficient/factorial(component)*p[i]**component*prob_parameter**M
-                current_full_spectrum += coefficient*current_working_spectrum
+                    coefficient = coefficient/factorial(component)*p[i]**component
+                current_full_spectrum += coefficient*current_working_spectrum*prob_parameter**M
         return current_full_spectrum
 
     def spectrum_func_ftc_2(self, bins_Hz, *p0):
