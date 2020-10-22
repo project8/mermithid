@@ -50,7 +50,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         '''
         # Read other parameters
         self.bins_choice = reader.read_param(params, 'bins_choice', [])
-        self.gases = reader.read_param(params, 'gases', ["H2", "Kr", "He", "Ar"])
+        self.gases = reader.read_param(params, 'gases', ["H2", "He"])
         self.max_scatters = reader.read_param(params, 'max_scatters', 20)
         self.fixed_scatter_proportion = reader.read_param(params, 'fixed_scatter_proportion', True)
         if self.fixed_scatter_proportion == True:
@@ -67,6 +67,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.path_to_scatter_spectra_file = reader.read_param(params, 'path_to_scatter_spectra_file', '/host/')
         self.path_to_missing_track_radiation_loss_data_numpy_file = '/host/'
         self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all4.txt')
+        self.path_to_quad_trap_eff_interp = reader.read_param(params, 'path_to_quad_trap_eff_interp', '')
 
         if not os.path.exists(self.shake_spectrum_parameters_json_path):
             raise IOError('Shake spectrum path does not exist')
@@ -137,7 +138,47 @@ class MultiGasComplexLineShape(BaseProcessor):
         for A, sigma in zip(A_array, sigma_array):
             ans += self.gaussian(x_array, A, sigma, 0)
         return ans
-    
+
+    def asym_triangle(self, x, scale1, scale2, center, exponent=1):
+        index_below = np.where(x<center)
+        index_above = np.where(x>=center)
+        f_below = 1-np.abs((x-center)/scale1)**exponent
+        f_above = 1-np.abs((x-center)/scale2)**exponent
+        f_below[np.abs(x-center)>=np.abs(scale1)]=0.
+        f_above[np.abs(x-center)>=np.abs(scale2)]=0.
+        f = np.zeros(len(x))
+        f[index_above] = f_above[index_above]
+        f[index_below] = f_below[index_below]
+        return f
+
+    def smeared_triangle(self, x, center, scale1, scale2, exponent, sigma, amplitude):
+        max_energy = 1000
+        dx = x[1]-x[0]#E[1]-E[0]
+        n_dx = round(max_energy/dx)
+        x_smearing = np.arange(-n_dx*dx, n_dx*dx, dx)
+        x_triangle = np.arange(min(x)-max_energy, max(x)+max_energy, dx)
+        smearing = gaussian(x_smearing, 1, sigma, 0)
+        triangle = asym_triangle(x_triangle, scale1, scale2, center, exponent)
+        triangle_smeared = signal.convolve(triangle, smearing, mode='same')
+        triangle_smeared_norm = triangle_smeared/np.sum(triangle_smeared)*amplitude
+        return np.interp(x, x_triangle, triangle_smeared_norm)
+
+    def std_smeared_triangle(self, center, scale1, scale2, exponent, sigma):
+        x_array = std_eV_array()
+        ans = self.smeared_triangle(x_array, center, scale1, scale2, exponent, sigma, 1)
+        return ans
+
+    def composite_gaussian_lorentzian(self, sigma):
+        x_array = self.std_eV_array()
+        w_g = x_array/sigma
+        gamma = 0.8*sigma
+        w_l = x_array/gamma 
+        lorentzian = 1./(gamma*np.pi)*1./(1+(w_l**2))
+        gaussian = 1./(np.sqrt(2.*np.pi)*sigma)*np.exp(-0.5*w_g**2)
+        p = 0.8
+        composite_function = p*gaussian+(1-p)*lorentzian
+        return composite_function
+
     # normalizes a function, but depends on binning.
     # Only to be used for functions evaluated on the SELA
     def normalize(self, f):
@@ -281,6 +322,12 @@ class MultiGasComplexLineShape(BaseProcessor):
         ans_normed = self.normalize(ans)
         return ans_normed
 
+    def convolve_composite_gaussian_lorentzian(self, func_to_convolve, sigma):
+        resolution_f = self.composite_gaussian_lorentzian(sigma)
+        ans = signal.convolve(resolution_f, func_to_convolve, mode='same')
+        ans_normed = self.normalize(ans)
+        return ans_normed
+
     def read_ins_resolution_data(self, path_to_ins_resolution_data_txt):
         ins_resolution_data = np.loadtxt(path_to_ins_resolution_data_txt)
         x_data = ins_resolution_data.T[0]
@@ -298,6 +345,12 @@ class MultiGasComplexLineShape(BaseProcessor):
         convolved_spectrum = signal.convolve(working_spectrum, y_array, mode = 'same')
         normalized_convolved_spectrum = self.normalize(convolved_spectrum)
         return normalized_convolved_spectrum
+
+    def convolve_smeared_triangle(self, func_to_convolve, center, scale1, scale2, exponent, sigma):
+        resolution_f = self.std_smeared_triangle(center, scale1, scale2, exponent, sigma)
+        ans = signal.convolve(resolution_f, func_to_convolve, mode = 'same')
+        ans_normed = normalize(ans)
+        return ans_normed
 
     def least_square(self, bin_centers, hist, params):
         # expectation
@@ -963,3 +1016,338 @@ class MultiGasComplexLineShape(BaseProcessor):
         'reduced_chi2': reduced_chi2
         }
         return dictionary_of_fit_results
+
+def make_spectrum_smeared_triangle(self, prob_parameter, center, scale1, scale2, exponent, sigma, emitted_peak='shake'):
+    current_path = get_current_path()
+    # check_existence_of_scatter_files()
+    #filenames = list_files('scatter_spectra_files')
+    p = np.zeros(len(gases))
+    p = scatter_proportion
+    scatter_spectra = np.load('scatter_spectra_file/scatter_spectra.npy', allow_pickle = True)
+    en_array = std_eV_array()
+    current_full_spectrum = np.zeros(len(en_array))
+    if emitted_peak == 'lorentzian':
+        current_working_spectrum = self.std_lorenztian_17keV()
+    elif emitted_peak == 'shake':
+        current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
+    current_working_spectrum = self.convolve_smeared_triangle(current_working_spectrum, center, scale1, scale2, exponent, sigma)
+    zeroth_order_peak = current_working_spectrum
+    current_full_spectrum += current_working_spectrum
+    N = len(gases)
+    for M in range(1, max_scatters + 1):
+        gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
+        for combination in gas_scatter_combinations:
+            #print(combination)
+            entry_str = ''
+            for component, gas_type in zip(combination, gases):
+                entry_str += gas_type
+                entry_str += str(component).zfill(2)
+            current_working_spectrum = scatter_spectra.item()[entry_str]
+            current_working_spectrum = self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+            coefficient = factorial(sum(combination))
+            for component, i in zip(combination, range(len(gases))):
+                coefficient = coefficient/factorial(component)*p[i]**component*prob_parameter**M
+            current_full_spectrum += coefficient*current_working_spectrum
+
+    return current_full_spectrum
+
+    def spectrum_func_smeared_triangle(self, bins_Hz, *p0):
+    
+        B_field = p0[0]
+        amplitude = p0[1]
+        prob_parameter = p0[2]
+        center = p0[3]
+        scale1 = p0[4]
+        scale2 = p0[5]
+        exponent = p0[6]
+        sigma = p0[7]
+    
+        x_eV = Energy(bins_Hz, B_field)
+        en_loss_array = std_eV_array()
+        en_loss_array_min = en_loss_array[0]
+        en_loss_array_max = en_loss_array[len(en_loss_array)-1]
+        en_array_rev = flip_array(-1*en_loss_array)
+        f = np.zeros(len(x_eV))
+        f_intermediate = np.zeros(len(x_eV))
+
+        x_eV_minus_line = kr_line*1000 - x_eV
+        zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
+        nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
+    
+        full_spectrum = self.make_spectrum_smeared_triangle(prob_parameter, center, scale1, scale2, exponent, sigma)
+        f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx], en_loss_array, full_spectrum)
+        f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
+        return f
+
+    def fit_data_smeared_triangle(self, RF_ROI_MIN, freq_bins, data_hist_freq, print_params=True):
+        t = time.time()
+        self.check_existence_of_scatter_files()
+        bins_Hz = freq_bins + RF_ROI_MIN
+        bins_Hz = 0.5*(bins_Hz[1:] + bins_Hz[:-1])
+        bins_Hz_nonzero , data_hist_nonzero , data_hist_err = get_only_nonzero_bins(bins_Hz, data_hist_freq)
+        # Initial guesses for curve_fit
+        B_field_guess = central_frequency_to_B_field(bins_Hz[np.argmax(data_hist_freq)])
+        amplitude_guess = np.sum(data_hist_freq)/2
+        prob_parameter_guess = 0.5
+        center_guess = 0
+        scale_guess = 5
+        exponent_guess = 1
+        sigma_guess = 3
+        # Bounds for curve_fit
+        B_field_min = central_frequency_to_B_field(bins_Hz[0])
+        B_field_max = central_frequency_to_B_field(bins_Hz[-1])
+        amplitude_min = 1e-5
+        amplitude_max = np.sum(data_hist_freq)*3
+        prob_parameter_min = 1e-5
+        prob_parameter_max = 1
+        center_min = -5
+        center_max = 5
+        width_min = 0
+        width_max = Energy(bins_Hz[0], B_field_guess) - Energy(bins_Hz[-1], B_field_guess)
+        exponent_min = 0.5
+        exponent_max = 2
+    
+        p0_guess = [B_field_guess, amplitude_guess, prob_parameter_guess, center_guess, scale_guess, scale_guess, exponent_guess, sigma_guess]
+        p0_bounds = [(B_field_min,B_field_max), (amplitude_min,amplitude_max), (prob_parameter_min, prob_parameter_max), (center_min, center_max), (width_min, width_max), (width_min, width_max), (exponent_min, exponent_max), (width_min, width_max)]           
+        #step_size = [1e-6, 5, 500, 0.1]
+        # Actually do the fitting
+        print(p0_guess)
+        print(p0_bounds)
+        m_binned = Minuit.from_array_func(lambda p: chi2_Poisson(bins_Hz, data_hist_freq, p),
+                                          start = p0_guess,
+                                          limit = p0_bounds,
+                                          throw_nan = True
+                                          )
+        m_binned.migrad()
+        params = m_binned.np_values()
+        B_field_fit = params[0]
+        #starting at index 2, grabs every other entry. (which is how scattering probs are filled in for N gases)
+        amplitude_fit = params[1]
+        prob_parameter_fit = params[2]
+        center_fit = params[3]
+        scale1_fit = params[4]
+        scale2_fit = params[5]
+        exponent_fit = params[6]
+        sigma_fit = params[7]
+        total_counts_fit = amplitude_fit
+
+        perr = m_binned.np_errors()
+        B_field_fit_err = perr[0]
+        amplitude_fit_err = perr[1]
+        prob_parameter_fit_err = perr[2]
+        center_fit_err = perr[3]
+        scale1_fit_err = perr[4]
+        scale2_fit_err = perr[5]
+        exponent_fit_err = perr[6]
+        sigma_fit_err = perr[7]
+        total_counts_fit_err = amplitude_fit_err
+    
+        fit_Hz = spectrum_func(bins_Hz,*params)
+        fit_keV = flip_array(fit_Hz)
+        bins_keV = Energy(bins_Hz, B_field_fit)/1000
+        bins_keV = flip_array(bins_keV)
+        reduced_chi2 = reduced_chi2_Poisson(data_hist_freq, fit_Hz, number_of_parameters = len(params)) 
+        if print_params == True:
+            output_string = 'Reduced chi^2 = {:.2e}\n'.format(reduced_chi2)
+            output_string += '-----------------\n'
+            output_string += 'B field = {:.8e}'.format(B_field_fit)+' +/- '+ '{:.4e} T\n'.format(B_field_fit_err)
+            output_string += '-----------------\n'
+            output_string += 'Amplitude = {}'.format(round(amplitude_fit,2))+' +/- {}'.format(round(amplitude_fit_err,2)) + '\n'
+            output_string += '-----------------\n'
+            output_string += 'Probability parameter \n= ' + "{:.2e}".format(prob_parameter_fit) + ' +/- ' + "{:.2e}".format(prob_parameter_fit_err)+'\n'
+            output_string += '-----------------\n'
+            output_string += 'Center = {:.4e}'.format(center_fit) + ' +/- {:.4e}'.format(center_fit_err) + '\n'
+            output_string += '-----------------\n'
+            output_string += 'Scale1 = {:.4e}'.format(scale1_fit) + ' +/- {:.4e}'.format(scale1_fit_err) + '\n'
+            output_string += '-----------------\n'
+            output_string += 'Scale2 = {:.4e}'.format(scale2_fit) + ' +/- {:.4e}'.format(scale2_fit_err) + '\n'
+            output_string += '-----------------\n'
+            output_string += 'Exponent = {:.4e}'.format(exponent_fit) + ' +/- {:.4e}'.format(exponent_fit_err) + '\n'
+            output_string += '-----------------\n'
+            output_string += 'Sigma = {:.4e}'.format(sigma_fit) + ' +/- {:.4e}'.format(sigma_fit_err) + '\n'
+            output_string += '-----------------\n'
+        elapsed = time.time() - t
+        output_string += 'Fit completed in '+str(round(elapsed,2))+'s'+'\n'
+        dictionary_of_fit_results = {
+        'output_string': output_string,
+        'perr': perr,
+        'bins_keV': bins_keV,
+        'fit_keV': fit_keV,
+        'bins_Hz': bins_Hz,
+        'fit_Hz': fit_Hz,
+        'B_field_fit': B_field_fit,
+        'B_field_fit_err': B_field_fit_err,
+        'prob_parameter_fit': prob_parameter_fit,
+        'prob_parameter_fit_err': prob_parameter_fit_err,
+        'center_fit': scatter_proportion_fit,
+        'center_fit_err': scatter_proportion_fit_err,
+        'scale1_fit': scale1_fit,
+        'scale1_fit_err': scale1_fit_err,
+        'scale2_fit': scale2_fit,
+        'scale2_fit_err': scale2_fit_err,
+        'exponent_fit': exponent_fit,
+        'exponent_fit_err': exponent_fit_err,
+        'sigma_fit': sigma_fit,
+        'sigma_fit_err': sigma_fit_err,
+        'amplitude_fit': amplitude_fit,
+        'amplitude_fit_err': amplitude_fit_err,
+        'data_hist_freq': data_hist_freq,
+        'reduced_chi2': reduced_chi2
+        }
+        return dictionary_of_fit_results
+
+    def make_spectrum_composite_gaussian_lorentzian(self, prob_parameter, sigma, emitted_peak='shake'):
+        p = scatter_proportion
+        scatter_spectra = np.load('scatter_spectra_file/scatter_spectra.npy', allow_pickle = True)
+        en_array = std_eV_array()
+        current_full_spectrum = np.zeros(len(en_array))
+        if emitted_peak == 'lorentzian':
+            current_working_spectrum = std_lorenztian_17keV()
+        elif emitted_peak == 'shake':
+            current_working_spectrum = shake_spectrum()
+        current_working_spectrum = convolve_composite_gaussian_lorentzian(current_working_spectrum, sigma)
+        zeroth_order_peak = current_working_spectrum
+        current_full_spectrum += 2*zeroth_order_peak
+        N = len(gases)
+        for M in range(1, max_scatters + 1):
+            gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
+            for combination in gas_scatter_combinations:
+                #print(combination)
+                entry_str = ''
+                for component, gas_type in zip(combination, gases):
+                    entry_str += gas_type
+                    entry_str += str(component).zfill(2)
+                current_working_spectrum = scatter_spectra.item()[entry_str]
+                current_working_spectrum = normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+                coefficient = factorial(sum(combination))
+                for component, i in zip(combination, range(len(gases))):
+                    coefficient = coefficient/factorial(component)*p[i]**component*prob_parameter**M
+                current_full_spectrum += coefficient*current_working_spectrum
+        return current_full_spectrum
+
+    def spectrum_func(self, bins_Hz, eff_array, *p0):
+    
+        B_field = p0[0]
+        amplitude = p0[1]
+        prob_parameter = p0[2] 
+        sigma = p0[3]
+
+        x_eV = Energy(bins_Hz, B_field)
+        en_loss_array = std_eV_array()
+        en_loss_array_min = en_loss_array[0]
+        en_loss_array_max = en_loss_array[len(en_loss_array)-1]
+        en_array_rev = flip_array(-1*en_loss_array)
+        f = np.zeros(len(x_eV))
+        f_intermediate = np.zeros(len(x_eV))
+
+        x_eV_minus_line = kr_line*1000 - x_eV
+        zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
+        nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
+
+        full_spectrum = make_spectrum(prob_parameter, sigma)
+        f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx], en_loss_array, full_spectrum)
+        f_intermediate = f_intermediate*eff_array
+        f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
+
+        return f
+
+    def fit_data(RF_ROI_MIN, freq_bins, data_hist_freq, print_params=True):
+        t = time.time()
+        check_existence_of_scatter_files()
+        bins_Hz = freq_bins + RF_ROI_MIN
+        bins_Hz = 0.5*(bins_Hz[1:] + bins_Hz[:-1])
+    
+        quad_trap_interp = np.load(self.path_to_quad_trap_eff_interp, allow_pickle = True)
+        quad_trap_count_rate_interp = quad_trap_interp.item()['count_rate_interp']
+        eff_array = quad_trap_count_rate_interp(bins_Hz)
+    
+        bins_Hz_nonzero , data_hist_nonzero , data_hist_err = get_only_nonzero_bins(bins_Hz, data_hist_freq)
+        # Initial guesses for curve_fit
+        B_field_guess = central_frequency_to_B_field(bins_Hz[np.argmax(data_hist_freq)])
+        amplitude_guess = np.sum(data_hist_freq)/2
+        FWHM_eV_guess = 5
+        prob_parameter_guess = 0.5
+        scatter_proportion_guess = 0.5
+        sigma_guess = 5
+        gamma_guess = 3
+        gaussian_portion_guess = 0.5
+        # Bounds for curve_fit
+        B_field_min = central_frequency_to_B_field(bins_Hz[0])
+        B_field_max = central_frequency_to_B_field(bins_Hz[-1])
+        amplitude_min = 1e-5
+        amplitude_max = np.sum(data_hist_freq)*3
+        FWHM_eV_min = 0
+        FWHM_eV_max = Energy(bins_Hz[0], B_field_guess)
+        prob_parameter_min = 1e-5
+        prob_parameter_max = 1
+        scatter_proportion_min = 1e-5
+        scatter_proportion_max = 1
+        mu_min = -FWHM_eV_max
+        mu_max = FWHM_eV_max
+        gaussian_portion_min = 1e-5
+        gaussian_portion_max = 1
+        N = len(gases)
+        p0_guess = [B_field_guess, amplitude_guess, prob_parameter_guess, sigma_guess]
+        p0_bounds = [(B_field_min,B_field_max), (amplitude_min,amplitude_max), (prob_parameter_min, prob_parameter_max), (FWHM_eV_min, FWHM_eV_max)]
+        # Actually do the fitting
+        print(p0_guess)
+        print(p0_bounds)
+        m_binned = Minuit.from_array_func(lambda p: chi2_Poisson(bins_Hz, data_hist_freq, eff_array, p),
+                                          start = p0_guess,
+                                          limit = p0_bounds,
+                                          throw_nan = True
+                                          )
+        m_binned.migrad()
+        params = m_binned.np_values()
+        B_field_fit = params[0]
+        #starting at index 2, grabs every other entry. (which is how scattering probs are filled in for N gases)
+        amplitude_fit = params[1]
+        prob_parameter_fit = params[2]
+        sigma_fit = params[3]
+        total_counts_fit = amplitude_fit
+
+        perr = m_binned.np_errors()
+        B_field_fit_err = perr[0]
+        amplitude_fit_err = perr[1]
+        prob_parameter_fit_err = perr[2]
+        sigma_fit_err = perr[3]
+        total_counts_fit_err = amplitude_fit_err
+    
+        fit_Hz = spectrum_func(bins_Hz, eff_array, *params)
+        fit_keV = flip_array(fit_Hz)
+        bins_keV = Energy(bins_Hz, B_field_fit)/1000
+        bins_keV = flip_array(bins_keV)
+        reduced_chi2 = reduced_chi2_Poisson(data_hist_freq, fit_Hz, number_of_parameters = len(params))
+    
+        if print_params == True:
+            output_string = 'Reduced chi^2 = {:.2e}\n'.format(reduced_chi2)
+            output_string += '-----------------\n'
+            output_string += 'B field = {:.8e}'.format(B_field_fit)+' +/- '+ '{:.4e} T\n'.format(B_field_fit_err)
+            output_string += '-----------------\n'
+            output_string += 'Amplitude = {}'.format(round(amplitude_fit,2))+' +/- {}'.format(round(amplitude_fit_err,2)) + '\n'
+            output_string += '-----------------\n'
+            output_string += 'Probability parameter \n= ' + "{:.2e}".format(prob_parameter_fit)\
+            +' +/- ' + "{:.2e}".format(prob_parameter_fit_err)+'\n'
+            output_string += '-----------------\n'
+            output_string += 'sigma = {:.2e}'.format(sigma_fit) + ' +/- {:.4e}\n'.format(sigma_fit_err)
+            output_string += '-----------------\n'
+        elapsed = time.time() - t
+        output_string += 'Fit completed in '+str(round(elapsed,2))+'s'+'\n'
+        dictionary_of_fit_results = {
+        'output_string': output_string,
+        'perr': perr,
+        'bins_keV': bins_keV,
+        'fit_keV': fit_keV,
+        'bins_Hz': bins_Hz,
+        'fit_Hz': fit_Hz,
+        'B_field_fit': B_field_fit,
+        'B_field_fit_err': B_field_fit_err,
+        'prob_parameter_fit': prob_parameter_fit,
+        'prob_parameter_fit_err': prob_parameter_fit_err,
+        'sigma_fit': sigma_fit,
+        'sigma_fit_err': sigma_fit_err,
+        'amplitude_fit': amplitude_fit,
+        'amplitude_fit_err': amplitude_fit_err,
+        'data_hist_freq': data_hist_freq,
+        'reduced_chi2': reduced_chi2
+        }
