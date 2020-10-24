@@ -29,9 +29,11 @@ class FakeDataGenerationTest(unittest.TestCase):
             "scatter_proportion": 0.8, # only used if use_lineshape = True and lineshape = detailed
             "B_field": 0.9578186017836624,
             "S": 4500, # number of tritium events
-            "n_steps": 1000, # stepsize for pseudo continuous data is: (Kmax_eff-Kmin_eff)/nsteps
+            "n_steps": 10000, # stepsize for pseudo continuous data is: (Kmax_eff-Kmin_eff)/nsteps
             "A_b": 1e-10, # background rate 1/eV/s
-            "poisson_stats": True
+            "poisson_stats": True,
+            "molecular_final_states": False,
+            "final_states_file": "../mermithid/misc/saenz_mfs.json"
         }
 
         specGen = FakeDataGenerator("specGen")
