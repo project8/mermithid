@@ -19,6 +19,8 @@ logger = morphologging.getLogger(__name__)
 from mermithid.misc.Constants import *
 from mermithid.misc.ConversionFunctions import *
 
+import matplotlib.pyplot as plt
+
 """
 Constants and functions used by processors/TritiumSpectrum/FakeDataGenerator.py
 """
@@ -262,7 +264,20 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
+        #bins_Hz = Frequency(K_lineshape, B_field)
+        #lineshape_rates = complexLineShape.spectrum_func_ftc(bins_Hz, B_field, 1, ls_params[1])
+        #lineshape_rates = complexLineShape.make_spectrum_1(ls_params[0]*2*np.sqrt(2*np.log(2)), ls_params[1], emitted_peak='dirac')
         lineshape_rates = complexLineShape.make_spectrum_ftc(ls_params[1], emitted_peak='dirac')
+        #lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., 0., 1., ls_params[1])
+        lineshape_rates = np.flipud(lineshape_rates)
+
+    
+    fig = plt.figure()
+    plt.plot(K_lineshape, lineshape_rates)
+    plt.xlabel('Energy shift (eV)')
+    plt.ylabel('Complex lineshape rate')
+    plt.savefig('complex_lineshape_rates.pdf')
+    
 
     beta_rates = np.zeros(len(K))
     for i,ke in enumerate(K):
@@ -270,6 +285,15 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
 
     #Convolving
     convolved = convolve(beta_rates, lineshape_rates, mode='same')
+    
+    
+    fig = plt.figure()
+    plt.plot(K, convolved)
+    plt.xlabel('Energy (eV)')
+    plt.ylabel('Signal rate')
+    plt.savefig('spectrum_signal.pdf')
+    
+    
     below_Kmin = np.where(K < Kmin)
     np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
     return convolved
@@ -293,8 +317,13 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
+        #bins_Hz = Frequency(K_lineshape, B_field)
+        #lineshape_rates = complexLineShape.spectrum_func_ftc(bins_Hz, B_field, 1, ls_params[1])
+        #lineshape_rates = complexLineShape.make_spectrum_1(ls_params[0]*2*np.sqrt(2*np.log(2)), ls_params[1], emitted_peak='dirac')
         lineshape_rates = complexLineShape.make_spectrum_ftc(ls_params[1], emitted_peak='dirac')
-
+        #lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., 0., 1., ls_params[1])
+        lineshape_rates = np.flipud(lineshape_rates)
+        
     bkgd_rates = np.full(len(K), bkgd_rate())
     if len(K) < len(K_lineshape):
         raise Exception("lineshape array is longer than Koptions")
@@ -303,6 +332,7 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
     convolved = convolve(bkgd_rates, lineshape_rates, mode='same')
     below_Kmin = np.where(K < Kmin)
     np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
+    
     return convolved
 
 

@@ -54,7 +54,7 @@ class KrComplexLineShape(BaseProcessor):
         self.fix_scatter_proportion = reader.read_param(params, 'fix_scatter_proportion', True)
         if self.fix_scatter_proportion == True:
             self.scatter_proportion = reader.read_param(params, 'gas1_scatter_proportion', 0.8)
-            logger.info('Using an H2 scatter proportion of {} with gases {}'.format(self.gases, self.scatter_proportion))
+            logger.info('Using an H2 scatter proportion of {} with gases {}'.format(self.scatter_proportion, self.gases))
         # This is an important parameter which determines how finely resolved
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
@@ -63,7 +63,7 @@ class KrComplexLineShape(BaseProcessor):
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
         self.base_shape = reader.read_param(params, 'base_shape', 'shake')
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
-        self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all.txt')
+        self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/termite/analysis_input/complex-lineshape-inputs/res_all_conversion_max15.5_alltraps.txt')
 
         if self.base_shape=='shake' and not os.path.exists(self.shake_spectrum_parameters_json_path):
             raise IOError('Shake spectrum path does not exist')

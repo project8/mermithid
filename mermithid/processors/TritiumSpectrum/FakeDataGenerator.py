@@ -17,6 +17,7 @@ from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.misc.FakeTritiumDataFunctions import *
 from mermithid.processors.misc.MultiGasComplexLineShape import MultiGasComplexLineShape
+#from mermithid.processors.misc.KrComplexLineShape import KrComplexLineShape
 from mermithid.misc import Constants, ComplexLineShapeUtilities, ConversionFunctions
 logger = morphologging.getLogger(__name__)
 
@@ -147,22 +148,23 @@ class FakeDataGenerator(BaseProcessor):
 
                 # Setup and configure lineshape processor
                 complexLineShape_config = {
-                    'gases': ["H2","He"],
+                    'gases': ["H2", "He"],
                     'max_scatters': self.NScatters,
                     'fixed_scatter_proportion': True,
                     # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
                     'gas_scatter_proportion': [self.scatter_proportion, 1.-self.scatter_proportion],
+                    #'gas1_scatter_proportion': self.scatter_proportion, #, 1.-self.scatter_proportion],
                     'use_simulated_inst_reso': True,
                     'use_combined_four_trap_inst_reso': False,
                     # This is an important parameter which determines how finely resolved
                     # the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to
                     # be increased for larger datasets.
-                    'num_points_in_std_array': 10000,
+                    'num_points_in_std_array': 35838,
                     'base_shape': 'dirac',
                     'sample_ins_resolution_errors': True,
                     'use_combined_four_trap_inst_reso': True,
                     'path_to_osc_strengths_files': self.detailed_scatter_spectra_path,
-                    'path_to_scatter_spectra_file':self.detailed_scatter_spectra_path
+                    'path_to_scatter_spectra_file':self.detailed_scatter_spectra_path,
                 }
                 logger.info('Setting up complex lineshape object')
                 self.complexLineShape = MultiGasComplexLineShape("complexLineShape")
@@ -273,10 +275,10 @@ class FakeDataGenerator(BaseProcessor):
         nstdevs = 7 #Number of standard deviations (of size broadening) below Kmin and above Q-m to generate data, for the gaussian case
         FWHM_convert = 2*math.sqrt(2*math.log(2))
         if lineshape=='gaussian':
-            max_energy = nstdevs*params[0]
+            max_energy = 1000 #nstdevs*params[0]
             min_energy = -1000
         elif lineshape=='simplified_scattering' or lineshape=='simplified' or lineshape=='detailed_scattering' or lineshape=='detailed':
-            max_energy = nstdevs/FWHM_convert*params[0]
+            max_energy = 1000    #nstdevs/FWHM_convert*params[0]
             min_energy = -1000
 
         Kmax_eff = Kmax+max_energy #Maximum energy for data is slightly above Kmax>Q-m
@@ -290,6 +292,7 @@ class FakeDataGenerator(BaseProcessor):
         #Options of kinetic energies to be sampled
         self.Koptions = np.arange(Kmin_eff, Kmax_eff, step_size)
 
+        """
         def K_ls_complex():
             dE = self.Koptions[1] - self.Koptions[0]
             energy_half_range = max(max_energy, abs(min_energy))
@@ -299,6 +302,7 @@ class FakeDataGenerator(BaseProcessor):
             return K_lineshape
 
         self.complexLineShape.std_eV_array = K_ls_complex
+        """
 
         if efficiency_dict is not None:
             logger.info('Evaluating efficiencies')

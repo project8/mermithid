@@ -368,12 +368,12 @@ class MultiGasComplexLineShape(BaseProcessor):
         zero_bins_index = np.where(data_hist_freq == 0)
         # expectation
         if self.fixed_scatter_proportion:
-            if self.fit_ftc:
+            if self.use_simulated_inst_reso:
                 fit_Hz = self.spectrum_func_ftc(bin_centers, *params)
             else:
                 fit_Hz = self.spectrum_func_1(bin_centers, *params)
         else:
-            if self.fit_ftc:
+            if self.use_simulated_inst_reso:
                 fit_Hz = self.spectrum_func_ftc_2(bin_centers, *params)
             else:
                 fit_Hz = self.spectrum_func(bin_centers, *params)
