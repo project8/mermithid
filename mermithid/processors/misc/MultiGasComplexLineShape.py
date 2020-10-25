@@ -55,7 +55,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.fixed_scatter_proportion = reader.read_param(params, 'fixed_scatter_proportion', True)
         if self.fixed_scatter_proportion == True:
             self.scatter_proportion = reader.read_param(params, 'gas_scatter_proportion', [])
-        self.fit_ftc = reader.read_param(params, 'fit_ftc', True)
+        self.use_simulated_inst_reso = reader.read_param(params, 'use_simulated_inst_reso', True)
+        self.use_simulated_four_trap_simulated_inst_reso_combined = reader.read_param(params, 'use_four_trap_simulated_inst_reso_combined', True)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', False)
         # This is an important parameter which determines how finely resolved
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
@@ -93,12 +94,12 @@ class MultiGasComplexLineShape(BaseProcessor):
 #         kr17kev_in_hz = guess*(bins[1]-bins[0])+bins[0]
         #self.B_field = B(17.8, kr17kev_in_hz + 0)
         if self.fixed_scatter_proportion == True:
-            if self.fit_ftc == True:
+            if self.use_simulated_inst_reso == True:
                 self.results = self.fit_data_ftc(freq_bins, data_hist_freq)
             else:
                 self.results = self.fit_data_1(freq_bins, data_hist_freq)
         else:
-            if self.fit_ftc == True:
+            if self.use_simulated_inst_reso == True:
                 self.results = self.fit_data_ftc_2(freq_bins, data_hist_freq)
             else:
                 self.results = self.fit_data(freq_bins, data_hist_freq)
