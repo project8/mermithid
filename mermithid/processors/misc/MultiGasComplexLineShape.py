@@ -818,11 +818,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         p0_guess = [B_field_guess, amplitude_guess, prob_parameter_guess]
         p0_bounds = [(B_field_min,B_field_max), (amplitude_min,amplitude_max), (prob_parameter_min, prob_parameter_max)]
         # Actually do the fitting
-        m_binned = Minuit.from_array_func(lambda p: self.chi2_Poisson(bins_Hz, data_hist_freq, p),
-                                        start = p0_guess,
-                                        limit = p0_bounds,
-                                        throw_nan = True
-                                        )
+        m_binned = Minuit.from_array_func(lambda p: self.chi2_Poisson(bins_Hz, data_hist_freq, p), start = p0_guess, limit = p0_bounds, throw_nan = True)
         m_binned.migrad()
         params = m_binned.np_values()
         # Name each of the resulting parameters and errors
