@@ -107,8 +107,10 @@ class FakeDataGenerator(BaseProcessor):
         self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
         self.detailed_scatter_spectra_path = reader.read_param(params, 'path_to_detailed_scatter_spectra_dir', '/host')
         self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all.txt')
+        self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap1.txt', '/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap2.txt', '/termite/T2-1.56e-4/analysis_input/complex-lineshape-inputs/res_cf15.5_trap3.txt', '/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap4.txt'])
         self.efficiency_path = reader.read_param(params, 'efficiency_path', '')
         self.final_states_file = reader.read_param(params, 'final_states_file', '')
+        self.path_to_missing_track_radiation_loss_data_numpy_file = reader.read_param(params, 'rad_loss_path', '../analysis_input/complex-lineshape-inputs')
 
         #options
         self.use_lineshape = reader.read_param(params, 'use_lineshape', True)
@@ -159,6 +161,8 @@ class FakeDataGenerator(BaseProcessor):
                     #'gas1_scatter_proportion': self.scatter_proportion, #, 1.-self.scatter_proportion],
                     'use_simulated_inst_reso': True,
                     'use_combined_four_trap_inst_reso': False,
+                    'use_radiation_loss': True,
+                    'rad_loss_path': self.path_to_missing_track_radiation_loss_data_numpy_file,
                     # This is an important parameter which determines how finely resolved
                     # the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to
                     # be increased for larger datasets.
@@ -168,6 +172,8 @@ class FakeDataGenerator(BaseProcessor):
                     'use_combined_four_trap_inst_reso': True,
                     'path_to_osc_strengths_files': self.detailed_scatter_spectra_path,
                     'path_to_scatter_spectra_file':self.detailed_scatter_spectra_path,
+                    'path_to_ins_resolution_data_txt': self.path_to_ins_resolution_data_txt,
+                    'path_to_four_trap_ins_resolution_data_txt': self.path_to_four_trap_ins_resolution_data_txt
                 }
                 logger.info('Setting up complex lineshape object')
                 self.complexLineShape = MultiGasComplexLineShape("complexLineShape")
