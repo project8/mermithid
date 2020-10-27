@@ -22,6 +22,9 @@ class FittersTest(unittest.TestCase):
         def f(x, y, z):
             return (x - 2) ** 2 + (y - 3) ** 2 + (z - 4) ** 2
 
+        def g(params):
+            return f(*params)
+
         m = Minuit(f)
 
         m.migrad()  # run optimiser
@@ -29,6 +32,10 @@ class FittersTest(unittest.TestCase):
 
         m.hesse()   # run covariance estimator
         print(m.errors)  # {'x': 1,'y': 1,'z': 1}
+
+        m2 = Minuit.from_array_func(g, [0, 0, 0], error=[0.1, 0.1, 0.1], name=['a', 'b', 'c'], errordef=1)
+        m2.migrad()
+        print(m2.values)
 
         logger.info('iMinuit test done')
 

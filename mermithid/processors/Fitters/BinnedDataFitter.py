@@ -114,6 +114,7 @@ class BinnedDataFitter(BaseProcessor):
             logger.info('Fit parameters: {}'.format(self.parameter_names))
             logger.info('Initial values: {}'.format(self.initial_values))
             logger.info('Initial error: {}'.format(self.parameter_errors))
+            logger.info('Limits: {}'.format(self.limits))
             logger.info('Fixed in fit: {}'.format(self.fixes))
             logger.info('Constrained parameters: {}'.format([self.parameter_names[i] for i in self.constrained_parameters]))
 
