@@ -131,7 +131,7 @@ class BinnedDataFitter(BaseProcessor):
 
         # minimze
         m_binned.migrad(resume=False)
-        self.param_states = m_binned.get_param_states()
+        #self.param_states = m_binned.get_param_states()
         self.m_binned = m_binned
 
         # results
