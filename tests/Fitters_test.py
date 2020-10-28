@@ -15,6 +15,32 @@ import numpy as np
 
 class FittersTest(unittest.TestCase):
 
+    def test_iminuit(self):
+        logger.info('iMinuit test')
+        from iminuit import Minuit
+
+        def f(x, y, z):
+            return (x - 2) ** 2 + (y - 3) ** 2 + (z - 4) ** 2
+
+        def g(params):
+            return f(*params)
+
+        m = Minuit(f)
+
+        m.migrad()  # run optimiser
+        print(m.values)  # {'x': 2,'y': 3,'z': 4}
+
+        m.hesse()   # run covariance estimator
+        print(m.errors)  # {'x': 1,'y': 1,'z': 1}
+
+        # repeat using from_array_func
+        m2 = Minuit.from_array_func(g, [0, 0, 0], error=[0.1, 0.1, 0.1], name=['a1', 'b1', 'c1'], errordef=1,
+                                    limit=[[None, None], [None, None], [None, None]],
+                                    print_level=0)
+        m2.migrad(resume=False)
+        print(m2.values)
+
+        logger.info('iMinuit test done')
 
     def test_BinnedDataFitter(self):
         from mermithid.processors.Fitters import BinnedDataFitter
@@ -29,7 +55,8 @@ class FittersTest(unittest.TestCase):
             'constrained_parameter_indices': [],
             'constrained_parameter_means': [0.5],
             'constrained_parameter_widths': [1],
-            'binned_data': True
+            'binned_data': True,
+            'print_level': 0
 
             }
 
