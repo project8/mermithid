@@ -18,6 +18,10 @@ RUN mkdir -p $MERMITHID_BUILD_PREFIX &&\
     echo 'export PYTHONPATH=$MERMITHID_BUILD_PREFIX/$(python -m site --user-site | sed "s%$(python -m site --user-base)%%"):$PYTHONPATH' >> setup.sh &&\
     /bin/true
 
+RUN source $COMMON_BUILD_PREFIX/setup.sh &&\
+    pip install iminuit &&\
+    /bin/true
+
 ########################
 FROM mermithid_common as mermithid_done
 
