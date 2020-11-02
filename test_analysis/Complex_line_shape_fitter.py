@@ -31,10 +31,11 @@ class ComplexLineShapeTests(unittest.TestCase):
             'bins_choice': np.linspace(0e6, 100e6, 1000),
             'gases': ["H2", "Kr"],
             'max_scatters': 20,
-            'fixed_scatter_proportion': False,
-            'fit_ftc':True, # use gaussian instrumental resolution
+            'fixed_scatter_proportion': True,
+            # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution
+            'resolution_function': 'gaussian_lorentzian_composite_resolution',
             # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
-            'gas_scatter_proportion': [0.61, 0.34],
+            'gas_scatter_proportion': [0.61, 0.39],
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,
@@ -86,7 +87,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             plot_title += '\n with fixed scatter proportion \n {}'.format(str_gas_scatter_proportion)
         plt.title(plot_title)
         plt.tight_layout()
-        plt.savefig('/host/plots/fit_FTC_march_with_{}_gas_scattering_max25_fitting_H2_He.png'.format(len(complexLineShape_config['gases'])))
+        plt.savefig('/host/plots/fit_FTC_march_with_composite_gaussian_lorentzian_resolution.png'.format(len(complexLineShape_config['gases'])))
 
 if __name__ == '__main__':
 
