@@ -29,13 +29,14 @@ class ComplexLineShapeTests(unittest.TestCase):
         }
         complexLineShape_config = {
             'bins_choice': np.linspace(0e6, 100e6, 1000),
-            'gases': ["H2", "Kr"],
+            'gases': ["H2", "He"],
             'max_scatters': 20,
             'fixed_scatter_proportion': True,
             # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution
             'resolution_function': 'gaussian_lorentzian_composite_resolution',
             # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
             'gas_scatter_proportion': [0.61, 0.39],
+            'survival_prob': 0.8,
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,

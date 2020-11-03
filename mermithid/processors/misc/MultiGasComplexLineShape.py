@@ -55,6 +55,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.fixed_scatter_proportion = reader.read_param(params, 'fixed_scatter_proportion', True)
         if self.fixed_scatter_proportion == True:
             self.scatter_proportion = reader.read_param(params, 'gas_scatter_proportion', [])
+        self.survival_prob = reader.read_param(params, 'survival_prob', 1)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
         # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution
         self.resolution_function = reader.read_param(params, 'resolution_function', '')
@@ -1208,8 +1209,9 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
-    def make_spectrum_composite_gaussian_lorentzian(self, survival_prob, sigma, emitted_peak='shake'):
+    def make_spectrum_composite_gaussian_lorentzian(self, sigma, emitted_peak='shake'):
         p = self.scatter_proportion
+        survival_prob = self.survival_prob
         scatter_spectra_file_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy')
         scatter_spectra = np.load(scatter_spectra_file_path, allow_pickle = True)
         en_array = self.std_eV_array()
@@ -1244,9 +1246,8 @@ class MultiGasComplexLineShape(BaseProcessor):
     def spectrum_func_composite_gaussian_lorentzian(self, bins_Hz, eff_array, *p0):
     
         B_field = p0[0]
-        amplitude = p0[1]
-        survival_prob = p0[2] 
-        sigma = p0[3]
+        amplitude = p0[1] 
+        sigma = p0[2]
 
         x_eV = ConversionFunctions.Energy(bins_Hz, B_field)
         en_loss_array = self.std_eV_array()
@@ -1259,7 +1260,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
-        full_spectrum = self.make_spectrum_composite_gaussian_lorentzian(survival_prob, sigma)
+        full_spectrum = self.make_spectrum_composite_gaussian_lorentzian(sigma)
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx], en_loss_array, full_spectrum)
         f_intermediate = f_intermediate*eff_array
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
@@ -1300,8 +1301,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         gaussian_portion_min = 1e-5
         gaussian_portion_max = 1
         N = len(self.gases)
-        p0_guess = [B_field_guess, amplitude_guess, prob_parameter_guess, sigma_guess]
-        p0_bounds = [(B_field_min,B_field_max), (amplitude_min,amplitude_max), (prob_parameter_min, prob_parameter_max), (FWHM_eV_min, FWHM_eV_max)]
+        p0_guess = [B_field_guess, amplitude_guess, sigma_guess]
+        p0_bounds = [(B_field_min,B_field_max), (amplitude_min,amplitude_max), (FWHM_eV_min, FWHM_eV_max)]
         # Actually do the fitting
         m_binned = Minuit.from_array_func(lambda p: self.chi_2_Poisson_composite_gaussian_lorentzian_reso(bins_Hz, data_hist_freq, eff_array, p),
                                           start = p0_guess,
@@ -1313,15 +1314,13 @@ class MultiGasComplexLineShape(BaseProcessor):
         B_field_fit = params[0]
         #starting at index 2, grabs every other entry. (which is how scattering probs are filled in for N gases)
         amplitude_fit = params[1]
-        survival_prob_fit = params[2]
-        sigma_fit = params[3]
+        sigma_fit = params[2]
         total_counts_fit = amplitude_fit
 
         perr = m_binned.np_errors()
         B_field_fit_err = perr[0]
         amplitude_fit_err = perr[1]
-        survival_prob_fit_err = perr[2]
-        sigma_fit_err = perr[3]
+        sigma_fit_err = perr[2]
         total_counts_fit_err = amplitude_fit_err
     
         fit_Hz = self.spectrum_func_composite_gaussian_lorentzian(bins_Hz, eff_array, *params)
@@ -1338,9 +1337,6 @@ class MultiGasComplexLineShape(BaseProcessor):
             output_string += '-----------------\n'
             output_string += 'Amplitude = {}'.format(round(amplitude_fit,2))+' +/- {}'.format(round(amplitude_fit_err,2)) + '\n'
             output_string += '-----------------\n'
-            output_string += 'Survival probability \n= ' + "{:.2e}".format(survival_prob_fit)\
-            +' +/- ' + "{:.2e}".format(survival_prob_fit_err)+'\n'
-            output_string += '-----------------\n'
             output_string += 'sigma = {:.2e}'.format(sigma_fit) + ' +/- {:.4e}\n'.format(sigma_fit_err)
             output_string += '-----------------\n'
         elapsed = time.time() - t
@@ -1354,8 +1350,6 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
-        'survival_prob_fit': survival_prob_fit,
-        'survival_prob_fit_err': survival_prob_fit_err,
         'sigma_fit': sigma_fit,
         'sigma_fit_err': sigma_fit_err,
         'amplitude_fit': amplitude_fit,
