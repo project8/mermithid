@@ -117,7 +117,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 self.results = self.fit_data_composite_gaussian_lorentzian_fixed_scatter_proportion_and_survival_prob(freq_bins, data_hist_freq)
             elif self.fixed_scatter_proportion == True and self.fixed_survival_probability == False:
                 self.results = self.fit_data_composite_gaussian_lorentzian_fixed_scatter_proportion(freq_bins, data_hist_freq)
-            elif self.fixed_scatter_proportion == False and self.fixed_survival_probability == True:
+            elif self.fixed_scatter_proportion == False and self.fixed_survival_probability == True and self.partially_fixed_scatter_proportion == False:
                 self.results = self.fit_data_composite_gaussian_lorentzian_fixed_survival_probability(freq_bins, data_hist_freq)
             elif self.partially_fixed_scatter_proportion == True and self.fixed_survival_probability == True:
                 self.results = self.fit_data_composite_gaussian_lorentzian_fixed_survival_probability_partially_fixed_scatter_proportion(freq_bins, data_hist_freq)
@@ -410,7 +410,7 @@ class MultiGasComplexLineShape(BaseProcessor):
             fit_Hz = self.spectrum_func_composite_gaussian_lorentzian_fixed_scatter_proportion_survival_probability(bin_centers, eff_array, *params)
         elif self.fixed_scatter_proportion == True and self.fixed_survival_probability == False:
             fit_Hz = self.spectrum_func_composite_gaussian_lorentzian_fixed_scatter_proportion(bin_centers, eff_array, *params)
-        elif self.fixed_scatter_proportion == False and self.fixed_survival_probability == True:
+        elif self.fixed_scatter_proportion == False and self.fixed_survival_probability == True and self.partially_fixed_scatter_proportion == False:
             fit_Hz = self.spectrum_func_composite_gaussian_lorentzian_fixed_survival_probability(bin_centers, eff_array, *params)
         elif self.partially_fixed_scatter_proportion == True and self.fixed_survival_probability == True:
             fit_Hz = self.spectrum_func_composite_gaussian_lorentzian_fixed_survival_probability_partially_fixed_scatter_proportion(bin_centers, eff_array, *params)
@@ -1697,7 +1697,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         return dictionary_of_fit_results
 
     def make_spectrum_composite_gaussian_lorentzian_fixed_survival_probability_partially_fixed_scatter_proportion(self, scatter_proportion, sigma, emitted_peak='shake'):
-        p = scatter_proportion + tuple([1-sum(scatter_proportion)]) + tuple(self.scatter_proportion_for_fixed_gases)
+        p = scatter_proportion + tuple([1-sum(scatter_proportion)-sum(self.scatter_proportion_for_fixed_gases)]) + tuple(self.scatter_proportion_for_fixed_gases)
+        logger.info(p)
         survival_prob = self.survival_prob
         scatter_spectra_file_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy')
         scatter_spectra = np.load(scatter_spectra_file_path, allow_pickle = True)
@@ -1749,7 +1750,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
-        full_spectrum = self.make_spectrum_composite_gaussian_lorentzian_fixed_survival_probability(scatter_proportion, sigma)
+        full_spectrum = self.make_spectrum_composite_gaussian_lorentzian_fixed_survival_probability_partially_fixed_scatter_proportion(scatter_proportion, sigma)
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx], en_loss_array, full_spectrum)
         f_intermediate = f_intermediate*eff_array
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
@@ -1804,7 +1805,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         #starting at index 2, grabs every other entry. (which is how scattering probs are filled in for N gases)
         amplitude_fit = params[1]
         sigma_fit = params[2]
-        scatter_proportion_fit = list(params[3:2+N]) + [1- sum(params[3:2+N])]
+        scatter_proportion_fit = list(params[3:2+N]) + [1- sum(params[3:2+N]) - sum(self.scatter_proportion_for_fixed_gases)]
         total_counts_fit = amplitude_fit
 
         perr = m_binned.np_errors()
@@ -1833,6 +1834,9 @@ class MultiGasComplexLineShape(BaseProcessor):
             for i in range(len(self.free_gases)):
                 output_string += '{} Scatter proportion \n= '.format(self.free_gases[i]) + "{:.6e}".format(scatter_proportion_fit[i])\
                 +' +/- ' + "{:.2e}".format(scatter_proportion_fit_err[i])+'\n'
+                output_string += '-----------------\n'
+            for i in range(len(self.fixed_gases)):
+                output_string += '{} Scatter proportion (fixed) \n= '.format(self.fixed_gases[i]) + "{:.6e}".format(self.scatter_proportion_for_fixed_gases[i])
                 output_string += '-----------------\n'
         elapsed = time.time() - t
         output_string += 'Fit completed in '+str(round(elapsed,2))+'s'+'\n'
