@@ -1815,7 +1815,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         scatter_proportion_fit_err = list(perr[3:2+N]) + [np.sqrt(sum(perr[3:2+N]**2))]
         total_counts_fit_err = amplitude_fit_err
     
-        fit_Hz = self.spectrum_func_composite_gaussian_lorentzian_fixed_survival_probability(bins_Hz, eff_array, *params)
+        fit_Hz = self.spectrum_func_composite_gaussian_lorentzian_fixed_survival_probability_partially_fixed_scatter_proportion(bins_Hz, eff_array, *params)
         fit_keV = ComplexLineShapeUtilities.flip_array(fit_Hz)
         bins_keV = ConversionFunctions.Energy(bins_Hz, B_field_fit)/1000
         bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
@@ -1836,7 +1836,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 +' +/- ' + "{:.2e}".format(scatter_proportion_fit_err[i])+'\n'
                 output_string += '-----------------\n'
             for i in range(len(self.fixed_gases)):
-                output_string += '{} Scatter proportion (fixed) \n= '.format(self.fixed_gases[i]) + "{:.6e}".format(self.scatter_proportion_for_fixed_gases[i])
+                output_string += '{} Scatter proportion (fixed) \n= '.format(self.fixed_gases[i]) + "{:.6e}\n".format(self.scatter_proportion_for_fixed_gases[i])
                 output_string += '-----------------\n'
         elapsed = time.time() - t
         output_string += 'Fit completed in '+str(round(elapsed,2))+'s'+'\n'
