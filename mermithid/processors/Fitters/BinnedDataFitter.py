@@ -108,7 +108,7 @@ class BinnedDataFitter(BaseProcessor):
 
     def fit(self):
         # Now minimize neg log likelihood using iMinuit
-        if self.print_level == 1:
+        if self.print_level > 0:
             logger.info('This is the plan:')
             logger.info('Fitting data consisting of {} elements'.format(np.sum(self.hist)))
             logger.info('Fit parameters: {}'.format(self.parameter_names))
@@ -155,7 +155,8 @@ class BinnedDataFitter(BaseProcessor):
             expectation = model_return
 
         if np.min(expectation) < 0:
-            logger.error('Expectation contains negative numbers. They will be excluded but something could be horribly wrong.')
+            logger.error('Expectation contains negative numbers: Minimum {} -> {}. They will be excluded but something could be horribly wrong.'.format(np.argmin(expectation), np.min(expectation)))
+            logger.error('FYI, the parameters are: {}'.format(params))
 
         # exclude bins where expectation is <= zero or nan
         index = np.where(expectation>0)

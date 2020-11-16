@@ -99,6 +99,7 @@ class FakeDataGenerator(BaseProcessor):
         self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
         self.NScatters = reader.read_param(params, 'NScatters', 20)
         self.scatter_proportion = reader.read_param(params, 'scatter_proportion', 1.0)
+        self.min_energy = reader.read_param(params,'min_lineshape_energy', -1000)
 
         #paths
         self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
@@ -283,10 +284,10 @@ class FakeDataGenerator(BaseProcessor):
         FWHM_convert = 2*math.sqrt(2*math.log(2))
         if lineshape=='gaussian':
             max_energy = nstdevs*params[0]
-            min_energy = -1000
+            min_energy = self.min_energy
         elif lineshape=='simplified_scattering' or lineshape=='simplified' or lineshape=='detailed_scattering' or lineshape=='detailed':
             max_energy = nstdevs/FWHM_convert*params[0]
-            min_energy = -1000
+            min_energy = self.min_energy
 
         Kmax_eff = Kmax+max_energy #Maximum energy for data is slightly above Kmax>Q-m
         Kmin_eff = Kmin+min_energy #Minimum is slightly below Kmin<Q-m
