@@ -39,9 +39,12 @@ def read_oscillator_str_file(filename):
 
     for line in lines:
         if line != "" and line[0]!="#":
-            raw_data = [float(i) for i in line.split("\t")]
-            energyOsc[0].append(raw_data[0])
-            energyOsc[1].append(raw_data[1])
+            try:
+                raw_data = [float(i) for i in line.split("\t")]
+                energyOsc[0].append(raw_data[0])
+                energyOsc[1].append(raw_data[1])
+            except:
+                continue
 
     energyOsc = np.array(energyOsc)
     ### take data and sort by energy
@@ -62,6 +65,12 @@ def aseev_func_tail(energy_loss_array, gas_type):
         A2, omeg2, eps2 = 0.1187, 33.40, 10.43
     elif gas_type=="Ar":
         A2, omeg2, eps2 = 0.3344, 21.91, 21.14
+    elif gas_type=="N2":
+        A2, omeg2, eps2 = 0.21754816, 44.99897054, 20.43916114
+    elif gas_type=="CO":
+        A2, omeg2, eps2 = 0.19583454, 55.21888452, 16.44972596
+    elif gas_type=="C2H4":
+        A2, omeg2, eps2 = 0.57492182, 23.77501391, 14.33107345
     return A2*omeg2**2./(omeg2**2.+4*(energy_loss_array-eps2)**2.)
 
 #convert oscillator strength into energy loss spectrum
