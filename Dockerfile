@@ -20,6 +20,7 @@ RUN mkdir -p $MERMITHID_BUILD_PREFIX &&\
 
 RUN source $COMMON_BUILD_PREFIX/setup.sh &&\
     pip install iminuit &&\
+    pip install numericalunits &&\
     /bin/true
 
 ########################

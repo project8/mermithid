@@ -38,6 +38,18 @@ class MiscTest(unittest.TestCase):
         logger.info("Resulting energies: %s"%freq_proc.energies)
 
 
+    def test_SensitivityCurveProcessor(self):
+        from mermithid.processors.misc import SensitivityCurveProcessor
+
+
+        sens_config_dict = {
+            "config_file_path": "/home/chrischtel/repos/scripts/rreimann/SensitivityCalculation/Config_molecular_FSCD_V_eff_2.cfg",
+            "add_comparison_curve": False
+            }
+        sens_curve = SensitivityCurveProcessor("sensitivity_curve_processor")
+        sens_curve.Configure(sens_config_dict)
+        sens_curve.Run()
+
 
 
 if __name__ == '__main__':
