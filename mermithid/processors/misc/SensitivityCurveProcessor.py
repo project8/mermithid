@@ -13,9 +13,6 @@ from __future__ import absolute_import
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import argparse
-import sys
-import os
 
 
 # Numericalunits is a package to handle units and some natural constants
@@ -31,7 +28,7 @@ ppb = 1e-9
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.misc.SensitivityFormulas import Sensitivity
-#from mermithid.misc import ConversionFunctions
+
 
 logger = morphologging.getLogger(__name__)
 
