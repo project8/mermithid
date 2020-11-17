@@ -55,43 +55,74 @@ class SensitivityCurveProcessor(BaseProcessor):
         '''
         Configure
         '''
+        # file paths
         self.config_file_path = reader.read_param(params, 'config_file_path', "required")
         self.comparison_config_file_path = reader.read_param(params, 'comparison_config_file_path', '')
-        self.add_comparison_curve = reader.read_param(params, 'add_comparison_curve', False)
-        self.add_track_length_axis = reader.read_param(params, 'add_track_length_axis', False)
+        self.plot_path = reader.read_param(params, 'plot_path', "required")
+
+
+        # labels
+        self.main_curve_upper_label = reader.read_param(params, 'main_curve_upper_label', r"molecular"+"\n"+r"$V_\mathrm{eff} = 2\, \mathrm{cm}^3$"+"\n"+r"$\sigma_B = 7\,\mathrm{ppm}$")
+        self.main_curve_lower_label = reader.read_param(params, 'main_curve_lower_label', r"$\sigma_B = 1\,\mathrm{ppm}$")
+        self.comparison_curve_label = reader.read_param(params, 'comparison_curve_label', r"atomic"+"\n"+r"$V_\mathrm{eff} = 5\, \mathrm{m}^3$"+"\n"+r"$\sigma_B = 0.13\,\mathrm{ppm}$")
+
+
+        # options
+        self.comparison_curve = reader.read_param(params, 'comparison_curve', False)
+
+
+        # plot configurations
+        self.density_range = reader.read_param(params, 'density_range', [1e14,1e21])
+        self.ylim = reader.read_param(params, 'y_limits', [1e-2, 1e2])
+        self.track_length_axis = reader.read_param(params, 'track_length_axis', True)
+        self.atomic_axis = reader.read_param(params, 'atomic_axis', False)
+        self.molecular_axis = reader.read_param(params, 'molecular_axis', False)
+
+        # goals
+        self.goals = reader.read_param(params, "goals", {"Phase III (2 eV)": 2, "Phase IV (40 meV)": 0.04})
 
 
 
         # setup sensitivities
         self.sens_main = Sensitivity(self.config_file_path)
 
-        if self.add_comparison_curve:
+        if self.comparison_curve:
             self.sens_ref = Sensitivity(self.comparison_config_file_path)
-        density_range = [1e14,1e21]
-        self.rhos = np.logspace(np.log10(density_range[0]), np.log10(density_range[1]), 100)/m**3
 
+        # densities
+        self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 100)/m**3
 
         return True
+
+
 
     def InternalRun(self):
 
         self.create_plot()
 
-        if self.add_track_length_axis:
+        # add second and third x axis for track lengths
+        if self.track_length_axis:
             self.add_track_length_axis()
-        #self.add_Phase_IV(color="k")
-        self.add_goal(2*eV, "Phase III (%.1f eV)"%(2*eV/eV))
-        sens = self.sens_main
-        #self.add_arrow(sens)
+
+        # add line for comparison using second config
+        if self.comparison_curve:
+            self.add_comparison_curve(label=self.comparison_curve_label)
+            self.add_arrow(self.sens_main)
+
+        for key, value in self.goals.items():
+            logger.info('Adding goal: {}'.format(key))
+            self.add_goal(value*eV, key)
+
+
         for a, color in self.range(1, 8):
-            sig = sens.BToKeErr(a*ppm*T, sens.MagneticField.nominal_field)
-            sens.MagneticField.usefixedvalue = True
-            sens.MagneticField.default_systematic_smearing = sig
-            sens.MagneticField.default_systematic_uncertainty = 0.05*sig
-            self.add_sens_line(sens, color=color)
-        self.add_text(5e19, 5, r"molecular"+"\n"+r"$V_\mathrm{eff} = 2\, \mathrm{cm}^3$"+"\n"+r"$\sigma_B = 7\,\mathrm{ppm}$")
-        self.add_text(5e19, 2.3, r"$\sigma_B = 1\,\mathrm{ppm}$")
-        self.save("./sensitivity_phase_III.png", Veff="2cm^3")
+            sig = self.sens_main.BToKeErr(a*ppm*T, self.sens_main.MagneticField.nominal_field)
+            self.sens_main.MagneticField.usefixedvalue = True
+            self.sens_main.MagneticField.default_systematic_smearing = sig
+            self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
+            self.add_sens_line(self.sens_main, color=color)
+        self.add_text(5e19, 5, self.main_curve_upper_label)
+        self.add_text(5e19, 2.3, self.main_curve_lower_label)
+        self.save(self.plot_path)
 
         return True
 
@@ -103,51 +134,69 @@ class SensitivityCurveProcessor(BaseProcessor):
         ax.set_xscale("log")
         ax.set_yscale("log")
         ax.set_xlim(self.rhos[0]*m**3, self.rhos[-1]*m**3)
-        ax.set_ylim(1e-2, 1e2)
-        ax.set_xlabel(r"(atomic / molecular) number density $\rho\, /\, \mathrm{m}^{-3}$")
+        ax.set_ylim(self.ylim)
+
+        if self.atomic_axis and self.molecular_axis:
+            axis_label = r"(atomic / molecular) number density $\rho\, /\, \mathrm{m}^{-3}$"
+        elif self.atomic_axis:
+            axis_label = r"(atomic) number density $\rho\, /\, \mathrm{m}^{-3}$"
+        elif self.molecular_axis:
+            axis_label = r"(molecular) number density $\rho\, /\, \mathrm{m}^{-3}$"
+        else:
+            axis_label = r"number density $\rho\, /\, \mathrm{m}^{-3}$"
+
+        ax.set_xlabel(axis_label)
         ax.set_ylabel(r"90% CL $m_\beta$ / eV")
 
     def add_track_length_axis(self):
-        ax2 = self.ax.twiny()
-        ax2.set_xscale("log")
-        ax2.set_xlabel("(atomic) track length / s")
-        ax2.set_xlim(self.sens_IV.track_length(self.rhos[0])/s,
-                     self.sens_IV.track_length(self.rhos[-1])/s)
+        if self.atomic_axis:
+            ax2 = self.ax.twiny()
+            ax2.set_xscale("log")
+            ax2.set_xlabel("(atomic) track length / s")
+            ax2.set_xlim(self.sens_ref.track_length(self.rhos[0])/s,
+                         self.sens_ref.track_length(self.rhos[-1])/s)
 
-        ax3 = self.ax.twiny()
-        ax3.spines["top"].set_position(("axes", 1.2))
-        ax3.set_frame_on(True)
-        ax3.patch.set_visible(False)
-        for sp in ax3.spines.values():
-            sp.set_visible(False)
-        ax3.spines["top"].set_visible(True)
-        ax3.set_xscale("log")
-        ax3.set_xlabel("(molecular) track length / s")
-        ax3.set_xlim(self.sens_III.track_length(self.rhos[0])/s,
-                     self.sens_III.track_length(self.rhos[-1])/s)
+        if self.molecular_axis:
+            ax3 = self.ax.twiny()
+
+            if self.atomic_axis:
+                ax3.spines["top"].set_position(("axes", 1.2))
+                ax3.set_frame_on(True)
+                ax3.patch.set_visible(False)
+                for sp in ax3.spines.values():
+                    sp.set_visible(False)
+                ax3.spines["top"].set_visible(True)
+
+            ax3.set_xscale("log")
+            ax3.set_xlabel("(molecular) track length / s")
+            ax3.set_xlim(self.sens_main.track_length(self.rhos[0])/s,
+                         self.sens_main.track_length(self.rhos[-1])/s)
+
+        else:
+            logger.warning('For track length axis configure to use molecular and/or atomic gas')
         self.fig.tight_layout()
 
-    def add_Phase_IV(self, **kwargs):
-        limit_IV = [self.sens_IV.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
-        self.opt_IV = np.argmin(limit_IV)
-        self.ax.plot(self.rhos*m**3, limit_IV, **kwargs)
-        self.ax.axvline(self.rhos[self.opt_IV]*m**3, ls=":", color="gray", alpha=0.4)
+    def add_comparison_curve(self, label, color='k'):
+        limit = [self.sens_ref.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
+        self.opt_ref = np.argmin(limit)
+        self.ax.plot(self.rhos*m**3, limit, color=color)
+        self.ax.axvline(self.rhos[self.opt_ref]*m**3, ls=":", color="gray", alpha=0.4)
 
-        self.ax.axhline(0.04, color="gray", ls="--")
-        self.ax.text(3e14, 0.044, "Phase IV (40 meV)")
-        self.ax.text(1.5e14, 0.11, r"atomic"+"\n"+r"$V_\mathrm{eff} = 5\, \mathrm{m}^3$"+"\n"+r"$\sigma_B = 0.13\,\mathrm{ppm}$")
+        #self.ax.axhline(0.04, color="gray", ls="--")
+        #self.ax.text(3e14, 0.044, "Phase IV (40 meV)")
+        self.ax.text(1.5e14, 0.11, label)
 
     def add_arrow(self, sens):
-        if not hasattr(self, "opt_IV"):
-            self.add_Phase_IV()
+        if not hasattr(self, "opt_ref"):
+            self.add_comparison_curve()
 
         def get_relative(val, axis):
             xmin, xmax = self.ax.get_xlim() if axis == "x" else self.ax.get_ylim()
             return (np.log10(val)-np.log10(xmin))/(np.log10(xmax)-np.log10(xmin))
 
-        rho_IV = self.rhos[self.opt_IV]
-        track_length_IV = self.sens_IV.track_length(rho_IV)
-        track_length_III = self.sens_III.track_length(rho_IV)
+        rho_IV = self.rhos[self.opt_ref]
+        track_length_IV = self.sens_ref.track_length(rho_IV)
+        track_length_III = self.sens_main.track_length(rho_IV)
         rho_III = rho_IV*track_length_III/track_length_IV
         limit_III  = sens.CL90(Experiment={"number_density": rho_III})
 
@@ -181,11 +230,12 @@ class SensitivityCurveProcessor(BaseProcessor):
 
     def save(self, savepath, **kwargs):
         self.fig.tight_layout()
-        keywords = ", ".join(["%s=%s"%(key, value) for key, value in kwargs.items()])
-        metadata = {"Author": "René Reimann",
-                    "Title": "Phase III neutrino mass sensitivity",
-                    "Subject":"90% CL upper limit on neutrino mass assuming true mass is zero. We use different Phase III design parameters and plot as a function of number density. As a comparison the Phase IV sensitivity is shown as well. The upper axis gives the corresponding track length for the assumed density. The arrow indicatess the Phase III point with the same track length as in the optimal point of Phase IV.",
-                    "Keywords": keywords}
+        #keywords = ", ".join(["%s=%s"%(key, value) for key, value in kwargs.items()])
+        metadata = {"Author": "p8/mermithid",
+                    "Title": "Neutrino mass sensitivity",
+                    "Subject":"90% CL upper limit on neutrino mass assuming true mass is zero."
+                    }
+                    #"Keywords": keywords}
         if savepath is not None:
             self.fig.savefig(savepath.replace(".pdf", ".png"), dpi=200, metadata=metadata)
             self.fig.savefig(savepath.replace(".png", ".pdf"), bbox_inches="tight", metadata=metadata)
