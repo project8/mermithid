@@ -149,7 +149,7 @@ class FakeDataGenerator(BaseProcessor):
 
                 # Setup and configure lineshape processor
                 complexLineShape_config = {
-                    'gases': ["H2", "He"],
+                    'gases': self.gases,
                     'max_scatters': self.NScatters,
                     'fixed_scatter_proportion': True,
                     # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
