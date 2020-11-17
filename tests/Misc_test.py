@@ -55,6 +55,7 @@ class MiscTest(unittest.TestCase):
             "goals": {"Phase III (2 eV)": 2, "Phase IV (40 meV)": 0.04},
             "comparison_curve": True,
             "comparison_config_file_path": "/home/chrischtel/repos/scripts/rreimann/SensitivityCalculation/Config_V0_00_01.cfg",
+            "B": np.arange(1, 8)*1e-6
 
             }
         sens_curve = SensitivityCurveProcessor("sensitivity_curve_processor")

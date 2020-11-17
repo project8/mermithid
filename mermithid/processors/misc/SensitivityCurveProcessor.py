@@ -68,18 +68,21 @@ class SensitivityCurveProcessor(BaseProcessor):
 
         # options
         self.comparison_curve = reader.read_param(params, 'comparison_curve', False)
+        self.B = reader.read_param(params, 'B', 7e-6)
+        self.B_uncertainty = reader.read_param(params, 'B_uncertainty', 0.05)
 
 
         # plot configurations
+        self.figsize = reader.read_param(params, 'figsize', (6,6))
         self.density_range = reader.read_param(params, 'density_range', [1e14,1e21])
         self.ylim = reader.read_param(params, 'y_limits', [1e-2, 1e2])
         self.track_length_axis = reader.read_param(params, 'track_length_axis', True)
         self.atomic_axis = reader.read_param(params, 'atomic_axis', False)
         self.molecular_axis = reader.read_param(params, 'molecular_axis', False)
 
+
         # goals
         self.goals = reader.read_param(params, "goals", {"Phase III (2 eV)": 2, "Phase IV (40 meV)": 0.04})
-
 
 
         # setup sensitivities
@@ -89,6 +92,27 @@ class SensitivityCurveProcessor(BaseProcessor):
         if self.comparison_curve:
             self.sens_ref = Sensitivity(self.comparison_config_file_path)
             self.sens_ref_is_atomic = self.sens_ref.Experiment.atomic
+
+        # check atomic and molecular
+        if self.molecular_axis:
+            if not self.sens_main_is_atomic:
+                self.molecular_sens = self.sens_main
+                logger.info("Main curve is molecular")
+            elif not self.sens_ref_is_atomic:
+                self.molecular_sens = self.sens_ref
+                logger.info("Comparison curve is molecular")
+            else:
+                raise ValueError("No experiment is configured to be molecular")
+
+        if self.atomic_axis:
+            if self.sens_main_is_atomic:
+                self.atomic_sens = self.sens_main
+                logger.info("Main curve is atomic")
+            elif self.sens_ref_is_atomic:
+                self.atomic_sens = self.sens_ref
+                logger.info("Comparison curve is atomic")
+            else:
+                raise ValueError("No experiment is configured to be atomic")
 
         # densities
         self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 100)/m**3
@@ -114,15 +138,28 @@ class SensitivityCurveProcessor(BaseProcessor):
             logger.info('Adding goal: {}'.format(key))
             self.add_goal(value*eV, key)
 
+        # if B is list plot line for each B
+        if isinstance(self.B, list) or isinstance(self.B, np.ndarray):
+            N = len(self.B)
+            for a, color in self.range(1, N):
+                sig = self.sens_main.BToKeErr(self.B[a]*T, self.sens_main.MagneticField.nominal_field)
+                self.sens_main.MagneticField.usefixedvalue = True
+                self.sens_main.MagneticField.default_systematic_smearing = sig
+                self.sens_main.MagneticField.default_systematic_uncertainty = self.B_uncertainty*sig
+                self.add_sens_line(self.sens_main, color=color)
+            self.add_text(5e19, 5, self.main_curve_upper_label)
+            self.add_text(5e19, 2.3, self.main_curve_lower_label)
 
-        for a, color in self.range(1, 8):
-            sig = self.sens_main.BToKeErr(a*ppm*T, self.sens_main.MagneticField.nominal_field)
+        else:
+            sig = self.sens_main.BToKeErr(self.B*T, self.sens_main.MagneticField.nominal_field)
             self.sens_main.MagneticField.usefixedvalue = True
             self.sens_main.MagneticField.default_systematic_smearing = sig
-            self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
-            self.add_sens_line(self.sens_main, color=color)
-        self.add_text(5e19, 5, self.main_curve_upper_label)
-        self.add_text(5e19, 2.3, self.main_curve_lower_label)
+            self.sens_main.MagneticField.default_systematic_uncertainty = self.B_uncertainty*sig
+            self.add_sens_line(self.sens_main, color='blue')
+            self.add_text(5e19, 5, self.main_curve_upper_label)
+
+
+        # save plot
         self.save(self.plot_path)
 
         return True
@@ -130,7 +167,7 @@ class SensitivityCurveProcessor(BaseProcessor):
 
     def create_plot(self):
         # setup axis
-        self.fig, self.ax = plt.subplots(figsize=(6,6))
+        self.fig, self.ax = plt.subplots(figsize=self.figsize)
         ax = self.ax
         ax.set_xscale("log")
         ax.set_yscale("log")
@@ -154,8 +191,8 @@ class SensitivityCurveProcessor(BaseProcessor):
             ax2 = self.ax.twiny()
             ax2.set_xscale("log")
             ax2.set_xlabel("(atomic) track length / s")
-            ax2.set_xlim(self.sens_ref.track_length(self.rhos[0])/s,
-                         self.sens_ref.track_length(self.rhos[-1])/s)
+            ax2.set_xlim(self.atomic_sens.track_length(self.rhos[0])/s,
+                         self.atomic_sens.track_length(self.rhos[-1])/s)
 
         if self.molecular_axis:
             ax3 = self.ax.twiny()
@@ -170,11 +207,11 @@ class SensitivityCurveProcessor(BaseProcessor):
 
             ax3.set_xscale("log")
             ax3.set_xlabel("(molecular) track length / s")
-            ax3.set_xlim(self.sens_main.track_length(self.rhos[0])/s,
-                         self.sens_main.track_length(self.rhos[-1])/s)
+            ax3.set_xlim(self.molecular_sens.track_length(self.rhos[0])/s,
+                         self.molecular_sens.track_length(self.rhos[-1])/s)
 
         else:
-            logger.warning('For track length axis configure to use molecular and/or atomic gas')
+            logger.warning("No track length axis added since neither atomic nor molecular was requested")
         self.fig.tight_layout()
 
     def add_comparison_curve(self, label, color='k'):
