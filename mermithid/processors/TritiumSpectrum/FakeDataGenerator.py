@@ -100,7 +100,8 @@ class FakeDataGenerator(BaseProcessor):
         self.survival_prob = reader.read_param(params, 'survival_prob', 0.77)
         self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
         self.NScatters = reader.read_param(params, 'NScatters', 20)
-        self.scatter_proportion = reader.read_param(params, 'scatter_proportion', 1.0)
+        self.gases = reader.read_param(params, 'gases', ['H2', 'He'])
+        self.scatter_proportion = reader.read_param(params, 'scatter_proportion', [])
 
         #paths
         self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
@@ -152,7 +153,7 @@ class FakeDataGenerator(BaseProcessor):
                     'max_scatters': self.NScatters,
                     'fixed_scatter_proportion': True,
                     # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
-                    'gas_scatter_proportion': [self.scatter_proportion, 1.-self.scatter_proportion],
+                    'gas_scatter_proportion': self.scatter_proportion,
                     #'gas1_scatter_proportion': self.scatter_proportion, #, 1.-self.scatter_proportion],
                     'use_simulated_inst_reso': True,
                     'use_combined_four_trap_inst_reso': False,
