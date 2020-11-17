@@ -31,14 +31,24 @@ class ComplexLineShapeTests(unittest.TestCase):
             'bins_choice': np.linspace(0e6, 100e6, 1000),
             'gases': ["H2", "He"],
             'max_scatters': 20,
-            'fixed_scatter_proportion': False,
-            'fixed_survival_probability': True,
-            # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution
-            'resolution_function': 'gaussian_lorentzian_composite_resolution',
+            'fixed_scatter_proportion': True,
             # When fixed_scatter_proportion is True, set the scatter proportion for the gases below
-            'gas_scatter_proportion': [0.6, 0.4],
+            'gas_scatter_proportion': [0.75, 0.25],#0.753, 0.190, 0.018, 0.039
+            'partially_fixed_scatter_proportion': False,
+            'free_gases': ["H2", "He"],
+            'fixed_gases': ["Ar", "Kr"],
+            'scatter_proportion_for_fixed_gases': [0.018, 0.039],
+            'fixed_survival_probability': False,
             # When option fixed_survival_probability is True, assign the survival probability below
-            'survival_prob': 10/11.,
+            'survival_prob': 15/16., # assuming total cross section for elastic scattering is 1/10 of inelastic scattering
+            # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution
+            'resolution_function': 'composite_gaussian_pedestal_factor',
+            # specific choice of parameters in the gaussian lorentzian composite resolution function
+            'ratio_gamma_to_sigma': 0.8,
+            'gaussian_proportion': 1.,
+            # if the resolution function is composite gaussian
+            'sigma_array': [5.01, 13.33, 25, 11.85],
+            'A_array': [0.076, 0.341, 0.381, 0.203],            
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,
@@ -90,7 +100,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             #plot_title += '\n with fixed scatter proportion \n {}'.format(str_gas_scatter_proportion)
         plt.title(plot_title)
         plt.tight_layout()
-        plt.savefig('/host/plots/fit_FTC_march_with_composite_gaussian_lorentzian_resolution.png'.format(len(complexLineShape_config['gases'])))
+        plt.savefig('/host/plots/fit_FTC_march_with_composite_gaussian_pedestal_factor_resolution.png'.format(len(complexLineShape_config['gases'])))
 
 if __name__ == '__main__':
 
