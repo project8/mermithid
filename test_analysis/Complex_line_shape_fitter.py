@@ -43,13 +43,15 @@ class ComplexLineShapeTests(unittest.TestCase):
             # When option fixed_survival_probability is True, assign the survival probability below
             'survival_prob': 15/16., # assuming total cross section for elastic scattering is 1/10 of inelastic scattering
             # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, composite_gaussian_scaled, simulated_resolution_scaled, 
-            'resolution_function': 'composite_gaussian_scaled',
+            'resolution_function': 'simulated_resolution_scaled',
             # specific choice of parameters in the gaussian lorentzian composite resolution function
             'ratio_gamma_to_sigma': 0.8,
             'gaussian_proportion': 1.,
             # if the resolution function is composite gaussian
             'sigma_array': [5.01, 13.33, 15.40, 11.85],
-            'A_array': [0.076, 0.341, 0.381, 0.203],            
+            'A_array': [0.076, 0.341, 0.381, 0.203],
+            #parameter for simulated resolution scaled resolution 
+            'fit_recon_eff': False,          
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,
@@ -58,7 +60,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             'shake_spectrum_parameters_json_path': '../mermithid/misc/shake_spectrum_parameters.json',
             'path_to_osc_strengths_files': '/host/',
             'path_to_scatter_spectra_file': '/host/',
-            'path_to_ins_resolution_data_txt': '/host/res_all_conversion_max25.txt'
+            'path_to_ins_resolution_data_txt': '/host/res_all_conversion_max15.5_alltraps.txt'
         }
 
         b = IOCicadaProcessor("reader")
