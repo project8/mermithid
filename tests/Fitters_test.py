@@ -25,7 +25,7 @@ class FittersTest(unittest.TestCase):
         def g(params):
             return f(*params)
 
-        m = Minuit(f)
+        m = Minuit(f, x=0, y=0, z=0)
 
         m.migrad()  # run optimiser
         print(m.values)  # {'x': 2,'y': 3,'z': 4}
