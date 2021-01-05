@@ -34,10 +34,11 @@ class FittersTest(unittest.TestCase):
         print(m.errors)  # {'x': 1,'y': 1,'z': 1}
 
         # repeat using from_array_func
-        m2 = Minuit.from_array_func(g, [0, 0, 0], error=[0.1, 0.1, 0.1], name=['a1', 'b1', 'c1'], errordef=1,
-                                    limit=[[None, None], [None, None], [None, None]],
-                                    print_level=0)
-        m2.migrad(resume=False)
+        m2 = Minuit(g, [0, 0, 0], name=['a1', 'b1', 'c1'])
+        m2.errors = [0.1, 0.1, 0.1]
+        m2.errordef = 1
+        m2.print_level = 0
+        m2.migrad()
         print(m2.values)
 
         logger.info('iMinuit test done')
