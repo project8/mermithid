@@ -14,8 +14,6 @@ from scipy import integrate
 from scipy.interpolate import interp1d
 from scipy.signal import convolve
 
-import matplotlib.pyplot as plt
-
 from morpho.utilities import morphologging
 logger = morphologging.getLogger(__name__)
 
@@ -167,27 +165,11 @@ def spectral_rate(K, Q, mnu, final_state_array):
 
         Q_states = Q+final_state_array[0]-np.max(final_state_array[0])
 
-        # plt.figure()
-        # plt.plot(Q_states, final_state_array[1])
-        # plt.plot(Q+final_state_array[0], final_state_array[1])
-        # plt.savefig('q_states.png')
-
         index = [np.where(K < Q_states[i]-mnu) for i in range(N_states)]
 
         beta_rates_array = [beta_rates(K, Q_states[i], mnu, index[i])*final_state_array[1][i] for i in range(N_states)]
         to_return = np.nansum(beta_rates_array, axis=0)/np.nansum(final_state_array[1])
 
-
-        # comparison = beta_rates(K, Q, mnu, np.where(K < Q - mnu))
-
-        # plt.figure()
-        # plt.plot(K[comparison>0], 1-to_return[comparison>0]/comparison[comparison>0], marker='', linestyle='-', markersize=1)
-        # plt.ylabel('Final states spectrum relative difference')
-        # plt.xlabel('Energy')
-        # plt.xlim(Q-100, Q+10)
-        # plt.tight_layout()
-        # #plt.yscale('log')
-        # plt.savefig('final_state_included_spectrum.png')
         return to_return
 
     else:
