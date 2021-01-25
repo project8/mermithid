@@ -66,10 +66,12 @@ def aseev_func_tail(energy_loss_array, gas_type):
 
 #convert oscillator strength into energy loss spectrum
 def get_eloss_spec(e_loss, oscillator_strength, kr_17keV_line): #energies in eV
-    kinetic_en = kr_17keV_line * 1000
+    kinetic_en = kr_17keV_line
     e_rydberg = 13.605693009 #rydberg energy (eV)
     a0 = 5.291772e-11 #bohr radius
-    return np.where(e_loss>0 , 4.*np.pi*a0**2 * e_rydberg / (kinetic_en * e_loss) * oscillator_strength * np.log(4. * kinetic_en * e_loss / (e_rydberg**3.) ), 0)
+    # https://3.basecamp.com/3700981/buckets/3107037/documents/2224089016 Eq. (3)
+    # The scaling factor at the front are omitted since a normalization would be in later step.
+    return np.where(e_loss>0 , 1. / (e_loss) * oscillator_strength * np.log(4. * kinetic_en * e_rydberg / (e_loss**2.) ), 0)
 
 # Takes only the nonzero bins of a histogram
 def get_only_nonzero_bins(bins,hist):
