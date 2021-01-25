@@ -45,6 +45,9 @@ class ComplexLineShapeTests(unittest.TestCase):
             # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, composite_gaussian_scaled, simulated_resolution_scaled, 
             'resolution_function': 'simulated_resolution_scaled',
             # specific choice of parameters in the gaussian lorentzian composite resolution function
+            'recon_eff_param_a': 0.005569990343215976,
+            'recon_eff_param_b': 0.351,
+            'recon_eff_param_c': 0.546,
             'ratio_gamma_to_sigma': 0.8,
             'gaussian_proportion': 1.,
             # if the resolution function is composite gaussian

@@ -89,6 +89,10 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.path_to_missing_track_radiation_loss_data_numpy_file = '/host/'
         self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all4.txt')
         self.path_to_quad_trap_eff_interp = reader.read_param(params, 'path_to_quad_trap_eff_interp', '/host/quad_interps.npy')
+        self.recon_eff_param_a = reader.read_param(params, 'recon_eff_param_a', 0.005569990343215976)
+        self.recon_eff_param_b = reader.read_param(params, 'recon_eff_param_b', 0.351)
+        self.recon_eff_param_b = reader.read_param(params, 'recon_eff_param_c', 0.546)
+
 
         if not os.path.exists(self.shake_spectrum_parameters_json_path):
             raise IOError('Shake spectrum path does not exist')
@@ -922,6 +926,9 @@ class MultiGasComplexLineShape(BaseProcessor):
         #filenames = list_files('scatter_spectra_files')
         p = np.zeros(len(gases))
         p = self.scatter_proportion
+        a = self.recon_eff_param_a
+        b = self.recon_eff_param_b
+        c = self.recon_eff_param_c
         scatter_spectra_file_path = os.path.join(current_path, 'scatter_spectra.npy')
         scatter_spectra = np.load(scatter_spectra_file_path, allow_pickle = True)
         en_array = self.std_eV_array()
@@ -935,7 +942,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         current_full_spectrum += current_working_spectrum
         N = len(self.gases)
         for M in range(1, self.max_scatters + 1):
-            relative_reconstruction_eff = np.exp(-0.643*M**0.74)
+            relative_reconstruction_eff = np.exp(-b*M**c)
             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
             for combination in gas_scatter_combinations:
                 entry_str = ''
@@ -948,7 +955,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 for component, i in zip(combination, range(len(self.gases))):
                     coefficient = coefficient/factorial(component)*p[i]**component
                 for i in range(0, M+1):
-                    coefficient = coefficient*(1-0.023*np.exp(-0.643*i**0.74))
+                    coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
 
@@ -1383,6 +1390,9 @@ class MultiGasComplexLineShape(BaseProcessor):
 
     def make_spectrum_composite_gaussian_lorentzian_fixed_scatter_proportion(self, survival_prob, sigma, emitted_peak='shake'):
         p = self.scatter_proportion
+        a = self.recon_eff_param_a
+        b = self.recon_eff_param_b
+        c = self.recon_eff_param_c
         scatter_spectra_file_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy')
         scatter_spectra = np.load(scatter_spectra_file_path, allow_pickle = True)
         en_array = self.std_eV_array()
@@ -1396,7 +1406,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         current_full_spectrum += zeroth_order_peak
         N = len(self.gases)
         for M in range(1, self.max_scatters + 1):
-            relative_reconstruction_eff = np.exp(-0.643*M**0.74)
+            relative_reconstruction_eff = np.exp(-b*M**c)
             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
             for combination in gas_scatter_combinations:
                 #print(combination)
@@ -1410,7 +1420,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
                 for i in range(0, M+1):
-                    coefficient = coefficient*(1-0.023*np.exp(-0.643*i**0.74))
+                    coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
 
@@ -1538,6 +1548,9 @@ class MultiGasComplexLineShape(BaseProcessor):
 
     def make_spectrum_composite_gaussian_lorentzian_fixed_scatter_proportion_and_survival_prob(self, sigma, emitted_peak='shake'):
         p = self.scatter_proportion
+        a = self.recon_eff_param_a
+        b = self.recon_eff_param_b
+        c = self.recon_eff_param_c
         survival_prob = self.survival_prob
         scatter_spectra_file_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy')
         scatter_spectra = np.load(scatter_spectra_file_path, allow_pickle = True)
@@ -1552,7 +1565,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         current_full_spectrum += zeroth_order_peak
         N = len(self.gases)
         for M in range(1, self.max_scatters + 1):
-            relative_reconstruction_eff = np.exp(-0.643*M**0.74)
+            relative_reconstruction_eff = np.exp(-b*M**c)
             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
             for combination in gas_scatter_combinations:
                 #print(combination)
@@ -1566,7 +1579,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
                 for i in range(0, M+1):
-                    coefficient = coefficient*(1-0.023*np.exp(-0.643*i**0.74))
+                    coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
 
@@ -1687,6 +1700,9 @@ class MultiGasComplexLineShape(BaseProcessor):
         return dictionary_of_fit_results
 
     def make_spectrum_composite_gaussian_lorentzian_fixed_survival_probability(self, scatter_proportion, sigma, emitted_peak='shake'):
+        a = self.recon_eff_param_a
+        b = self.recon_eff_param_b
+        c = self.recon_eff_param_c
         p = np.zeros(len(self.gases))
         p[0:-1] = scatter_proportion
         p[-1] = 1 - sum(scatter_proportion)
@@ -1704,7 +1720,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         current_full_spectrum += zeroth_order_peak
         N = len(self.gases)
         for M in range(1, self.max_scatters + 1):
-            relative_reconstruction_eff = np.exp(-0.643*M**0.74)
+            relative_reconstruction_eff = np.exp(-b*M**c)
             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
             for combination in gas_scatter_combinations:
                 #print(combination)
@@ -1718,7 +1734,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
                 for i in range(0, M+1):
-                    coefficient = coefficient*(1-0.023*np.exp(-0.643*i**0.74))
+                    coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
 
@@ -1863,7 +1879,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         current_full_spectrum += zeroth_order_peak
         N = len(self.gases)
         for M in range(1, self.max_scatters + 1):
-            relative_reconstruction_eff = np.exp(-0.643*M**0.74)
+            relative_reconstruction_eff = np.exp(-b*M**c)
             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
             for combination in gas_scatter_combinations:
                 #print(combination)
@@ -1877,7 +1893,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
                 for i in range(0, M+1):
-                    coefficient = coefficient*(1-0.023*np.exp(-0.643*i**0.74))
+                    coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
 
@@ -2016,6 +2032,9 @@ class MultiGasComplexLineShape(BaseProcessor):
 
     def make_spectrum_elevated_gaussian_fixed_scatter_proportion(self, survival_prob, sigma, elevation_factor, emitted_peak='shake'):
         p = self.scatter_proportion
+        a = self.recon_eff_param_a
+        b = self.recon_eff_param_b
+        c = self.recon_eff_param_c
         scatter_spectra_file_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy')
         scatter_spectra = np.load(scatter_spectra_file_path, allow_pickle = True)
         en_array = self.std_eV_array()
@@ -2029,7 +2048,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         current_full_spectrum += zeroth_order_peak
         N = len(self.gases)
         for M in range(1, self.max_scatters + 1):
-            relative_reconstruction_eff = np.exp(-0.643*M**0.74)
+            relative_reconstruction_eff = np.exp(-b*M**c)
             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
             for combination in gas_scatter_combinations:
                 #print(combination)
@@ -2043,7 +2062,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
                 for i in range(0, M+1):
-                    coefficient = coefficient*(1-0.023*np.exp(-0.643*i**0.74))
+                    coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
 
@@ -2178,6 +2197,9 @@ class MultiGasComplexLineShape(BaseProcessor):
 
     def make_spectrum_composite_gaussian_fixed_scatter_proportion(self, survival_prob, emitted_peak='shake'):
         p = self.scatter_proportion
+        a = self.recon_eff_param_a
+        b = self.recon_eff_param_b
+        c = self.recon_eff_param_c
         scatter_spectra_file_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy')
         scatter_spectra = np.load(scatter_spectra_file_path, allow_pickle = True)
         en_array = self.std_eV_array()
@@ -2191,7 +2213,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         current_full_spectrum += zeroth_order_peak
         N = len(self.gases)
         for M in range(1, self.max_scatters + 1):
-            relative_reconstruction_eff = np.exp(-0.643*M**0.74)
+            relative_reconstruction_eff = np.exp(-b*M**c)
             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
             for combination in gas_scatter_combinations:
                 #print(combination)
@@ -2205,7 +2227,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
                 for i in range(0, M+1):
-                    coefficient = coefficient*(1-0.023*np.exp(-0.643*i**0.74))
+                    coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
 
@@ -2328,6 +2350,9 @@ class MultiGasComplexLineShape(BaseProcessor):
 
     def make_spectrum_composite_gaussian_pedestal_factor_fixed_scatter_proportion(self, survival_prob, pedestal_factor, emitted_peak='shake'):
         p = self.scatter_proportion
+        a = self.recon_eff_param_a
+        b = self.recon_eff_param_b
+        c = self.recon_eff_param_c
         scatter_spectra_file_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy')
         scatter_spectra = np.load(scatter_spectra_file_path, allow_pickle = True)
         en_array = self.std_eV_array()
@@ -2341,7 +2366,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         current_full_spectrum += zeroth_order_peak
         N = len(self.gases)
         for M in range(1, self.max_scatters + 1):
-            relative_reconstruction_eff = np.exp(-0.643*M**0.74)
+            relative_reconstruction_eff = np.exp(-b*M**c)
             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
             for combination in gas_scatter_combinations:
                 #print(combination)
@@ -2355,7 +2380,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
                 for i in range(0, M+1):
-                    coefficient = coefficient*(1-0.023*np.exp(-0.643*i**0.74))
+                    coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
 
@@ -2483,6 +2508,9 @@ class MultiGasComplexLineShape(BaseProcessor):
 
     def make_spectrum_composite_gaussian_scaled_fixed_scatter_proportion(self, survival_prob, scale_factor, emitted_peak='shake'):
         p = self.scatter_proportion
+        a = self.recon_eff_param_a
+        b = self.recon_eff_param_b
+        c = self.recon_eff_param_c
         scatter_spectra_file_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy')
         scatter_spectra = np.load(scatter_spectra_file_path, allow_pickle = True)
         en_array = self.std_eV_array()
@@ -2496,7 +2524,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         current_full_spectrum += zeroth_order_peak
         N = len(self.gases)
         for M in range(1, self.max_scatters + 1):
-            relative_reconstruction_eff = np.exp(-0.643*M**0.74)
+            relative_reconstruction_eff = np.exp(-b*M**c)
             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
             for combination in gas_scatter_combinations:
                 #print(combination)
@@ -2510,7 +2538,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
                 for i in range(0, M+1):
-                    coefficient = coefficient*(1-0.023*np.exp(-0.643*i**0.74))
+                    coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
 
@@ -2638,6 +2666,9 @@ class MultiGasComplexLineShape(BaseProcessor):
 
     def make_spectrum_simulated_resolution_scaled_fixed_scatter_proportion(self, survival_prob, scale_factor, emitted_peak='shake'):
         p = self.scatter_proportion
+        a = self.recon_eff_param_a
+        b = self.recon_eff_param_b
+        c = self.recon_eff_param_c
         scatter_spectra_file_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy')
         scatter_spectra = np.load(scatter_spectra_file_path, allow_pickle = True)
         en_array = self.std_eV_array()
@@ -2651,7 +2682,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         current_full_spectrum += zeroth_order_peak
         N = len(self.gases)
         for M in range(1, self.max_scatters + 1):
-            relative_reconstruction_eff = np.exp(-0.351*M**0.546)
+            relative_reconstruction_eff = np.exp(-b*M**c)
             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
             for combination in gas_scatter_combinations:
                 #print(combination)
@@ -2665,7 +2696,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
                 for i in range(0, M+1):
-                    coefficient = coefficient*(1-0.005569990343215976*np.exp(-0.351*i**0.546))
+                    coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
 
