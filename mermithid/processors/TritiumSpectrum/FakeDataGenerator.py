@@ -97,23 +97,31 @@ class FakeDataGenerator(BaseProcessor):
 
 
         #Scattering model parameters
-        self.survival_prob = reader.read_param(params, 'survival_prob', 0.77)
+        self.survival_prob = reader.read_param(params, 'survival_prob', 1)
         self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
         self.NScatters = reader.read_param(params, 'NScatters', 20)
+        self.trap_weights = reader.read_param(params, 'trap_weights', {'weights':[0.076,  0.341, 0.381, 0.203], 'errors':[0.003, 0.013, 0.014, 0.02]})
         self.gases = reader.read_param(params, 'gases', ['H2', 'He'])
         self.scatter_proportion = reader.read_param(params, 'scatter_proportion', [])
+        self.fixed_survival_probability = reader.read_param(params, 'fixed_survival_probability', True)
+        self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
+        self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', False)
+        self.resolution_function = reader.read_param(params, 'resolution_function', '')
 
         #paths
         self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
         self.detailed_scatter_spectra_path = reader.read_param(params, 'path_to_detailed_scatter_spectra_dir', '/host')
-        self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all.txt')
         self.efficiency_path = reader.read_param(params, 'efficiency_path', '')
+        self.rad_loss_path = reader.read_param(params, 'rad_loss_path', '')
+        self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all.txt')
+        self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap1.txt', '/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap2.txt', '/termite/T2-1.56e-4/analysis_input/complex-lineshape-inputs/res_cf15.5_trap3.txt', '/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap4.txt'])
 
         #options
         self.use_lineshape = reader.read_param(params, 'use_lineshape', True)
         self.detailed_or_simplified_lineshape = reader.read_param(params, 'detailed_or_simplified_lineshape', 'detailed')
         self.apply_efficiency = reader.read_param(params, 'apply_efficiency', False)
         self.return_frequency = reader.read_param(params, 'return_frequency', True)
+
 
         # will be replaced with complex lineshape object if detailed lineshape is used
         self.complexLineShape = None
@@ -151,11 +159,18 @@ class FakeDataGenerator(BaseProcessor):
                 complexLineShape_config = {
                     'gases': self.gases,
                     'max_scatters': self.NScatters,
+                    'trap_weights': self.trap_weights,
                     'fixed_scatter_proportion': True,
                     # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
                     'gas_scatter_proportion': self.scatter_proportion,
                     #'gas1_scatter_proportion': self.scatter_proportion, #, 1.-self.scatter_proportion],
-                    'use_simulated_inst_reso': True,
+                    'partially_fixed_scatter_proportion': False,
+                    'fixed_survival_probability': self.fixed_survival_probability,
+                    'survival_prob': self.survival_prob,
+                    'use_radiation_loss': self.use_radiation_loss,
+                    'sample_ins_res_errors': self.sample_ins_resolution_errors,
+                    'resolution_function': self.resolution_function,
+                    #-----------------continue here--------------------
                     'use_combined_four_trap_inst_reso': False,
                     # This is an important parameter which determines how finely resolved
                     # the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to
@@ -166,6 +181,8 @@ class FakeDataGenerator(BaseProcessor):
                     'use_combined_four_trap_inst_reso': True,
                     'path_to_osc_strengths_files': self.detailed_scatter_spectra_path,
                     'path_to_scatter_spectra_file':self.detailed_scatter_spectra_path,
+                    'rad_loss_path': self.rad_loss_path,
+                    'path_to_four_trap_ins_resolution_data_txt': self.path_to_four_trap_ins_resolution_data_txt,
                 }
                 logger.info('Setting up complex lineshape object')
                 self.complexLineShape = MultiGasComplexLineShape("complexLineShape")

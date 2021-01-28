@@ -67,6 +67,7 @@ class MultiGasComplexLineShape(BaseProcessor):
             self.survival_prob = reader.read_param(params, 'survival_prob', 1)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
         self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', False)
+        #-----------------continue here--------------------
         # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution
         self.resolution_function = reader.read_param(params, 'resolution_function', '')
         if self.resolution_function == 'gaussian_lorentzian_composite_resolution':
@@ -95,7 +96,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.path_to_quad_trap_eff_interp = reader.read_param(params, 'path_to_quad_trap_eff_interp', '/host/quad_interps.npy')
         self.recon_eff_param_a = reader.read_param(params, 'recon_eff_param_a', 0.005569990343215976)
         self.recon_eff_param_b = reader.read_param(params, 'recon_eff_param_b', 0.351)
-        self.recon_eff_param_b = reader.read_param(params, 'recon_eff_param_c', 0.546)
+        self.recon_eff_param_c = reader.read_param(params, 'recon_eff_param_c', 0.546)
 
         if not os.path.exists(self.shake_spectrum_parameters_json_path) and self.base_shape=='shake':
             raise IOError('Shake spectrum path does not exist')
@@ -2886,6 +2887,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
+        'survival_prob_fit': survival_prob_fit,
+        'survival_prob_fit_err': survival_prob_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
