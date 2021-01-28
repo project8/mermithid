@@ -95,7 +95,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.path_to_quad_trap_eff_interp = reader.read_param(params, 'path_to_quad_trap_eff_interp', '/host/quad_interps.npy')
         self.recon_eff_param_a = reader.read_param(params, 'recon_eff_param_a', 0.005569990343215976)
         self.recon_eff_param_b = reader.read_param(params, 'recon_eff_param_b', 0.351)
-        self.recon_eff_param_b = reader.read_param(params, 'recon_eff_param_c', 0.546)
+        self.recon_eff_param_c = reader.read_param(params, 'recon_eff_param_c', 0.546)
 
         if not os.path.exists(self.shake_spectrum_parameters_json_path) and self.base_shape=='shake':
             raise IOError('Shake spectrum path does not exist')
