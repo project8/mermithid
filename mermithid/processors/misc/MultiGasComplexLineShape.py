@@ -352,6 +352,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         scatter_spectra = {}
         for M in range(1, self.max_scatters + 1):
             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
+            print(1)
             for combination in gas_scatter_combinations:
                 mark_first_nonzero_component = 0
                 entry_str = ''
@@ -367,8 +368,11 @@ class MultiGasComplexLineShape(BaseProcessor):
                         else:
                             scatter_to_add = scatter_spectra_single_gas[gas_type][str(component).zfill(2)]
                             current_full_scatter = self.normalize(signal.convolve(current_full_scatter, scatter_to_add, mode='same'))                
-                scatter_spectra[entry_str] = current_full_scatter      
+                scatter_spectra[entry_str] = current_full_scatter
+        print(17)
+        print(len(scatter_spectra))
         np.save(os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy'), scatter_spectra)
+        print(18)
         elapsed = time.time() - t
         logger.info('Files generated in '+str(elapsed)+'s')
         return
