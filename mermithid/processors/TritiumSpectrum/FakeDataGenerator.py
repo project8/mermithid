@@ -203,7 +203,6 @@ class FakeDataGenerator(BaseProcessor):
 
     def InternalRun(self):
 
-        logger.info("CHANGE MADE HERE")
         if self.return_frequency:
             if self.maxf == None:
                 ROIbound = [self.minf]
