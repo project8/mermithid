@@ -67,7 +67,6 @@ class MultiGasComplexLineShape(BaseProcessor):
             self.survival_prob = reader.read_param(params, 'survival_prob', 1)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
         self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', False)
-        #-----------------continue here--------------------
         # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution
         self.resolution_function = reader.read_param(params, 'resolution_function', '')
         if self.resolution_function == 'gaussian_lorentzian_composite_resolution':
@@ -89,10 +88,10 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
         self.path_to_scatter_spectra_file = reader.read_param(params, 'path_to_scatter_spectra_file', '/host/')
-        self.path_to_missing_track_radiation_loss_data_numpy_file = reader.read_param(params, 'rad_loss_path', '/termite/analysis_input/complex-lineshape-inputs')
-        self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_all.txt')
+        self.path_to_missing_track_radiation_loss_data_numpy_file = reader.read_param(params, 'rad_loss_path', '/host/analysis_input/complex-lineshape-inputs')
+        self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_all.txt')
         self.use_combined_four_trap_inst_reso = reader.read_param(params, 'use_combined_four_trap_inst_reso', False)
-        self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap1.txt', '/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap2.txt', '/termite/T2-1.56e-4/analysis_input/complex-lineshape-inputs/res_cf15.5_trap3.txt', '/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap4.txt'])
+        self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap1.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap2.txt', '/host/T2-1.56e-4/analysis_input/complex-lineshape-inputs/res_cf15.5_trap3.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap4.txt'])
         self.path_to_quad_trap_eff_interp = reader.read_param(params, 'path_to_quad_trap_eff_interp', '/host/quad_interps.npy')
         self.recon_eff_param_a = reader.read_param(params, 'recon_eff_param_a', 0.005569990343215976)
         self.recon_eff_param_b = reader.read_param(params, 'recon_eff_param_b', 0.351)
@@ -1018,7 +1017,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(len(self.gases))):
                     coefficient = coefficient/factorial(component)*p[i]**component
-                for i in range(0, M+1):
+                for i in range(0, M):
                     coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
@@ -1269,8 +1268,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
-        'prob_parameter_fit': prob_parameter_fit,
-        'prob_parameter_fit_err': prob_parameter_fit_err,
+        'survival_prob_fit': prob_parameter_fit,
+        'survival_prob_fit': prob_parameter_fit_err,
         'scatter_proportion_fit': scatter_proportion_fit,
         'scatter_proportion_fit_err': scatter_proportion_fit_err,
         'amplitude_fit': amplitude_fit,
@@ -1440,8 +1439,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
-        'prob_parameter_fit': prob_parameter_fit,
-        'prob_parameter_fit_err': prob_parameter_fit_err,
+        'survival_prob_fit': prob_parameter_fit,
+        'survival_prob_fit_err': prob_parameter_fit_err,
         'center_fit': scatter_proportion_fit,
         'center_fit_err': scatter_proportion_fit_err,
         'scale1_fit': scale1_fit,
@@ -1490,7 +1489,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
-                for i in range(0, M+1):
+                for i in range(0, M):
                     coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
@@ -1607,6 +1606,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
+        'survival_prob_fit': survival_prob_fit,
+        'survival_prob_fit_err': survival_prob_fit_err,
         'sigma_fit': sigma_fit,
         'sigma_fit_err': sigma_fit_err,
         'amplitude_fit': amplitude_fit,
@@ -1649,7 +1650,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
-                for i in range(0, M+1):
+                for i in range(0, M):
                     coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
@@ -1804,7 +1805,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
-                for i in range(0, M+1):
+                for i in range(0, M):
                     coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
@@ -1963,7 +1964,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
-                for i in range(0, M+1):
+                for i in range(0, M):
                     coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
@@ -2132,7 +2133,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
-                for i in range(0, M+1):
+                for i in range(0, M):
                     coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
@@ -2257,6 +2258,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
+        'survival_prob_fit': survival_prob_fit,
+        'survival_prob_fit_err': survival_prob_fit_err,
         'sigma_fit': sigma_fit,
         'sigma_fit_err': sigma_fit_err,
         'amplitude_fit': amplitude_fit,
@@ -2297,7 +2300,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
-                for i in range(0, M+1):
+                for i in range(0, M):
                     coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
@@ -2412,6 +2415,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
+        'survival_prob_fit': survival_prob_fit,
+        'survival_prob_fit_err': survival_prob_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
@@ -2450,7 +2455,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
-                for i in range(0, M+1):
+                for i in range(0, M):
                     coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
@@ -2570,6 +2575,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
+        'survival_prob_fit': survival_prob_fit,
+        'survival_prob_fit_err': survival_prob_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
@@ -2608,7 +2615,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
-                for i in range(0, M+1):
+                for i in range(0, M):
                     coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
@@ -2728,6 +2735,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
+        'survival_prob_fit': survival_prob_fit,
+        'survival_prob_fit_err': survival_prob_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
@@ -2767,7 +2776,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
-                for i in range(0, M+1):
+                for i in range(0, M):
                     coefficient = coefficient*(1-a*np.exp(-b*i**c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
@@ -2924,7 +2933,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 coefficient = factorial(sum(combination))
                 for component, i in zip(combination, range(N)):
                     coefficient = coefficient/factorial(component)*p[i]**component
-                for i in range(0, M+1):
+                for i in range(0, M):
                     coefficient = coefficient*(1-recon_eff_a*np.exp(-1.*recon_eff_b*i**recon_eff_c))
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
@@ -3061,6 +3070,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
+        'survival_prob_fit': survival_prob_fit,
+        'survival_prob_fit_err': survival_prob_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
