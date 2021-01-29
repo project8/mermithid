@@ -102,19 +102,31 @@ class FakeDataGenerator(BaseProcessor):
         self.NScatters = reader.read_param(params, 'NScatters', 20)
         self.trap_weights = reader.read_param(params, 'trap_weights', {'weights':[0.076,  0.341, 0.381, 0.203], 'errors':[0.003, 0.013, 0.014, 0.02]})
         self.gases = reader.read_param(params, 'gases', ['H2', 'He'])
-        self.scatter_proportion = reader.read_param(params, 'scatter_proportion', [])
+        self.scatter_proportion = reader.read_param(params, 'gas_scatter_proportion', [])
         self.fixed_survival_probability = reader.read_param(params, 'fixed_survival_probability', True)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
         self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', False)
         self.resolution_function = reader.read_param(params, 'resolution_function', '')
+        self.ratio_gamma_to_sigma = reader.read_param(params, 'ratio_gamma_to_sigma', 0.8)
+        self.gaussian_proportion = reader.read_param(params, 'gaussian_proportion', 0.8)
+        self.A_array = reader.read_param(params, 'A_array', [0.076, 0.341, 0.381, 0.203])
+        self.sigma_array = reader.read_param(params, 'sigma_array', [5.01, 13.33, 15.40, 11.85])
+        self.fit_recon_eff = reader.read_param(params, 'fit_recon_eff', False)
+        self.use_combined_four_trap_inst_reso = reader.read_param(params, 'use_combined_four_trap_inst_reso', False)
+        self.RF_ROI_MIN = reader.read_param(params, 'RF_ROI_MIN', 25850000000.0)
+        self.recon_eff_param_a = reader.read_param(params, 'recon_eff_param_a', 0.005569990343215976)
+        self.recon_eff_param_b = reader.read_param(params, 'recon_eff_param_b', 0.351)
+        self.recon_eff_param_c = reader.read_param(params, 'recon_eff_param_c', 0.546)
 
         #paths
         self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
-        self.detailed_scatter_spectra_path = reader.read_param(params, 'path_to_detailed_scatter_spectra_dir', '/host')
         self.efficiency_path = reader.read_param(params, 'efficiency_path', '')
+        self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
+        self.path_to_scatter_spectra_file = reader.read_param(params, 'path_to_scatter_spectra_file', '/host/')
         self.rad_loss_path = reader.read_param(params, 'rad_loss_path', '')
         self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all.txt')
         self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap1.txt', '/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap2.txt', '/termite/T2-1.56e-4/analysis_input/complex-lineshape-inputs/res_cf15.5_trap3.txt', '/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap4.txt'])
+        self.path_to_quad_trap_eff_interp = reader.read_param(params, 'path_to_quad_trap_eff_interp', '/host/quad_interps.npy')
 
         #options
         self.use_lineshape = reader.read_param(params, 'use_lineshape', True)
@@ -143,18 +155,17 @@ class FakeDataGenerator(BaseProcessor):
                                                         self.NScatters)
             elif self.lineshape=='detailed':
                 # check path exists
-                if 'scatter_spectra_file' in self.detailed_scatter_spectra_path:
-                    full_path = self.detailed_scatter_spectra_path
-                    self.detailed_scatter_spectra_path, _ = os.path.split(full_path)
+                if 'scatter_spectra_file' in self.path_to_scatter_spectra_file:
+                    full_path = self.path_to_scatter_spectra_file
+                    self.path_to_scatter_spectra_file, _ = os.path.split(full_path)
                 else:
-                    full_path = os.path.join(self.detailed_scatter_spectra_path, 'scatter_spectra_file')
+                    full_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra_file')
 
-                logger.info('Path to scatter_spectra_file: {}'.format(self.detailed_scatter_spectra_path))
+                logger.info('Path to scatter_spectra_file: {}'.format(self.path_to_scatter_spectra_file))
 
 
                 # lineshape params
                 self.SimpParams = [self.scattering_sigma*2*math.sqrt(2*math.log(2)), self.survival_prob]
-
                 # Setup and configure lineshape processor
                 complexLineShape_config = {
                     'gases': self.gases,
@@ -170,19 +181,25 @@ class FakeDataGenerator(BaseProcessor):
                     'use_radiation_loss': self.use_radiation_loss,
                     'sample_ins_res_errors': self.sample_ins_resolution_errors,
                     'resolution_function': self.resolution_function,
-                    #-----------------continue here--------------------
-                    'use_combined_four_trap_inst_reso': False,
-                    # This is an important parameter which determines how finely resolved
-                    # the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to
-                    # be increased for larger datasets.
+                    'ratio_gamma_to_sigma': self.ratio_gamma_to_sigma,
+                    'gaussian_proportion': self.gaussian_proportion,
+                    'A_array': self.A_array,
+                    'sigma_array': self.sigma_array,
+                    'fit_recon_eff': self.fit_recon_eff,
+                    # This is an important parameter which determines how finely resolved the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to be increased for larger datasets.
                     'num_points_in_std_array': 35838,
+                    'RF_ROI_MIN': self.RF_ROI_MIN,
                     'base_shape': 'dirac',
-                    'sample_ins_resolution_errors': True,
-                    'use_combined_four_trap_inst_reso': True,
-                    'path_to_osc_strengths_files': self.detailed_scatter_spectra_path,
-                    'path_to_scatter_spectra_file':self.detailed_scatter_spectra_path,
+                    'path_to_osc_strengths_files': self.path_to_osc_strengths_files,
+                    'path_to_scatter_spectra_file':self.path_to_scatter_spectra_file,
                     'rad_loss_path': self.rad_loss_path,
+                    'path_to_ins_resolution_data_txt': self.path_to_ins_resolution_data_txt,
+                    'use_combined_four_trap_inst_reso': self.use_combined_four_trap_inst_reso,
                     'path_to_four_trap_ins_resolution_data_txt': self.path_to_four_trap_ins_resolution_data_txt,
+                    'path_to_quad_trap_eff_interp': self.path_to_quad_trap_eff_interp,
+                    'recon_eff_param_a': self.recon_eff_param_a,
+                    'recon_eff_param_b': self.recon_eff_param_b,
+                    'recon_eff_param_c': self.recon_eff_param_c
                 }
                 logger.info('Setting up complex lineshape object')
                 self.complexLineShape = MultiGasComplexLineShape("complexLineShape")

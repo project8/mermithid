@@ -67,7 +67,6 @@ class MultiGasComplexLineShape(BaseProcessor):
             self.survival_prob = reader.read_param(params, 'survival_prob', 1)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
         self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', False)
-        #-----------------continue here--------------------
         # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution
         self.resolution_function = reader.read_param(params, 'resolution_function', '')
         if self.resolution_function == 'gaussian_lorentzian_composite_resolution':
@@ -1269,8 +1268,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
-        'prob_parameter_fit': prob_parameter_fit,
-        'prob_parameter_fit_err': prob_parameter_fit_err,
+        'survival_prob_fit': prob_parameter_fit,
+        'survival_prob_fit': prob_parameter_fit_err,
         'scatter_proportion_fit': scatter_proportion_fit,
         'scatter_proportion_fit_err': scatter_proportion_fit_err,
         'amplitude_fit': amplitude_fit,
@@ -1440,8 +1439,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
-        'prob_parameter_fit': prob_parameter_fit,
-        'prob_parameter_fit_err': prob_parameter_fit_err,
+        'survival_prob_fit': prob_parameter_fit,
+        'survival_prob_fit_err': prob_parameter_fit_err,
         'center_fit': scatter_proportion_fit,
         'center_fit_err': scatter_proportion_fit_err,
         'scale1_fit': scale1_fit,
@@ -1607,6 +1606,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
+        'survival_prob_fit': survival_prob_fit,
+        'survival_prob_fit_err': survival_prob_fit_err,
         'sigma_fit': sigma_fit,
         'sigma_fit_err': sigma_fit_err,
         'amplitude_fit': amplitude_fit,
@@ -2257,6 +2258,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
+        'survival_prob_fit': survival_prob_fit,
+        'survival_prob_fit_err': survival_prob_fit_err,
         'sigma_fit': sigma_fit,
         'sigma_fit_err': sigma_fit_err,
         'amplitude_fit': amplitude_fit,
@@ -2412,6 +2415,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
+        'survival_prob_fit': survival_prob_fit,
+        'survival_prob_fit_err': survival_prob_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
@@ -2570,6 +2575,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
+        'survival_prob_fit': survival_prob_fit,
+        'survival_prob_fit_err': survival_prob_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
@@ -2728,6 +2735,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
+        'survival_prob_fit': survival_prob_fit,
+        'survival_prob_fit_err': survival_prob_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
@@ -3061,6 +3070,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
+        'survival_prob_fit': survival_prob_fit,
+        'survival_prob_fit_err': survival_prob_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
