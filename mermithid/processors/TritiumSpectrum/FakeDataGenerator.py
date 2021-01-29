@@ -97,26 +97,26 @@ class FakeDataGenerator(BaseProcessor):
 
 
         #Scattering model parameters
-        self.survival_prob = reader.read_param(params, 'survival_prob', 1)
-        self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
-        self.NScatters = reader.read_param(params, 'NScatters', 20)
-        self.trap_weights = reader.read_param(params, 'trap_weights', {'weights':[0.076,  0.341, 0.381, 0.203], 'errors':[0.003, 0.013, 0.014, 0.02]})
         self.gases = reader.read_param(params, 'gases', ['H2', 'He'])
         self.scatter_proportion = reader.read_param(params, 'gas_scatter_proportion', [])
+        self.NScatters = reader.read_param(params, 'NScatters', 20)
+        self.trap_weights = reader.read_param(params, 'trap_weights', {'weights':[0.076,  0.341, 0.381, 0.203], 'errors':[0.003, 0.013, 0.014, 0.02]})
+        self.survival_prob = reader.read_param(params, 'survival_prob', 0.7)
         self.fixed_survival_probability = reader.read_param(params, 'fixed_survival_probability', True)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
-        self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', False)
+        self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', True)
         self.resolution_function = reader.read_param(params, 'resolution_function', '')
         self.ratio_gamma_to_sigma = reader.read_param(params, 'ratio_gamma_to_sigma', 0.8)
         self.gaussian_proportion = reader.read_param(params, 'gaussian_proportion', 0.8)
         self.A_array = reader.read_param(params, 'A_array', [0.076, 0.341, 0.381, 0.203])
         self.sigma_array = reader.read_param(params, 'sigma_array', [5.01, 13.33, 15.40, 11.85])
-        self.fit_recon_eff = reader.read_param(params, 'fit_recon_eff', False)
+        self.fit_recon_eff = reader.read_param(params, 'fit_recon_eff', True)
         self.use_combined_four_trap_inst_reso = reader.read_param(params, 'use_combined_four_trap_inst_reso', False)
         self.RF_ROI_MIN = reader.read_param(params, 'RF_ROI_MIN', 25850000000.0)
         self.recon_eff_param_a = reader.read_param(params, 'recon_eff_param_a', 0.005569990343215976)
         self.recon_eff_param_b = reader.read_param(params, 'recon_eff_param_b', 0.351)
         self.recon_eff_param_c = reader.read_param(params, 'recon_eff_param_c', 0.546)
+        self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
 
         #paths
         self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
@@ -125,7 +125,7 @@ class FakeDataGenerator(BaseProcessor):
         self.path_to_scatter_spectra_file = reader.read_param(params, 'path_to_scatter_spectra_file', '/host/')
         self.rad_loss_path = reader.read_param(params, 'rad_loss_path', '')
         self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all.txt')
-        self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap1.txt', '/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap2.txt', '/termite/T2-1.56e-4/analysis_input/complex-lineshape-inputs/res_cf15.5_trap3.txt', '/termite/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap4.txt'])
+        self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap1.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap2.txt', '/host/T2-1.56e-4/analysis_input/complex-lineshape-inputs/res_cf15.5_trap3.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap4.txt'])
         self.path_to_quad_trap_eff_interp = reader.read_param(params, 'path_to_quad_trap_eff_interp', '/host/quad_interps.npy')
 
         #options
