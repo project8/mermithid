@@ -369,7 +369,6 @@ class MultiGasComplexLineShape(BaseProcessor):
                             scatter_to_add = scatter_spectra_single_gas[gas_type][str(component).zfill(2)]
                             current_full_scatter = self.normalize(signal.convolve(current_full_scatter, scatter_to_add, mode='same'))                
                 scatter_spectra[entry_str] = current_full_scatter
-        print(len(scatter_spectra))
         np.save(os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy'), scatter_spectra)
         elapsed = time.time() - t
         logger.info('Files generated in '+str(elapsed)+'s')

@@ -101,6 +101,7 @@ class FakeDataGenerator(BaseProcessor):
         self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
         self.NScatters = reader.read_param(params, 'NScatters', 20)
         self.trap_weights = reader.read_param(params, 'trap_weights', {'weights':[0.076,  0.341, 0.381, 0.203], 'errors':[0.003, 0.013, 0.014, 0.02]})
+        self.recon_eff_params = reader.read_param(params, 'recon_eff_params', [0.005569990343215976, 0.351, 0.546])
         self.gases = reader.read_param(params, 'gases', ['H2', 'He'])
         self.scatter_proportion = reader.read_param(params, 'scatter_proportion', [])
         self.fixed_survival_probability = reader.read_param(params, 'fixed_survival_probability', True)
@@ -170,8 +171,10 @@ class FakeDataGenerator(BaseProcessor):
                     'use_radiation_loss': self.use_radiation_loss,
                     'sample_ins_res_errors': self.sample_ins_resolution_errors,
                     'resolution_function': self.resolution_function,
+                    'recon_eff_param_a': self.recon_eff_params[0],
+                    'recon_eff_param_b': self.recon_eff_params[1],
+                    'recon_eff_param_c': self.recon_eff_params[2],
                     #-----------------continue here--------------------
-                    'use_combined_four_trap_inst_reso': False,
                     # This is an important parameter which determines how finely resolved
                     # the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to
                     # be increased for larger datasets.
