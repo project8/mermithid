@@ -400,7 +400,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 gas_str += gas + '00' 
             if gas_str not in list(test_dict.item().keys()):
                 print('Gas species not matching, generating fresh files')
-                generate_scatter_convolution_files()
+                self.generate_scatter_convolution_files()
         return
 
     # Given a function evaluated on the SELA, convolves it with a gaussian
@@ -517,7 +517,7 @@ class MultiGasComplexLineShape(BaseProcessor):
     def convolve_smeared_triangle(self, func_to_convolve, center, scale1, scale2, exponent, sigma):
         resolution_f = self.std_smeared_triangle(center, scale1, scale2, exponent, sigma)
         ans = signal.convolve(resolution_f, func_to_convolve, mode = 'same')
-        ans_normed = normalize(ans)
+        ans_normed = self.normalize(ans)
         return ans_normed
 
     def least_square(self, bin_centers, hist, params):
@@ -1279,13 +1279,13 @@ class MultiGasComplexLineShape(BaseProcessor):
         return dictionary_of_fit_results
 
     def make_spectrum_smeared_triangle(self, prob_parameter, center, scale1, scale2, exponent, sigma, emitted_peak='shake'):
-        current_path = get_current_path()
+        current_path = self.get_current_path()
         # check_existence_of_scatter_files()
         #filenames = list_files('scatter_spectra_files')
-        p = np.zeros(len(gases))
-        p = scatter_proportion
+        p = np.zeros(len(self.gases))
+        p = self.scatter_proportion
         scatter_spectra = np.load('scatter_spectra_file/scatter_spectra.npy', allow_pickle = True)
-        en_array = std_eV_array()
+        en_array = self.std_eV_array()
         current_full_spectrum = np.zeros(len(en_array))
         if emitted_peak == 'lorentzian':
             current_working_spectrum = self.std_lorenztian_17keV()
@@ -1294,19 +1294,19 @@ class MultiGasComplexLineShape(BaseProcessor):
         current_working_spectrum = self.convolve_smeared_triangle(current_working_spectrum, center, scale1, scale2, exponent, sigma)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += current_working_spectrum
-        N = len(gases)
-        for M in range(1, max_scatters + 1):
+        N = len(self.gases)
+        for M in range(1, self.max_scatters + 1):
             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
             for combination in gas_scatter_combinations:
                 #print(combination)
                 entry_str = ''
-                for component, gas_type in zip(combination, gases):
+                for component, gas_type in zip(combination, self.gases):
                     entry_str += gas_type
                     entry_str += str(component).zfill(2)
                 current_working_spectrum = scatter_spectra.item()[entry_str]
-                current_working_spectrum = self.normalize(sp.signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+                current_working_spectrum = self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
                 coefficient = factorial(sum(combination))
-                for component, i in zip(combination, range(len(gases))):
+                for component, i in zip(combination, range(len(self.gases))):
                     coefficient = coefficient/factorial(component)*p[i]**component*prob_parameter**M
                 current_full_spectrum += coefficient*current_working_spectrum
 
@@ -1323,15 +1323,15 @@ class MultiGasComplexLineShape(BaseProcessor):
         exponent = p0[6]
         sigma = p0[7]
     
-        x_eV = Energy(bins_Hz, B_field)
-        en_loss_array = std_eV_array()
+        x_eV = ConversionFunctions.Energy(bins_Hz, B_field)
+        en_loss_array = self.std_eV_array()
         en_loss_array_min = en_loss_array[0]
         en_loss_array_max = en_loss_array[len(en_loss_array)-1]
-        en_array_rev = flip_array(-1*en_loss_array)
+        en_array_rev = ComplexLineShapeUtilities.flip_array(-1*en_loss_array)
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = kr_line*1000 - x_eV
+        x_eV_minus_line = Constants.kr_line()*1000 - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
     
@@ -1345,9 +1345,9 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.check_existence_of_scatter_files()
         bins_Hz = freq_bins + RF_ROI_MIN
         bins_Hz = 0.5*(bins_Hz[1:] + bins_Hz[:-1])
-        bins_Hz_nonzero , data_hist_nonzero , data_hist_err = get_only_nonzero_bins(bins_Hz, data_hist_freq)
+        bins_Hz_nonzero , data_hist_nonzero , data_hist_err = self.get_only_nonzero_bins(bins_Hz, data_hist_freq)
         # Initial guesses for curve_fit
-        B_field_guess = central_frequency_to_B_field(bins_Hz[np.argmax(data_hist_freq)])
+        B_field_guess = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[np.argmax(data_hist_freq)])
         amplitude_guess = np.sum(data_hist_freq)/2
         prob_parameter_guess = 0.5
         center_guess = 0
@@ -1355,8 +1355,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         exponent_guess = 1
         sigma_guess = 3
         # Bounds for curve_fit
-        B_field_min = central_frequency_to_B_field(bins_Hz[0])
-        B_field_max = central_frequency_to_B_field(bins_Hz[-1])
+        B_field_min = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[0])
+        B_field_max = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[-1])
         amplitude_min = 1e-5
         amplitude_max = np.sum(data_hist_freq)*3
         prob_parameter_min = 1e-5
@@ -1364,7 +1364,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         center_min = -5
         center_max = 5
         width_min = 0
-        width_max = Energy(bins_Hz[0], B_field_guess) - Energy(bins_Hz[-1], B_field_guess)
+        width_max = ConversionFunctions.Energy(bins_Hz[0], B_field_guess) - ConversionFunctions.Energy(bins_Hz[-1], B_field_guess)
         exponent_min = 0.5
         exponent_max = 2
     
@@ -1405,7 +1405,7 @@ class MultiGasComplexLineShape(BaseProcessor):
     
         fit_Hz = spectrum_func(bins_Hz,*params)
         fit_keV = flip_array(fit_Hz)
-        bins_keV = Energy(bins_Hz, B_field_fit)/1000
+        bins_keV = ConversionFunctions.Energy(bins_Hz, B_field_fit)/1000
         bins_keV = flip_array(bins_keV)
         reduced_chi2 = reduced_chi2_Poisson(data_hist_freq, fit_Hz, number_of_parameters = len(params)) 
         if print_params == True:
@@ -1456,7 +1456,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'reduced_chi2': reduced_chi2
         }
         return dictionary_of_fit_results
-
+    
+    #fitting with commposite gaussian lorentzian resolution function and fixed scatter fraction
     def make_spectrum_composite_gaussian_lorentzian_fixed_scatter_proportion(self, survival_prob, sigma, emitted_peak='shake'):
         p = self.scatter_proportion
         a = self.recon_eff_param_a
@@ -1770,6 +1771,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
+    # fitting with composite gaussian lorentzian resolution function but scatter fraction floating
     def make_spectrum_composite_gaussian_lorentzian_fixed_survival_probability(self, scatter_proportion, sigma, emitted_peak='shake'):
         a = self.recon_eff_param_a
         b = self.recon_eff_param_b
@@ -1933,9 +1935,12 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
+    #fitting with composite gaussian lorentzian resolution function and the scatter fractions fixed for some gas species
     def make_spectrum_composite_gaussian_lorentzian_fixed_survival_probability_partially_fixed_scatter_proportion(self, scatter_proportion, sigma, emitted_peak='shake'):
         p = scatter_proportion + tuple([1-sum(scatter_proportion)-sum(self.scatter_proportion_for_fixed_gases)]) + tuple(self.scatter_proportion_for_fixed_gases)
-        logger.info(p)
+        a = self.recon_eff_param_a
+        b = self.recon_eff_param_b
+        c = self.recon_eff_param_c
         survival_prob = self.survival_prob
         scatter_spectra_file_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy')
         scatter_spectra = np.load(scatter_spectra_file_path, allow_pickle = True)
@@ -2101,6 +2106,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
+    # fitting with elevated gaussian resolution function
     def make_spectrum_elevated_gaussian_fixed_scatter_proportion(self, survival_prob, sigma, elevation_factor, emitted_peak='shake'):
         p = self.scatter_proportion
         a = self.recon_eff_param_a
@@ -2268,6 +2274,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
+    # fitting with superposition of gaussians as resolution function
     def make_spectrum_composite_gaussian_fixed_scatter_proportion(self, survival_prob, emitted_peak='shake'):
         p = self.scatter_proportion
         a = self.recon_eff_param_a
@@ -2423,6 +2430,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
+    # fitting with composte gaussian resolution function with pedestal factor and fixed scatter fraction
     def make_spectrum_composite_gaussian_pedestal_factor_fixed_scatter_proportion(self, survival_prob, pedestal_factor, emitted_peak='shake'):
         p = self.scatter_proportion
         a = self.recon_eff_param_a
