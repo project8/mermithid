@@ -145,6 +145,7 @@ class FakeDataGenerator(BaseProcessor):
         self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap1.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap2.txt', '/host/T2-1.56e-4/analysis_input/complex-lineshape-inputs/res_cf15.5_trap3.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap4.txt'])
         self.path_to_quad_trap_eff_interp = reader.read_param(params, 'path_to_quad_trap_eff_interp', '/host/quad_interps.npy')
         self.final_states_file = reader.read_param(params, 'final_states_file', '')
+        self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
 
         #options
         self.use_lineshape = reader.read_param(params, 'use_lineshape', True)
@@ -220,6 +221,7 @@ class FakeDataGenerator(BaseProcessor):
                     'use_combined_four_trap_inst_reso': self.use_combined_four_trap_inst_reso,
                     'path_to_four_trap_ins_resolution_data_txt': self.path_to_four_trap_ins_resolution_data_txt,
                     'path_to_quad_trap_eff_interp': self.path_to_quad_trap_eff_interp,
+                    'shake_spectrum_parameters_json_path': self.shake_spectrum_parameters_json_path 
                 }
                 logger.info('Setting up complex lineshape object')
                 self.complexLineShape = MultiGasComplexLineShape("complexLineShape")

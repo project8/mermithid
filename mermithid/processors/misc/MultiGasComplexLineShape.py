@@ -93,9 +93,10 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.use_combined_four_trap_inst_reso = reader.read_param(params, 'use_combined_four_trap_inst_reso', False)
         self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap1.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap2.txt', '/host/T2-1.56e-4/analysis_input/complex-lineshape-inputs/res_cf15.5_trap3.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap4.txt'])
         self.path_to_quad_trap_eff_interp = reader.read_param(params, 'path_to_quad_trap_eff_interp', '/host/quad_interps.npy')
-        self.recon_eff_param_a = reader.read_param(params, 'recon_eff_param_a', 0.005569990343215976)
-        self.recon_eff_param_b = reader.read_param(params, 'recon_eff_param_b', 0.351)
-        self.recon_eff_param_c = reader.read_param(params, 'recon_eff_param_c', 0.546)
+        self.recon_eff_params = reader.read_param(params, 'recon_eff_params', [0.005569990343215976, 0.351, 0.546])
+        self.recon_eff_param_a = self.recon_eff_params[0]
+        self.recon_eff_param_b = self.recon_eff_params[1]
+        self.recon_eff_param_c = self.recon_eff_params[2]
 
         if not os.path.exists(self.shake_spectrum_parameters_json_path) and self.base_shape=='shake':
             raise IOError('Shake spectrum path does not exist')
