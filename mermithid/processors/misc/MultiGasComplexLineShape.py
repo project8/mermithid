@@ -1,7 +1,7 @@
 '''
 Fits data to complex lineshape model.
-Author: E. Machado, Y.-H. Sun, E. Novitski, T. Weiss
-Date: 1/30/2021
+Author: E. Machado, Y.-H. Sun, E. Novitski, T. Weiss, X. Huyan
+Date: 2/9/2021
 
 This processor takes in frequency data in binned histogram and fit the histogram with two gas scattering complex line shape model.
 
@@ -67,7 +67,7 @@ class MultiGasComplexLineShape(BaseProcessor):
             self.survival_prob = reader.read_param(params, 'survival_prob', 1)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
         self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', False)
-        # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution
+        # configure the resolution functions: gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, and simulated_resolution_scaled
         self.resolution_function = reader.read_param(params, 'resolution_function', '')
         if self.resolution_function == 'gaussian_lorentzian_composite_resolution':
             self.ratio_gamma_to_sigma = reader.read_param(params, 'ratio_gamma_to_sigma', 0.8)
@@ -93,9 +93,10 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.use_combined_four_trap_inst_reso = reader.read_param(params, 'use_combined_four_trap_inst_reso', False)
         self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap1.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap2.txt', '/host/T2-1.56e-4/analysis_input/complex-lineshape-inputs/res_cf15.5_trap3.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap4.txt'])
         self.path_to_quad_trap_eff_interp = reader.read_param(params, 'path_to_quad_trap_eff_interp', '/host/quad_interps.npy')
-        self.recon_eff_param_a = reader.read_param(params, 'recon_eff_param_a', 0.005569990343215976)
-        self.recon_eff_param_b = reader.read_param(params, 'recon_eff_param_b', 0.351)
-        self.recon_eff_param_c = reader.read_param(params, 'recon_eff_param_c', 0.546)
+        self.recon_eff_params = reader.read_param(params, 'recon_eff_params', [0.005569990343215976, 0.351, 0.546])
+        self.recon_eff_param_a = self.recon_eff_params[0]
+        self.recon_eff_param_b = self.recon_eff_params[1]
+        self.recon_eff_param_c = self.recon_eff_params[2]
 
         if not os.path.exists(self.shake_spectrum_parameters_json_path) and self.base_shape=='shake':
             raise IOError('Shake spectrum path does not exist')
@@ -806,8 +807,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'B_field_fit_err': B_field_fit_err,
         'FWHM_eV_fit': FWHM_eV_fit,
         'FWHM_eV_fit_err': FWHM_eV_fit_err,
-        'prob_parameter_fit': prob_parameter_fit,
-        'prob_parameter_fit_err': prob_parameter_fit_err,
+        'survival_prob_fit': prob_parameter_fit,
+        'survival_prob_fit_err': prob_parameter_fit_err,
         'scatter_proportion_fit': scatter_proportion_fit,
         'scatter_proportion_fit_err': scatter_proportion_fit_err,
         'amplitude_fit': amplitude_fit,
@@ -966,8 +967,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'B_field_fit_err': B_field_fit_err,
         'FWHM_eV_fit': FWHM_eV_fit,
         'FWHM_eV_fit_err': FWHM_eV_fit_err,
-        'prob_parameter_fit': prob_parameter_fit,
-        'prob_parameter_fit_err': prob_parameter_fit_err,
+        'survival_prob_fit': prob_parameter_fit,
+        'survival_prob_fit_err': prob_parameter_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
@@ -1268,7 +1269,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
         'survival_prob_fit': prob_parameter_fit,
-        'survival_prob_fit': prob_parameter_fit_err,
+        'survival_prob_fit_err': prob_parameter_fit_err,
         'scatter_proportion_fit': scatter_proportion_fit,
         'scatter_proportion_fit_err': scatter_proportion_fit_err,
         'amplitude_fit': amplitude_fit,
