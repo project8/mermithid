@@ -219,7 +219,6 @@ class FakeDataGenerator(BaseProcessor):
                     'path_to_ins_resolution_data_txt': self.path_to_ins_resolution_data_txt,
                     'use_combined_four_trap_inst_reso': self.use_combined_four_trap_inst_reso,
                     'path_to_four_trap_ins_resolution_data_txt': self.path_to_four_trap_ins_resolution_data_txt,
-                    'path_to_quad_trap_eff_interp': self.path_to_quad_trap_eff_interp,
                 }
                 logger.info('Setting up complex lineshape object')
                 self.complexLineShape = MultiGasComplexLineShape("complexLineShape")
