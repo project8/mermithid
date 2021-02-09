@@ -1,7 +1,7 @@
 '''
 Generate binned or pseudo unbinned data
-Author: T. Weiss, C. Claessens
-Date:4/6/2020
+Author: T. Weiss, C. Claessens, X. Huyan
+Date:2/9/2021
 '''
 
 from __future__ import absolute_import

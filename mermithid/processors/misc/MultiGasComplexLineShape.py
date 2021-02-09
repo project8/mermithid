@@ -1,7 +1,7 @@
 '''
 Fits data to complex lineshape model.
-Author: E. Machado, Y.-H. Sun, E. Novitski, T. Weiss
-Date: 1/30/2021
+Author: E. Machado, Y.-H. Sun, E. Novitski, T. Weiss, X. Huyan
+Date: 2/9/2021
 
 This processor takes in frequency data in binned histogram and fit the histogram with two gas scattering complex line shape model.
 
@@ -67,7 +67,7 @@ class MultiGasComplexLineShape(BaseProcessor):
             self.survival_prob = reader.read_param(params, 'survival_prob', 1)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
         self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', False)
-        # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution
+        # configure the resolution functions: gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, and simulated_resolution_scaled
         self.resolution_function = reader.read_param(params, 'resolution_function', '')
         if self.resolution_function == 'gaussian_lorentzian_composite_resolution':
             self.ratio_gamma_to_sigma = reader.read_param(params, 'ratio_gamma_to_sigma', 0.8)
