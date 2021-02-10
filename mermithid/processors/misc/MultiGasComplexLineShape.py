@@ -1,7 +1,7 @@
 '''
 Fits data to complex lineshape model.
-Author: E. Machado, Y.-H. Sun, E. Novitski
-Date: 4/8/20
+Author: E. Machado, Y.-H. Sun, E. Novitski, T. Weiss, X. Huyan
+Date: 2/9/2021
 
 This processor takes in frequency data in binned histogram and fit the histogram with two gas scattering complex line shape model.
 
@@ -67,7 +67,7 @@ class MultiGasComplexLineShape(BaseProcessor):
             self.survival_prob = reader.read_param(params, 'survival_prob', 1)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
         self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', False)
-        # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution
+        # configure the resolution functions: gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, and simulated_resolution_scaled
         self.resolution_function = reader.read_param(params, 'resolution_function', '')
         if self.resolution_function == 'gaussian_lorentzian_composite_resolution':
             self.ratio_gamma_to_sigma = reader.read_param(params, 'ratio_gamma_to_sigma', 0.8)
@@ -93,17 +93,17 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.use_combined_four_trap_inst_reso = reader.read_param(params, 'use_combined_four_trap_inst_reso', False)
         self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap1.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap2.txt', '/host/T2-1.56e-4/analysis_input/complex-lineshape-inputs/res_cf15.5_trap3.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap4.txt'])
         self.path_to_quad_trap_eff_interp = reader.read_param(params, 'path_to_quad_trap_eff_interp', '/host/quad_interps.npy')
-        self.recon_eff_param_a = reader.read_param(params, 'recon_eff_param_a', 0.005569990343215976)
-        self.recon_eff_param_b = reader.read_param(params, 'recon_eff_param_b', 0.351)
-        self.recon_eff_param_c = reader.read_param(params, 'recon_eff_param_c', 0.546)
+        self.recon_eff_params = reader.read_param(params, 'recon_eff_params', [0.005569990343215976, 0.351, 0.546])
+        self.recon_eff_param_a = self.recon_eff_params[0]
+        self.recon_eff_param_b = self.recon_eff_params[1]
+        self.recon_eff_param_c = self.recon_eff_params[2]
 
         if not os.path.exists(self.shake_spectrum_parameters_json_path) and self.base_shape=='shake':
             raise IOError('Shake spectrum path does not exist')
         if not os.path.exists(self.path_to_osc_strengths_files):
             raise IOError('Path to osc strengths files does not exist')
         # Read shake parameters from JSON file
-        if self.base_shape == 'shake':
-            self.shakeSpectrumClassInstance = ComplexLineShapeUtilities.ShakeSpectrumClass(self.shake_spectrum_parameters_json_path, self.std_eV_array()) 
+        self.shakeSpectrumClassInstance = ComplexLineShapeUtilities.ShakeSpectrumClass(self.shake_spectrum_parameters_json_path, self.std_eV_array()) 
         return True
 
     def InternalRun(self):
@@ -557,7 +557,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         zero_bins_index = np.where(data_hist_freq == 0)
         # expectation
         if self.fixed_scatter_proportion == True and self.fixed_survival_probability == True:
-            fit_Hz = self.spectrum_func_composite_gaussian_lorentzian_fixed_scatter_proportion_survival_probability(bin_centers, eff_array, *params)
+            fit_Hz = self.spectrum_func_composite_gaussian_lorentzian_fixed_scatter_proportion_and_survival_prob(bin_centers, eff_array, *params)
         elif self.fixed_scatter_proportion == True and self.fixed_survival_probability == False:
             fit_Hz = self.spectrum_func_composite_gaussian_lorentzian_fixed_scatter_proportion(bin_centers, eff_array, *params)
         elif self.fixed_scatter_proportion == False and self.fixed_survival_probability == True and self.partially_fixed_scatter_proportion == False:
@@ -807,8 +807,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'B_field_fit_err': B_field_fit_err,
         'FWHM_eV_fit': FWHM_eV_fit,
         'FWHM_eV_fit_err': FWHM_eV_fit_err,
-        'prob_parameter_fit': prob_parameter_fit,
-        'prob_parameter_fit_err': prob_parameter_fit_err,
+        'survival_prob_fit': prob_parameter_fit,
+        'survival_prob_fit_err': prob_parameter_fit_err,
         'scatter_proportion_fit': scatter_proportion_fit,
         'scatter_proportion_fit_err': scatter_proportion_fit_err,
         'amplitude_fit': amplitude_fit,
@@ -967,8 +967,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'B_field_fit_err': B_field_fit_err,
         'FWHM_eV_fit': FWHM_eV_fit,
         'FWHM_eV_fit_err': FWHM_eV_fit_err,
-        'prob_parameter_fit': prob_parameter_fit,
-        'prob_parameter_fit_err': prob_parameter_fit_err,
+        'survival_prob_fit': prob_parameter_fit,
+        'survival_prob_fit_err': prob_parameter_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
@@ -1269,7 +1269,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
         'survival_prob_fit': prob_parameter_fit,
-        'survival_prob_fit': prob_parameter_fit_err,
+        'survival_prob_fit_err': prob_parameter_fit_err,
         'scatter_proportion_fit': scatter_proportion_fit,
         'scatter_proportion_fit_err': scatter_proportion_fit_err,
         'amplitude_fit': amplitude_fit,
@@ -1673,7 +1673,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
-        full_spectrum = self.make_spectrum_composite_gaussian_lorentzian_fixed_scatter_proportion_and_survival_prob(sigma)
+        full_spectrum = make_spectrum_composite_gaussian_lorentzian_fixed_scatter_proportion_and_survival_prob(sigma)
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx], en_loss_array, full_spectrum)
         f_intermediate = f_intermediate*eff_array
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
@@ -2591,7 +2591,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         'reduced_chi2': reduced_chi2
         }
         return dictionary_of_fit_results
-    
+
     def make_spectrum_composite_gaussian_scaled_fixed_scatter_proportion(self, survival_prob, scale_factor, emitted_peak='shake'):
         p = self.scatter_proportion
         a = self.recon_eff_param_a
