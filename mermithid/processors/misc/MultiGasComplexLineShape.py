@@ -102,7 +102,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         if not os.path.exists(self.path_to_osc_strengths_files):
             raise IOError('Path to osc strengths files does not exist')
         # Read shake parameters from JSON file
-        self.shakeSpectrumClassInstance = ComplexLineShapeUtilities.ShakeSpectrumClass(self.shake_spectrum_parameters_json_path, self.std_eV_array()) 
+        if self.base_shape == 'shake':
+            self.shakeSpectrumClassInstance = ComplexLineShapeUtilities.ShakeSpectrumClass(self.shake_spectrum_parameters_json_path, self.std_eV_array()) 
         return True
 
     def InternalRun(self):
