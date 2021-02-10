@@ -1737,7 +1737,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         sigma_fit_err = perr[2]
         total_counts_fit_err = amplitude_fit_err
     
-        fit_Hz = self.spectrum_func_composite_gaussian_lorentzian(bins_Hz, eff_array, *params)
+        fit_Hz = self.spectrum_func_composite_gaussian_lorentzian_fixed_scatter_proportion_and_survival_prob(bins_Hz, eff_array, *params)
         fit_keV = ComplexLineShapeUtilities.flip_array(fit_Hz)
         bins_keV = ConversionFunctions.Energy(bins_Hz, B_field_fit)/1000
         bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
