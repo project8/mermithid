@@ -1674,7 +1674,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
-        full_spectrum = make_spectrum_composite_gaussian_lorentzian_fixed_scatter_proportion_and_survival_prob(sigma)
+        full_spectrum = self.make_spectrum_composite_gaussian_lorentzian_fixed_scatter_proportion_and_survival_prob(sigma)
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx], en_loss_array, full_spectrum)
         f_intermediate = f_intermediate*eff_array
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
