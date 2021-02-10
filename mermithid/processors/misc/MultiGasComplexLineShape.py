@@ -557,7 +557,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         zero_bins_index = np.where(data_hist_freq == 0)
         # expectation
         if self.fixed_scatter_proportion == True and self.fixed_survival_probability == True:
-            fit_Hz = self.spectrum_func_composite_gaussian_lorentzian_fixed_scatter_proportion_survival_probability(bin_centers, eff_array, *params)
+            fit_Hz = self.spectrum_func_composite_gaussian_lorentzian_fixed_scatter_proportion_and_survival_prob(bin_centers, eff_array, *params)
         elif self.fixed_scatter_proportion == True and self.fixed_survival_probability == False:
             fit_Hz = self.spectrum_func_composite_gaussian_lorentzian_fixed_scatter_proportion(bin_centers, eff_array, *params)
         elif self.fixed_scatter_proportion == False and self.fixed_survival_probability == True and self.partially_fixed_scatter_proportion == False:
