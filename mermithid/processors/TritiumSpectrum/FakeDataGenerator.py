@@ -1,7 +1,8 @@
 '''
 Generate binned or pseudo unbinned data
 Author: T. Weiss, C. Claessens, X. Huyan
-Date:2/9/2021
+Date: 4/6/2020
+Updated: 2/9/2021
 '''
 
 from __future__ import absolute_import
@@ -17,7 +18,6 @@ from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.misc.FakeTritiumDataFunctions import *
 from mermithid.processors.misc.MultiGasComplexLineShape import MultiGasComplexLineShape
-#from mermithid.processors.misc.KrComplexLineShape import KrComplexLineShape
 from mermithid.misc import Constants, ComplexLineShapeUtilities, ConversionFunctions
 logger = morphologging.getLogger(__name__)
 
@@ -356,18 +356,6 @@ class FakeDataGenerator(BaseProcessor):
         #Options of kinetic energies to be sampled
         self.Koptions = np.arange(Kmin_eff, Kmax_eff, step_size)
 
-        """
-        def K_ls_complex():
-            dE = self.Koptions[1] - self.Koptions[0]
-            energy_half_range = max(max_energy, abs(min_energy))
-            n_dE_pos = round(energy_half_range/dE) #Number of steps for the lineshape for energies > 0
-            n_dE_neg = round(energy_half_range/dE) #Same, for energies < 0
-            K_lineshape =  np.arange(-n_dE_neg*dE, n_dE_pos*dE, dE)
-            return K_lineshape
-
-        self.complexLineShape.std_eV_array = K_ls_complex
-        """
-
         if efficiency_dict is not None:
             logger.info('Evaluating efficiencies')
             efficiency_mean, efficiency_error = efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
@@ -383,9 +371,13 @@ class FakeDataGenerator(BaseProcessor):
         time0 = time.time()
 
         if array_method == True:
-            ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean, mass, Kmin, lineshape, params, min_energy, max_energy, self.complexLineShape, self.final_state_array)
+            ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean,
+            mass, Kmin, lineshape, params, min_energy, max_energy,
+            self.complexLineShape, self.final_state_array)
         else:
-            ratesS = [convolved_spectral_rate(K, Q_mean, mass, Kmin, lineshape, params, min_energy, max_energy) for K in self.Koptions]
+            ratesS = [convolved_spectral_rate(K, Q_mean, mass, Kmin,
+                lineshape, params, min_energy, max_energy) for K in
+                self.Koptions]
 
         # multiply rates by efficiency
         ratesS = ratesS*efficiency
@@ -399,7 +391,8 @@ class FakeDataGenerator(BaseProcessor):
                                                 lineshape, params, min_energy, max_energy,
                                                 self.complexLineShape)
         else:
-            ratesB = [convolved_bkgd_rate(K, Kmin, Kmax, lineshape, params, min_energy, max_energy) for K in self.Koptions]
+            ratesB = [convolved_bkgd_rate(K, Kmin, Kmax, lineshape, params,
+            min_energy, max_energy) for K in self.Koptions]
 
         time2 = time.time()
         logger.info('... background rate took {} s'.format(time2 - time1))
