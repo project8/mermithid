@@ -129,7 +129,7 @@ class SensitivityCurveProcessor(BaseProcessor):
         # add line for comparison using second config
         if self.comparison_curve:
             self.add_comparison_curve(label=self.comparison_curve_label)
-            self.add_arrow(self.sens_main)
+            #self.add_arrow(self.sens_main)
 
         for key, value in self.goals.items():
             logger.info('Adding goal: {}'.format(key))
@@ -158,6 +158,22 @@ class SensitivityCurveProcessor(BaseProcessor):
 
         # save plot
         self.save(self.plot_path)
+
+        # print number of events
+        limit = [self.sens_main.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
+        self.opt_ref = np.argmin(limit)
+
+        rho_opt = self.rhos[self.opt_ref]
+        logger.info('Main curve (veff = {} cm**3, rho = {} /m**3):'.format(self.sens_main.Experiment.v_eff/(cm**3), rho_opt*(m**3)))
+        logger.info('Sensitivitiy limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
+        logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.Experiment.v_eff))
+        logger.info('Total signal: {}'.format(rho_opt*self.sens_main.Experiment.v_eff*
+                                                   self.sens_main.Experiment.LiveTime/
+                                                   self.sens_main.Tritium.Livetime*2))
+        logger.info('Signal in last eV: {}'.format(self.sens_main.Tritium.last_1ev_fraction*eV**3*
+                                                   rho_opt*self.sens_main.Experiment.v_eff*
+                                                   self.sens_main.Experiment.LiveTime/
+                                                   self.sens_main.Tritium.Livetime*2))
 
         return True
 
@@ -214,6 +230,14 @@ class SensitivityCurveProcessor(BaseProcessor):
     def add_comparison_curve(self, label, color='k'):
         limit = [self.sens_ref.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
         self.opt_ref = np.argmin(limit)
+
+        rho_opt = self.rhos[self.opt_ref]
+        logger.info('Ref. curve (veff = {} m**3):'.format(self.sens_ref.Experiment.v_eff/(m**3)))
+        logger.info('T in Veff: {}'.format(rho_opt*self.sens_ref.Experiment.v_eff))
+        logger.info('Ref. total signal: {}'.format(rho_opt*self.sens_ref.Experiment.v_eff*
+                                                   self.sens_ref.Experiment.LiveTime/
+                                                   self.sens_ref.Tritium.Livetime))
+
         self.ax.plot(self.rhos*m**3, limit, color=color)
         self.ax.axvline(self.rhos[self.opt_ref]*m**3, ls=":", color="gray", alpha=0.4)
 
