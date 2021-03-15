@@ -28,13 +28,14 @@ class ComplexLineShapeTests(unittest.TestCase):
             "use_katydid": False,
             "variables": ['StartTimeInAcq','StartFrequency']
         }
+
         complexLineShape_config = {
             'bins_choice': np.linspace(0e6, 100e6, 1000),
-            'gases': ["H2", "He", "Ar", "Kr"],
+            'gases': ["H2", "He"], # Ar, Kr
             'max_scatters': 20,
             'fixed_scatter_proportion': True,
             # When fixed_scatter_proportion is True, set the scatter proportion for the gases below
-            'gas_scatter_proportion': [0.753, 0.190, 0.018, 0.039],#0.753, 0.190, 0.018, 0.039 # 0.75, 0.25
+            'gas_scatter_proportion': [0.8, 0.2],#0.827, 0.076, 0.068, 0.028 # 0.75, 0.25
             'partially_fixed_scatter_proportion': False,
             'free_gases': ["H2", "He"],
             'fixed_gases': ["Ar", "Kr"],
@@ -42,8 +43,8 @@ class ComplexLineShapeTests(unittest.TestCase):
             'fixed_survival_probability': False,
             # When option fixed_survival_probability is True, assign the survival probability below
             'survival_prob': 15/16., # assuming total cross section for elastic scattering is 1/10 of inelastic scattering
-            # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, composite_gaussian_scaled, simulated_resolution_scaled, 
-            'resolution_function': 'simulated_resolution_scaled',
+            # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, composite_gaussian_scaled, simulated_resolution_scaled, 'simulated_resolution_scaled_fit_scatter_peak_ratio'
+            'resolution_function': 'simulated_resolution_scaled_fit_scatter_peak_ratio',
             # specific choice of parameters in the gaussian lorentzian composite resolution function
             'recon_eff_param_a': 0.005569990343215976,
             'recon_eff_param_b': 0.351,
@@ -54,7 +55,11 @@ class ComplexLineShapeTests(unittest.TestCase):
             'sigma_array': [5.01, 13.33, 15.40, 11.85],
             'A_array': [0.076, 0.341, 0.381, 0.203],
             #parameter for simulated resolution scaled resolution 
-            'fit_recon_eff': False,          
+            'fit_recon_eff': False,
+            #parameters for simulated resolution scaled with scatter peak ratio fitted
+            #choose the parameters you want to fix from ['B field','amplitude','width scale factor','scatter peak ratio param b', 'scatter peak ratio param c'],
+            'fixed_parameter_names': ['scatter peak ratio param c'],
+            'fixed_parameter_values': [1.0],        
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,
@@ -67,16 +72,16 @@ class ComplexLineShapeTests(unittest.TestCase):
         }
 
         b = IOCicadaProcessor("reader")
-        complexLineShape = MultiGasComplexLineShape("complexLineShape")
-
         b.Configure(reader_config)
-        complexLineShape.Configure(complexLineShape_config)
-
         b.Run()
         data = b.data
         logger.info("Data extracted = {}".format(data.keys()))
         for key in data.keys():
             logger.info("{} -> size = {}".format(key,len(data[key])))
+        
+        complexLineShape = MultiGasComplexLineShape("complexLineShape")
+        
+        complexLineShape.Configure(complexLineShape_config)       
 
         complexLineShape.data = data
 
@@ -95,9 +100,8 @@ class ComplexLineShapeTests(unittest.TestCase):
         plt.plot(results['bins_Hz']/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
         plt.legend(loc = 'upper left', fontsize = 12)
         plt.xlabel('frequency GHz')
-        if complexLineShape_config['resolution_function'] == 'simulated_resolution_scaled':
-            plot_title = 'fit ftc march with gases: {},\n scatter proportion: {},\n resolution function: {},\n file for simulated resolution data: {}'.format(complexLineShape_config['gases'], complexLineShape_config['gas_scatter_proportion'], complexLineShape_config['resolution_function'], os.path.basename(complexLineShape_config['path_to_ins_resolution_data_txt']))
-        elif complexLineShape_config['resolution_function'] == 'composite_gaussian_scaled':
+        plot_title = 'fit ftc march with gases: {},\n scatter proportion: {},\n resolution function: {},\n file for simulated resolution data: {}'.format(complexLineShape_config['gases'], complexLineShape_config['gas_scatter_proportion'], complexLineShape_config['resolution_function'], os.path.basename(complexLineShape_config['path_to_ins_resolution_data_txt']))
+        if complexLineShape_config['resolution_function'] == 'composite_gaussian_scaled':
             plot_title = 'fit ftc march with gases: {},\n scatter proportion: {},\n resolution function: {},\n sigma_array: {},\n A_array: {},\n'.format(complexLineShape_config['gases'], complexLineShape_config['gas_scatter_proportion'], complexLineShape_config['resolution_function'], complexLineShape_config['sigma_array'], complexLineShape_config['A_array'])
         plt.title(plot_title)
         plt.tight_layout()
