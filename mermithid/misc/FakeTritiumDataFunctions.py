@@ -340,18 +340,27 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
 
 
 
-##Fraction of events near the endpoint
-##Currently, this only holds for the last 13.6 eV of the spectrum
-#def frac_near_endpt(Kmin, Q, mass, atom_or_mol='atom'):
-#    A = integrate.quad(spectral_rate, Kmin, Q-mass, args=(Q,mass))
-#    B = integrate.quad(spectral_rate, V0, Q-mass, args=(Q,mass)) #Minimum at V0 because electrons with energy below screening barrier do not escape
-#    f = (A[0])/(B[0])
-#    if atom_or_mol=='atom':
-#        return 0.7006*f
-#    elif atom_or_mol=='mol' or atom_or_mol=='molecule':
-#        return 0.57412*f
-#    else:
-#        print("Choose 'atom' or 'mol'.")
+#Fraction of events near the endpoint
+def frac_near_endpt(Kmin, Q, mass, final_state_array, atom_or_mol='mol', range='wide'):
+    """
+    Options for range:
+        - 'narrow': Only extends ~18 eV (or less) below the endpoint, so that all decays are to the ground state
+        - 'wide': Wide enough that the probability of decay to a 3He electronic energy level that would shift Q below the ROI is very low
+    """
+    A = integrate.quad(spectral_rate, Kmin, Q-mass, args=(Q, mass, final_state_array))
+    B = integrate.quad(spectral_rate, V0, Q-mass, args=(Q, mass, final_state_array)) #Minimum at V0 because electrons with energy below screening barrier do not escape
+    f = (A[0])/(B[0])
+    if range=='narrow':
+        if atom_or_mol=='atom':
+            return 0.7006*f
+        elif atom_or_mol=='mol' or atom_or_mol=='molecule':
+            return 0.57412*f
+        else:
+            logger.warn("Choose 'atom' or 'mol'.")
+    elif range=='wide':
+        return f
+    else:
+        logger.warn("Choose range 'narrow' or 'wide'")
 
 
 #Convert [number of particles]=(density*volume*efficiency) to a signal activity A_s, measured in events/second.
@@ -359,7 +368,7 @@ def find_signal_activity(Nparticles, m, Q, Kmin, atom_or_mol='atom', nTperMolecu
     """
     Functions to calculate number of events to generate
     """
-    br = frac_near_endpt(Kmin, Q, m, atom_or_mol)
+    br = frac_near_endpt(Kmin, Q, m, final_state_array, atom_or_mol)
     Thalflife = 3.8789*10**8
     A_s = Nparticles*np.log(2)/(Thalflife)*br
     if atom_or_mol=='atom':
