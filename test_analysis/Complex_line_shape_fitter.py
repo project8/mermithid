@@ -57,9 +57,9 @@ class ComplexLineShapeTests(unittest.TestCase):
             #parameter for simulated resolution scaled resolution 
             'fit_recon_eff': False,
             #parameters for simulated resolution scaled with scatter peak ratio fitted
-            #choose the parameters you want to fix from ['B field','amplitude','width scale factor','scatter peak ratio param b', 'scatter peak ratio param c'],
-            'fixed_parameter_names': ['scatter peak ratio param c'],
-            'fixed_parameter_values': [1.0],        
+            #choose the parameters you want to fix from ['B field','amplitude','width scale factor', 'survival probability','scatter peak ratio param b', 'scatter peak ratio param c'] plus the gas scatter fractions as ['H2 scatter fraction'],
+            'fixed_parameter_names': ['survival probability', 'H2 scatter fraction'],
+            'fixed_parameter_values': [0.8, 0.9],        
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,
@@ -100,7 +100,7 @@ class ComplexLineShapeTests(unittest.TestCase):
         plt.plot(results['bins_Hz']/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
         plt.legend(loc = 'upper left', fontsize = 12)
         plt.xlabel('frequency GHz')
-        plot_title = 'fit ftc march with gases: {},\n scatter proportion: {},\n resolution function: {},\n file for simulated resolution data: {}'.format(complexLineShape_config['gases'], complexLineShape_config['gas_scatter_proportion'], complexLineShape_config['resolution_function'], os.path.basename(complexLineShape_config['path_to_ins_resolution_data_txt']))
+        plot_title = 'fit ftc march with gases: {},\n resolution function: {},\n file for simulated resolution data: {}'.format(complexLineShape_config['gases'], complexLineShape_config['resolution_function'], os.path.basename(complexLineShape_config['path_to_ins_resolution_data_txt']))
         if complexLineShape_config['resolution_function'] == 'composite_gaussian_scaled':
             plot_title = 'fit ftc march with gases: {},\n scatter proportion: {},\n resolution function: {},\n sigma_array: {},\n A_array: {},\n'.format(complexLineShape_config['gases'], complexLineShape_config['gas_scatter_proportion'], complexLineShape_config['resolution_function'], complexLineShape_config['sigma_array'], complexLineShape_config['A_array'])
         plt.title(plot_title)
