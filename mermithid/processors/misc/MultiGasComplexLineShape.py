@@ -1125,7 +1125,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
-    #simulated resolution with scatter_proportion floating, without reconstruction eff curve, withou detection eff curve
+    #simulated resolution with scatter_proportion floating, without reconstruction eff curve, without detection eff curve
     def make_spectrum_ftc_2(self, prob_parameter, scatter_proportion, emitted_peak='shake'):
         gases = self.gases
         current_path = self.path_to_scatter_spectra_file

@@ -54,7 +54,8 @@ class FakeDataGenerator(BaseProcessor):
         – gases: list of strings naming gases to be included in complex lineshape model. Options: 'H2', 'He', 'Kr', 'Ar', 'CO'
         - NScatters: lineshape parameter - number of scatters included in lineshape
         - trap_weights: distionary of two lists, labeled 'weights' and 'errors', which respectively include the fractions of counts from each trap and the uncertainties on those fractions
-        – recon_eff_params: list of parameters parameterizing function for reconstruction efficiency as a function of scattering peak order, in complex lineshape
+        - scatter_peak_ratio_b: "b" in reconstrudction efficiency curve model: e^(-b*i^c), where i is the scatter order
+        - scatter_peak_ratio_c: "c" in the same reconstruction efficiency model
         – scatter_proportion: list of proportion of scatters due to each gas in self.gases (in the same order), in complex lineshape
         - survival_prob: lineshape parameter - probability of electron staying in the trap between two inelastics scatters (it could escape due to elastics scatters or the inelastics scatters, themselves)
         – use_radiation_loss: if True, radiation loss will be included in the complex lineshape; should be set to True except for testing purposes
@@ -120,7 +121,9 @@ class FakeDataGenerator(BaseProcessor):
         self.gases = reader.read_param(params, 'gases', ['H2', 'He'])
         self.NScatters = reader.read_param(params, 'NScatters', 20)
         self.trap_weights = reader.read_param(params, 'trap_weights', {'weights':[0.076,  0.341, 0.381, 0.203], 'errors':[0.003, 0.013, 0.014, 0.02]})
-        self.recon_eff_params = reader.read_param(params, 'recon_eff_params', [0.005569990343215976, 0.351, 0.546])
+        #self.recon_eff_params = reader.read_param(params, 'recon_eff_params', [0.005569990343215976, 0.351, 0.546])
+        self.scatter_peak_ratio_b = reader.read_param(params, 'scatter_peak_ratio_b', 0.686312493)
+        self.scatter_peak_ratio_c = reader.read_param(params, 'scatter_peak_ratio_c', 0.52481056)
         self.scatter_proportion = reader.read_param(params, 'scatter_proportion', [])
         self.survival_prob = reader.read_param(params, 'survival_prob', 0.7)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
@@ -199,9 +202,8 @@ class FakeDataGenerator(BaseProcessor):
                     'use_radiation_loss': self.use_radiation_loss,
                     'sample_ins_res_errors': self.sample_ins_resolution_errors,
                     'resolution_function': self.resolution_function,
-                    'recon_eff_param_a': self.recon_eff_params[0],
-                    'recon_eff_param_b': self.recon_eff_params[1],
-                    'recon_eff_param_c': self.recon_eff_params[2],
+                    'scatter_peak_ratio_b': self.scatter_peak_ratio_b,
+                    'scatter_peak_ratio_c': self.scatter_peak_ratio_c,
                     'fit_recon_eff': self.fit_recon_eff,
 
                     #For analytics resolution functions, only:
@@ -372,11 +374,11 @@ class FakeDataGenerator(BaseProcessor):
 
         if array_method == True:
             ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean,
-            mass, Kmin, lineshape, params, min_energy, max_energy,
+            mass, Kmin, lineshape, params, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, min_energy, max_energy,
             self.complexLineShape, self.final_state_array)
         else:
             ratesS = [convolved_spectral_rate(K, Q_mean, mass, Kmin,
-                lineshape, params, min_energy, max_energy) for K in
+                lineshape, params, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, min_energy, max_energy) for K in
                 self.Koptions]
 
         # multiply rates by efficiency
