@@ -274,7 +274,7 @@ def convolved_bkgd_rate(K, Kmin, Kmax, lineshape, ls_params, min_energy, max_ene
 
 #Convolution of signal and lineshape using scipy.signal.convolve
 def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
-                                   lineshape, ls_params, scatter_peak_ratio_b, scatter_peak_ratio_c, min_energy, max_energy,
+                                   lineshape, ls_params, scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, min_energy, max_energy,
                                    complexLineShape, final_state_array):
     """K is an array-like object
     """
@@ -293,7 +293,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
-        lineshape_rates = complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(1, ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, emitted_peak='dirac')
+        lineshape_rates = complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(1, ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')
         lineshape_rates = np.flipud(lineshape_rates)
 
     beta_rates = spectral_rate(K, Q, mnu, final_state_array)
@@ -308,7 +308,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
 
 
 #Convolution of background and lineshape using scipy.signal.convolve
-def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, scatter_peak_ratio_b, scatter_peak_ratio_c, min_energy, max_energy, complexLineShape):
+def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, min_energy, max_energy, complexLineShape):
     """K is an array-like object
     """
     energy_half_range = max(max_energy, abs(min_energy))
@@ -324,7 +324,7 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, scatter_peak
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
-        lineshape_rates = complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(1, ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, emitted_peak='dirac')
+        lineshape_rates = complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(1, ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')
         lineshape_rates = np.flipud(lineshape_rates)
         
     bkgd_rates = np.full(len(K), bkgd_rate())

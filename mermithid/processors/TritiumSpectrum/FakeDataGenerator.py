@@ -118,7 +118,7 @@ class FakeDataGenerator(BaseProcessor):
 
 
         #Scattering model parameters
-        self.gases = reader.read_param(params, 'gases', ['H2', 'He'])
+        self.gases = reader.read_param(params, 'gases', ['H2', 'He', 'CO'])
         self.NScatters = reader.read_param(params, 'NScatters', 20)
         self.trap_weights = reader.read_param(params, 'trap_weights', {'weights':[0.076,  0.341, 0.381, 0.203], 'errors':[0.003, 0.013, 0.014, 0.02]})
         #self.recon_eff_params = reader.read_param(params, 'recon_eff_params', [0.005569990343215976, 0.351, 0.546])
@@ -374,11 +374,11 @@ class FakeDataGenerator(BaseProcessor):
 
         if array_method == True:
             ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean,
-            mass, Kmin, lineshape, params, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, min_energy, max_energy,
+            mass, Kmin, lineshape, params, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, self.scatter_proportion, min_energy, max_energy,
             self.complexLineShape, self.final_state_array)
         else:
             ratesS = [convolved_spectral_rate(K, Q_mean, mass, Kmin,
-                lineshape, params, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, min_energy, max_energy) for K in
+                lineshape, params, min_energy, max_energy) for K in
                 self.Koptions]
 
         # multiply rates by efficiency
@@ -390,7 +390,7 @@ class FakeDataGenerator(BaseProcessor):
         # background
         if array_method == True:
             ratesB = convolved_bkgd_rate_arrays(self.Koptions, Kmin, Kmax,
-                                                lineshape, params, min_energy, max_energy,
+                                                lineshape, params, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, self.scatter_proportion, min_energy, max_energy,
                                                 self.complexLineShape)
         else:
             ratesB = [convolved_bkgd_rate(K, Kmin, Kmax, lineshape, params,

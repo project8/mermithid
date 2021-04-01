@@ -3105,6 +3105,8 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
+        elif emitted_peak == 'dirac':
+            current_working_spectrum = self.std_dirac()
         current_working_spectrum = self.convolve_simulated_resolution_scaled(current_working_spectrum, scale_factor)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += zeroth_order_peak
