@@ -3093,7 +3093,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
-    def make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(self, scale_factor, survival_probability, scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='shake'):
+    def make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(self, scale_factor, survival_probability, scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, gauss_FWHM_eV=None, emitted_peak='shake'):
         p = np.zeros(len(self.gases))
         p[0:-1] = scatter_fraction
         p[-1] = 1 - sum(scatter_fraction)
@@ -3107,7 +3107,12 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
         elif emitted_peak == 'dirac':
             current_working_spectrum = self.std_dirac()
-        current_working_spectrum = self.convolve_simulated_resolution_scaled(current_working_spectrum, scale_factor)
+        if self.resolution_function == 'simulated_resolution_scaled':
+            logger.info('Using scaled simulated resoution function')
+            current_working_spectrum = self.convolve_simulated_resolution_scaled(current_working_spectrum, scale_factor)
+        elif self.resolution_function == 'gaussian_resolution':
+            logger.info('Using gaussian reso;ution function')
+            self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += zeroth_order_peak
         N = len(self.gases)
