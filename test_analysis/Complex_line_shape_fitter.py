@@ -43,7 +43,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             'fixed_survival_probability': False,
             # When option fixed_survival_probability is True, assign the survival probability below
             'survival_prob': 15/16., # assuming total cross section for elastic scattering is 1/10 of inelastic scattering
-            # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, composite_gaussian_scaled, simulated_resolution_scaled, 'simulated_resolution_scaled_fit_scatter_peak_ratio'
+            # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, composite_gaussian_scaled, simulated_resolution_scaled, 'simulated_resolution_scaled_fit_scatter_peak_ratio', 'gaussian_resolution_fit_scatter_peak_ratio'
             'resolution_function': 'simulated_resolution_scaled_fit_scatter_peak_ratio',
             # specific choice of parameters in the gaussian lorentzian composite resolution function
             'recon_eff_param_a': 0.005569990343215976,
@@ -59,7 +59,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             #parameters for simulated resolution scaled with scatter peak ratio fitted
             #choose the parameters you want to fix from ['B field','amplitude','width scale factor', 'survival probability','scatter peak ratio param b', 'scatter peak ratio param c'] plus the gas scatter fractions as ['H2 scatter fraction'],
             'fixed_parameter_names': ['survival probability', 'H2 scatter fraction'],
-            'fixed_parameter_values': [0.8, 0.9],        
+            'fixed_parameter_values': [0.8858, 0.896],      
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,
@@ -68,7 +68,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             'shake_spectrum_parameters_json_path': '../mermithid/misc/shake_spectrum_parameters.json',
             'path_to_osc_strengths_files': '/host/',
             'path_to_scatter_spectra_file': '/host/',
-            'path_to_ins_resolution_data_txt': '/host/res_all_conversion_max15.5_alltraps.txt'
+            'path_to_ins_resolution_data_txt': '/host/cf/all_res_cf13.9.txt'
         }
 
         b = IOCicadaProcessor("reader")
@@ -100,12 +100,13 @@ class ComplexLineShapeTests(unittest.TestCase):
         plt.plot(results['bins_Hz']/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
         plt.legend(loc = 'upper left', fontsize = 12)
         plt.xlabel('frequency GHz')
-        plot_title = 'fit ftc march with gases: {},\n resolution function: {},\n file for simulated resolution data: {}'.format(complexLineShape_config['gases'], complexLineShape_config['resolution_function'], os.path.basename(complexLineShape_config['path_to_ins_resolution_data_txt']))
-        if complexLineShape_config['resolution_function'] == 'composite_gaussian_scaled':
-            plot_title = 'fit ftc march with gases: {},\n scatter proportion: {},\n resolution function: {},\n sigma_array: {},\n A_array: {},\n'.format(complexLineShape_config['gases'], complexLineShape_config['gas_scatter_proportion'], complexLineShape_config['resolution_function'], complexLineShape_config['sigma_array'], complexLineShape_config['A_array'])
+        if complexLineShape_config['resolution_function'] == 'simulated_resolution_scaled_fit_scatter_peak_ratio':
+            plot_title = 'data file:{},\n gases: {},\n resolution function: {}({}),\n fixed parameters: {}'.format(os.path.basename(reader_config['filename']),complexLineShape_config['gases'], complexLineShape_config['resolution_function'], os.path.basename(complexLineShape_config['path_to_ins_resolution_data_txt']), complexLineShape_config['fixed_parameter_names'])
+        if complexLineShape_config['resolution_function'] == 'gaussian_resolution_fit_scatter_peak_ratio':
+            plot_title = 'data file:{},\n gases: {},\n resolution function: {},\n fixed parameters: {}'.format(os.path.basename(reader_config['filename']),complexLineShape_config['gases'], complexLineShape_config['resolution_function'], complexLineShape_config['fixed_parameter_names'])
         plt.title(plot_title)
         plt.tight_layout()
-        plt.savefig('/host/plots/fit_FTC_march_with_simulated_ins_scaled_resolution.png'.format(len(complexLineShape_config['gases'])))
+        plt.savefig('/host/plots/fit_FTC_march_with_simulated_resolution_cf13.9.png'.format(len(complexLineShape_config['gases'])))
 
 if __name__ == '__main__':
 
