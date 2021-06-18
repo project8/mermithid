@@ -8,11 +8,44 @@ from numpy import pi
 # Numericalunits is a package to handle units and some natural constants
 # natural constants
 from numericalunits import e, me, c0, eps0, kB, hbar
-from numericalunits import meV, eV, keV, MeV, cm, m, ns, s, Hz, kHz, MHz, GHz
+from numericalunits import meV, eV, keV, MeV, cm, m, ns, s, Hz, kHz, MHz, GHz, amu
 from numericalunits import nT, uT, mT, T, mK, K,  C, F, g, W
 from numericalunits import hour, year, day
+from numericalunits import mu0, NA, kB, hbar, me, c0, e, eps0, hPlanck
+
+T0 = -273.15*K
+
+tritium_livetime = 5.605e8*s
+tritium_mass_atomic = 3.016* amu *c0**2
+tritium_electron_crosssection_atomic = 1.1e-22*m**2
+tritium_endpoint_atomic = 18563.251*eV
+last_1ev_fraction_atomic = 2.067914e-13/eV**3
+
+tritium_mass_molecular = 6.032099 * amu *c0**2
+tritium_electron_crosssection_molecular = 3.487*1e-22*m**2
+tritium_endpoint_molecular = 18573.24*eV
+last_1ev_fraction_molecular = 1.67364e-13/eV**3
+
+ground_state_width = 0.436 * eV
+ground_state_width_uncertainty = 0.01*0.436*eV
+
+gyro_mag_ratio_proton = 42.577*MHz/T
+
+# units that do not show up in numericalunits
+# missing pre-factors
+fW = W*1e-15
+
+# unitless units, relative fractions
+pc = 0.01
 ppm = 1e-6
 ppb = 1e-9
+ppt = 1e-12
+ppq = 1e-15
+
+# radian and degree which are also not really units
+rad = 1
+deg = np.pi/180
+
 
 from morpho.utilities import morphologging
 logger = morphologging.getLogger(__name__)
@@ -25,6 +58,35 @@ class NameSpace(object):
             setattr(self, k.lower(), v)
     def __getattribute__(self, item):
         return object.__getattribute__(self, item.lower())
+
+##############################################################################
+# CRES functions
+def gamma(kin_energy):
+    return kin_energy/(me*c0**2) + 1
+
+def beta(kin_energy):
+    # electron speed at kin_energy
+    return np.sqrt(kin_energy**2+2*kin_energy*me*c0**2)/(kin_energy+me*c0**2)
+
+def frequency(kin_energy, magnetic_field):
+    # cyclotron frequency
+    return e/(2*np.pi*me)/gamma(kin_energy)*magnetic_field
+
+def kin_energy(freq, magnetic_field):
+    return (e*c0**2/(2*np.pi*freq)*magnetic_field - me*c0**2)
+
+def rad_power(kin_energy, pitch, magnetic_field):
+    # electron radiation power
+    f = frequency(kin_energy, magnetic_field)
+    b = beta(kin_energy)
+    Pe = 2*np.pi*(e*f*b*np.sin(pitch/rad))**2/(3*eps0*c0*(1-b**2))
+    return Pe
+
+def track_length(rho, kin_energy=None, molecular=True):
+    if kin_energy is None:
+        kin_energy = tritium_endpoint_molecular if molecular else tritium_endpoint_atomic
+    crosssect = tritium_electron_crosssection_molecular if molecular else tritium_electron_crosssection_atomic
+    return 1 / (rho * crosssect * beta(kin_energy) * c0)
 
 
 
@@ -52,12 +114,26 @@ class Sensitivity(object):
 
         self.Experiment = NameSpace({opt: eval(self.cfg.get('Experiment', opt)) for opt in self.cfg.options('Experiment')})
 
-        self.Tritium_atomic = NameSpace({opt: eval(self.cfg.get('Tritium_atomic', opt)) for opt in self.cfg.options('Tritium_atomic')})
-        self.Tritium_molecular = NameSpace({opt: eval(self.cfg.get('Tritium_molecular', opt)) for opt in self.cfg.options('Tritium_molecular')})
+        # self.Tritium_atomic = NameSpace({opt: eval(self.cfg.get('Tritium_atomic', opt)) for opt in self.cfg.options('Tritium_atomic')})
+        # self.Tritium_molecular = NameSpace({opt: eval(self.cfg.get('Tritium_molecular', opt)) for opt in self.cfg.options('Tritium_molecular')})
+        # if self.Experiment.atomic:
+        #     self.Tritium = self.Tritium_atomic
+        # else:
+        #     self.Tritium = self.Tritium_molecular
+
+        self.T_livetime = tritium_livetime
         if self.Experiment.atomic:
-            self.Tritium = self.Tritium_atomic
+            self.T_mass = tritium_mass_atomic
+            self.Te_crosssection = tritium_electron_crosssection_atomic
+            self.T_endpoint = tritium_endpoint_atomic
+            self.last_1ev_fraction = last_1ev_fraction_atomic
         else:
-            self.Tritium = self.Tritium_molecular
+            self.T_mass = tritium_mass_molecular
+            self.Te_crosssection = tritium_electron_crosssection_molecular
+            self.T_endpoint = tritium_endpoint_molecular
+            self.last_1ev_fraction = last_1ev_fraction_molecular
+
+
         self.DopplerBroadening = NameSpace({opt: eval(self.cfg.get('DopplerBroadening', opt)) for opt in self.cfg.options('DopplerBroadening')})
         self.FrequencyExtraction = NameSpace({opt: eval(self.cfg.get('FrequencyExtraction', opt)) for opt in self.cfg.options('FrequencyExtraction')})
         self.MagneticField = NameSpace({opt: eval(self.cfg.get('MagneticField', opt)) for opt in self.cfg.options('MagneticField')})
@@ -67,7 +143,7 @@ class Sensitivity(object):
     # SENSITIVITY
     def SignalRate(self):
         """signal events in the energy interval before the endpoint, scale with DeltaE**3"""
-        signal_rate = self.Experiment.number_density*self.Experiment.v_eff*self.Tritium.last_1ev_fraction/self.Tritium.Livetime
+        signal_rate = self.Experiment.number_density*self.Experiment.v_eff*self.last_1ev_fraction/self.T_livetime
         if not self.Experiment.atomic:
             signal_rate *= 2
         return signal_rate
@@ -115,12 +191,12 @@ class Sensitivity(object):
         return frequency
 
     def BToKeErr(self, BErr, B):
-         return e*BErr/(2*np.pi*self.frequency(self.Tritium.endpoint, B)/c0**2)
+         return e*BErr/(2*np.pi*self.frequency(self.T_endpoint, B)/c0**2)
 
     def track_length(self, rho):
-        Ke = self.Tritium.endpoint
+        Ke = self.T_endpoint
         betae = np.sqrt(Ke**2+2*Ke*me*c0**2)/(Ke+me*c0**2) # electron speed at energy Ke
-        return 1 / (rho * self.Tritium.crosssection_te*betae*c0)
+        return 1 / (rho * self.Te_crosssection*betae*c0)
 
     # SYSTEMATICS
 
@@ -138,8 +214,8 @@ class Sensitivity(object):
 
         if not self.Experiment.atomic:
             labels.append("Molecular final state")
-            sigmas.append(self.Tritium.ground_state_width)
-            deltas.append(self.Tritium.ground_state_width_uncertainty)
+            sigmas.append(ground_state_width)
+            deltas.append(ground_state_width_uncertainty)
 
         return np.array(labels), np.array(sigmas), np.array(deltas)
 
@@ -165,8 +241,8 @@ class Sensitivity(object):
 
         # termal doppler broardening
         gasTemp = self.DopplerBroadening.gas_temperature
-        mass_T = self.Tritium.mass
-        endpoint = self.Tritium.endpoint
+        mass_T = self.T_mass
+        endpoint = self.T_endpoint
 
         # these factors are mainly neglidible in the recoil equation below
         E_rec = 3.409 * eV # maximal value # same for molecular tritium?
@@ -186,28 +262,33 @@ class Sensitivity(object):
         delta_trans = np.sqrt(p_rec**2/(2*mass_T)*kB/gasTemp*self.DopplerBroadening.gas_temperature_uncertainty**2)
         return sigma_trans, delta_trans
 
+
     def syst_frequency_extraction(self):
         # cite{https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398} (Section 1.2, p 7-9)
         # Are we double counting the antenna collection efficiency? We use it here. Does it also impact the effective volume, v_eff ?
-        # Are we double counting the effect of magnetic field uncertainty here? Is 'sigma_f_Bfield' the same as 'rRecoErr', 'delta_rRecoErr', 'rRecoPhiErr', 'delta_rRecoPhiErr'?
+        # Are we double counting the effect of magnetic field uncertainty here?
+        # Is 'sigma_f_Bfield' the same as 'rRecoErr', 'delta_rRecoErr', 'rRecoPhiErr', 'delta_rRecoPhiErr'?
 
         if self.FrequencyExtraction.UseFixedValue:
             sigma = self.FrequencyExtraction.Default_Systematic_Smearing
             delta = self.FrequencyExtraction.Default_Systematic_Uncertainty
             return sigma, delta
 
-        ScalingFactorCRLB = self.FrequencyExtraction.CRLB_scaling_factor # Cramer-Rao lower bound / how much worse are we than the lower bound
+        # Cramer-Rao lower bound / how much worse are we than the lower bound
+        ScalingFactorCRLB = self.FrequencyExtraction.CRLB_scaling_factor
         ts = self.FrequencyExtraction.track_timestep
+        # "This is apparent in the case of resonant patch antennas and cavities, in which the time scale of the signal onset is set by the Q-factor of the resonant structure."
+        # You can get it from the finite impulse response of the antennas from HFSS
         Gdot = self.FrequencyExtraction.track_onset_rate
-        Ke = self.Tritium.endpoint
 
-        fEndpoint = self.frequency(self.Tritium.endpoint, self.MagneticField.nominal_field) # cyclotron frequency at the endpoint
-        betae = np.sqrt(Ke**2+2*Ke*me*c0**2)/(Ke+me*c0**2) # electron speed at energy Ke
-        Pe = 2*np.pi*(e*fEndpoint*betae*np.sin(self.FrequencyExtraction.pitch_angle))**2/(3*eps0*c0*(1-(betae)**2)) # electron radiation power
+        fEndpoint = frequency(self.T_endpoint, self.MagneticField.nominal_field)
+        betae = beta(self.T_endpoint)
+        Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
         alpha_approx = fEndpoint * 2 * np.pi * Pe/me/c0**2 # track slope
-        sigNoise = np.sqrt(kB*self.FrequencyExtraction.noise_temperature/ts) # noise level
+        # quantum limited noise
+        sigNoise = np.sqrt((2*pi*fEndpoint*hbar*self.FrequencyExtraction.amplifier_noise_scaling+kB*self.FrequencyExtraction.antenna_noise_temperature)/ts) # noise level
         Amplitude = np.sqrt(self.FrequencyExtraction.epsilon_collection*Pe)
-        Nsteps = 1 / (self.Experiment.number_density * self.Tritium.crosssection_te*betae*c0*ts) # Number of timesteps of length ts
+        Nsteps = 1 / (self.Experiment.number_density * self.Te_crosssection*betae*c0*ts) # Number of timesteps of length ts
 
         # sigma_f from Cramer-Rao lower bound in Hz
         sigma_f_CRLB = (ScalingFactorCRLB /(2*np.pi) * sigNoise/Amplitude * np.sqrt(alpha_approx**2/(2*Gdot)
@@ -226,6 +307,47 @@ class Sensitivity(object):
         delta_sigma_f = np.sqrt((delta_sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_uncertainty**2)/2)
 
         return sigma_f, delta_sigma_f
+
+    # def syst_frequency_extraction(self):
+    #     # cite{https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398} (Section 1.2, p 7-9)
+    #     # Are we double counting the antenna collection efficiency? We use it here. Does it also impact the effective volume, v_eff ?
+    #     # Are we double counting the effect of magnetic field uncertainty here? Is 'sigma_f_Bfield' the same as 'rRecoErr', 'delta_rRecoErr', 'rRecoPhiErr', 'delta_rRecoPhiErr'?
+
+    #     if self.FrequencyExtraction.UseFixedValue:
+    #         sigma = self.FrequencyExtraction.Default_Systematic_Smearing
+    #         delta = self.FrequencyExtraction.Default_Systematic_Uncertainty
+    #         return sigma, delta
+
+    #     ScalingFactorCRLB = self.FrequencyExtraction.CRLB_scaling_factor # Cramer-Rao lower bound / how much worse are we than the lower bound
+    #     ts = self.FrequencyExtraction.track_timestep
+    #     Gdot = self.FrequencyExtraction.track_onset_rate
+    #     Ke = self.T_endpoint
+
+    #     fEndpoint = self.frequency(self.T_endpoint, self.MagneticField.nominal_field) # cyclotron frequency at the endpoint
+    #     betae = np.sqrt(Ke**2+2*Ke*me*c0**2)/(Ke+me*c0**2) # electron speed at energy Ke
+    #     Pe = 2*np.pi*(e*fEndpoint*betae*np.sin(self.FrequencyExtraction.pitch_angle))**2/(3*eps0*c0*(1-(betae)**2)) # electron radiation power
+    #     alpha_approx = fEndpoint * 2 * np.pi * Pe/me/c0**2 # track slope
+    #     sigNoise = np.sqrt(kB*self.FrequencyExtraction.noise_temperature/ts) # noise level
+    #     Amplitude = np.sqrt(self.FrequencyExtraction.epsilon_collection*Pe)
+    #     Nsteps = 1 / (self.Experiment.number_density * self.Te_crosssection*betae*c0*ts) # Number of timesteps of length ts
+
+    #     # sigma_f from Cramer-Rao lower bound in Hz
+    #     sigma_f_CRLB = (ScalingFactorCRLB /(2*np.pi) * sigNoise/Amplitude * np.sqrt(alpha_approx**2/(2*Gdot)
+    #                 + 96.*Nsteps/(ts**2*(Nsteps**4-5*Nsteps**2+4))))
+    #     # uncertainty in alpha
+    #     delta_alpha = 6*sigNoise/(Amplitude*ts**2) * np.sqrt(10/(Nsteps*(Nsteps**4-5*Nsteps**2+4)))
+    #     # uncetainty in sigma_f in Hz due to uncertainty in alpha
+    #     delta_sigma_f_CRLB = delta_alpha * alpha_approx *sigNoise**2/(8*np.pi**2*Amplitude**2*Gdot*sigma_f_CRLB*ScalingFactorCRLB**2)
+
+    #     # sigma_f from Cramer-Rao lower bound in eV
+    #     sigma_K_f_CRLB =  e*self.MagneticField.nominal_field/(2*np.pi*fEndpoint**2)*sigma_f_CRLB*c0**2
+    #     delta_sigma_K_f_CRLB = e*self.MagneticField.nominal_field/(2*np.pi*fEndpoint**2)*delta_sigma_f_CRLB*c0**2
+
+    #     # combined sigma_f in eV
+    #     sigma_f = np.sqrt(sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_smearing**2)
+    #     delta_sigma_f = np.sqrt((delta_sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_uncertainty**2)/2)
+
+    #     return sigma_f, delta_sigma_f
 
     def syst_magnetic_field(self):
         if self.MagneticField.UseFixedValue:

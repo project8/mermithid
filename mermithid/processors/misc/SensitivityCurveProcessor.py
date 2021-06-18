@@ -169,11 +169,11 @@ class SensitivityCurveProcessor(BaseProcessor):
         logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.Experiment.v_eff))
         logger.info('Total signal: {}'.format(rho_opt*self.sens_main.Experiment.v_eff*
                                                    self.sens_main.Experiment.LiveTime/
-                                                   self.sens_main.Tritium.Livetime*2))
-        logger.info('Signal in last eV: {}'.format(self.sens_main.Tritium.last_1ev_fraction*eV**3*
+                                                   self.sens_main.T_livetime*2))
+        logger.info('Signal in last eV: {}'.format(self.sens_main.last_1ev_fraction*eV**3*
                                                    rho_opt*self.sens_main.Experiment.v_eff*
                                                    self.sens_main.Experiment.LiveTime/
-                                                   self.sens_main.Tritium.Livetime*2))
+                                                   self.sens_main.T_livetime*2))
 
         return True
 
@@ -236,7 +236,7 @@ class SensitivityCurveProcessor(BaseProcessor):
         logger.info('T in Veff: {}'.format(rho_opt*self.sens_ref.Experiment.v_eff))
         logger.info('Ref. total signal: {}'.format(rho_opt*self.sens_ref.Experiment.v_eff*
                                                    self.sens_ref.Experiment.LiveTime/
-                                                   self.sens_ref.Tritium.Livetime))
+                                                   self.sens_ref.T_livetime))
 
         self.ax.plot(self.rhos*m**3, limit, color=color)
         self.ax.axvline(self.rhos[self.opt_ref]*m**3, ls=":", color="gray", alpha=0.4)
