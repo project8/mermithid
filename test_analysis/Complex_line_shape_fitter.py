@@ -58,8 +58,8 @@ class ComplexLineShapeTests(unittest.TestCase):
             'fit_recon_eff': False,
             #parameters for simulated resolution scaled with scatter peak ratio fitted
             #choose the parameters you want to fix from ['B field','amplitude','width scale factor', 'survival probability','scatter peak ratio param b', 'scatter peak ratio param c'] plus the gas scatter fractions as ['H2 scatter fraction'],
-            'fixed_parameter_names': ['survival probability', 'H2 scatter fraction'],
-            'fixed_parameter_values': [0.8, 0.9],        
+            'fixed_parameter_names': ['survival probability', 'H2 scatter fraction', 'width scale factor'],
+            'fixed_parameter_values': [1.0, 0.896, 1.0],        
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,
