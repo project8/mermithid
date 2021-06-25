@@ -22,7 +22,7 @@ class ComplexLineShapeTests(unittest.TestCase):
 
         reader_config = {
             "action": "read",
-            "filename": "/host/march_2020_kr_calibration_channel_b_merged.root",
+            "filename": "/host/shallow_trap_high_stats_above_10600_channel_a_concat.root",
             "object_type": "TMultiTrackEventData",
             "object_name": "multiTrackEvents:Event",
             "use_katydid": False,
@@ -44,7 +44,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             # When option fixed_survival_probability is True, assign the survival probability below
             'survival_prob': 15/16., # assuming total cross section for elastic scattering is 1/10 of inelastic scattering
             # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, composite_gaussian_scaled, simulated_resolution_scaled, 'simulated_resolution_scaled_fit_scatter_peak_ratio', 'gaussian_resolution_fit_scatter_peak_ratio'
-            'resolution_function': 'simulated_resolution_scaled_fit_scatter_peak_ratio',
+            'resolution_function': 'gaussian_resolution_fit_scatter_peak_ratio',
             # specific choice of parameters in the gaussian lorentzian composite resolution function
             'recon_eff_param_a': 0.005569990343215976,
             'recon_eff_param_b': 0.351,
@@ -58,8 +58,8 @@ class ComplexLineShapeTests(unittest.TestCase):
             'fit_recon_eff': False,
             #parameters for simulated resolution scaled with scatter peak ratio fitted
             #choose the parameters you want to fix from ['B field','amplitude','width scale factor', 'survival probability','scatter peak ratio param b', 'scatter peak ratio param c'] plus the gas scatter fractions as ['H2 scatter fraction'],
-            'fixed_parameter_names': ['survival probability', 'H2 scatter fraction', 'width scale factor'],
-            'fixed_parameter_values': [1.0, 0.896, 1.0],        
+            'fixed_parameter_names': ['survival probability', 'H2 scatter fraction'],
+            'fixed_parameter_values': [1.0, 0.896],        
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 10000,
@@ -105,7 +105,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             plot_title = 'fit ftc march with gases: {},\n scatter proportion: {},\n resolution function: {},\n sigma_array: {},\n A_array: {},\n'.format(complexLineShape_config['gases'], complexLineShape_config['gas_scatter_proportion'], complexLineShape_config['resolution_function'], complexLineShape_config['sigma_array'], complexLineShape_config['A_array'])
         plt.title(plot_title)
         plt.tight_layout()
-        plt.savefig('/host/plots/fit_FTC_march_with_simulated_ins_scaled_resolution.png'.format(len(complexLineShape_config['gases'])))
+        plt.savefig('/host/plots/fit_shallow_trap_above_10600_with_gaussian_resolution.png'.format(len(complexLineShape_config['gases'])))
 
 if __name__ == '__main__':
 
