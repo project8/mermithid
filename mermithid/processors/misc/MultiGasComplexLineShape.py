@@ -345,6 +345,7 @@ class MultiGasComplexLineShape(BaseProcessor):
             scatter_spectra_single_gas[gas_type] = {}
             first_scatter = self.single_scatter_f(gas_type)
             if self.use_radiation_loss == True:
+                f_radiation_loss = self.radiation_loss_f()
                 first_scatter = self.normalize(signal.convolve(first_scatter, f_radiation_loss, mode = 'same'))
             scatter_num_array = range(2, self.max_scatters+1)
             current_scatter = first_scatter
