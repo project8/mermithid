@@ -79,7 +79,7 @@ class MultiGasComplexLineShape(BaseProcessor):
             self.sigma_array = reader.read_param(params, 'sigma_array', [5.01, 13.33, 15.40, 11.85])
         if self.resolution_function == 'simulated_resolution_scaled':
             self.fit_recon_eff = reader.read_param(params, 'fit_recon_eff', False)
-        if self.resolution_function == 'simulated_resolution_scaled_fit_scatter_peak_ratio':
+        if self.resolution_function == 'simulated_resolution_scaled_fit_scatter_peak_ratio' or 'gaussian_resolution_fit_scatter_peak_ratio':
             self.fixed_parameter_names = reader.read_param(params, 'fixed_parameter_names', [])
             self.fixed_parameter_values = reader.read_param(params, 'fixed_parameter_values', [])
             #self.elevation_factor = reader.read_param(params, 'elevation_factor', 20)
@@ -158,6 +158,8 @@ class MultiGasComplexLineShape(BaseProcessor):
                 self.results = self.fit_data_simulated_resolution_scaled_fit_recon_eff(freq_bins, data_hist_freq)
         elif self.resolution_function == 'simulated_resolution_scaled_fit_scatter_peak_ratio':
             self.results = self.fit_data_simulated_resolution_scaled_fit_scatter_peak_ratio(freq_bins, data_hist_freq)
+        elif self.resolution_function == 'gaussian_resolution_fit_scatter_peak_ratio':
+            self.results = self.fit_data_gaussian_resolution_fit_scatter_peak_ratio(freq_bins, data_hist_freq)
 
         return True
 
@@ -340,7 +342,6 @@ class MultiGasComplexLineShape(BaseProcessor):
         t = time.time()
         scatter_spectra_single_gas = {}
         for gas_type in self.gases:
-            f_radiation_loss = self.radiation_loss_f()
             scatter_spectra_single_gas[gas_type] = {}
             first_scatter = self.single_scatter_f(gas_type)
             if self.use_radiation_loss == True:
@@ -352,6 +353,7 @@ class MultiGasComplexLineShape(BaseProcessor):
             for i in scatter_num_array:
                 current_scatter = self.another_scatter(current_scatter, gas_type)
                 if self.use_radiation_loss == True:
+                    f_radiation_loss = self.radiation_loss_f()
                     current_scatter = self.normalize(signal.convolve(current_scatter, f_radiation_loss, mode = 'same'))
                 scatter_spectra_single_gas[gas_type][str(i).zfill(2)] = current_scatter
         N = len(self.gases)
@@ -411,10 +413,10 @@ class MultiGasComplexLineShape(BaseProcessor):
         return
 
     # Given a function evaluated on the SELA, convolves it with a gaussian
-    def convolve_gaussian(self, func_to_convolve,gauss_FWHM_eV):
+    def convolve_gaussian(self, func_to_convolve, gauss_FWHM_eV):
         sigma = ComplexLineShapeUtilities.gaussian_FWHM_to_sigma(gauss_FWHM_eV)
         resolution_f = self.std_gaussian(sigma)
-        ans = signal.convolve(resolution_f,func_to_convolve,mode='same')
+        ans = signal.convolve(resolution_f, func_to_convolve,mode='same')
         ans_normed = self.normalize(ans)
         return ans_normed
     
@@ -3115,7 +3117,6 @@ class MultiGasComplexLineShape(BaseProcessor):
             scatter_peak_ratio = np.exp(-1.*scatter_peak_ratio_b*M**scatter_peak_ratio_c)
             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
             for combination in gas_scatter_combinations:
-                #print(combination)
                 entry_str = ''
                 for component, gas_type in zip(combination, self.gases):
                     entry_str += gas_type
@@ -3176,14 +3177,14 @@ class MultiGasComplexLineShape(BaseProcessor):
         eff_array = quad_trap_count_rate_interp(bins_Hz)
         # Initial guesses for curve_fit
         B_field_guess = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[np.argmax(data_hist_freq)])
-        amplitude_guess = np.sum(data_hist_freq)/2
+        amplitude_guess = np.sum(data_hist_freq)
         FWHM_eV_guess = 5
         survival_probability_guess = 0.5
         scatter_fraction_guess = 0.5
         sigma_guess = 5
         gamma_guess = 3
         gaussian_portion_guess = 0.5
-        scale_factor_guess = 1.
+        scale_factor_guess = 0.5
         scatter_peak_ratio_parameter_guess = 0.5
         # Bounds for curve_fit
         B_field_min = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[0])
@@ -3483,3 +3484,4 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         
         return dictionary_of_fit_results
+
