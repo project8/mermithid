@@ -1,4 +1,8 @@
-FROM project8/p8compute_dependencies:v0.9.0 as mermithid_common
+ARG IMG_USER=project8
+ARG IMG_REPO=p8compute_dependencies
+ARG IMG_TAG=v1.0.0.beta
+
+FROM ${IMG_USER}/${IMG_REPO}:${IMG_TAG} as mermithid_common
 
 ARG build_type=Release
 ENV MERMITHID_BUILD_TYPE=$build_type
