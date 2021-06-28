@@ -375,7 +375,7 @@ class FakeDataGenerator(BaseProcessor):
         if array_method == True:
             ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean,
             mass, Kmin, lineshape, params, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, self.scatter_proportion, min_energy, max_energy,
-            self.complexLineShape, self.final_state_array)
+            self.complexLineShape, self.final_state_array, self.resolution_function)
         else:
             ratesS = [convolved_spectral_rate(K, Q_mean, mass, Kmin,
                 lineshape, params, min_energy, max_energy) for K in
@@ -391,7 +391,7 @@ class FakeDataGenerator(BaseProcessor):
         if array_method == True:
             ratesB = convolved_bkgd_rate_arrays(self.Koptions, Kmin, Kmax,
                                                 lineshape, params, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, self.scatter_proportion, min_energy, max_energy,
-                                                self.complexLineShape)
+                                                self.complexLineShape, self.resolution_function)
         else:
             ratesB = [convolved_bkgd_rate(K, Kmin, Kmax, lineshape, params,
             min_energy, max_energy) for K in self.Koptions]
