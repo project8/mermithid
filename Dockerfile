@@ -1,9 +1,14 @@
-FROM project8/p8compute_dependencies:v0.9.0 as mermithid_common
+ARG IMG_USER=project8
+ARG IMG_REPO=p8compute_dependencies
+ARG IMG_TAG=v1.0.0.beta
+
+FROM ${IMG_USER}/${IMG_REPO}:${IMG_TAG} as mermithid_common
 
 ARG build_type=Release
 ENV MERMITHID_BUILD_TYPE=$build_type
 
-ENV MERMITHID_TAG=v1.2.2
+ARG MERMITHID_TAG=beta
+ENV MERMITHID_TAG=${MERMITHID_TAG}
 ENV MERMITHID_BUILD_PREFIX=/usr/local/p8/mermithid/$MERMITHID_TAG
 
 RUN mkdir -p $MERMITHID_BUILD_PREFIX &&\
