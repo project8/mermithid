@@ -313,7 +313,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
 
 
 #Convolution of background and lineshape using scipy.signal.convolve
-def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, min_energy, max_energy, complexLineShape):
+def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, min_energy, max_energy, complexLineShape, resolution_function):
     """K is an array-like object
     """
     energy_half_range = max(max_energy, abs(min_energy))
