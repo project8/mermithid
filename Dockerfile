@@ -19,7 +19,7 @@ RUN mkdir -p $MERMITHID_BUILD_PREFIX &&\
     echo 'ln -sfT $MERMITHID_BUILD_PREFIX $MERMITHID_BUILD_PREFIX/../current' >> setup.sh &&\
     echo 'export PATH=$MERMITHID_BUILD_PREFIX/bin:$PATH' >> setup.sh &&\
     echo 'export LD_LIBRARY_PATH=$MERMITHID_BUILD_PREFIX/lib:$LD_LIBRARY_PATH' >> setup.sh &&\
-    echo 'export PYTHONPATH=$MERMITHID_BUILD_PREFIX/$(python -m site --user-site | sed "s%$(python -m site --user-base)%%"):$PYTHONPATH' >> setup.sh &&\
+    echo 'export PYTHONPATH=$MERMITHID_BUILD_PREFIX/$(python3 -m site --user-site | sed "s%$(python3 -m site --user-base)%%"):$PYTHONPATH' >> setup.sh &&\
     /bin/true
 
 ########################
