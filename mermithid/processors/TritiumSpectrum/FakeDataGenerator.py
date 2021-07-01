@@ -341,6 +341,8 @@ class FakeDataGenerator(BaseProcessor):
         else:
             Kmin, Kmax = ROIbound[0], ROIbound[1]
         B = B_1kev*(Kmax-Kmin)/1000.
+        print("MIN KE:", Kmin)
+        print("MAX F:", maxf)
 
         nstdevs = 7 #Number of standard deviations (of size broadening) below Kmin and above Q-m to generate data, for the gaussian case
         FWHM_convert = 2*math.sqrt(2*math.log(2))

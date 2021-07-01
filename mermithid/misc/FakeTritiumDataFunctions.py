@@ -20,6 +20,8 @@ logger = morphologging.getLogger(__name__)
 from mermithid.misc.Constants import *
 from mermithid.misc.ConversionFunctions import *
 
+import matplotlib.pyplot as plt
+
 """
 Constants and functions used by processors/TritiumSpectrum/FakeDataGenerator.py
 """
@@ -301,10 +303,25 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
             logger.warn('{} is not a resolution function that has been implemented in the FakeDataGenerator'.format(resolution_function))
         lineshape_rates = np.flipud(lineshape_rates)
 
+    fig = plt.figure()
+    plt.plot(complexLineShape.std_eV_array(), lineshape_rates)
+    plt.xlabel('Energy shift (eV)', fontsize=15)
+    plt.ylabel('Response function (a.u.)', fontsize=15)
+    plt.xlim([-750., 500.])
+    plt.savefig('complex_lineshape_rates_{}.pdf'.format(ls_params[1]))
+    plt.show()
+
     beta_rates = spectral_rate(K, Q, mnu, final_state_array)
 
     #Convolving
     convolved = convolve(beta_rates, lineshape_rates, mode='same')
+    
+    #fig = plt.figure()
+    #plt.plot(K, convolved)
+    #plt.xlabel('Energy (eV)')
+    #plt.ylabel('Signal rate')
+    #plt.savefig('spectrum_signal.pdf')
+    #plt.show()
     
     below_Kmin = np.where(K < Kmin)
     np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
