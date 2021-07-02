@@ -7,6 +7,7 @@ Date:4/6/2020
 from __future__ import absolute_import
 
 import numpy as np
+import json
 
 from scipy.special import gamma
 from scipy import integrate
@@ -18,7 +19,6 @@ logger = morphologging.getLogger(__name__)
 
 from mermithid.misc.Constants import *
 from mermithid.misc.ConversionFunctions import *
-from mermithid.misc.KrLineshapeFunctions import *
 
 """
 Constants and functions used by processors/TritiumSpectrum/FakeDataGenerator.py
@@ -147,13 +147,42 @@ def spectral_rate_in_window(K, Q, mnu, Kmin):
     else:
         return 0.
 
+
+def beta_rates(K, Q, mnu, index):
+    beta_rates = np.zeros(len(K))
+    nu_mass_shape = ((Q - K[index])**2 -mnu**2)**0.5
+    beta_rates[index] = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*ephasespace(K[index], Q)*(Q - K[index])*nu_mass_shape
+    return beta_rates
+
+
+
 # Unsmeared eta spectrum without a lower energy bound
-def spectral_rate(K, Q, mnu):
-    if Q-mnu > K > 0:
-        return GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*ephasespace(K, Q)*(Q - K)*np.sqrt((Q - K)**2 - (mnu)**2)
+def spectral_rate(K, Q, mnu, final_state_array):
+
+    if isinstance(K, list) or isinstance(K, np.ndarray):
+        N_states = len(final_state_array[0])
+        beta_rates_array = np.zeros([N_states, len(K)])
+
+        Q_states = Q+final_state_array[0]-np.max(final_state_array[0])
+
+        index = [np.where(K < Q_states[i]-mnu) for i in range(N_states)]
+
+        beta_rates_array = [beta_rates(K, Q_states[i], mnu, index[i])*final_state_array[1][i] for i in range(N_states)]
+        to_return = np.nansum(beta_rates_array, axis=0)/np.nansum(final_state_array[1])
+
+        return to_return
+
     else:
-            return 0.
-    #np.heaviside(Q-mnu-K, 0.5)*np.heaviside(K-V0, 0.5)
+
+        return_value = 0.
+
+        for i, e_binding in enumerate(final_state_array[0]):
+            # binding energies are negative
+            Q_state = Q+e_binding
+            if Q_state-mnu > K > 0:
+                return_value += final_state_array[1][i] *(GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*ephasespace(K, Q_state)*(Q_state - K)*np.sqrt((Q_state - K)**2 - (mnu)**2))
+
+        return return_value/np.sum(final_state_array[1])
 
 
 #Flat background with lower and upper bounds Kmin and Kmax
@@ -169,12 +198,12 @@ def bkgd_rate():
     return 1.
 
 
-##Lineshape option: In this case, simply a Gaussian
-#def gaussian(x,a):
-#    return 1/((2.*np.pi)**0.5*a[0])*(np.exp(-0.5*((x-a[1])/a[0])**2))
+#Lineshape option: In this case, simply a Gaussian
+def gaussian(x,a):
+    return 1/((2.*np.pi)**0.5*a[0])*(np.exp(-0.5*((x-a[1])/a[0])**2))
 
 
-#Normalized simplified linesahape with scattering
+#Normalized simplified lineshape with scattering
 def simplified_ls(K, Kcenter, FWHM, prob, p0, p1, p2, p3):
     sig0 = FWHM/float(2*np.sqrt(2*np.log(2)))
     shape = gaussian(K, [sig0, Kcenter])
@@ -245,7 +274,8 @@ def convolved_bkgd_rate(K, Kmin, Kmax, lineshape, ls_params, min_energy, max_ene
 
 #Convolution of signal and lineshape using scipy.signal.convolve
 def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
-                                   lineshape, ls_params, min_energy, max_energy):
+                                   lineshape, ls_params, min_energy, max_energy,
+                                   complexLineShape, final_state_array):
     """K is an array-like object
     """
     logger.info('Using scipy convolve')
@@ -263,11 +293,12 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
-        lineshape_rates = spectrum_func(K_lineshape/1000., ls_params[0], 0, ls_params[1], 1)
 
-    beta_rates = np.zeros(len(K))
-    for i,ke in enumerate(K):
-        beta_rates[i] = spectral_rate(ke, Q, mnu)
+        lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., ls_params[0], 0, 1, ls_params[1])
+
+    beta_rates = spectral_rate(K, Q, mnu, final_state_array) #np.zeros(len(K))
+    #for i,ke in enumerate(K):
+    #    beta_rates[i] = spectral_rate(ke, Q, mnu, final_state_array)
 
     #Convolving
     convolved = convolve(beta_rates, lineshape_rates, mode='same')
@@ -278,7 +309,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
 
 
 #Convolution of background and lineshape using scipy.signal.convolve
-def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, max_energy):
+def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, max_energy, complexLineShape):
     """K is an array-like object
     """
     energy_half_range = max(max_energy, abs(min_energy))
@@ -294,7 +325,7 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
-        lineshape_rates = spectrum_func(K_lineshape/1000., ls_params[0], 0, ls_params[1], 1)
+        lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., ls_params[0], 0, 1, ls_params[1])
 
     bkgd_rates = np.full(len(K), bkgd_rate())
     if len(K) < len(K_lineshape):

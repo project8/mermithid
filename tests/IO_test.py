@@ -75,9 +75,9 @@ class IOTests(unittest.TestCase):
         plt.ylabel('N')
 
         plt.subplot(212)
-        plt.hist(data['a']['TrueStartFrequenciesCut']-24.5e9, bins=bins-24.5e9, label='channel a: {} counts'.format(len(data['a']['TrueStartFrequenciesCut'])))
-        plt.hist(data['b']['TrueStartFrequenciesCut']-24.5e9, bins=bins-24.5e9, label='channel b: {} counts'.format(len(data['b']['TrueStartFrequenciesCut'])))
-        plt.hist(data['c']['TrueStartFrequenciesCut']-24.5e9, bins=bins-24.5e9, label='channel c: {} counts'.format(len(data['c']['TrueStartFrequenciesCut'])))
+        plt.hist(np.array(data['a']['TrueStartFrequenciesCut'])-24.5e9, bins=bins-24.5e9, label='channel a: {} counts'.format(len(data['a']['TrueStartFrequenciesCut'])))
+        plt.hist(np.array(data['b']['TrueStartFrequenciesCut'])-24.5e9, bins=bins-24.5e9, label='channel b: {} counts'.format(len(data['b']['TrueStartFrequenciesCut'])))
+        plt.hist(np.array(data['c']['TrueStartFrequenciesCut'])-24.5e9, bins=bins-24.5e9, label='channel c: {} counts'.format(len(data['c']['TrueStartFrequenciesCut'])))
         plt.xlabel('Start frequencies')
         plt.ylabel('N')
         plt.legend()
