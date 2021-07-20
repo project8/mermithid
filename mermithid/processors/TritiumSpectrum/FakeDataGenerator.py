@@ -213,7 +213,7 @@ class FakeDataGenerator(BaseProcessor):
                     'sigma_array': self.sigma_array,
                     
                     # This is an important parameter which determines how finely resolved the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to be increased for larger datasets.
-                    'num_points_in_std_array': 35838,
+                    'num_points_in_std_array': 150000,#35838,
                     'base_shape': 'dirac',
                     'path_to_osc_strengths_files': self.path_to_osc_strengths_files,
                     'path_to_scatter_spectra_file':self.path_to_scatter_spectra_file,
@@ -235,7 +235,7 @@ class FakeDataGenerator(BaseProcessor):
 
         else:
             self.lineshape = 'gaussian'
-            self.SimpParams = [self.broadening]
+            self.SimpParams = [self.scattering_sigma]
             logger.info('Lineshape is Gaussian')
 
         # check final states file existence

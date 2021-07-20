@@ -292,6 +292,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
     if lineshape=='gaussian':
         logger.info('broadening: {}'.format(ls_params[0]))
         lineshape_rates = gaussian(K_lineshape, [ls_params[0], 0])
+        print(ls_params[0])
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
@@ -304,11 +305,11 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
         lineshape_rates = np.flipud(lineshape_rates)
 
     fig = plt.figure()
-    plt.plot(complexLineShape.std_eV_array(), lineshape_rates)
+    plt.plot(K_lineshape, lineshape_rates) #complexLineShape.std_eV_array()
     plt.xlabel('Energy shift (eV)', fontsize=15)
     plt.ylabel('Response function (a.u.)', fontsize=15)
     plt.xlim([-750., 500.])
-    plt.savefig('complex_lineshape_rates_{}.pdf'.format(ls_params[1]))
+    plt.savefig('lineshape_rates.pdf')#.format(ls_params[1]))
     plt.show()
 
     beta_rates = spectral_rate(K, Q, mnu, final_state_array)
