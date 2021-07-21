@@ -1,8 +1,8 @@
 #!/bin/bash
 
-python IO_test.py
-python Misc_test.py
-python Tritium_test.py
-python TritiumAndEfficiencyBinner_test.py
-python Fake_data_generator_test.py
-python Fitters_test.py
+python3 IO_test.py
+python3 Misc_test.py
+python3 Tritium_test.py
+python3 TritiumAndEfficiencyBinner_test.py
+python3 Fake_data_generator_test.py
+python3 Fitters_test.py
