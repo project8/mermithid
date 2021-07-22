@@ -73,7 +73,7 @@ class TritiumSpectrumProcessor(RooFitInterfaceProcessor):
                 "meanSmearing_tmp", "meanSmearing_tmp", 0)
             widthSmearing = ROOT.RooRealVar(
                 "widthSmearing_tmp", "widthSmearing_tmp", self.energy_resolution)
-            spectrum = pdffactory.GetSmearedPdf(ROOT.RealTritiumSpectrum)(
+            spectrum = pdffactory.GetSmearedPdf[ROOT.RealTritiumSpectrum](
                 "smearedspectrum_tmp", 2, KE, spectrum, meanSmearing, widthSmearing, 1000000)
         fullSpectrumIntegral = spectrum.createIntegral(
             ROOT.RooArgSet(KE), ROOT.RooFit.Range("FullRange"))
@@ -128,7 +128,7 @@ class TritiumSpectrumProcessor(RooFitInterfaceProcessor):
             meanSmearing = ROOT.RooRealVar("meanSmearing", "meanSmearing", 0.)
             widthSmearing = ROOT.RooRealVar(
                 "widthSmearing", "widthSmearing", self.energy_resolution, 0., 10*self.energy_resolution)
-            smearedspectrum = pdffactory.GetSmearedPdf(ROOT.RealTritiumSpectrum)(
+            smearedspectrum = pdffactory.GetSmearedPdf[ROOT.RealTritiumSpectrum](
                 "smearedspectrum", 2, KE, spectrum, meanSmearing, widthSmearing, 100000)
 
         # Calculate number of events and background
@@ -168,10 +168,10 @@ class TritiumSpectrumProcessor(RooFitInterfaceProcessor):
         NBkgd = ROOT.RooRealVar(
             "NBkgd", "NBkgd", self.number_bkgd_window_to_generate, 0., 10*self.number_bkgd_window_to_generate)
         if self.doSmearing:
-            pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)(
+            pdf = pdffactory.AddBackground[ROOT.RooAbsPdf](
                 "pdf", KE, smearedspectrum, NEvents, NBkgd)
         else:
-            pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)(
+            pdf = pdffactory.AddBackground[ROOT.RooAbsPdf](
                 "pdf", KE, spectrum, NEvents, NBkgd)
 
         getattr(wspace, 'import')(KE)

@@ -85,7 +85,7 @@ class TritiumSpectrumGenerator(BaseProcessor):
                 "meanSmearing_tmp", "meanSmearing_tmp", 0)
             widthSmearing = ROOT.RooRealVar(
                 "widthSmearing_tmp", "widthSmearing_tmp", self.energy_resolution)
-            smearedspectrum = pdffactory.GetSmearedPdf(ROOT.RealTritiumSpectrum)(
+            smearedspectrum = pdffactory.GetSmearedPdf[ROOT.RealTritiumSpectrum](
                 "smearedspectrum_tmp", 2, KE, spectrum, meanSmearing, widthSmearing, 1000000)
         fullSpectrumIntegral = spectrum.createIntegral(
             ROOT.RooArgSet(KE), ROOT.RooFit.Range("FullRange"))
@@ -141,7 +141,7 @@ class TritiumSpectrumGenerator(BaseProcessor):
             widthSmearing = ROOT.RooRealVar(
                 "widthSmearing", "widthSmearing", self.energy_resolution, 0., 10*self.energy_resolution)
             # KE.setBins(100000, "cache")
-            smearedspectrum = pdffactory.GetSmearedPdf(ROOT.RealTritiumSpectrum)(
+            smearedspectrum = pdffactory.GetSmearedPdf[ROOT.RealTritiumSpectrum](
                 "smearedspectrum", 2, KE, spectrum, meanSmearing, widthSmearing, 100000)
 
         # Background
@@ -185,10 +185,10 @@ class TritiumSpectrumGenerator(BaseProcessor):
         NBkgd = ROOT.RooRealVar(
             "NBkgd", "NBkgd", self.number_bkgd_window_to_generate, 0., 10*self.number_bkgd_window_to_generate)
         if self.doSmearing:
-            totalSpectrum = pdffactory.AddBackground(ROOT.RooAbsPdf)(
+            totalSpectrum = pdffactory.AddBackground[ROOT.RooAbsPdf](
                 "totalSpectrum", KE, smearedspectrum, NEvents, NBkgd)
         else:
-            totalSpectrum = pdffactory.AddBackground(ROOT.RooAbsPdf)(
+            totalSpectrum = pdffactory.AddBackground[ROOT.RooAbsPdf](
                 "totalSpectrum", KE, spectrum, NEvents, NBkgd)
 
         # Save things in a Workspace
