@@ -95,7 +95,9 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/res_cf15.5_all.txt')
         self.use_combined_four_trap_inst_reso = reader.read_param(params, 'use_combined_four_trap_inst_reso', False)
         self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap1.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap2.txt', '/host/T2-1.56e-4/analysis_input/complex-lineshape-inputs/res_cf15.5_trap3.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap4.txt'])
-        self.path_to_quad_trap_eff_interp = reader.read_param(params, 'path_to_quad_trap_eff_interp', '/host/quad_interps.npy')
+        self.use_quad_trap_eff_interp = reader.read_param(params, 'use_quad_trap_eff_interp', True)
+        if self.use_quad_trap_eff_interp == True:
+            self.path_to_quad_trap_eff_interp = reader.read_param(params, 'path_to_quad_trap_eff_interp', '/host/quad_interps.npy')
         self.recon_eff_params = reader.read_param(params, 'recon_eff_params', [0.005569990343215976, 0.351, 0.546])
         self.recon_eff_param_a = self.recon_eff_params[0]
         self.recon_eff_param_b = self.recon_eff_params[1]
@@ -3173,9 +3175,12 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
         bins_Hz = 0.5*(bins_Hz[1:] + bins_Hz[:-1])    
-        quad_trap_interp = np.load(self.path_to_quad_trap_eff_interp, allow_pickle = True)
-        quad_trap_count_rate_interp = quad_trap_interp.item()['count_rate_interp']
-        eff_array = quad_trap_count_rate_interp(bins_Hz)
+        if self.use_quad_trap_eff_interp == True:     
+            quad_trap_interp = np.load(self.path_to_quad_trap_eff_interp, allow_pickle = True)
+            quad_trap_count_rate_interp = quad_trap_interp.item()['count_rate_interp']
+            eff_array = quad_trap_count_rate_interp(bins_Hz)
+        else:
+            eff_array = np.ones(len(bins_Hz))
         # Initial guesses for curve_fit
         B_field_guess = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[np.argmax(data_hist_freq)])
         amplitude_guess = np.sum(data_hist_freq)
@@ -3369,10 +3374,13 @@ class MultiGasComplexLineShape(BaseProcessor):
         t = time.time()
         self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
-        bins_Hz = 0.5*(bins_Hz[1:] + bins_Hz[:-1])    
-        quad_trap_interp = np.load(self.path_to_quad_trap_eff_interp, allow_pickle = True)
-        quad_trap_count_rate_interp = quad_trap_interp.item()['count_rate_interp']
-        eff_array = quad_trap_count_rate_interp(bins_Hz)
+        bins_Hz = 0.5*(bins_Hz[1:] + bins_Hz[:-1])
+        if self.use_quad_trap_eff_interp == True:     
+            quad_trap_interp = np.load(self.path_to_quad_trap_eff_interp, allow_pickle = True)
+            quad_trap_count_rate_interp = quad_trap_interp.item()['count_rate_interp']
+            eff_array = quad_trap_count_rate_interp(bins_Hz)
+        else:
+            eff_array = np.ones(len(bins_Hz))
         # Initial guesses for curve_fit
         B_field_guess = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[np.argmax(data_hist_freq)])
         amplitude_guess = np.sum(data_hist_freq)/2
