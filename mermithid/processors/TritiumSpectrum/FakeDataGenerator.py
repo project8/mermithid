@@ -125,7 +125,7 @@ class FakeDataGenerator(BaseProcessor):
         self.scatter_peak_ratio_b = reader.read_param(params, 'scatter_peak_ratio_b', 0.686312493)
         self.scatter_peak_ratio_c = reader.read_param(params, 'scatter_peak_ratio_c', 0.52481056)
         self.scatter_proportion = reader.read_param(params, 'scatter_proportion', [])
-        self.survival_prob = reader.read_param(params, 'survival_prob', 0.7)
+        self.survival_prob = reader.read_param(params, 'survival_prob', 1.)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
         self.resolution_function = reader.read_param(params, 'resolution_function', '')
         self.ratio_gamma_to_sigma = reader.read_param(params, 'ratio_gamma_to_sigma', 0.8)
