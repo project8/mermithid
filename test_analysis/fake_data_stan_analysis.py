@@ -40,6 +40,7 @@ histPlotter = Histogram("histo")
 aposterioriPlotter = APosterioriDistribution("posterioriDistrib")
 divPlotter = Histo2dDivergence("2dDivergence")
 
+Bfield = 0.9574762
 
 def DefineGeneratorInputs(root_file='./results/tritium_analysis.root'):
     """
@@ -52,6 +53,7 @@ def DefineGeneratorInputs(root_file='./results/tritium_analysis.root'):
     "fixed_inputs": {
         'Nscatters': 20,
         'minf': 1353.125e+06 - 40e+06 + 24.5e+09, #In Hz
+        'maxf': 1353.125e+06 + 2*40e+06 + 24.5e+09,
         'err_from_B': 0.
         },
     "priors": [
@@ -61,7 +63,7 @@ def DefineGeneratorInputs(root_file='./results/tritium_analysis.root'):
         {'name': 'S', 'prior_dist': 'poisson', 'prior_params': [3300.]},
         {'name': 'B_1kev', 'prior_dist': 'lognormal', 'prior_params': [-3.826151398234498, 2.1673316326073935]},
         {'name': 'survival_prob', 'prior_dist': 'beta', 'prior_params': [55, 17]}, #Centered approximately around 0.77. To be replaced given complex lineshape result/systematic assessment
-        {'name': 'Bfield', 'prior_dist': 'normal', 'prior_params': [0.9574762, 1.51e-6]}, #From complex lineshape fit to calibration data. More sig figs on mean needed?
+        {'name': 'Bfield', 'prior_dist': 'normal', 'prior_params': [Bfield, 1.51e-6]}, #From complex lineshape fit to calibration data. More sig figs on mean needed?
         ]
     }
     
@@ -72,6 +74,7 @@ def DefineGeneratorInputs(root_file='./results/tritium_analysis.root'):
     "variables": [
         {"variable": "Nscatters", "type":"int"},
         {"variable": "minf", "type": "float"},
+        {"variable": "maxf", "type": "float"},
         {"variable": "err_from_B", "type": "float"},
         {"variable": "Q", "type": "float"},
         {"variable": "mass", "type": "float"},
@@ -112,12 +115,13 @@ def GenerateFakeData(inputs_dict):
     """
     specGen_config = {
         "apply_efficiency": True,
-        "efficiency_path": "../phase2_detection_efficiency_curve/combined_energy_corrected_count_rates/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
+        "efficiency_path": "../tests/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
         "detailed_or_simplified_lineshape": "detailed",
         "return_frequency": True,
         "Q": inputs_dict["Q"],
         "mass": inputs_dict["mass"],
         "minf": inputs_dict["minf"],
+        "maxf": inputs_dict["maxf"],
         "scattering_sigma": inputs_dict["sigma"],
         "S": inputs_dict["S"],
         "B_1kev": inputs_dict["B_1kev"],
@@ -126,6 +130,7 @@ def GenerateFakeData(inputs_dict):
         "Nscatters": inputs_dict["Nscatters"],
         "B_field": inputs_dict["Bfield"],
         "n_steps": 100000,
+        "use_lineshape": False
     }
     
     histo_config = {
@@ -154,7 +159,7 @@ def BinAndSaveData(tritium_data, nbins, root_file="./results/tritium_analysis.ro
         "energy_or_frequency": 'frequency',
         "variables": "F",
         "title": "corrected_spectrum",
-        "efficiency_filepath": "../phase2_detection_efficiency_curve/combined_energy_corrected_count_rates/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
+        "efficiency_filepath": "../tests/combined_energy_corrected_eff_at_quad_trap_frequencies.json",
         'bins': np.linspace(tritium_data['minf'], tritium_data['maxf'], nbins),
         'fss_bins': False # If fss_bins is True, bins is ignored and overridden
         }
@@ -210,7 +215,7 @@ def SaveUnbinnedData(tritium_data, root_file="./results/tritium_analysis.root"):
 
 
 
-def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/tritium_analysis.root', stan_files_location='../../morpho_models/', model_code='tritium_model/models/tritium_phase_II_analyzer_binned.stan', scattering_params_R='simplified_scattering_params.R'):
+def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/tritium_analysis.root', stan_files_location='./', model_code='main_model/tritium_phase_II_analyzer_binned.stan', scattering_params_R='simplified_scattering_params.R'):
     """
     Analyzes frequency or kinetic energy data using a Stan model. Saves and plots posteriors.
     
@@ -241,14 +246,14 @@ def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/
         "cache_dir": stan_files_location+"tritium_model/cache",
         "warmup": 4000, #Increase for real run (to 3000-5000)
         "iter": 8000, #Increase for real run (to 6000-9000)
-        "chain": 3, #Increase for real run (to 3-4)
+        "chain": 1, #Increase for real run (to 3-4)
         "control": {'adapt_delta':0.97},
         "init": {
             "sigma": 17.7084,
             "survival_prob": 0.77,
             "Q": 18573.24,
             "mass": 0.2,
-            "Bfield": 0.9574762,
+            "Bfield": Bfield,
             "S": 3300.,
             "B_1kev": 0.0217933282798889,
             "B": 0.3,
@@ -257,7 +262,7 @@ def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/
             "sigma_ctr": 17.7084, #sigma params from Ali's complex lineshape fits.
             "sigma_std": 1.14658, #Final states not yet included.
             "err_from_B": 0.001, #Tiny smearing from f_c->K conversion
-            "Bfield_ctr": 0.9574762, #From complex lineshape fit to calibration
+            "Bfield_ctr": Bfield, #From complex lineshape fit to calibration
             "Bfield_std": 1.51e-06, #data. More sig figs on mean needed?
             "survival_prob_alpha": 55, #Centered around ~0.77. To be replaced
             "survival_prob_beta": 17, #given complex lineshape result+systematics
@@ -270,7 +275,9 @@ def StanTritiumAnalysis(tritium_data, fit_parameters=None, root_file='./results/
             "KEscale": 16323, #This enables the option of cmdstan running
 #            "slope": 0.000390369173, #For efficiency modeling with unbinned data
 #            "intercept": -6.00337656,
-            "Nscatters": 16 #Because peaks>16 in simplified linesahpe have means->inf as FWHM->0
+            "Nscatters": 16, #Because peaks>16 in simplified linesahpe have means->inf as FWHM->0
+            "slope": 1,
+            "intercept": 20380.5153
         },
         "interestParams": ['Q', 'mass', 'survival_prob', 'Bfield', 'sigma', 'S', 'B_1kev', 'KEmin', 'KE_sample', 'Nfit_signal', 'Nfit_bkgd'],
     }
@@ -410,7 +417,7 @@ def CalibrateResults(root_filenames, vars_to_calibrate, cred_interval=[0.05, 0.9
     calibrator.Run()
 
 
-def FakeExperimentEnsemble(n_runs, root_basename, wait_before_runs=0, parallelize=True, n_processes=4, vars_to_calibrate=['Q']):
+def FakeExperimentEnsemble(n_runs, root_basename, wait_before_runs=0, parallelize=True, n_processes=1, vars_to_calibrate=['Q']):
     """
     To-do: add parallelization option for a Slurm environment.
     
@@ -438,8 +445,8 @@ def FakeExperimentEnsemble(n_runs, root_basename, wait_before_runs=0, paralleliz
         with Pool(n_processes) as p:
             p.map(PerformFakeExperiment, root_filenames)
             
-    coverages = CalibrateResults(root_filenames, vars_to_calibrate)
-    
+    #coverages = CalibrateResults(root_filenames, vars_to_calibrate)
+    coverages = None
     return coverages
 
 
