@@ -279,7 +279,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
                                    lineshape, ls_params, scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, min_energy, max_energy,
                                    complexLineShape, final_state_array, resolution_function):
     """K is an array-like object
-    """
+    """    
     logger.info('Using scipy convolve')
     energy_half_range = max(max_energy, abs(min_energy))
 
@@ -297,7 +297,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
         if resolution_function == 'simulated_resolution' or 'simulated':
-            lineshape_rates = complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(1, ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')
+            lineshape_rates = complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')
         elif resolution_function == 'gaussian_resolution' or 'gaussian':
             lineshape_rates = complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')
         else:

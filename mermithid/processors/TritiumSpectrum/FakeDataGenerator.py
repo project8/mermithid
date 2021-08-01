@@ -69,6 +69,7 @@ class FakeDataGenerator(BaseProcessor):
         - sample_ins_resolution_errors: if True, and if using a simulated instrumental resolution, the count numbers in that distribution will be sampled from uncertainties
         - scattering_sigma [eV]: lineshape parameter - 0-th peak gaussian broadening standard deviation
         - min_energy [eV]: minimum of lineshape energy window for convolution with beta spectrum. Same magnitude is used for the max energy of the window.
+        - scale_factor: width scaling for a simulated instrumental resolution
         - efficiency_path: path to efficiency vs. frequency (and uncertainties)
         - simplified_scattering_path: path to simplified lineshape parameters
         – path_to_osc_strengths_files: path to oscillator strength files containing energy loss distributions for the gases in self.gases
@@ -137,6 +138,7 @@ class FakeDataGenerator(BaseProcessor):
         self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', True)
         self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
         self.min_energy = reader.read_param(params,'min_lineshape_energy', -1000)
+        self.scale_factor = reader.read_param(params, 'scale_factor', 1.0)
 
         #paths
         self.efficiency_path = reader.read_param(params, 'efficiency_path', '')
@@ -172,7 +174,7 @@ class FakeDataGenerator(BaseProcessor):
         if self.use_lineshape:
             self.lineshape = self.detailed_or_simplified_lineshape
             if self.lineshape == 'simplified':
-                self.SimpParams = self.load_simp_params(self.scattering_sigma,
+                self.ls_params = self.load_simp_params(self.scattering_sigma,
                                                         self.survival_prob,
                                                         self.NScatters)
             elif self.lineshape=='detailed':
@@ -187,7 +189,8 @@ class FakeDataGenerator(BaseProcessor):
 
 
                 # lineshape params
-                self.SimpParams = [self.scattering_sigma*2*math.sqrt(2*math.log(2)), self.survival_prob]
+                self.ls_params = [self.scale_factor, self.survival_prob]
+                
                 # Setup and configure lineshape processor
                 complexLineShape_config = {
                     'gases': self.gases,
@@ -235,7 +238,7 @@ class FakeDataGenerator(BaseProcessor):
 
         else:
             self.lineshape = 'gaussian'
-            self.SimpParams = [self.scattering_sigma]
+            self.ls_params = [self.scattering_sigma]
             logger.info('Lineshape is Gaussian')
 
         # check final states file existence
@@ -268,7 +271,7 @@ class FakeDataGenerator(BaseProcessor):
                                            self.S, self.B_1kev,
                                            nsteps=self.n_steps,
                                            lineshape=self.lineshape,
-                                           params=self.SimpParams,
+                                           params=self.ls_params,
                                            efficiency_dict = self.efficiency_dict,
                                            err_from_B=self.err_from_B,
                                            B_field=self.B_field)
@@ -341,9 +344,7 @@ class FakeDataGenerator(BaseProcessor):
         else:
             Kmin, Kmax = ROIbound[0], ROIbound[1]
         B = B_1kev*(Kmax-Kmin)/1000.
-        print("MIN KE:", Kmin)
-        print("MAX F:", maxf)
-
+        
         nstdevs = 7 #Number of standard deviations (of size broadening) below Kmin and above Q-m to generate data, for the gaussian case
         FWHM_convert = 2*math.sqrt(2*math.log(2))
         max_energy = -self.min_energy
