@@ -139,6 +139,8 @@ class FakeDataGenerator(BaseProcessor):
         self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
         self.min_energy = reader.read_param(params,'min_lineshape_energy', -1000)
         self.scale_factor = reader.read_param(params, 'scale_factor', 1.0)
+        self.ins_res_width_bounds = reader.read_param(params, 'ins_res_width_bounds', [19430., 19225., 18712., 18507., 17384., 17180.]) #Default values here need to be corrected
+        self.ins_res_width_factors = reader.read_param(params, 'ins_res_width_bounds', [1, 1.125, 1, 0.825, 1, 0.925])
 
         #paths
         self.efficiency_path = reader.read_param(params, 'efficiency_path', '')
@@ -378,7 +380,7 @@ class FakeDataGenerator(BaseProcessor):
         if array_method == True:
             ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean,
             mass, Kmin, lineshape, params, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, self.scatter_proportion, min_energy, max_energy,
-            self.complexLineShape, self.final_state_array, self.resolution_function)
+            self.complexLineShape, self.final_state_array, self.resolution_function, self.ins_res_width_bounds, self.ins_res_width_factors)
         else:
             ratesS = [convolved_spectral_rate(K, Q_mean, mass, Kmin,
                 lineshape, params, min_energy, max_energy) for K in
