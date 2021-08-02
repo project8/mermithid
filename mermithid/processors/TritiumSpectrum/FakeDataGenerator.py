@@ -139,8 +139,8 @@ class FakeDataGenerator(BaseProcessor):
         self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
         self.min_energy = reader.read_param(params,'min_lineshape_energy', -1000)
         self.scale_factor = reader.read_param(params, 'scale_factor', 1.0)
-        self.ins_res_width_bounds = reader.read_param(params, 'ins_res_width_bounds', [19430., 19225., 18712., 18507., 17384., 17180.]) #Default values here need to be corrected
-        self.ins_res_width_factors = reader.read_param(params, 'ins_res_width_bounds', [1, 1.125, 1, 0.825, 1, 0.925])
+        self.ins_res_width_bounds = reader.read_param(params, 'ins_res_width_bounds', [17384.]) #Default values here need to be corrected #[17180., 17384., 18507., 18712., 19225., 19430.]
+        self.ins_res_width_factors = reader.read_param(params, 'ins_res_width_bounds', [0.9, 1.1]) #[1, 1.125, 1, 0.825, 1, 0.925]
 
         #paths
         self.efficiency_path = reader.read_param(params, 'efficiency_path', '')

@@ -309,13 +309,12 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
             lineshape_rates = []
             scale_factors = [ls_params[0]*f for f in ins_res_width_factors]
             for scale in scale_factors:
-                lineshape_rates.append(complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(scale, ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac'))
+                lineshape_rates.append(np.flipud(complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(scale, ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')))
         elif resolution_function == 'gaussian_resolution' or 'gaussian':
             lineshape_rates = complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')
         else:
             logger.warn('{} is not a resolution function that has been implemented in the FakeDataGenerator'.format(resolution_function))
-        lineshape_rates = np.flipud(lineshape_rates)
-    """
+    
     fig = plt.figure()
     plt.plot(K_lineshape, lineshape_rates[0]) #complexLineShape.std_eV_array()
     plt.xlabel('Energy shift (eV)', fontsize=15)
@@ -331,7 +330,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
     plt.xlim([-750., 500.])
     plt.savefig('lineshape_rates_{}.pdf'.format(scale_factors[1]))
     plt.show()
-    """
+    
 
     #Convolving
     len_beta_rates = 0
@@ -347,6 +346,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
             convolved = np.concatenate(convolved_list, axis=None)
             
     else:
+        lineshape_rates = np.flipud(lineshape_rates)
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
         convolved = convolve(beta_rates, lineshape_rates, mode='same')
         
