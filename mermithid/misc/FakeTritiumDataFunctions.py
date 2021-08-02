@@ -314,37 +314,16 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
             lineshape_rates = complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')
         else:
             logger.warn('{} is not a resolution function that has been implemented in the FakeDataGenerator'.format(resolution_function))
-    
-    fig = plt.figure()
-    plt.plot(K_lineshape, lineshape_rates[0]) #complexLineShape.std_eV_array()
-    plt.xlabel('Energy shift (eV)', fontsize=15)
-    plt.ylabel('Response function (a.u.)', fontsize=15)
-    plt.xlim([-750., 500.])
-    plt.savefig('lineshape_rates_{}.pdf'.format(scale_factors[0]))
-    plt.show()
-    
-    fig = plt.figure()
-    plt.plot(K_lineshape, lineshape_rates[1])
-    plt.xlabel('Energy shift (eV)', fontsize=15)
-    plt.ylabel('Response function (a.u.)', fontsize=15)
-    plt.xlim([-750., 500.])
-    plt.savefig('lineshape_rates_{}.pdf'.format(scale_factors[1]))
-    plt.show()
-    
 
     #Convolving
-    len_beta_rates = 0
-    len_convolved_list = 0
     if lineshape=='detailed_scattering' or lineshape=='detailed':
         if resolution_function == 'simulated_resolution' or 'simulated':
             convolved_list = []
             for j in range(len(lineshape_rates)):
                 beta_rates = spectral_rate(K_segments[j], Q, mnu, final_state_array)
                 convolved_list.append(convolve(beta_rates, lineshape_rates[j], mode='same'))
-                len_beta_rates += len(beta_rates)
-                len_convolved_list += len(convolved_list[j])
             convolved = np.concatenate(convolved_list, axis=None)
-            
+
     else:
         lineshape_rates = np.flipud(lineshape_rates)
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
