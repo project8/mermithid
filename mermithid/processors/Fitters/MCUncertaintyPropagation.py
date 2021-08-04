@@ -86,6 +86,7 @@ class MCUncertaintyPropagation(BaseProcessor):
         return_dict_keys = ['stat', 'sys', 'combined']
         parameter_sampling = [{}, self.sample_parameters, self.sample_parameters]
 
+
         for k_i, k in enumerate(return_dict_keys):
             if self.stat_sys_combined[k_i]:
 
@@ -133,10 +134,11 @@ class MCUncertaintyPropagation(BaseProcessor):
 
 
                 parameter_samples_transpose = {}
-                for p_key in parameter_samples[0].keys():
+                for p_key in self.sample_parameters.keys():
                     parameter_samples_transpose[p_key] = []
-                    for p_i in parameter_samples:
-                        parameter_samples_transpose[p_key].append(p_i[p_key])
+                    if len(parameter_samples) > 0 and p_key in parameter_samples[0].keys():
+                        for p_i in parameter_samples:
+                            parameter_samples_transpose[p_key].append(p_i[p_key])
 
 
                 self.results[k] = {'offsets': [list(o) for o in offsets],
