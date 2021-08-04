@@ -70,6 +70,9 @@ class FakeDataGenerator(BaseProcessor):
         - scattering_sigma [eV]: lineshape parameter - 0-th peak gaussian broadening standard deviation
         - min_energy [eV]: minimum of lineshape energy window for convolution with beta spectrum. Same magnitude is used for the max energy of the window.
         - scale_factor: width scaling for a simulated instrumental resolution
+        - ins_res_width_bounds: Bounds (eV) of regions within which the resolution width is approximately constant (and therefore can be parameterized by a single scale_factor). ins_res_width_bounds does not include the outermost bounds - i.e., the Kmin and Kmax. If ins_res_width_bounds is None, then a common scale factor is used for the whole ROI.
+        - ins_res_width_factors: Factors that are multiplied by scale_factor in each of the regions defined by ins_res_width_bounds. Note that len(ins_res_width_factors) == len(ins_res_width_bounds) + 1.
+        
         - efficiency_path: path to efficiency vs. frequency (and uncertainties)
         - simplified_scattering_path: path to simplified lineshape parameters
         – path_to_osc_strengths_files: path to oscillator strength files containing energy loss distributions for the gases in self.gases
