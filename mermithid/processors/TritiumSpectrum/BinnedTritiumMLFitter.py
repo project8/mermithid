@@ -441,6 +441,11 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         # energy bins
         self._bins = some_bins
+        if len(self._energies) > self.N_energy_bins:
+            self._energies = self._energies[:-1]
+        if len(self._bins) > self.N_bins:
+            self._bins = self._bins[:-1]
+
         self.bin_centers = self._bins[0:-1] +0.5*(self._bins[1]-self._bins[0])
 
         # frequency bins
@@ -457,7 +462,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         #self.bins = np.arange(np.min(self.energies), np.max(self.energies), self.dbins)
 
         self.energies = np.arange(self.Energy(self.max_frequency), self.Energy(self.max_frequency)+(self.N_energy_bins)*self.denergy, self.denergy)
-        self.bins = np.arange(np.min(self.energies), self.Energy(self.max_frequency)+(self.N_bins)*self.dbins, self.dbins)
+        self.bins = np.arange(np.min(self.energies), np.min(self.energies)+(self.N_bins)*self.dbins, self.dbins)
         self._bin_efficiency, self._bin_efficiency_error = [], []
 
         if len(self._energies) > self.N_energy_bins:
@@ -541,10 +546,6 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.two_gaussian_sig_2 = self.Gaussian_sample(self.two_gaussian_sig_2_mean, self.two_gaussian_sig_2_width)
             self.parameter_samples['two_gaussian_std_2'] = self.two_gaussian_sig_2
             sample_values.append(self.two_gaussian_sig_2)
-        if 'res' in sampled_parameters.keys() and sampled_parameters['res']:
-            self.res = self.Gaussian_sample(self.res_mean, self.res_width)
-            self.parameter_samples['res'] = self.res
-            sample_values.append(self.res)
         if 'scatter_peak_ratio' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio']:
             self.scatter_peak_ratio_b = self.Beta_sample(self.scatter_peak_ratio_mean, self.scatter_peak_ratio_width)
             self.scatter_peak_ratio_c = 1
