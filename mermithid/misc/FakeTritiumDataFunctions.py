@@ -305,31 +305,30 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
-        if resolution_function == 'simulated_resolution' or 'simulated':
+        if resolution_function == 'simulated_resolution' or resolution_function == 'simulated':
             lineshape_rates = []
             scale_factors = [ls_params[0]*f for f in ins_res_width_factors]
             for scale in scale_factors:
                 lineshape_rates.append(np.flipud(complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(scale, ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')))
-        elif resolution_function == 'gaussian_resolution' or 'gaussian':
+        elif resolution_function == 'gaussian_resolution' or resolution_function == 'gaussian':
             lineshape_rates = complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')
         else:
             logger.warn('{} is not a resolution function that has been implemented in the FakeDataGenerator'.format(resolution_function))
 
     #Convolving
-    if lineshape=='detailed_scattering' or lineshape=='detailed':
-        if resolution_function == 'simulated_resolution' or 'simulated':
-            convolved_list = []
-            for j in range(len(lineshape_rates)):
-                beta_rates = spectral_rate(K_segments[j], Q, mnu, final_state_array)
-                convolved_list.append(convolve(beta_rates, lineshape_rates[j], mode='same'))
-            convolved = np.concatenate(convolved_list, axis=None)
+    if (lineshape=='detailed_scattering' or lineshape=='detailed') and (resolution_function == 'simulated_resolution' or resolution_function == 'simulated'):
+        convolved_list = []
+        for j in range(len(lineshape_rates)):
+            beta_rates = spectral_rate(K_segments[j], Q, mnu, final_state_array)
+            convolved_list.append(convolve(beta_rates, lineshape_rates[j], mode='same'))
+        convolved = np.concatenate(convolved_list, axis=None)
 
     else:
         lineshape_rates = np.flipud(lineshape_rates)
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
         convolved = convolve(beta_rates, lineshape_rates, mode='same')
-        
-    
+
+
     below_Kmin = np.where(K < Kmin)
     np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
     return convolved
@@ -353,14 +352,14 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, scatter_peak
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
-        if resolution_function == 'simulated_resolution' or 'simulated':
+        if resolution_function == 'simulated_resolution' or resolution_function == 'simulated':
             lineshape_rates = complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')
-        elif resolution_function == 'gaussian_resolution' or 'gaussian':
+        elif resolution_function == 'gaussian_resolution' or resolution_function == 'gaussian':
             lineshape_rates = complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')
         else:
             logger.warn('{} is not a resolution function that has been implemented in the FakeDataGenerator'.format(resolution_function))
         lineshape_rates = np.flipud(lineshape_rates)
-        
+
     bkgd_rates = np.full(len(K), bkgd_rate())
     if len(K) < len(K_lineshape):
         raise Exception("lineshape array is longer than Koptions")
@@ -369,7 +368,7 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, scatter_peak
     convolved = convolve(bkgd_rates, lineshape_rates, mode='same')
     below_Kmin = np.where(K < Kmin)
     np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
-    
+
     return convolved
 
 
