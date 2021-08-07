@@ -130,11 +130,13 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         ########################
         self.counts_guess = reader.read_param(config_dict, 'counts_guess', 5000)
         self.mass_guess = reader.read_param(config_dict, 'nu_mass_guess', 0.0)
+        self.constrained_parameter_names = reader.read_param(config_dict, 'constrained_parameter_names', [])
         self.constrained_parameters = reader.read_param(config_dict, 'constrained_parameters', [])
-        if len(self.constrained_parameters) > 0:
-            logger.warning('Some parameters are constrained')
         self.constrained_means = reader.read_param(config_dict, 'constrained_means', [])
         self.constrained_widths = reader.read_param(config_dict, 'constrained_widths', [])
+        if len(self.constrained_parameter_names) > 0:
+            logger.warning('Some parameters are constrained: {} - {}'.format(self.constrained_parameters, self.constrained_parameter_names))
+            #self.print_level = 1
 
         # frequency range
         self.min_frequency = reader.read_param(config_dict, 'min_frequency', "required")
@@ -362,6 +364,12 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             logger.info('Fixed: {}'.format(self.fixes))
             logger.info('Initial values: {}'.format(self.initial_values))
 
+        if len(self.constrained_parameters) > 0:
+            #logger.info('{}\n{}'.format(self.parameter_names, self.constrained_parameter_names))
+            #self.constrained_parameters = [self.parameter_names.index(p) for p in self.constrained_parameter_names[0]]
+            self.print_level=1
+
+
 
         return True
 
@@ -574,6 +582,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             sample_values.append(self.endpoint)
 
         logger.info('Samples are: {}'.format(sample_values))
+        #logger.info('Fit parameters: \n{}\nFixed: {}'.format(self.parameter_names, self.fixes))
         # set new values in model
         self.ConfigureFit()
 
@@ -638,7 +647,11 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         but the ephasespace is approximate (some factors neglected)
         """
-        mnu = np.real(m_nu**0.5)
+        # mnu is used in heaviside function
+        if m_nu >=0:
+            mnu = np.abs(m_nu**0.5)
+        else:
+            mnu = 0
 
         if self.use_final_states:
             if isinstance(E, list) or isinstance(E, np.ndarray):
@@ -749,11 +762,12 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
         sig0 = FWHM/float(2*np.sqrt(2*np.log(2)))
-        shape0 = self.gauss_resolution_f(K, 1, sig0, Kcenter)
-        shape0 *= 1/np.sum(shape0)
+        #shape0 = self.gauss_resolution_f(K, 1, sig0, Kcenter)
+        #shape0 *= 1/np.sum(shape0)
+        shape0 = np.zeros(len(K))
         norm = 1.
         norm_h = 1.
-        norm_h2 = 1.
+        norm_he = 1.
 
         hydrogen_scattering = np.zeros(len(K))
         helium_scattering = np.zeros(len(K))
@@ -789,8 +803,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         #plt.plot(K, (shape0 + helium_scattering)/np.max(shape0 + helium_scattering), color='red', label='helium')
 
         # full lineshape
-        norm_h = np.sum(shape0 + hydrogen_scattering)
-        norm_he = np.sum(shape0 + helium_scattering)
+        #norm_h = np.sum(shape0 + hydrogen_scattering)
+        #norm_he = np.sum(shape0 + helium_scattering)
 
         lineshape = (self.hydrogen_proportion*(shape0 + hydrogen_scattering)/norm_h +
                      (1-self.hydrogen_proportion)*(shape0 + helium_scattering)/norm_he)
@@ -813,7 +827,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
         sig0 = FWHM/float(2*np.sqrt(2*np.log(2)))
-        shape = self.gauss_resolution_f(K, 1, sig0, Kcenter)
+        #shape = self.gauss_resolution_f(K, 1, sig0, Kcenter)
+        shape = np.zeros(len(K))
         norm = 1.
 
         hydrogen_scattering = np.zeros(len(K))
@@ -1008,13 +1023,13 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 plt.plot(e_lineshape, lineshape/np.max(lineshape), label = 'Full lineshape', color='Darkblue')
 
                 FWHM = 2.*np.sqrt(2.*np.log(2.))*self.res
-                print(prob_b, prob_c)
+                print(prob_b, prob_c, FWHM)
                 simple_ls, simple_norm = self.simplified_ls(e_lineshape, 0, FWHM, prob_b, prob_c)
                 simple_ls = (self.gauss_resolution_f(e_lineshape, 1, self.res, 0)+simple_ls)/simple_norm
                 plt.plot(e_lineshape, simple_ls/np.nanmax(simple_ls), label='Hydrogen only lineshape', color='red')
                 plt.xlabel('Energy [eV]')
                 plt.ylabel('Amplitude')
-                #plt.grid()
+                plt.grid()
                 plt.xlim(-500, 250)
                 plt.legend(loc='best')
                 plt.tight_layout()

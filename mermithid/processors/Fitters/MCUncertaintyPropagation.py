@@ -145,7 +145,8 @@ class MCUncertaintyPropagation(BaseProcessor):
                                    'sigmas': [list(s) for s in sigmas],
                                    'results': [list(fr) for fr in fit_results],
                                    'parameter_samples': parameter_samples_transpose,
-                                   'best_fit': list(self.fitted_params)
+                                   'best_fit': list(self.fitted_params),
+                                   'best_fit_errors': list(self.fitted_params_errors)
                                  }
 
 
