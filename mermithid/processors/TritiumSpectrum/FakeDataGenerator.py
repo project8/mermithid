@@ -72,7 +72,7 @@ class FakeDataGenerator(BaseProcessor):
         - scale_factor: width scaling for a simulated instrumental resolution
         - ins_res_width_bounds: Bounds (eV) of regions within which the resolution width is approximately constant (and therefore can be parameterized by a single scale_factor). ins_res_width_bounds does not include the outermost bounds - i.e., the Kmin and Kmax. If ins_res_width_bounds is None, then a common scale factor is used for the whole ROI.
         - ins_res_width_factors: Factors that are multiplied by scale_factor in each of the regions defined by ins_res_width_bounds. Note that len(ins_res_width_factors) == len(ins_res_width_bounds) + 1.
-        
+
         - efficiency_path: path to efficiency vs. frequency (and uncertainties)
         - simplified_scattering_path: path to simplified lineshape parameters
         – path_to_osc_strengths_files: path to oscillator strength files containing energy loss distributions for the gases in self.gases
@@ -194,8 +194,11 @@ class FakeDataGenerator(BaseProcessor):
 
 
                 # lineshape params
-                self.ls_params = [self.scale_factor, self.survival_prob]
-                
+                if self.resolution_function == 'gaussian_resolution' or self.resolution_function == 'gaussian':
+                    self.ls_params = [self.scattering_sigma*2*math.sqrt(2*math.log(2)), self.survival_prob]
+                else:
+                    self.ls_params = [self.scale_factor, self.survival_prob]
+
                 # Setup and configure lineshape processor
                 complexLineShape_config = {
                     'gases': self.gases,
@@ -219,7 +222,7 @@ class FakeDataGenerator(BaseProcessor):
                     'gaussian_proportion': self.gaussian_proportion,
                     'A_array': self.A_array,
                     'sigma_array': self.sigma_array,
-                    
+
                     # This is an important parameter which determines how finely resolved the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to be increased for larger datasets.
                     'num_points_in_std_array':35846,
                     'base_shape': 'dirac',
@@ -229,7 +232,7 @@ class FakeDataGenerator(BaseProcessor):
                     'path_to_ins_resolution_data_txt': self.path_to_ins_resolution_data_txt,
                     'use_combined_four_trap_inst_reso': self.use_combined_four_trap_inst_reso,
                     'path_to_four_trap_ins_resolution_data_txt': self.path_to_four_trap_ins_resolution_data_txt,
-                    'shake_spectrum_parameters_json_path': self.shake_spectrum_parameters_json_path 
+                    'shake_spectrum_parameters_json_path': self.shake_spectrum_parameters_json_path
                 }
                 logger.info('Setting up complex lineshape object')
                 self.complexLineShape = MultiGasComplexLineShape("complexLineShape")
@@ -349,7 +352,7 @@ class FakeDataGenerator(BaseProcessor):
         else:
             Kmin, Kmax = ROIbound[0], ROIbound[1]
         B = B_1kev*(Kmax-Kmin)/1000.
-        
+
         nstdevs = 7 #Number of standard deviations (of size broadening) below Kmin and above Q-m to generate data, for the gaussian case
         FWHM_convert = 2*math.sqrt(2*math.log(2))
         max_energy = -self.min_energy
