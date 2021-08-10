@@ -380,9 +380,16 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         return np.random.randn()*width+mean
 
     def Beta_sample(self, mean, width):
+        np.random.seed()
         a = ((1-mean)/(width**2)-1/mean)*mean**2
         b = (1/mean-1)*a
         return np.random.beta(a, b)
+
+    def Gamma_sample(self, mean, width):
+        np.random.seed()
+        a = (mean/width)**2
+        b = mean/(width**2)
+        return np.random.gamma(a, 1/b)
 
 
     ############################ conversion methods ###########################
@@ -540,6 +547,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
     def SamplePriors(self, sampled_parameters):
+        logger.info('Sampling: {}'.format([k for k in sampled_parameters.keys() if sampled_parameters[k]]))
+
         self.parameter_samples = {}
         sample_values = []
         if 'res' in sampled_parameters.keys() and sampled_parameters['res']:
@@ -562,12 +571,12 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.parameter_samples['scatter_peak_ratio'] = self.scatter_peak_ratio_b
             sample_values.append(self.scatter_peak_ratio_b)
         if 'scatter_peak_ratio_b' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_b']:
-            self.scatter_peak_ratio_b = self.Beta_sample(self.scatter_peak_ratio_b_mean, self.scatter_peak_ratio_b_width)
+            self.scatter_peak_ratio_b = self.Gamma_sample(self.scatter_peak_ratio_b_mean, self.scatter_peak_ratio_b_width)
             self.fix_scatter_ratio_b = True
             self.parameter_samples['scatter_peak_ratio_b'] = self.scatter_peak_ratio_b
             sample_values.append(self.scatter_peak_ratio_b)
         if 'scatter_peak_ratio_c' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_c']:
-            self.scatter_peak_ratio_c = self.Beta_sample(self.scatter_peak_ratio_c_mean, self.scatter_peak_ratio_c_width)
+            self.scatter_peak_ratio_c = self.Gamma_sample(self.scatter_peak_ratio_c_mean, self.scatter_peak_ratio_c_width)
             self.parameter_samples['scatter_peak_ratio_c'] = self.scatter_peak_ratio_c
             sample_values.append(self.scatter_peak_ratio_c)
             self.fix_scatter_ratio_c = True
@@ -599,7 +608,6 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         # if random_priors contains 3 items (all boolean) get new sample froom priors
         if len(sampled_parameters.keys()) > 0:
-            logger.info('Sampling: {}'.format(sampled_parameters))
             self.SamplePriors(sampled_parameters)
             # re-calculate bin efficiencies, if self.pseudo_eff=True efficiency will be ranomized
 
@@ -1022,8 +1030,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 plt.plot(e_lineshape, resolution/np.max(resolution), label = 'Resolution', color='orange')
                 plt.plot(e_lineshape, lineshape/np.max(lineshape), label = 'Full lineshape', color='Darkblue')
 
+
                 FWHM = 2.*np.sqrt(2.*np.log(2.))*self.res
-                print(prob_b, prob_c, FWHM)
+                logger.info('Plotting lineshape for FWHM {}, probs {} and {} and hydrogen proportion {}.'.format(FWHM, prob_b, prob_c, self.hydrogen_proportion))
                 simple_ls, simple_norm = self.simplified_ls(e_lineshape, 0, FWHM, prob_b, prob_c)
                 simple_ls = (self.gauss_resolution_f(e_lineshape, 1, self.res, 0)+simple_ls)/simple_norm
                 plt.plot(e_lineshape, simple_ls/np.nanmax(simple_ls), label='Hydrogen only lineshape', color='red')
