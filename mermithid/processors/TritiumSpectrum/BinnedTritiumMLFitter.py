@@ -322,7 +322,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
     def ConfigureFit(self):
         # configure fit
-        energy_limits = [max([self.endpoint-300, np.min(self.energies)+3.5]), min([self.endpoint+300, np.max(self.energies)-3.5])]
+        energy_limits = [max([self.endpoint-1000, np.min(self.energies)+3.5]), min([self.endpoint+1000, np.max(self.energies)-3.5])]
         neutrino_limits = [-(np.max(self.energies) - energy_limits[1]-1)**2, (energy_limits[0]-np.min(self.energies)-1)**2]
 
 
@@ -1272,9 +1272,18 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 def GenAndFit(params, counts, fit_config_dict,fit_options, sampled_priors,
               i, fixed_data = [], error_scaling=1, tilt = None, fit_tilt = False, event=None):
 
-    scattered = fit_options['scattered']
-    distorted = fit_options['distorted']
-    fit_nu_mass = fit_options['fit_nu_mass']
+    """if 'scattered' in fit_options.keys():
+        scattered = fit_options['scattered']
+    else:
+        scattered = None
+    if 'distorted' in fit_options.keys():
+        distorted = fit_options['distorted']
+    else:
+        distorted = None
+    if 'fit_nu_mass' in fit_options.keys():
+        fit_nu_mass = fit_options['fit_nu_mass']
+    else:
+        fit_nu_mass = None"""
 
     if i%20 == 0:
         logger.info('Sampling: {}'.format(i))
@@ -1285,8 +1294,8 @@ def GenAndFit(params, counts, fit_config_dict,fit_options, sampled_priors,
 
         T = BinnedTritiumMLFitter("TritiumFitter")
         T.InternalConfigure(fit_config_dict)
-        T.is_scattered = scattered
-        T.is_distorted = distorted
+        #T.is_scattered = scattered
+        #T.is_distorted = distorted
         T.error_scaling = error_scaling
         T.integrate_bins = True
 
@@ -1304,10 +1313,10 @@ def GenAndFit(params, counts, fit_config_dict,fit_options, sampled_priors,
             _, new_data = T.GenerateAsimovData(params)
 
 
-        if fit_nu_mass:
-            T.fix_nu_mass = False
+        #if fit_nu_mass:
+        #    T.fix_nu_mass = False
 
-        elif fit_tilt:
+        if fit_tilt:
             T.fix_tilt = False
 
         T.freq_data = new_data
@@ -1327,15 +1336,15 @@ def GenAndFit(params, counts, fit_config_dict,fit_options, sampled_priors,
 def DoOneFit(data, fit_config_dict, fit_options, sampled_parameters={}, error_scaling=0,
              tilt=None, fit_tilt = False, data_is_energy=False):
 
-    scattered = fit_options['scattered']
+    """scattered = fit_options['scattered']
     distorted = fit_options['distorted']
-    fit_nu_mass = fit_options['fit_nu_mass']
+    fit_nu_mass = fit_options['fit_nu_mass']"""
 
     #print('do one fit', tilt, fit_tilt)
     T = BinnedTritiumMLFitter("TritiumFitter")
     T.InternalConfigure(fit_config_dict)
-    T.is_scattered = scattered
-    T.is_distorted = distorted
+    #T.is_scattered = scattered
+    #T.is_distorted = distorted
     T.error_scaling = error_scaling
     T.integrate_bins = True
     logger.info('Energy stepsize: {}'.format(T.denergy))
@@ -1344,10 +1353,10 @@ def DoOneFit(data, fit_config_dict, fit_options, sampled_parameters={}, error_sc
         T.tilted_efficiency = True
         T.tilt = tilt
 
-    if fit_nu_mass:
-        logger.info('Fitting neutrino mass')
-        T.fix_nu_mass = False
-    elif fit_tilt:
+    #if fit_nu_mass:
+    #    logger.info('Fitting neutrino mass')
+    #    T.fix_nu_mass = False
+    if fit_tilt:
         logger.info('Going to fit efficiency tilt')
         T.fix_tilt = False
 
@@ -1364,14 +1373,14 @@ def GetPDF(fit_config_dict, fit_options, params, plot=False):
     logger.info('Plotting lineshape: {}'.format(plot))
     logger.info('PDF for params: {}'.format(params))
     logger.info(fit_options)
-    scattered = fit_options['scattered']
-    distorted = fit_options['distorted']
+    #scattered = fit_options['scattered']
+    #distorted = fit_options['distorted']
 
     T = BinnedTritiumMLFitter("TritiumFitter")
     T.InternalConfigure(fit_config_dict)
     T.plot_lineshape = plot
-    T.is_scatterd=scattered
-    T.is_distorted=distorted
+    #T.is_scatterd=scattered
+    #T.is_distorted=distorted
 
     pdf = T.TritiumSpectrumBackground(T.energies, *params)
     _, asimov_binned_data = T.GenerateAsimovData(params)
