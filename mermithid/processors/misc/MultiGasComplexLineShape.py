@@ -514,7 +514,15 @@ class MultiGasComplexLineShape(BaseProcessor):
         return normalized_convolved_spectrum
 
     def convolve_simulated_resolution_scaled(self, working_spectrum, scale_factor):
-        x_data, y_data, y_err_data = self.read_ins_resolution_data(self.path_to_ins_resolution_data_txt)
+        if self.use_combined_four_trap_inst_reso:
+            x_data, y_data, y_err_data = self.combine_four_trap_resolution_from_txt(self.trap_weights)
+            logger.info("Combined four instrumental resolution files")
+        else:
+            x_data, y_data, y_err_data = self.read_ins_resolution_data(self.path_to_ins_resolution_data_txt)
+            logger.info("Using ONE simulated instrumental resolution file (not combining four)")
+        if self.sample_ins_resolution_errors:
+            y_data = np.random.normal(y_data, y_err_data)
+            logger.info("Sampling instrumental resolution counts per bin")
         scaled_xdata = x_data*scale_factor
         f = interpolate.interp1d(x_data*scale_factor, y_data)
         x_array = self.std_eV_array()
@@ -3112,6 +3120,7 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
         elif emitted_peak == 'dirac':
             current_working_spectrum = self.std_dirac()
+            
         current_working_spectrum = self.convolve_simulated_resolution_scaled(current_working_spectrum, scale_factor)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += zeroth_order_peak
