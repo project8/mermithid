@@ -316,15 +316,16 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
             logger.warn('{} is not a resolution function that has been implemented in the FakeDataGenerator'.format(resolution_function))
 
     #Convolving
-    if (lineshape=='detailed_scattering' or lineshape=='detailed') and (resolution_function == 'simulated_resolution' or resolution_function == 'simulated'):
-        convolved_list = []
-        for j in range(len(lineshape_rates)):
-            beta_rates = spectral_rate(K_segments[j], Q, mnu, final_state_array)
-            convolved_list.append(convolve(beta_rates, lineshape_rates[j], mode='same'))
-        convolved = np.concatenate(convolved_list, axis=None)
-
-    else:
-        lineshape_rates = np.flipud(lineshape_rates)
+    if (lineshape=='detailed_scattering' or lineshape=='detailed'):
+        if (resolution_function == 'simulated_resolution' or resolution_function == 'simulated'):
+            convolved_list = []
+            for j in range(len(lineshape_rates)):
+                beta_rates = spectral_rate(K_segments[j], Q, mnu, final_state_array)
+                convolved_list.append(convolve(beta_rates, lineshape_rates[j], mode='same'))
+            convolved = np.concatenate(convolved_list, axis=None)
+        else:
+            lineshape_rates = np.flipud(lineshape_rates)
+    else:
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
         convolved = convolve(beta_rates, lineshape_rates, mode='same')
 
