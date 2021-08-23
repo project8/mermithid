@@ -46,7 +46,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             'shake_spectrum_parameters_json_path': '../mermithid/misc/shake_spectrum_parameters.json',
             'path_to_osc_strengths_files': '/host/',
             'path_to_scatter_spectra_file': '/host/',
-            'path_to_ins_resolution_data_txt': '/host/October_FTC_resolution/all_res_cf14.400.txt'
+            'path_to_ins_resolution_data_txt': '/host/October_FTC_resolution/all_res_cf14.400.txt',
             
             'fixed_scatter_proportion': True,
             # When fixed_scatter_proportion is True, set the scatter proportion for the gases below
