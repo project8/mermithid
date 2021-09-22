@@ -93,7 +93,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         # final state spectrum
         self.use_final_states = reader.read_param(config_dict, 'use_final_states', False)
-        self.final_state_array = reader.read_param(config_dict, 'final_state_array', [[0], [1]])
+        self.final_state_array = reader.read_param(config_dict, 'final_states_array', [[0], [1]])
+
+        #logger.info('final state array: {}'.format(self.final_state_array))
 
 
         # detector response
@@ -112,6 +114,23 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         self.scatter_peak_ratio_mean = reader.read_param(config_dict, 'scatter_peak_ratio_mean', 0.5)
         self.scatter_peak_ratio_width = reader.read_param(config_dict, 'scatter_peak_ratio_width', 0.1)
+
+        self.scale_mean = reader.read_param(config_dict, 'scale_mean', 1)
+        self.scale_width = reader.read_param(config_dict, 'scale_width', 0)
+
+
+        #Adding correlated parameters (will later incorporate into morpho processor)
+        self.b_c_corr = reader.read_param(config_dict, 'b_c_corr', 0)
+        self.b_scale_corr = reader.read_param(config_dict, 'b_scale_corr', 0)
+        self.c_scale_corr = reader.read_param(config_dict, 'c_scale_corr', 0)
+        self.correlated_b_c_scale = reader.read_param(config_dict, 'correlated_b_c_scale', False)
+
+        stds = [self.scatter_peak_ratio_b_width, self.scatter_peak_ratio_c_width, self.scale_width]
+        self.b_c_scale_cov_matrix =  [[stds[0]**2, self.b_c_corr*stds[0]*stds[1], self.b_scale_corr*stds[0]*stds[2]],
+                                      [self.b_c_corr*stds[1]*stds[0], stds[1]**2, self.c_scale_corr*stds[1]*stds[2]],
+                                      [self.b_scale_corr*stds[2]*stds[0], self.c_scale_corr*stds[2]*stds[1], stds[2]**2]]
+
+
 
         self.res_mean = reader.read_param(config_dict, 'gaussian_resolution_mean', 15.0)
         self.res_width = reader.read_param(config_dict, 'gaussian_resolution_width', 1.0)
@@ -134,7 +153,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.constrained_parameters = reader.read_param(config_dict, 'constrained_parameters', [])
         self.constrained_means = reader.read_param(config_dict, 'constrained_means', [])
         self.constrained_widths = reader.read_param(config_dict, 'constrained_widths', [])
-        if len(self.constrained_parameter_names) > 0:
+        if len(self.constrained_parameters) > 0:
             logger.warning('Some parameters are constrained: {} - {}'.format(self.constrained_parameters, self.constrained_parameter_names))
             #self.print_level = 1
 
@@ -168,6 +187,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 snr_efficiency_dict['good_fit_index'] = [True]*len((snr_efficiency_dict['frequencies']))
                 snr_efficiency_dict['tritium_rates'] = snr_efficiency_dict['eff interp with slope correction']
                 snr_efficiency_dict['tritium_rates_error'] = snr_efficiency_dict['error interp with slope correction']
+                #snr_efficiency_dict['tritium_rates'] = snr_efficiency_dict['eff interp no energy correction']
+                #snr_efficiency_dict['tritium_rates_error'] = snr_efficiency_dict['error interp no energy correction']
 
                 if self.max_frequency == None:
                     self.max_frequency = np.max(snr_efficiency_dict['frequency'])
@@ -252,16 +273,22 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         self.B = self.B_mean
         self.res = self.res_mean
+        if self.res <= 30.01/float(2*np.sqrt(2*np.log(2))):
+                logger.warning('Resolution small for shallow trap model. Setting to {}'.format(30.01/float(2*np.sqrt(2*np.log(2)))))
+                self.res = 30.01/float(2*np.sqrt(2*np.log(2)))
+
         self.endpoint=reader.read_param(config_dict, 'true_endpoint', 18.573e3)
         self.two_gaussian_sig_1 = self.two_gaussian_sig_1_mean
         self.two_gaussian_sig_2 = self.two_gaussian_sig_2_mean
+        self.width_scaling = self.scale_mean
 
-        if self.use_fixed_scatter_peak_ratio:
-            self.scatter_peak_ratio_b = self.scatter_peak_ratio_mean
-            self.scatter_peak_ratio_c = 1
-        else:
-            self.scatter_peak_ratio_b = self.scatter_peak_ratio_b_mean
-            self.scatter_peak_ratio_c = self.scatter_peak_ratio_c_mean
+        #if self.use_fixed_scatter_peak_ratio:
+        #    self.scatter_peak_ratio_b = self.scatter_peak_ratio_mean
+        #    self.scatter_peak_ratio_c = 1
+        #else:
+        self.scatter_peak_ratio_b = self.scatter_peak_ratio_b_mean
+        self.scatter_peak_ratio_c = self.scatter_peak_ratio_c_mean
+        self.parameter_samples = {}
 
 
         #########################################
@@ -323,7 +350,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
     def ConfigureFit(self):
         # configure fit
         energy_limits = [max([self.endpoint-1000, np.min(self.energies)+3.5]), min([self.endpoint+1000, np.max(self.energies)-3.5])]
-        neutrino_limits = [-(np.max(self.energies) - energy_limits[1]-1)**2, (energy_limits[0]-np.min(self.energies)-1)**2]
+        #neutrino_limits = [-(np.max(self.energies) - energy_limits[1]-1)**2, (energy_limits[0]-np.min(self.energies)-1)**2]
+        neutrino_limits = [-300**2, 300**2]
+        #logger.warning('Neutrino mass limited to: {} - {}'.format(*np.sqrt(np.array(neutrino_limits))))
 
 
         #logger.warning('Neutrino mass fitted: {}'.format(self.fit_nu_mass))
@@ -365,9 +394,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             logger.info('Initial values: {}'.format(self.initial_values))
 
         if len(self.constrained_parameters) > 0:
-            #logger.info('{}\n{}'.format(self.parameter_names, self.constrained_parameter_names))
+            #logger.info('{}\n{}'.format(self.constrained_parameters, self.parameter_names))
             #self.constrained_parameters = [self.parameter_names.index(p) for p in self.constrained_parameter_names[0]]
-            self.print_level=1
+            self.print_level=0
 
 
 
@@ -497,7 +526,6 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         pdf = np.float64(np.longdouble(pdf/np.sum(pdf)))
 
-
         self.data = np.random.choice(x, np.random.poisson(N), p=pdf/np.sum(pdf))
         self.freq_data = self.Frequency(self.data)
 
@@ -548,11 +576,13 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
     def SamplePriors(self, sampled_parameters):
         logger.info('Sampling: {}'.format([k for k in sampled_parameters.keys() if sampled_parameters[k]]))
-
         self.parameter_samples = {}
         sample_values = []
         if 'res' in sampled_parameters.keys() and sampled_parameters['res']:
             self.res = self.Gaussian_sample(self.res_mean, self.res_width)
+            if self.res <= 30.01/float(2*np.sqrt(2*np.log(2))):
+                logger.warning('Sampled resolution small. Setting to {}'.format(30.01/float(2*np.sqrt(2*np.log(2)))))
+                self.res = 30.01/float(2*np.sqrt(2*np.log(2)))
             self.parameter_samples['res'] = self.res
             sample_values.append(self.res)
         if 'two_gaussian_std_1' in sampled_parameters.keys() and sampled_parameters['two_gaussian_std_1']:
@@ -570,16 +600,36 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.fix_scatter_ratio_c = True
             self.parameter_samples['scatter_peak_ratio'] = self.scatter_peak_ratio_b
             sample_values.append(self.scatter_peak_ratio_b)
-        if 'scatter_peak_ratio_b' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_b']:
-            self.scatter_peak_ratio_b = self.Gamma_sample(self.scatter_peak_ratio_b_mean, self.scatter_peak_ratio_b_width)
+
+        if self.correlated_b_c_scale and 'scatter_peak_ratio_b' in sampled_parameters.keys() and 'scatter_peak_ratio_c' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_b'] and sampled_parameters['scatter_peak_ratio_c']:
+            logger.info('Correlated b, c, scale sampling')
+            correlated_vars = np.random.multivariate_normal([self.scatter_peak_ratio_b_mean, self.scatter_peak_ratio_c_mean, self.scale_mean], self.b_c_scale_cov_matrix)
+            self.scatter_peak_ratio_b = correlated_vars[0]
+            self.scatter_peak_ratio_c = correlated_vars[1]
+            self.width_scaling = correlated_vars[2]
+
             self.fix_scatter_ratio_b = True
             self.parameter_samples['scatter_peak_ratio_b'] = self.scatter_peak_ratio_b
             sample_values.append(self.scatter_peak_ratio_b)
-        if 'scatter_peak_ratio_c' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_c']:
-            self.scatter_peak_ratio_c = self.Gamma_sample(self.scatter_peak_ratio_c_mean, self.scatter_peak_ratio_c_width)
+
             self.parameter_samples['scatter_peak_ratio_c'] = self.scatter_peak_ratio_c
             sample_values.append(self.scatter_peak_ratio_c)
             self.fix_scatter_ratio_c = True
+
+        else:
+
+            if 'scatter_peak_ratio_b' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_b']:
+                logger.info('Uncorrelated b, c, scale sampling')
+                self.scatter_peak_ratio_b = self.Gamma_sample(self.scatter_peak_ratio_b_mean, self.scatter_peak_ratio_b_width)
+                self.fix_scatter_ratio_b = True
+                self.parameter_samples['scatter_peak_ratio_b'] = self.scatter_peak_ratio_b
+                sample_values.append(self.scatter_peak_ratio_b)
+            if 'scatter_peak_ratio_c' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_c']:
+                self.scatter_peak_ratio_c = self.Gamma_sample(self.scatter_peak_ratio_c_mean, self.scatter_peak_ratio_c_width)
+                self.parameter_samples['scatter_peak_ratio_c'] = self.scatter_peak_ratio_c
+                sample_values.append(self.scatter_peak_ratio_c)
+                self.fix_scatter_ratio_c = True
+
         if 'B' in sampled_parameters.keys() and sampled_parameters['B']:
             self.B = self.Gaussian_sample(self.B_mean, self.B_width)
             self.parameter_samples['B'] = self.B
@@ -640,26 +690,25 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         return f
 
 
-    def approximate_shape(self, K, Q, m_nu, index):
-        """ m_nu is neutrino mass squared """
+    def approximate_shape(self, K, Q, m_nu_squared, index):
         shape = np.zeros(len(K))
-        nu_mass_shape = ((Q - K[index])**2 -m_nu)**0.5
+        nu_mass_shape = ((Q - K[index])**2 -m_nu_squared)**0.5
         shape[index] = (Q - K[index])*nu_mass_shape
         return shape
 
 
-    def approximate_spectrum(self, E, Q, m_nu=0):
+    def approximate_spectrum(self, E, Q, m_nu_squared=0):
         """
         model as in mermithid fake data generator:
         https://github.com/project8/mermithid/blob/feature/phase2-analysis/mermithid/processors/TritiumSpectrum/FakeDataGenerator.py
 
-        but the ephasespace is approximate (some factors neglected)
+        but the ephasespace is approximate and neutrino parameter is mass squared (some factors neglected)
         """
         # mnu is used in heaviside function
-        if m_nu >=0:
-            mnu = np.abs(m_nu**0.5)
-        else:
-            mnu = 0
+        #if m_nu_squared >=0:
+        mnu = np.abs(m_nu_squared)**0.5
+        #else:
+        #    mnu = 0
 
         if self.use_final_states:
             if isinstance(E, list) or isinstance(E, np.ndarray):
@@ -667,9 +716,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 Q_states = Q+self.final_state_array[0]-np.max(self.final_state_array[0])
                 approximate_e_phase_space = self.ephasespace(E, Q)
 
-
-                index = [np.where(E < Q_states[i]-mnu) for i in range(N_states)]
-                beta_rates_array = [self.approximate_shape(E, Q_states[i], m_nu, index[i])
+                index = [np.where(((Q_states[i]-E)**2-m_nu_squared > 0) & (Q_states[i]-E > 0)) for i in range(N_states)]
+                #index = [np.where(E < Q_states[i] -mnu) for i in range(N_states)]
+                beta_rates_array = [self.approximate_shape(E, Q_states[i], m_nu_squared, index[i])
                                     * self.final_state_array[1][i]
                                     * approximate_e_phase_space for i in range(N_states)]
 
@@ -696,7 +745,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             index = np.where(E < Q-mnu)
             K = E[index]
 
-            nu_mass_shape = ((Q - K)**2 -m_nu)**0.5
+            nu_mass_shape = ((Q - K)**2 -m_nu_squared)**0.5
             beta_rates[index] = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*self.ephasespace(K, Q)*(Q - K)*nu_mass_shape
 
             return beta_rates
@@ -928,9 +977,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
             # energy resolution
             if self.resolution_model != 'two_gaussian':
-                lineshape = self.gauss_resolution_f(e_lineshape, 1, self.res, 0)
+                lineshape = self.gauss_resolution_f(e_lineshape, 1, self.res*self.width_scaling, 0)
             else:
-                lineshape = self.two_gaussian_wide_fraction * self.gauss_resolution_f(e_lineshape, 1, self.two_gaussian_sig_1, self.two_gaussian_mu_1) + (1 - self.two_gaussian_wide_fraction) * self.gauss_resolution_f(e_lineshape, 1, self.two_gaussian_sig_2, self.two_gaussian_mu_2)
+                lineshape = self.two_gaussian_wide_fraction * self.gauss_resolution_f(e_lineshape, 1, self.two_gaussian_sig_1*self.width_scaling, self.two_gaussian_mu_1) + (1 - self.two_gaussian_wide_fraction) * self.gauss_resolution_f(e_lineshape, 1, self.two_gaussian_sig_2*self.width_scaling, self.two_gaussian_mu_2)
 
             # spectrum shape
             spec = self.which_model(e_spec, endpoint, m_nu)
@@ -953,33 +1002,10 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
                 # simplified lineshape
 
-                FWHM = 2.*np.sqrt(2.*np.log(2.))*self.res
-
-                # sigmas = self.lineshape_p[1]+FWHM*self.lineshape_p[3]
-                # mus = self.lineshape_p[5]+self.lineshape_p[7]*np.log(FWHM-30)
-                # scatter_norm = 1
-
-
-
-                # if self.plot_lineshape:
-                #     logger.info('Plotting lineshape')
-                #     # start lineshape plot
-                #     fig, ax = plt.subplots(1, 1, figsize=(7,5))
-                #     ax.plot(e_lineshape, lineshape, label='Unscattered resolution')
-
-
-                # for i in range(1, self.NScatters+1):
-
-
-                #     gauss_i = self.gauss_resolution_f(e_lineshape, 1, sigmas[i-1], -mus[i-1])
-                #     lineshape += gauss_i*ratio**i
-                #     scatter_norm += ratio**i
-
-                #     if self.plot_lineshape:
-                #         ax.plot(e_lineshape, gauss_i*ratio**i, label='Scatter peak: {}'.format(i))
-
-
-                # lineshape *= 1/scatter_norm
+                FWHM = 2.*np.sqrt(2.*np.log(2.))*self.res *self.width_scaling
+                if FWHM < 30.01:
+                    #logger.warning('FWHM smaller 30. Setting to 30 instead.')
+                    FWHM = 30.01
 
 
                 # get lineshape
@@ -1022,7 +1048,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                     if self.plot_lineshape:
                         logger.info('Using Gaussian resolution model')
                 else:
-                    resolution = self.two_gaussian_wide_fraction * self.gauss_resolution_f(e_lineshape, 1, self.two_gaussian_sig_1, self.two_gaussian_mu_1) + (1 - self.two_gaussian_wide_fraction) * self.gauss_resolution_f(e_lineshape, 1, self.two_gaussian_sig_2, self.two_gaussian_mu_2)
+                    resolution = self.two_gaussian_wide_fraction * self.gauss_resolution_f(e_lineshape, 1, self.two_gaussian_sig_1*self.width_scaling, self.two_gaussian_mu_1) + (1 - self.two_gaussian_wide_fraction) * self.gauss_resolution_f(e_lineshape, 1, self.two_gaussian_sig_2*self.width_scaling, self.two_gaussian_mu_2)
                     if self.plot_lineshape:
                         logger.info('Using two Gaussian resolution model')
 
@@ -1031,7 +1057,10 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 plt.plot(e_lineshape, lineshape/np.max(lineshape), label = 'Full lineshape', color='Darkblue')
 
 
-                FWHM = 2.*np.sqrt(2.*np.log(2.))*self.res
+                FWHM = 2.*np.sqrt(2.*np.log(2.))*self.res*self.width_scaling
+                if FWHM < 30.01:
+                    logger.warning('FWHM smaller 30. Setting to 30 instead.')
+                    FWHM = 30.01
                 logger.info('Plotting lineshape for FWHM {}, probs {} and {} and hydrogen proportion {}.'.format(FWHM, prob_b, prob_c, self.hydrogen_proportion))
                 simple_ls, simple_norm = self.simplified_ls(e_lineshape, 0, FWHM, prob_b, prob_c)
                 simple_ls = (self.gauss_resolution_f(e_lineshape, 1, self.res, 0)+simple_ls)/simple_norm
@@ -1108,12 +1137,12 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         K_eff=K_convolved*efficiency
         # finally
-        K = K_eff/np.sum(K_eff)*np.sum(K_convolved)
+        K = K_eff/np.nansum(K_eff)*np.nansum(K_convolved)
 
         # if error from efficiency on spectrum shape should be returned
         if error:
             K_error=np.zeros((2, len(E)))
-            K_error = K_convolved*(efficiency_errors)/np.sum(K_eff)*np.sum(K_convolved)
+            K_error = K_convolved*(efficiency_errors)/np.nansum(K_eff)*np.nansum(K_convolved)
 
             return K, K_error
         else:
@@ -1325,6 +1354,7 @@ def GenAndFit(params, counts, fit_config_dict,fit_options, sampled_priors,
 
     except Exception as e:
         print(e)
+        print(params)
         if event is not None:
             event.set()
         raise(e)
@@ -1340,7 +1370,6 @@ def DoOneFit(data, fit_config_dict, fit_options, sampled_parameters={}, error_sc
     distorted = fit_options['distorted']
     fit_nu_mass = fit_options['fit_nu_mass']"""
 
-    #print('do one fit', tilt, fit_tilt)
     T = BinnedTritiumMLFitter("TritiumFitter")
     T.InternalConfigure(fit_config_dict)
     #T.is_scattered = scattered
@@ -1372,7 +1401,7 @@ def DoOneFit(data, fit_config_dict, fit_options, sampled_parameters={}, error_sc
 def GetPDF(fit_config_dict, fit_options, params, plot=False):
     logger.info('Plotting lineshape: {}'.format(plot))
     logger.info('PDF for params: {}'.format(params))
-    logger.info(fit_options)
+    #logger.info(fit_options)
     #scattered = fit_options['scattered']
     #distorted = fit_options['distorted']
 

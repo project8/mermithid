@@ -67,9 +67,20 @@ class MCUncertaintyPropagation(BaseProcessor):
 
         '''
 
-        self.fitted_params, self.fitted_params_errors, self.Counts = self.fit(self.data,
-                                                       self.fit_config_dict,
-                                                       self.fit_options)
+        fit_successful = False
+        counter = 0
+        while (not fit_successful) and counter < 15:
+            counter += 1
+            try:
+
+                self.fitted_params, self.fitted_params_errors, self.Counts = self.fit(self.data,
+                                                               self.fit_config_dict,
+                                                               self.fit_options)
+                fit_successful = True
+            except Exception as e:
+               print(e)
+               logger.error('Repeating fit')
+               continue
 
 
         logger.info('Best fit: {}'.format(self.fitted_params))
@@ -108,11 +119,21 @@ class MCUncertaintyPropagation(BaseProcessor):
                 # sequential sampling
                 all_fit_returns = []
                 for i in range(start_j, self.N):
-                    all_fit_returns.append(self.gen_and_fit(self.fitted_params, self.Counts,
-                                                     self.fit_config_dict,
-                                                     self.fit_options,
-                                                     parameter_sampling[k_i],
-                                                     i, fixed_data))
+                    fit_successful = False
+                    counter = 0
+                    while (not fit_successful) and counter < 15:
+                        counter += 1
+                        try:
+                            all_fit_returns.append(self.gen_and_fit(self.fitted_params, self.Counts,
+                                                             self.fit_config_dict,
+                                                             self.fit_options,
+                                                             parameter_sampling[k_i],
+                                                             i, fixed_data))
+                            fit_successful = True
+                        except Exception as e:
+                            print(e)
+                            logger.error('Repeating fit')
+                            continue
 
 
 
