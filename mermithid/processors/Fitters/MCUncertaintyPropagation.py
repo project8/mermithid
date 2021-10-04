@@ -9,6 +9,7 @@ Description:
 from __future__ import absolute_import
 
 import numpy as np
+from copy import deepcopy
 
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
@@ -38,7 +39,7 @@ class MCUncertaintyPropagation(BaseProcessor):
         self.model = reader.read_param(params, 'model', "required")
         self.fit = reader.read_param(params, 'fit_function', "required")
         self.gen_and_fit = reader.read_param(params, 'gen_and_fit_function', "required")
-        self.fit_config_dict = reader.read_param(params, 'fit_config_dict', "required")
+        self.fit_config_dict = deepcopy(reader.read_param(params, 'fit_config_dict', "required"))
         self.fit_options = reader.read_param(params, 'fit_options', "optional")
         self.sample_parameters = reader.read_param(params, 'sample_parameters', [])
         self.stat_sys_combined = reader.read_param(params, 'stat_sys_combined', [True, True, True])
@@ -50,8 +51,12 @@ class MCUncertaintyPropagation(BaseProcessor):
 
         self.results = {}
 
+        for k in self.fit_options.keys():
+            self.fit_config_dict[k] = self.fit_options[k]
+
         self.InitialFit()
         self.ParameterSampling()
+
 
         #self.results['best_fit'] = list(self.fitted_params)
 
@@ -74,8 +79,7 @@ class MCUncertaintyPropagation(BaseProcessor):
             try:
 
                 self.fitted_params, self.fitted_params_errors, self.Counts = self.fit(self.data,
-                                                               self.fit_config_dict,
-                                                               self.fit_options)
+                                                               self.fit_config_dict)
                 fit_successful = True
             except Exception as e:
                print(e)
@@ -85,7 +89,6 @@ class MCUncertaintyPropagation(BaseProcessor):
 
         logger.info('Best fit: {}'.format(self.fitted_params))
         x, pdf, bins, fitted_model, asimov_data = self.model(self.fit_config_dict,
-                                                                     self.fit_options,
                                                                      params=self.fitted_params)
         return True
 
@@ -126,7 +129,6 @@ class MCUncertaintyPropagation(BaseProcessor):
                         try:
                             all_fit_returns.append(self.gen_and_fit(self.fitted_params, self.Counts,
                                                              self.fit_config_dict,
-                                                             self.fit_options,
                                                              parameter_sampling[k_i],
                                                              i, fixed_data))
                             fit_successful = True

@@ -63,6 +63,7 @@ class BinnedDataFitter(BaseProcessor):
         self.constrained_parameters = reader.read_param(params, 'constrained_parameter_indices', [])
         self.constrained_means = reader.read_param(params, 'constrained_parameter_means', [])
         self.constrained_widths = reader.read_param(params, 'constrained_parameter_widths', [])
+        self.minos_cls = reader.read_param(params, 'minos_confidence_level_list', [])
 
         # derived configurations
         self.bin_centers = self.bins[0:-1]+0.5*(self.bins[1]-self.bins[0])
@@ -140,12 +141,32 @@ class BinnedDataFitter(BaseProcessor):
         # minimze
         m_binned.simplex().migrad()
         m_binned.hesse()
+        #m_binned.minos()
         #self.param_states = m_binned.get_param_states()
+        #logger.info(self.param_states)
         self.m_binned = m_binned
 
         # results
         result_array = np.array(m_binned.values)
         error_array = np.array(m_binned.errors)
+
+        if len(self.minos_cls) > 0:
+            self.minos_errors = {}
+            for mcl in self.minos_cls:
+                logger.info('Getting minos errors for CL = {}'.format(mcl))
+                try:
+                    m_binned.minos(cl=mcl)
+                except RuntimeError as e:
+                    print(m_binned.params)
+                    raise e
+                self.minos_errors[mcl] = {}
+                if self.print_level:
+                    logger.info(m_binned.merrors)
+                for k in m_binned.merrors.keys():
+                    self.minos_errors[mcl][k] = {'interval': [m_binned.merrors[k].lower, m_binned.merrors[k].upper],
+                                                 'number': m_binned.merrors[k].number,
+                                                 'name': m_binned.merrors[k].name,
+                                                 'is_valid': m_binned.merrors[k].is_valid}
 
         if self.print_level == 1:
             logger.info('Fit results: {}'.format(result_array))
