@@ -46,9 +46,9 @@ class FakeDataGenerator(BaseProcessor):
         - B_field: used for energy-frequency conversion
         - sig_trans [eV]: width of thermal broadening
         - other_sig [eV]: width of other broadening
-        - runtime [s]: used to calculate number of background events
+        - channel_runtimes [s]: live time for each channel
+        - channel_bounds [Hz]: inner bounds between channels (one less than the number of channels)
         - S: number of signal events
-        - A_b [1/eV/s]: background rate
         - poisson_stats (boolean): if True number of total events is random
         - err_from_B [eV]: energy uncertainty originating from B uncertainty
         – gases: list of strings naming gases to be included in complex lineshape model. Options: 'H2', 'He', 'Kr', 'Ar', 'CO'
@@ -112,11 +112,12 @@ class FakeDataGenerator(BaseProcessor):
         self.broadening = np.sqrt(self.sig_trans**2+self.other_sig**2) #Total energy broadening (eV)
 
         # Phase II Spectrum parameters
-        self.runtime = reader.read_param(params, 'runtime', 6.57e6) #In seconds. Default time is ~2.5 months.
+        self.channel_runtimes = reader.read_param(params, 'channel_runtimes', [7185228., 7129663., 7160533.])
+        self.channel_bounds = reader.read_param(params, 'channel_bounds', [1.38623121e9+24.5e9, 1.44560621e9+24.5e9])
         self.S = reader.read_param(params, 'S', 3300)
         self.B_1kev = reader.read_param(params, 'B_1keV', 0.1) #Background rate per keV for full runtime
-        self.A_b = reader.read_param(params, 'A_b', self.B_1kev/float(self.runtime)/1000.) #Flat background activity: events/s/eV
-        self.B =self.A_b*self.runtime*(self.Kmax-self.Kmin) #Background poisson rate
+        #self.A_b = reader.read_param(params, 'A_b', self.B_1kev/float(self.runtime)/1000.) #Flat background activity: events/s/eV #No longer in use
+        #self.B =self.A_b*self.runtime*(self.Kmax-self.Kmin) #Background poisson rate #No longer in use
         self.poisson_stats = reader.read_param(params, 'poisson_stats', True)
         self.err_from_B = reader.read_param(params, 'err_from_B', 0.) #In eV, kinetic energy error from f_c --> K conversion
 
@@ -422,21 +423,60 @@ class FakeDataGenerator(BaseProcessor):
             ratesS = convolve(ratesS, gaussian_rates, mode='same')
             ratesB = convolve(ratesB, gaussian_rates, mode='same')
 
-
         ratesS[ratesS<0.] = 0.
         ratesB[ratesB<0.] = 0.
         rate_sumS, rate_sumB = np.sum(ratesS), np.sum(ratesB)
         probsS = np.array(ratesS)/rate_sumS
         probsB = np.array(ratesB)/rate_sumB
-        self.probs = (S*probsS + B*probsB)/(S+B)
+
+	    #Calculate three different probs variables, for each of the three runtimes
+        runtime_ratios = [t/float(self.channel_runtimes[0]) for t in self.channel_runtimes]
 
         logger.info('Generating data')
         time4 = time.time()
+
+	    #Break up self.Koptions into three different arrays.
+	    #Then, sample KE variables for each of the arrays and appropriate elements of self.channel_runtimes and self.probs.
+        #Finally, concatenate together the three KE arrays.
+        temp_Koptions, temp_probsS, temp_probsB = self.Koptions, probsS, probsB
+        split_Koptions, split_probsS, split_probsB = [], [], []
+        for i in range(len(self.channel_bounds)):
+            print(len(temp_Koptions), len(temp_probsS), len(temp_probsB))
+            split_Koptions.append(temp_Koptions[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
+            split_probsS.append(temp_probsS[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
+            split_probsB.append(temp_probsB[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
+            temp_probsS = temp_probsS[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
+            temp_probsB = temp_probsB[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
+            temp_Koptions = temp_Koptions[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
+
+        split_Koptions.append(temp_Koptions)
+        split_probsS.append(temp_probsS)
+        split_probsB.append(temp_probsB)
+
+        self.probs = []
+        for i in range(len(self.channel_runtimes)):
+            self.probs.append((S*runtime_ratios[i]*split_probsS[i] + B*split_probsB[i])/(S*runtime_ratios[i]+B)) 
+
+        print(len(split_Koptions[0]))
+        print(len(self.probs[0]))
+
+        self.Koptions = np.concatenate(split_Koptions)
+        self.probs = np.concatenate(self.probs)
 
         if self.poisson_stats:
             KE = np.random.choice(self.Koptions, np.random.poisson(S+B), p = self.probs)
         else:
             KE = np.random.choice(self.Koptions, round(S+B), p = self.probs)
+
+        """
+        split_KE = []
+        for i in range(len(runtime_ratios)):
+            if self.poisson_stats:
+                split_KE.append(np.random.choice(split_Koptions[i], np.random.poisson(S*runtime_ratios[i]+B), p = self.probs[i]))
+            else:
+                split_KE.append(np.random.choice(split_Koptions[i], round(S*runtime_ratios[i]+B), p = self.probs[i]))
+        """
+
         time5 = time.time()
 
         logger.info('... took {} s'.format(time5-time4))
