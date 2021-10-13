@@ -31,31 +31,159 @@ from mermithid.processors.misc.KrComplexLineShape import KrComplexLineShape
 from morpho.utilities import morphologging, reader
 logger = morphologging.getLogger(__name__)
 
-#import helper_functions.plot_methods as pm
-from mermithid.misc.DetectionEfficiencyUtilities import *
-#import importlib
-#importlib.reload(det_eff)
 
-electron_mass = constants.electron_mass/constants.e*constants.c**2
-FineStructureConstant = 0.0072973525664
+from mermithid.misc.DetectionEfficiencyUtilities import pseudo_integrated_efficiency, integrated_efficiency
 
-# # for converting numpy array to double
-# def float2double(a):
-#     """
-#     convert floats (or array of floats) to double
-#     """
-#     if a is None or a.dtype == np.float64:
-#         return a
-#     else:
-#         return a.astype(np.float64)
 
+#electron_mass = constants.electron_mass/constants.e*constants.c**2
+#FineStructureConstant = 0.0072973525664
+
+###############################################################################
+# Functions that can be imported from here and facitilate working with the processor
+# They create an instance of the processor defined below and use it for analysis
+# GenAndFit tells the processor to generate new fake data and fit it
+# DoOneFit give the processor data and tells it to fit it
+# GetPDF returns model pdf for some parameters
+
+
+def GenAndFit(params, counts, fit_config_dict, sampled_priors={},
+              i=0, fixed_data = [], error_scaling=1, tilt = None,
+              fit_tilt = False, event=None):
+
+    """if 'scattered' in fit_options.keys():
+        scattered = fit_options['scattered']
+    else:
+        scattered = None
+    if 'distorted' in fit_options.keys():
+        distorted = fit_options['distorted']
+    else:
+        distorted = None
+    if 'fit_nu_mass' in fit_options.keys():
+        fit_nu_mass = fit_options['fit_nu_mass']
+    else:
+        fit_nu_mass = None"""
+
+    if i%20 == 0:
+        logger.info('Sampling: {}'.format(i))
+
+
+
+    try:
+
+        T = BinnedTritiumMLFitter("TritiumFitter")
+        T.InternalConfigure(fit_config_dict)
+        #T.is_scattered = scattered
+        #T.is_distorted = distorted
+        T.error_scaling = error_scaling
+        T.integrate_bins = True
+
+        if tilt is not None:# and tilt !=0:
+            T.tilted_efficiency = True
+            T.tilt = tilt
+
+
+
+        # generate random data from best fit parameters
+        if len(fixed_data) == 0:
+            _, new_data = T.GenerateData(params, counts)
+
+        else:
+            _, new_data = T.GenerateAsimovData(params)
+
+
+        #if fit_nu_mass:
+        #    T.fix_nu_mass = False
+
+        if fit_tilt:
+            T.fix_tilt = False
+
+        T.freq_data = new_data
+        results, errors = T.SampleConvertAndFit(sampled_priors, params)
+        parameter_samples = T.parameter_samples
+
+    except Exception as e:
+        print(e)
+        print(params)
+        if event is not None:
+            event.set()
+        raise(e)
+
+    else:
+        if fit_config_dict['minos_intervals']:
+            return results, T.minos_errors, parameter_samples
+        else:
+            return results, errors, parameter_samples
+
+
+def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
+             tilt=None, fit_tilt = False, data_is_energy=False):
+
+    """scattered = fit_options['scattered']
+    distorted = fit_options['distorted']
+    fit_nu_mass = fit_options['fit_nu_mass']"""
+
+    T = BinnedTritiumMLFitter("TritiumFitter")
+    T.InternalConfigure(fit_config_dict)
+    T.print_level=1
+    #T.is_scattered = scattered
+    #T.is_distorted = distorted
+    T.error_scaling = error_scaling
+    T.integrate_bins = True
+    logger.info('Energy stepsize: {}'.format(T.denergy))
+
+    if tilt is not None:# and tilt != 0:
+        T.tilted_efficiency = True
+        T.tilt = tilt
+
+    #if fit_nu_mass:
+    #    logger.info('Fitting neutrino mass')
+    #    T.fix_nu_mass = False
+    if fit_tilt:
+        logger.info('Going to fit efficiency tilt')
+        T.fix_tilt = False
+
+    if data_is_energy:
+        data = T.Frequency(data)
+    T.freq_data = data
+    results, errors = T.SampleConvertAndFit(sampled_parameters)
+    total_counts = results[1]+results[3]
+
+    if fit_config_dict['minos_intervals']:
+        return results, T.minos_errors, total_counts
+    else:
+        return results, errors, total_counts
+
+def GetPDF(fit_config_dict, params, plot=False):
+    logger.info('Plotting lineshape: {}'.format(plot))
+    logger.info('PDF for params: {}'.format(params))
+    #logger.info(fit_options)
+    #scattered = fit_options['scattered']
+    #distorted = fit_options['distorted']
+
+    T = BinnedTritiumMLFitter("TritiumFitter")
+    T.InternalConfigure(fit_config_dict)
+    T.plot_lineshape = plot
+    #T.is_scatterd=scattered
+    #T.is_distorted=distorted
+
+    pdf = T.TritiumSpectrumBackground(T.energies, *params)
+    _, asimov_binned_data = T.GenerateAsimovData(params)
+    binned_fit = T.TritiumSpectrumBackground(T.bin_centers, *params, error=True)
+
+    return T.energies, pdf, T.bin_centers, binned_fit, asimov_binned_data
+
+
+##############################################################################
+# Processor definition
 
 class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
     def InternalConfigure(self, config_dict):
 
-        # model options
+        # ====================================
+        # Model options and parameter settings
+        # ====================================
         self.use_approx_model = reader.read_param(config_dict, 'use_approximate_model', True)
         self.use_toy_model_efficiency = reader.read_param(config_dict, 'use_toy_model_efficiency', False)
         self.fit_nu_mass = reader.read_param(config_dict, 'fit_neutrino_mass', False)
@@ -66,10 +194,15 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.integrate_bins = reader.read_param(config_dict, 'integrate_bins', True) # integrate spectrum over bin widths
         self.fit_efficiency_tilt = reader.read_param(config_dict, 'fit_efficiency_tilt', False) # efficiency slope is free parameter
 
+
+        # final state spectrum
+        self.use_final_states = reader.read_param(config_dict, 'use_final_states', False)
+        self.final_state_array = reader.read_param(config_dict, 'final_states_array', [[0], [1]])
+
         self.use_asimov = False
 
 
-        # save plots in
+        # save plots in (processor can plot lineshape used in tritium model)
         self.savepath = reader.read_param(config_dict, 'savepath', '.')
 
 
@@ -79,16 +212,13 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.endpoint_mean = reader.read_param(config_dict,'endpoint_mean', 18.6e3)
         self.endpoint_width = reader.read_param(config_dict, 'endpoint_width', 1)
 
-        # efficiency
+        # frequency range
+        self.min_frequency = reader.read_param(config_dict, 'min_frequency', "required")
+        self.max_frequency = reader.read_param(config_dict, 'max_frequency', None)
+
+
+        # path to json with efficiency dictionary
         self.efficiency_file_path = reader.read_param(config_dict, 'efficiency_file_path', '')
-
-
-        # final state spectrum
-        self.use_final_states = reader.read_param(config_dict, 'use_final_states', False)
-        self.final_state_array = reader.read_param(config_dict, 'final_states_array', [[0], [1]])
-
-        #logger.info('final state array: {}'.format(self.final_state_array))
-
 
         # detector response
         self.NScatters = reader.read_param(config_dict, 'NScatters', 20)
@@ -136,25 +266,25 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.two_gaussian_wide_fraction = reader.read_param(config_dict, 'two_gaussian_wide_fraction', 1.)
 
 
-        #########################
+        # =================
         # fit configuration
-        ########################
-        self.counts_guess = reader.read_param(config_dict, 'counts_guess', 5000)
-        self.mass_guess = reader.read_param(config_dict, 'nu_mass_guess', 0.0)
-        self.constrained_parameter_names = reader.read_param(config_dict, 'constrained_parameter_names', [])
-        self.constrained_parameters = reader.read_param(config_dict, 'constrained_parameters', [])
-        self.constrained_means = reader.read_param(config_dict, 'constrained_means', [])
-        self.constrained_widths = reader.read_param(config_dict, 'constrained_widths', [])
-        if len(self.constrained_parameters) > 0:
-            logger.warning('Some parameters are constrained: {} - {}'.format(self.constrained_parameters, self.constrained_parameter_names))
-            #self.print_level = 1
+        # =================
 
-
-
+        self.print_level = reader.read_param(config_dict, 'print_level', 0)
         self.fix_nu_mass = not self.fit_nu_mass
         self.fix_endpoint = not reader.read_param(config_dict, 'fit_endpoint', True)
         self.fix_background = not reader.read_param(config_dict, 'fit_background', True)
         self.fix_amplitude = not reader.read_param(config_dict, 'fit_amplitude', True)
+        self.counts_guess = reader.read_param(config_dict, 'counts_guess', 5000)
+        self.mass_guess = reader.read_param(config_dict, 'nu_mass_guess', 0.0)
+
+
+        # Parameters can be constrained manually or by inlcuding them in the nuisance parameter dictionary
+        self.constrained_parameter_names = reader.read_param(config_dict, 'constrained_parameter_names', [])
+        self.constrained_parameters = reader.read_param(config_dict, 'constrained_parameters', [])
+        self.constrained_means = reader.read_param(config_dict, 'constrained_means', [])
+        self.constrained_widths = reader.read_param(config_dict, 'constrained_widths', [])
+
 
         self.nuisance_parameters = reader.read_param(config_dict, 'nuisance_parameters', {})
         if 'res' in self.nuisance_parameters.keys():
@@ -203,20 +333,22 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.constrained_means.append(self.B_mean)
             self.constrained_widths.append(self.B_width)"""
 
-        self.print_level = reader.read_param(config_dict, 'print_level', 0)
+        if len(self.constrained_parameters) > 0:
+            logger.warning('Some parameters are constrained: {} - {}'.format(self.constrained_parameters, self.constrained_parameter_names))
+            #self.print_level = 1
+
+        # MC uncertainty propagation does not need the fit uncertainties returned by iminuit. uncertainties are instead obtained from the distribution of fit results.
+        # But if the uncertainty is unstead propagated by adding constraiend nuisance parameters then the fit uncertainties are needed.
+        # imnuit can calculated hesse and minos intervals. the former are symmetric. we want the asymetric intrevals-> minos
+        # minos_cls is the list of uncertainty level that should be obtained: e.g. [0.68, 0.9]
         self.minos_intervals = reader.read_param(config_dict, 'minos_intervals', False)
-        self.minos_cls = []
-
-        # frequency range
-        self.min_frequency = reader.read_param(config_dict, 'min_frequency', "required")
-        self.max_frequency = reader.read_param(config_dict, 'max_frequency', None)
+        self.minos_cls = reader.read_param(config_dict, 'minos_confidence_levels', [0.683, 0.9])
 
 
 
-
-        #########################################
-        # detection efficiency specification
-        #########################################
+        # ==================================
+        # detection efficiency details
+        # ==================================
 
         self.tilted_efficiency = False
         self.tilt = 0.
@@ -250,14 +382,14 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         if self.max_frequency == None:
             raise ValueError('Max frequency undetermined')
 
-        #########################################
-        # lineshape specification
-        #########################################
+        # ==================================
+        # lineshape details
+        # ==================================
 
         # simplified lineshape parameters
         self.lineshape_p = np.loadtxt(self.simplified_lineshape_path, unpack=True)
 
-        # if true lineshape is plotted during tritium spectrum shape generation
+        # if true lineshape is plotted during tritium spectrum shape generation (for debugging)
         self.plot_lineshape = False
 
         # helium lineshape
@@ -317,9 +449,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
 
-        #########################################
+        # ==================================
         # initial values
-        #########################################
+        # ==================================
 
         self.B = self.B_mean
         self.res = self.res_mean
@@ -328,6 +460,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 self.res = 30.01/float(2*np.sqrt(2*np.log(2)))
 
         self.endpoint=reader.read_param(config_dict, 'true_endpoint', 18.573e3)
+        self.background=reader.read_param(config_dict, 'initial_background', 0)
         self.two_gaussian_sigma_1 = self.two_gaussian_sigma_1_mean
         self.two_gaussian_sigma_2 = self.two_gaussian_sigma_2_mean
         self.width_scaling = self.scale_mean
@@ -341,11 +474,14 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.parameter_samples = {}
 
 
-        #########################################
+        # ==================================
         # energies and bins
-        #########################################
+        # ==================================
 
-        # internal variables
+        # bin width used for poisson statistics fit
+        # energy stepsize is used for integration approximation:
+        # counts in a bin are integrated spectrum over bin width.
+        # integration is approximated by summing over a number of discrete steps in a bin.
         self.dbins = reader.read_param(config_dict, 'energy_bin_width', 50)
         self.denergy = reader.read_param(config_dict, 'energy_step_size', min([np.round(self.dbins/10, 2), 1]))
 
@@ -364,109 +500,99 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         if len(self._bins) > self.N_bins:
             self._bins = self._bins[:-1]
 
-        #print(len(self._energies), self.N_energy_bins)
-        #print(len(self._bins), self.N_bins)
-        #print(self.dbins/self.denergy)
-
-
 
         self.bin_centers = self._bins[0:-1]+0.5*(self._bins[1]-self._bins[0])
         self.freq_bins = self.Frequency(self._bins)
         self.freq_bin_centers = self.Frequency(self.bin_centers)
 
-        #self._hist = []
-        #self._data = []
-
+        # arrays for internal usage
         self._bin_efficiency, self._bin_efficiency_errors = [], []
         self._full_efficiency, self._full_efficiency_errors = [], []
         self._bin_efficiency, self._bin_efficiency_errors = self.Efficiency(self.bin_centers)
         self._full_efficiency, self._full_efficiency_errors = self.Efficiency(self.energies)
 
 
-        #########################################
+        # ==================================
         # configure parent BinnedDataFitter
-        #########################################
+        # ==================================
 
-        # overwrite model
+        # This processor inherits from the BinnedDataFitter that does binned max likelihood fitting
+        # overwrite parent model with tritium model used here
         self.model = self.TritiumSpectrumBackground
 
         # now configure fit
         self.ConfigureFit()
 
 
-
         return True
+
 
     def ConfigureFit(self):
         # configure fit
 
+        # this should not be hard coded
         neutrino_limits = [-400**2, 400**2]
         energy_limits = [max([self.endpoint-1000, np.min(self.energies)+np.sqrt(neutrino_limits[1])]), min([self.endpoint+1000, np.max(self.energies)-np.sqrt(np.abs(neutrino_limits[0]))])]
-        #logger.warning('Neutrino mass limited to: {} - {}'.format(*np.sqrt(np.array(neutrino_limits))))
+        if self.print_level == 1:
+            logger.warning('Neutrino mass limited to: {} - {}'.format(*np.sqrt(np.array(neutrino_limits))))
 
-        if self.minos_intervals:
-            self.minos_cls = [0.683, 0.9]
 
         #logger.warning('Neutrino mass fitted: {}'.format(self.fit_nu_mass))
-        if not self.fit_efficiency_tilt:
-            self.parameter_names = ['Endpoint', 'Background', 'm_beta_squared', 'Amplitude',
-                                    'scatter_peak_ratio_b', 'scatter_peak_ratio_c',
-                                    'res', 'two_gaussia_sigma_1', 'two_gaussian_sigma_2']
-            self.initial_values = [self.endpoint, 1, self.mass_guess**2, self.counts_guess,
-                                   self.scatter_peak_ratio_b, self.scatter_peak_ratio_c,
-                                   self.res, self.two_gaussian_sigma_1, self.two_gaussian_sigma_2]
+        #if not self.fit_efficiency_tilt:
+        self.parameter_names = ['Endpoint', 'Background', 'm_beta_squared', 'Amplitude',
+                                'scatter_peak_ratio_b', 'scatter_peak_ratio_c',
+                                'res', 'two_gaussia_sigma_1', 'two_gaussian_sigma_2']
+        self.initial_values = [self.endpoint, self.background, self.mass_guess**2, self.counts_guess,
+                               self.scatter_peak_ratio_b, self.scatter_peak_ratio_c,
+                               self.res, self.two_gaussian_sigma_1, self.two_gaussian_sigma_2]
 
-            self.fixes = [self.fix_endpoint, self.fix_background, self.fix_nu_mass, self.fix_amplitude,
-                          self.fix_scatter_peak_ratio_b, self.fix_scatter_peak_ratio_c,
-                          self.fix_res, self.fix_two_gaussian_sigma_1, self.fix_two_gaussian_sigma_2]
+        self.fixes = [self.fix_endpoint, self.fix_background, self.fix_nu_mass, self.fix_amplitude,
+                      self.fix_scatter_peak_ratio_b, self.fix_scatter_peak_ratio_c,
+                      self.fix_res, self.fix_two_gaussian_sigma_1, self.fix_two_gaussian_sigma_2]
 
-            self.limits = [energy_limits,
-                       [0, None],
-                       neutrino_limits,
-                       [100, None],
-                       [0.1, 1.],
-                       [0.1, 1.],
-                       [30, 100],
-                       [1, 100],
-                       [1, 100]]
-
-
-
-            self.parameter_errors = [max([0.1, 0.1*p]) for p in self.initial_values]
+        self.limits = [energy_limits,
+                   [0, None],
+                   neutrino_limits,
+                   [100, None],
+                   [0.1, 1.],
+                   [0.1, 1.],
+                   [30, 100],
+                   [1, 100],
+                   [1, 100]]
 
 
-        else:
-            logger.warning('Efficiency tilt will be fitted')
-            self.tilted_efficiency = True
-            self.parameter_names = ['Endpoint', 'Background', 'm_beta_squared', 'Amplitude', 'scatter_peak_ratio_b', 'scatter_peak_ratio_c', 'Efficiency tilt']
-            self.initial_values = [self.endpoint, 1, self.mass_guess**2, self.counts_guess, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, self.tilt]
-            self.parameter_errors = [max([0.1, 0.1*p]) for p in self.initial_values]
-            self.fixes = [self.fix_endpoint, self.fix_background, self.fix_nu_mass, self.fix_amplitude, self.fix_scatter_ratio_b, self.fix_scatter_ratio_c, self.fix_tilt]
-            self.limits = [energy_limits,
-                       [1e-10, None],
-                       neutrino_limits,
-                       [0, None],
-                       [0.1, 1.],
-                       [0.1, 1.],
-                       [-0.5, 0.5]]
+
+        self.parameter_errors = [max([0.1, 0.1*p]) for p in self.initial_values]
 
 
-        if self.plot_lineshape:
-            logger.info('Parameters: {}'.format(self.parameter_names))
-            logger.info('Fixed: {}'.format(self.fixes))
-            logger.info('Initial values: {}'.format(self.initial_values))
+        # else:
+        #     logger.warning('Efficiency tilt will be fitted')
+        #     self.tilted_efficiency = True
+        #     self.parameter_names = ['Endpoint', 'Background', 'm_beta_squared', 'Amplitude', 'scatter_peak_ratio_b', 'scatter_peak_ratio_c', 'Efficiency tilt']
+        #     self.initial_values = [self.endpoint, 1, self.mass_guess**2, self.counts_guess, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, self.tilt]
+        #     self.parameter_errors = [max([0.1, 0.1*p]) for p in self.initial_values]
+        #     self.fixes = [self.fix_endpoint, self.fix_background, self.fix_nu_mass, self.fix_amplitude, self.fix_scatter_ratio_b, self.fix_scatter_ratio_c, self.fix_tilt]
+        #     self.limits = [energy_limits,
+        #                [1e-10, None],
+        #                neutrino_limits,
+        #                [0, None],
+        #                [0.1, 1.],
+        #                [0.1, 1.],
+        #                [-0.5, 0.5]]
 
-        #if len(self.constrained_parameters) > 0:
-            #logger.info('{}\n{}'.format(self.constrained_parameters, self.parameter_names))
-            #self.constrained_parameters = [self.parameter_names.index(p) for p in self.constrained_parameter_names[0]]
-            #self.print_level=0
 
+        # if self.plot_lineshape:
+        #     logger.info('Parameters: {}'.format(self.parameter_names))
+        #     logger.info('Fixed: {}'.format(self.fixes))
+        #     logger.info('Initial values: {}'.format(self.initial_values))
 
 
         return True
 
 
-    # parameter sampling
+    # =========================================================================
+    # Get random sample from normal, beta, or gamma distribution
+    # =========================================================================
     def Gaussian_sample(self, mean, width):
         np.random.seed()
         return np.random.randn()*width+mean
@@ -482,159 +608,6 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         a = (mean/width)**2
         b = mean/(width**2)
         return np.random.gamma(a, 1/b)
-
-
-    ############################ conversion methods ###########################
-
-    def Energy(self, f, mixfreq=0.):
-        """
-        converts frequency in Hz to energy in eV
-        """
-        emass = constants.electron_mass/constants.e*constants.c**2
-        gamma = (constants.e*self.B)/(2.0*np.pi*constants.electron_mass) * 1./(f+mixfreq)
-
-        return (gamma -1.)*emass
-
-
-    def Frequency(self, E, Theta=None):
-        """
-        converts energy in eV to frequency in Hz
-        """
-        if Theta==None:
-            Theta=np.pi/2
-
-        emass = constants.electron_mass/constants.e*constants.c**2
-        gamma = E/(emass)+1.
-
-        return (constants.e*self.B)/(2.0*np.pi*constants.electron_mass) * 1./gamma
-
-
-
-    ################################# bins and data ########################################
-
-
-    @property
-    def energies(self):
-        return self._energies
-
-    @energies.setter
-    def energies(self, some_energies):
-        """
-        fine grained array.
-        delete pre-existing efficiencies when resetting energies.
-        """
-        self._energies =  some_energies
-
-        self._full_efficiency, self._full_efficiency_errors = [], []
-        efficiency = self.Efficiency(self._energies)
-        self._full_efficiency = efficiency[0]
-        self._full_efficiency_errors = efficiency[1]
-
-        """super(Tritium, self).__init__(a=np.min(self._energies),
-                                        b=np.max(self._energies),
-                                        xtol=self.xtol, seed=self.seed)"""
-
-
-    @property
-    def bins(self):
-        return self._bins#, self._freq_bin_centers
-
-    @bins.setter
-    def bins(self, some_bins):
-        """
-        energy bins.
-        delete pre-existing efficiencies when resetting bins.
-        """
-
-        # energy bins
-        self._bins = some_bins
-        if len(self._energies) > self.N_energy_bins:
-            self._energies = self._energies[:-1]
-        if len(self._bins) > self.N_bins:
-            self._bins = self._bins[:-1]
-
-        self.bin_centers = self._bins[0:-1] +0.5*(self._bins[1]-self._bins[0])
-
-        # frequency bins
-        self.freq_bins = self.Frequency(self._bins)
-        self.freq_bin_centers = self.Frequency(self.bin_centers)
-
-        # bin efficiencies
-        self._bin_efficiency, self._bin_efficiency_errors = [], []
-        self._bin_efficiency, self._bin_efficiency_errors = self.Efficiency(self.freq_bin_centers, freq=True)
-
-
-    def ReSetBins(self):
-        #self.energies = np.arange(self.Energy(self.max_frequency), self.Energy(self.min_frequency), self.denergy)
-        #self.bins = np.arange(np.min(self.energies), np.max(self.energies), self.dbins)
-
-        self.energies = np.arange(self.Energy(self.max_frequency), self.Energy(self.max_frequency)+(self.N_energy_bins)*self.denergy, self.denergy)
-        self.bins = np.arange(np.min(self.energies), np.min(self.energies)+(self.N_bins)*self.dbins, self.dbins)
-        self._bin_efficiency, self._bin_efficiency_error = [], []
-
-        if len(self._energies) > self.N_energy_bins:
-            self._energies = self._energies[:-1]
-        if len(self._bins) > self.N_bins:
-            self._bins = self._bins[:-1]
-
-
-
-    def GenerateData(self, params, N):
-
-        #print('Generating data')
-        x = self.energies[0:-1]+0.5*(self.energies[1]-self.energies[0])
-        pdf = np.longdouble(self.TritiumSpectrumBackground(x, *params))
-        pdf[pdf<0]=0.
-        np.random.seed()
-
-        pdf = np.float64(np.longdouble(pdf/np.sum(pdf)))
-
-        self.data = np.random.choice(x, np.random.poisson(N), p=pdf/np.sum(pdf))
-        self.freq_data = self.Frequency(self.data)
-
-        return self.data, self.freq_data
-
-
-    def GenerateAsimovData(self, params):
-
-        asimov_data = []
-        #x = self.bins #np.arange(min(self.energies), max(self.energies), 25)
-        #xc = x[0:-1]+0.5*(x[1]-x[0])
-        #pdf = np.round(self.TritiumSpectrumBackground(xc, *params))
-
-        self.use_asimov = True
-        #for i, p in enumerate(pdf):
-        #    asimov_data.extend(list(itertools.repeat(xc[i], int(p))))
-
-        return np.array(asimov_data), self.Frequency(np.array(asimov_data))
-
-
-
-    def ConvertFreqData2EnergyData(self):
-        """
-        Convert frequencies to energyies with set B
-        """
-        self.data = self.Energy(self.freq_data)
-        return self.data
-
-
-    def Histogram(self, weights=None):
-        """
-        histogram data using bins
-        """
-        h, b = np.histogram(self.data, bins=self.bins, weights=weights)
-        self.hist = h#float2double(h)
-        return h
-
-
-    def ConvertAndHistogram(self, weights=None):
-        """
-        histogram data using bins
-        """
-        self.data = self.ConvertFreqData2EnergyData()
-        self.hist, b = np.histogram(self.data, bins=self.bins, weights=weights)
-        #self.hist = float2double(h)
-        return self.hist
 
 
     def SamplePriors(self, sampled_parameters):
@@ -715,8 +688,177 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         return self.parameter_samples
 
+
+    # =========================================================================
+    # Frequency - Energy conversion
+    # =========================================================================
+
+    def Energy(self, f, mixfreq=0.):
+        """
+        converts frequency in Hz to energy in eV
+        """
+        emass = constants.electron_mass/constants.e*constants.c**2
+        gamma = (constants.e*self.B)/(2.0*np.pi*constants.electron_mass) * 1./(f+mixfreq)
+
+        return (gamma -1.)*emass
+
+
+    def Frequency(self, E, Theta=None):
+        """
+        converts energy in eV to frequency in Hz
+        """
+        if Theta==None:
+            Theta=np.pi/2
+
+        emass = constants.electron_mass/constants.e*constants.c**2
+        gamma = E/(emass)+1.
+
+        return (constants.e*self.B)/(2.0*np.pi*constants.electron_mass) * 1./gamma
+
+
+
+    # =========================================================================
+    # Bin and energy array set&get
+    # =========================================================================
+
+    @property
+    def energies(self):
+        return self._energies
+
+    @energies.setter
+    def energies(self, some_energies):
+        """
+        fine grained array.
+        delete pre-existing efficiencies when resetting energies.
+        """
+        self._energies =  some_energies
+
+        self._full_efficiency, self._full_efficiency_errors = [], []
+        efficiency = self.Efficiency(self._energies)
+        self._full_efficiency = efficiency[0]
+        self._full_efficiency_errors = efficiency[1]
+
+        """super(Tritium, self).__init__(a=np.min(self._energies),
+                                        b=np.max(self._energies),
+                                        xtol=self.xtol, seed=self.seed)"""
+
+
+    @property
+    def bins(self):
+        return self._bins#, self._freq_bin_centers
+
+    @bins.setter
+    def bins(self, some_bins):
+        """
+        energy bins.
+        delete pre-existing efficiencies when resetting bins.
+        """
+
+        # energy bins
+        self._bins = some_bins
+        if len(self._energies) > self.N_energy_bins:
+            self._energies = self._energies[:-1]
+        if len(self._bins) > self.N_bins:
+            self._bins = self._bins[:-1]
+
+        self.bin_centers = self._bins[0:-1] +0.5*(self._bins[1]-self._bins[0])
+
+        # frequency bins
+        self.freq_bins = self.Frequency(self._bins)
+        self.freq_bin_centers = self.Frequency(self.bin_centers)
+
+        # bin efficiencies
+        self._bin_efficiency, self._bin_efficiency_errors = [], []
+        self._bin_efficiency, self._bin_efficiency_errors = self.Efficiency(self.freq_bin_centers, freq=True)
+
+
+    def ReSetBins(self):
+        #self.energies = np.arange(self.Energy(self.max_frequency), self.Energy(self.min_frequency), self.denergy)
+        #self.bins = np.arange(np.min(self.energies), np.max(self.energies), self.dbins)
+
+        self.energies = np.arange(self.Energy(self.max_frequency), self.Energy(self.max_frequency)+(self.N_energy_bins)*self.denergy, self.denergy)
+        self.bins = np.arange(np.min(self.energies), np.min(self.energies)+(self.N_bins)*self.dbins, self.dbins)
+        self._bin_efficiency, self._bin_efficiency_error = [], []
+
+        if len(self._energies) > self.N_energy_bins:
+            self._energies = self._energies[:-1]
+        if len(self._bins) > self.N_bins:
+            self._bins = self._bins[:-1]
+
+
+
+    # =========================================================================
+    # Data generation and histogramming
+    # =========================================================================
+
+    def GenerateData(self, params, N):
+
+        #print('Generating data')
+        x = self.energies[0:-1]+0.5*(self.energies[1]-self.energies[0])
+        pdf = np.longdouble(self.TritiumSpectrumBackground(x, *params))
+        pdf[pdf<0]=0.
+        np.random.seed()
+
+        pdf = np.float64(np.longdouble(pdf/np.sum(pdf)))
+
+        self.data = np.random.choice(x, np.random.poisson(N), p=pdf/np.sum(pdf))
+        self.freq_data = self.Frequency(self.data)
+
+        return self.data, self.freq_data
+
+
+    def GenerateAsimovData(self, params):
+
+        asimov_data = []
+        #x = self.bins #np.arange(min(self.energies), max(self.energies), 25)
+        #xc = x[0:-1]+0.5*(x[1]-x[0])
+        #pdf = np.round(self.TritiumSpectrumBackground(xc, *params))
+
+        self.use_asimov = True
+        #for i, p in enumerate(pdf):
+        #    asimov_data.extend(list(itertools.repeat(xc[i], int(p))))
+
+        return np.array(asimov_data), self.Frequency(np.array(asimov_data))
+
+
+
+    def ConvertFreqData2EnergyData(self):
+        """
+        Convert frequencies to energyies with set B
+        """
+        self.data = self.Energy(self.freq_data)
+        return self.data
+
+
+    def Histogram(self, weights=None):
+        """
+        histogram data using bins
+        """
+        h, b = np.histogram(self.data, bins=self.bins, weights=weights)
+        self.hist = h#float2double(h)
+        return h
+
+
+    def ConvertAndHistogram(self, weights=None):
+        """
+        histogram data using bins
+        """
+        self.data = self.ConvertFreqData2EnergyData()
+        self.hist, b = np.histogram(self.data, bins=self.bins, weights=weights)
+        #self.hist = float2double(h)
+        return self.hist
+
+
+
+    # =========================================================================
+    # Fit
+    # =========================================================================
+    # This is the main function that is called from outside (besides Configure).
+    # Maybe I should rename it to InternalRun
+
     def SampleConvertAndFit(self, sampled_parameters={}, params= []):
 
+        # for systematic MC uncertainty propagation: Generate Asimov data to fit with random model
         if self.use_asimov:
             #temp = self.error_scaling
             #self.error_scaling = 0
@@ -724,10 +866,10 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.hist = self.TritiumSpectrumBackground(self.bin_centers, *params)
             #self.error_scaling = temp
 
-        # if random_priors contains 3 items (all boolean) get new sample froom priors
+        # sample priors that are to be sampled
         if len(sampled_parameters.keys()) > 0:
             self.SamplePriors(sampled_parameters)
-            # re-calculate bin efficiencies, if self.pseudo_eff=True efficiency will be ranomized
+
 
             # need to first re-calcualte energy bins with sampled B before getting efficiency
             self.ReSetBins()
@@ -736,6 +878,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 random_efficiency = True
             else:
                 random_efficiency = False
+
+            # re-calculate bin efficiencies, if self.pseudo_eff=True efficiency will be ranomized
             self._bin_efficiency, self._bin_efficiency_error = self.Efficiency(self.bin_centers, pseudo=random_efficiency)
 
 
@@ -743,8 +887,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         if not self.use_asimov:
             self.ConvertAndHistogram()
 
-
-
+        # Call parent fit method using data and model from this instance
         return self.fit()
 
 
@@ -1011,6 +1154,13 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
     def TritiumSpectrum(self, E=[], endpoint=18.6e3, m_nu=0., prob_b=None, prob_c=None, res=None, sig1=None, sig2=None, tilt=0., error=False):
         E = np.array(E)
 
+        if sig1 == None:
+            sig1 = self.two_gaussian_sigma_1
+        if sig2 == None:
+            sig2 = self.two_gaussian_sigma_2
+        if res == None:
+            res = self.res
+
         if len(E)==0:
             E = self._bin_centers
 
@@ -1047,7 +1197,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             if self.resolution_model != 'two_gaussian':
                 lineshape = self.gauss_resolution_f(e_lineshape, 1, res*self.width_scaling, 0)
             else:
-                lineshape = self.two_gaussian_wide_fraction * self.gauss_resolution_f(e_lineshape, 1, two_gaussian_sigma_1*self.width_scaling, self.two_gaussian_mu_1) + (1 - self.two_gaussian_wide_fraction) * self.gauss_resolution_f(e_lineshape, 1, two_gaussian_sigma_2*self.width_scaling, self.two_gaussian_mu_2)
+                lineshape = self.two_gaussian_wide_fraction * self.gauss_resolution_f(e_lineshape, 1, sig1*self.width_scaling, self.two_gaussian_mu_1) + (1 - self.two_gaussian_wide_fraction) * self.gauss_resolution_f(e_lineshape, 1, sig2*self.width_scaling, self.two_gaussian_mu_2)
 
             # spectrum shape
             spec = self.which_model(e_spec, endpoint, m_nu)
@@ -1069,7 +1219,6 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
                 # simplified lineshape
-
                 FWHM = 2.*np.sqrt(2.*np.log(2.))*res *self.width_scaling
                 if FWHM < 30.01:
                     #logger.warning('FWHM smaller 30. Setting to 30 instead.')
@@ -1362,131 +1511,3 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
 
-#########################################################
-# Functions using model above
-
-
-def GenAndFit(params, counts, fit_config_dict, sampled_priors={},
-              i=0, fixed_data = [], error_scaling=1, tilt = None, fit_tilt = False, event=None):
-
-    """if 'scattered' in fit_options.keys():
-        scattered = fit_options['scattered']
-    else:
-        scattered = None
-    if 'distorted' in fit_options.keys():
-        distorted = fit_options['distorted']
-    else:
-        distorted = None
-    if 'fit_nu_mass' in fit_options.keys():
-        fit_nu_mass = fit_options['fit_nu_mass']
-    else:
-        fit_nu_mass = None"""
-
-    if i%20 == 0:
-        logger.info('Sampling: {}'.format(i))
-
-
-
-    try:
-
-        T = BinnedTritiumMLFitter("TritiumFitter")
-        T.InternalConfigure(fit_config_dict)
-        #T.is_scattered = scattered
-        #T.is_distorted = distorted
-        T.error_scaling = error_scaling
-        T.integrate_bins = True
-
-        if tilt is not None:# and tilt !=0:
-            T.tilted_efficiency = True
-            T.tilt = tilt
-
-
-
-        # generate random data from best fit parameters
-        if len(fixed_data) == 0:
-            _, new_data = T.GenerateData(params, counts)
-
-        else:
-            _, new_data = T.GenerateAsimovData(params)
-
-
-        #if fit_nu_mass:
-        #    T.fix_nu_mass = False
-
-        if fit_tilt:
-            T.fix_tilt = False
-
-        T.freq_data = new_data
-        results, errors = T.SampleConvertAndFit(sampled_priors, params)
-        parameter_samples = T.parameter_samples
-
-    except Exception as e:
-        print(e)
-        print(params)
-        if event is not None:
-            event.set()
-        raise(e)
-
-    else:
-        if fit_config_dict['minos_intervals']:
-            return results, T.minos_errors, parameter_samples
-        else:
-            return results, errors, parameter_samples
-
-
-def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
-             tilt=None, fit_tilt = False, data_is_energy=False):
-
-    """scattered = fit_options['scattered']
-    distorted = fit_options['distorted']
-    fit_nu_mass = fit_options['fit_nu_mass']"""
-
-    T = BinnedTritiumMLFitter("TritiumFitter")
-    T.InternalConfigure(fit_config_dict)
-    T.print_level=1
-    #T.is_scattered = scattered
-    #T.is_distorted = distorted
-    T.error_scaling = error_scaling
-    T.integrate_bins = True
-    logger.info('Energy stepsize: {}'.format(T.denergy))
-
-    if tilt is not None:# and tilt != 0:
-        T.tilted_efficiency = True
-        T.tilt = tilt
-
-    #if fit_nu_mass:
-    #    logger.info('Fitting neutrino mass')
-    #    T.fix_nu_mass = False
-    if fit_tilt:
-        logger.info('Going to fit efficiency tilt')
-        T.fix_tilt = False
-
-    if data_is_energy:
-        data = T.Frequency(data)
-    T.freq_data = data
-    results, errors = T.SampleConvertAndFit(sampled_parameters)
-    total_counts = results[1]+results[3]
-
-    if fit_config_dict['minos_intervals']:
-        return results, T.minos_errors, total_counts
-    else:
-        return results, errors, total_counts
-
-def GetPDF(fit_config_dict, params, plot=False):
-    logger.info('Plotting lineshape: {}'.format(plot))
-    logger.info('PDF for params: {}'.format(params))
-    #logger.info(fit_options)
-    #scattered = fit_options['scattered']
-    #distorted = fit_options['distorted']
-
-    T = BinnedTritiumMLFitter("TritiumFitter")
-    T.InternalConfigure(fit_config_dict)
-    T.plot_lineshape = plot
-    #T.is_scatterd=scattered
-    #T.is_distorted=distorted
-
-    pdf = T.TritiumSpectrumBackground(T.energies, *params)
-    _, asimov_binned_data = T.GenerateAsimovData(params)
-    binned_fit = T.TritiumSpectrumBackground(T.bin_centers, *params, error=True)
-
-    return T.energies, pdf, T.bin_centers, binned_fit, asimov_binned_data

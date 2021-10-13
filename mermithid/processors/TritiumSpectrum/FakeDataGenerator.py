@@ -425,6 +425,7 @@ class FakeDataGenerator(BaseProcessor):
 
         ratesS[ratesS<0.] = 0.
         ratesB[ratesB<0.] = 0.
+        logger.info('Combinging {} signal events with {} background events'.format(S, B))
         rate_sumS, rate_sumB = np.sum(ratesS), np.sum(ratesB)
         probsS = np.array(ratesS)/rate_sumS
         probsB = np.array(ratesB)/rate_sumB

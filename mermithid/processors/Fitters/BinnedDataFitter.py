@@ -64,6 +64,7 @@ class BinnedDataFitter(BaseProcessor):
         self.constrained_means = reader.read_param(params, 'constrained_parameter_means', [])
         self.constrained_widths = reader.read_param(params, 'constrained_parameter_widths', [])
         self.minos_cls = reader.read_param(params, 'minos_confidence_level_list', [])
+        self.minos_intervals = reader.read_param(params,'find_minos_intervals', False)
 
         # derived configurations
         self.bin_centers = self.bins[0:-1]+0.5*(self.bins[1]-self.bins[0])
@@ -121,12 +122,7 @@ class BinnedDataFitter(BaseProcessor):
 
         m_binned = Minuit(self.negPoissonLogLikelihood,
                                       self.initial_values,
-        #                              error=self.parameter_errors,
-        #                              errordef = 0.5, limit = self.limits,
                                       name=self.parameter_names,
-        #                              fix=self.fixes,
-        #                              print_level=self.print_level,
-        #                              throw_nan=True
                                       )
 
         m_binned.errordef = 0.5
@@ -150,7 +146,7 @@ class BinnedDataFitter(BaseProcessor):
         result_array = np.array(m_binned.values)
         error_array = np.array(m_binned.errors)
 
-        if len(self.minos_cls) > 0:
+        if self.minos_intervals:
             self.minos_errors = {}
             for mcl in self.minos_cls:
                 logger.info('Getting minos errors for CL = {}'.format(mcl))

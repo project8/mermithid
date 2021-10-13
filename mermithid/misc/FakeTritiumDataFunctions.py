@@ -282,6 +282,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
     """K is an array-like object
     """
     logger.info('Using scipy convolve')
+    logger.info('Lineshape is {} with {}'.format(lineshape, resolution_function))
     energy_half_range = max(max_energy, abs(min_energy))
 
     if ins_res_width_bounds != None:
