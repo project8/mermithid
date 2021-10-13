@@ -3,14 +3,14 @@
 Author: C. Claessens
 Date:8/03/2021
 Description:
-    Tritium class
+    Processor for analyzing tritium data with frequentist methods
 
     contains tritium model(s)
     convolves with energy resolution
     convolves with lineshape
     multiplies with efficiency
     adds background
-    has log likelihood and neg log likelihood functions (poisson) that can be used by minimzer
+    uses BinnedDataFitter to fit binned spectrum with iminuit minimizer
 
 
 """
@@ -38,8 +38,10 @@ from mermithid.misc.DetectionEfficiencyUtilities import pseudo_integrated_effici
 #electron_mass = constants.electron_mass/constants.e*constants.c**2
 #FineStructureConstant = 0.0072973525664
 
-###############################################################################
+# =============================================================================
 # Functions that can be imported from here and facitilate working with the processor
+# =============================================================================
+#
 # They create an instance of the processor defined below and use it for analysis
 # GenAndFit tells the processor to generate new fake data and fit it
 # DoOneFit give the processor data and tells it to fit it
@@ -50,37 +52,20 @@ def GenAndFit(params, counts, fit_config_dict, sampled_priors={},
               i=0, fixed_data = [], error_scaling=1, tilt = None,
               fit_tilt = False, event=None):
 
-    """if 'scattered' in fit_options.keys():
-        scattered = fit_options['scattered']
-    else:
-        scattered = None
-    if 'distorted' in fit_options.keys():
-        distorted = fit_options['distorted']
-    else:
-        distorted = None
-    if 'fit_nu_mass' in fit_options.keys():
-        fit_nu_mass = fit_options['fit_nu_mass']
-    else:
-        fit_nu_mass = None"""
 
     if i%20 == 0:
         logger.info('Sampling: {}'.format(i))
-
-
 
     try:
 
         T = BinnedTritiumMLFitter("TritiumFitter")
         T.InternalConfigure(fit_config_dict)
-        #T.is_scattered = scattered
-        #T.is_distorted = distorted
         T.error_scaling = error_scaling
         T.integrate_bins = True
 
         if tilt is not None:# and tilt !=0:
             T.tilted_efficiency = True
             T.tilt = tilt
-
 
 
         # generate random data from best fit parameters
@@ -90,9 +75,6 @@ def GenAndFit(params, counts, fit_config_dict, sampled_priors={},
         else:
             _, new_data = T.GenerateAsimovData(params)
 
-
-        #if fit_nu_mass:
-        #    T.fix_nu_mass = False
 
         if fit_tilt:
             T.fix_tilt = False
@@ -104,8 +86,6 @@ def GenAndFit(params, counts, fit_config_dict, sampled_priors={},
     except Exception as e:
         print(e)
         print(params)
-        if event is not None:
-            event.set()
         raise(e)
 
     else:
@@ -118,15 +98,10 @@ def GenAndFit(params, counts, fit_config_dict, sampled_priors={},
 def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
              tilt=None, fit_tilt = False, data_is_energy=False):
 
-    """scattered = fit_options['scattered']
-    distorted = fit_options['distorted']
-    fit_nu_mass = fit_options['fit_nu_mass']"""
 
     T = BinnedTritiumMLFitter("TritiumFitter")
     T.InternalConfigure(fit_config_dict)
     T.print_level=1
-    #T.is_scattered = scattered
-    #T.is_distorted = distorted
     T.error_scaling = error_scaling
     T.integrate_bins = True
     logger.info('Energy stepsize: {}'.format(T.denergy))
@@ -135,9 +110,6 @@ def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
         T.tilted_efficiency = True
         T.tilt = tilt
 
-    #if fit_nu_mass:
-    #    logger.info('Fitting neutrino mass')
-    #    T.fix_nu_mass = False
     if fit_tilt:
         logger.info('Going to fit efficiency tilt')
         T.fix_tilt = False
@@ -156,15 +128,12 @@ def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
 def GetPDF(fit_config_dict, params, plot=False):
     logger.info('Plotting lineshape: {}'.format(plot))
     logger.info('PDF for params: {}'.format(params))
-    #logger.info(fit_options)
-    #scattered = fit_options['scattered']
-    #distorted = fit_options['distorted']
+
 
     T = BinnedTritiumMLFitter("TritiumFitter")
     T.InternalConfigure(fit_config_dict)
     T.plot_lineshape = plot
-    #T.is_scatterd=scattered
-    #T.is_distorted=distorted
+
 
     pdf = T.TritiumSpectrumBackground(T.energies, *params)
     _, asimov_binned_data = T.GenerateAsimovData(params)
@@ -173,8 +142,9 @@ def GetPDF(fit_config_dict, params, plot=False):
     return T.energies, pdf, T.bin_centers, binned_fit, asimov_binned_data
 
 
-##############################################################################
+# =============================================================================
 # Processor definition
+# =============================================================================
 
 class BinnedTritiumMLFitter(BinnedDataFitter):
 
@@ -537,7 +507,6 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             logger.warning('Neutrino mass limited to: {} - {}'.format(*np.sqrt(np.array(neutrino_limits))))
 
 
-        #logger.warning('Neutrino mass fitted: {}'.format(self.fit_nu_mass))
         #if not self.fit_efficiency_tilt:
         self.parameter_names = ['Endpoint', 'Background', 'm_beta_squared', 'Amplitude',
                                 'scatter_peak_ratio_b', 'scatter_peak_ratio_c',
@@ -588,6 +557,46 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
         return True
+
+    # =========================================================================
+    # Main fit function
+    # =========================================================================
+    # This is the main function that is called from outside (besides Configure).
+    # Maybe I should rename it to InternalRun to match mermithid naming scheme (and make the processor an actual processor)
+
+    def SampleConvertAndFit(self, sampled_parameters={}, params= []):
+
+        # for systematic MC uncertainty propagation: Generate Asimov data to fit with random model
+        if self.use_asimov:
+            #temp = self.error_scaling
+            #self.error_scaling = 0
+            #self._bin_efficiency, self._bin_efficiency_error = self.Efficiency(self.bin_centers, pseudo=True)
+            self.hist = self.TritiumSpectrumBackground(self.bin_centers, *params)
+            #self.error_scaling = temp
+
+        # sample priors that are to be sampled
+        if len(sampled_parameters.keys()) > 0:
+            self.SamplePriors(sampled_parameters)
+
+
+            # need to first re-calcualte energy bins with sampled B before getting efficiency
+            self.ReSetBins()
+
+            if 'efficiency' in sampled_parameters.keys():
+                random_efficiency = True
+            else:
+                random_efficiency = False
+
+            # re-calculate bin efficiencies, if self.pseudo_eff=True efficiency will be ranomized
+            self._bin_efficiency, self._bin_efficiency_error = self.Efficiency(self.bin_centers, pseudo=random_efficiency)
+
+
+        # now convert frequency data to energy data and histogram it
+        if not self.use_asimov:
+            self.ConvertAndHistogram()
+
+        # Call parent fit method using data and model from this instance
+        return self.fit()
 
 
     # =========================================================================
@@ -850,50 +859,14 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
 
+
+
+
+
+
     # =========================================================================
-    # Fit
+    # Model functions
     # =========================================================================
-    # This is the main function that is called from outside (besides Configure).
-    # Maybe I should rename it to InternalRun
-
-    def SampleConvertAndFit(self, sampled_parameters={}, params= []):
-
-        # for systematic MC uncertainty propagation: Generate Asimov data to fit with random model
-        if self.use_asimov:
-            #temp = self.error_scaling
-            #self.error_scaling = 0
-            #self._bin_efficiency, self._bin_efficiency_error = self.Efficiency(self.bin_centers, pseudo=True)
-            self.hist = self.TritiumSpectrumBackground(self.bin_centers, *params)
-            #self.error_scaling = temp
-
-        # sample priors that are to be sampled
-        if len(sampled_parameters.keys()) > 0:
-            self.SamplePriors(sampled_parameters)
-
-
-            # need to first re-calcualte energy bins with sampled B before getting efficiency
-            self.ReSetBins()
-
-            if 'efficiency' in sampled_parameters.keys():
-                random_efficiency = True
-            else:
-                random_efficiency = False
-
-            # re-calculate bin efficiencies, if self.pseudo_eff=True efficiency will be ranomized
-            self._bin_efficiency, self._bin_efficiency_error = self.Efficiency(self.bin_centers, pseudo=random_efficiency)
-
-
-        # now convert frequency data to energy data and histogram it
-        if not self.use_asimov:
-            self.ConvertAndHistogram()
-
-        # Call parent fit method using data and model from this instance
-        return self.fit()
-
-
-
-
-    ########################### Tritium spectrum #################################
 
 
     def gauss_resolution_f(self, energy_array, A, sigma, mu):
