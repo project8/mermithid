@@ -74,17 +74,17 @@ class MCUncertaintyPropagation(BaseProcessor):
 
         fit_successful = False
         counter = 0
-        while (not fit_successful) and counter < 15:
-            counter += 1
-            try:
+        #while (not fit_successful) and counter < 15:
+        #    counter += 1
+        #    try:
 
-                self.fitted_params, self.fitted_params_errors, self.Counts = self.fit(self.data,
+        self.fitted_params, self.fitted_params_errors, self.Counts = self.fit(self.data,
                                                                self.fit_config_dict)
-                fit_successful = True
-            except Exception as e:
-               print(e)
-               logger.error('Repeating fit')
-               continue
+        fit_successful = True
+        #    except Exception as e:
+        #       print(e)
+        #       logger.error('Repeating fit')
+        #       continue
 
 
         logger.info('Best fit: {}'.format(self.fitted_params))
@@ -124,7 +124,7 @@ class MCUncertaintyPropagation(BaseProcessor):
                 for i in range(start_j, self.N):
                     fit_successful = False
                     counter = 0
-                    while (not fit_successful) and counter < 15:
+                    while (not fit_successful) and counter < 5:
                         counter += 1
                         try:
                             all_fit_returns.append(self.gen_and_fit(self.fitted_params, self.Counts,

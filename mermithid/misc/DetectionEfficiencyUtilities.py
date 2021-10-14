@@ -6,12 +6,12 @@ import os
 from scipy.interpolate import interp1d
 from scipy.stats import binom
 from scipy import constants
-from statsmodels.stats.proportion import proportion_confint
 import helper_functions.alis_power as ap
 import helper_functions.plot_methods as pm
 
 
 def binomial_interval(n, k, alpha=1 / 3.1514872):
+    from statsmodels.stats.proportion import proportion_confint
 
     if isinstance(n, list) or type(n) is np.ndarray:
 
@@ -257,24 +257,3 @@ def pseudo_integrated_efficiency(f, df, snr_efficiency_dict, alpha=1):
     return pseudo_y+y, y_error
 
 
-def binomial_interval(n, k, alpha=1 / 3.1514872):
-
-    if isinstance(n, list) or type(n) is np.ndarray:
-
-        mean = np.zeros(len(n))
-        interval = np.zeros((2, len(n)))
-        interval_mean = np.zeros(len(n))
-        for i in range(len(n)):
-            interval[0][i], interval[1][i] = proportion_confint(k[i], n[i], method='wilson', alpha=alpha)
-            rv = binom(n[i], k[i]*1./n[i])
-            mean[i] = rv.mean()*1./n[i]
-            interval_mean[i] = np.mean(interval.T[i])
-        interval_error = [interval_mean - interval[0], interval[1]-interval_mean]
-
-    else:
-        l_int, u_int = proportion_confint(k, n, method='wilson', alpha=alpha)
-        rv = binom(n, k*1./n)
-        mean = rv.mean()*1./n
-        interval_mean = np.mean([l_int, u_int])
-        interval_error = [interval_mean - l_int, u_int-interval_mean]
-    return mean, interval_mean, interval_error
