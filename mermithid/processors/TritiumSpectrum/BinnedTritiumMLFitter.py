@@ -330,8 +330,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         # Parameters can be constrained manually or by inlcuding them in the nuisance parameter dictionary
         #self.constrained_parameter_names = reader.read_param(config_dict, 'constrained_parameter_names', [])
         self.constrained_parameters = reader.read_param(config_dict, 'constrained_parameters', [])
-        self.constrained_means = np.array(self.model_parameter_means)[self.constrained_parameters]#reader.read_param(config_dict, 'constrained_means', [])
-        self.constrained_widths = np.array(self.model_parameter_widths)[self.constrained_parameters]#reader.read_param(config_dict, 'constrained_widths', [])
+        self.constrained_means = list(np.array(self.model_parameter_means)[self.constrained_parameters])#reader.read_param(config_dict, 'constrained_means', [])
+        self.constrained_widths = list(np.array(self.model_parameter_widths)[self.constrained_parameters])#reader.read_param(config_dict, 'constrained_widths', [])
 
 
         self.nuisance_parameters = reader.read_param(config_dict, 'nuisance_parameters', {})
@@ -342,9 +342,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                     self.constrained_parameters.append(i)
                     self.constrained_means.append(self.model_parameter_means[i])
                     self.constrained_widths.append(self.model_parameter_means[i])
-                    self.fixed_parameters[i] = False
-                else:
-                    self.fixed_parameters[i] = True
+            if i in self.constrained_parameters:
+                self.fixed_parameters[i] = False
 
         # if 'res' in self.nuisance_parameters.keys():
         #     self.fix_res = not self.nuisance_parameters['res']
@@ -392,9 +391,6 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         #     self.constrained_means.append(self.B_mean)
         #     self.constrained_widths.append(self.B_width)"""
 
-        if len(self.constrained_parameters) > 0:
-            logger.warning('Some parameters are constrained: {} - {}'.format(self.constrained_parameters, self.constrained_parameter_names))
-            #self.print_level = 1
 
         # MC uncertainty propagation does not need the fit uncertainties returned by iminuit. uncertainties are instead obtained from the distribution of fit results.
         # But if the uncertainty is unstead propagated by adding constraiend nuisance parameters then the fit uncertainties are needed.
@@ -690,19 +686,19 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             if k in self.nuisance_parameters and self.nuisance_parameters[k]:
                 raise ValueError('{} is nuisance parameter.'.format(k))
 
-        for p in self.model_parameter_names:
-            if p in sampled_parameters.keys() and sampled_parameters[p]:
+        for i, p in enumerate(self.model_parameter_names):
+            if p in sampled_parameters.keys() and sampled_parameters[p] and not self.fixed_parameters[i]:
                 raise ValueError('{} is a free parameter'.format(p))
 
         logger.info('Sampling: {}'.format([k for k in sampled_parameters.keys() if sampled_parameters[k]]))
         self.parameter_samples = {}
         sample_values = []
-        if 'res' in sampled_parameters.keys() and sampled_parameters['res']:
+        if 'resolution' in sampled_parameters.keys() and sampled_parameters['resolution']:
             self.res = self.Gaussian_sample(self.res_mean, self.res_width)
             if self.res <= 30.01/float(2*np.sqrt(2*np.log(2))):
                 logger.warning('Sampled resolution small. Setting to {}'.format(30.01/float(2*np.sqrt(2*np.log(2)))))
                 self.res = 30.01/float(2*np.sqrt(2*np.log(2)))
-            self.parameter_samples['res'] = self.res
+            self.parameter_samples['resolution'] = self.res
             sample_values.append(self.res)
         if 'two_gaussian_sigma_1' in sampled_parameters.keys() and sampled_parameters['two_gaussian_sigma_1']:
             self.two_gaussian_sigma_1 = self.Gaussian_sample(self.two_gaussian_sigma_1_mean, self.two_gaussian_sigma_1_width)
