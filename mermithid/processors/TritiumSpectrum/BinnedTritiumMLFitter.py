@@ -204,7 +204,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         self.parameter_samples = {}
 
-
+        # need to know which parameter is background
         self.background_index = self.model_parameter_names.index('background')
         # and which one is B
         # self.B_index = self.model_parameter_names.index('B')
