@@ -425,57 +425,46 @@ class FakeDataGenerator(BaseProcessor):
 
         ratesS[ratesS<0.] = 0.
         ratesB[ratesB<0.] = 0.
-        rate_sumS, rate_sumB = np.sum(ratesS), np.sum(ratesB)
-        probsS = np.array(ratesS)/rate_sumS
-        probsB = np.array(ratesB)/rate_sumB
+        #rate_sumS, rate_sumB = np.sum(ratesS), np.sum(ratesB)
+        #probsS = np.array(ratesS)/rate_sumS
+        #probsB = np.array(ratesB)/rate_sumB
 
-	    #Calculate three different probs variables, for each of the three runtimes
+	    #Calculate three different rates variables, for each of the three runtimes
         runtime_ratios = [t/float(self.channel_runtimes[0]) for t in self.channel_runtimes]
 
         logger.info('Generating data')
         time4 = time.time()
 
 	    #Break up self.Koptions into three different arrays.
-	    #Then, sample KE variables for each of the arrays and appropriate elements of self.channel_runtimes and self.probs.
+	    #Then, sample KE variables for each of the arrays and appropriate elements of self.channel_runtimes, ratesS and ratesB.
         #Finally, concatenate together the three KE arrays.
-        temp_Koptions, temp_probsS, temp_probsB = self.Koptions, probsS, probsB
-        split_Koptions, split_probsS, split_probsB = [], [], []
+        temp_Koptions, temp_ratesS, temp_ratesB = self.Koptions, ratesS, ratesB
+        split_Koptions, split_ratesS, split_ratesB = [], [], []
         for i in range(len(self.channel_bounds)):
-            print(len(temp_Koptions), len(temp_probsS), len(temp_probsB))
+            print(len(temp_Koptions), len(temp_ratesS), len(temp_ratesB))
             split_Koptions.append(temp_Koptions[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
-            split_probsS.append(temp_probsS[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
-            split_probsB.append(temp_probsB[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
-            temp_probsS = temp_probsS[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
-            temp_probsB = temp_probsB[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
+            split_ratesS.append(temp_ratesS[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
+            split_ratesB.append(temp_ratesB[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
+            temp_ratesS = temp_ratesS[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
+            temp_ratesB = temp_ratesB[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
             temp_Koptions = temp_Koptions[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
 
         split_Koptions.append(temp_Koptions)
-        split_probsS.append(temp_probsS)
-        split_probsB.append(temp_probsB)
+        split_ratesS.append(temp_ratesS)
+        split_ratesB.append(temp_ratesB)
 
-        self.probs = []
+        rates = []
         for i in range(len(self.channel_runtimes)):
-            self.probs.append((S*runtime_ratios[i]*split_probsS[i] + B*split_probsB[i])/(S*runtime_ratios[i]+B)) 
-
-        print(len(split_Koptions[0]))
-        print(len(self.probs[0]))
+            rates.append((S*runtime_ratios[i]*split_ratesS[i] + B*split_ratesB[i])/(S*runtime_ratios[i]+B)) 
 
         self.Koptions = np.concatenate(split_Koptions)
-        self.probs = np.concatenate(self.probs)
+        rates = np.concatenate(rates)
+        self.probs = rates/np.sum(rates)
 
         if self.poisson_stats:
             KE = np.random.choice(self.Koptions, np.random.poisson(S+B), p = self.probs)
         else:
             KE = np.random.choice(self.Koptions, round(S+B), p = self.probs)
-
-        """
-        split_KE = []
-        for i in range(len(runtime_ratios)):
-            if self.poisson_stats:
-                split_KE.append(np.random.choice(split_Koptions[i], np.random.poisson(S*runtime_ratios[i]+B), p = self.probs[i]))
-            else:
-                split_KE.append(np.random.choice(split_Koptions[i], round(S*runtime_ratios[i]+B), p = self.probs[i]))
-        """
 
         time5 = time.time()
 
