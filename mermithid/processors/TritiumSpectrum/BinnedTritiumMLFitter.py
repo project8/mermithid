@@ -15,24 +15,22 @@ Description:
 
 """
 
-import numpy as np
-from scipy import constants
-from scipy.special import erfc
 import json
 import os
 from copy import deepcopy
+import numpy as np
+from scipy import constants
+from scipy.special import erfc
 import matplotlib.pyplot as plt
 
-
-from mermithid.processors.Fitters import BinnedDataFitter
-from mermithid.misc.FakeTritiumDataFunctions import *
-from mermithid.processors.misc.KrComplexLineShape import KrComplexLineShape
 
 from morpho.utilities import morphologging, reader
 logger = morphologging.getLogger(__name__)
 
-
-from mermithid.misc.DetectionEfficiencyUtilities import pseudo_integrated_efficiency, integrated_efficiency
+from mermithid.processors.Fitters import BinnedDataFitter
+from mermithid.misc.FakeTritiumDataFunctions import *
+from mermithid.processors.misc.KrComplexLineShape import KrComplexLineShape
+from mermithid.misc.DetectionEfficiencyUtilities import pseudo_integrated_efficiency, integrated_efficiency, power_efficiency
 
 
 #electron_mass = constants.electron_mass/constants.e*constants.c**2
@@ -55,7 +53,6 @@ def GenAndFit(params, counts, fit_config_dict, sampled_priors={},
 
     if i%20 == 0:
         logger.info('Sampling: {}'.format(i))
-
 
 
     T = BinnedTritiumMLFitter("TritiumFitter")
@@ -120,6 +117,7 @@ def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
     else:
         return results, errors, total_counts
 
+
 def GetPDF(fit_config_dict, params, plot=False):
     logger.info('Plotting lineshape: {}'.format(plot))
     logger.info('PDF for params: {}'.format(params))
@@ -148,7 +146,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
     def InternalConfigure(self, config_dict):
 
         # ====================================
-        # Model options and parameter settings
+        # Model configuration
         # ====================================
         self.use_approx_model = reader.read_param(config_dict, 'use_approximate_model', True)
         self.use_toy_model_efficiency = reader.read_param(config_dict, 'use_toy_model_efficiency', False)
@@ -174,7 +172,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         # configure model parameter names
         self.model_parameter_names = reader.read_param(config_dict, 'model_parameter_names',
                                                        ['endpoint', 'background', 'm_beta_squared', 'Amplitude',
-                                                        'scatter_peak_ratio_p', 'scatter_peak_ratio_q',
+                                                        'scatter_peak_ratio_b', 'scatter_peak_ratio_c',
                                                         'resolution', 'two_gaussian_sigma_1', 'two_gaussian_sigma_2'] )
         # initial values and mean of constaints (if constraint) or mean of distribution (if sampled)
         self.model_parameter_means = reader.read_param(config_dict, 'model_parameter_means', [18.6e3, 0, 0, 5000, 0.8, 1, 15, 10, 10])
@@ -188,7 +186,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                                                      [100, None],
                                                      [0.1, 1.],
                                                      [0.1, 1.],
-                                                     [30, 100],
+                                                     [12, 100],
                                                      [1, 100],
                                                      [1, 100]])
 
@@ -199,7 +197,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
         # ====================================
-        # Identify and configure parameters
+        # Parameter configuration
         # ====================================
 
         self.parameter_samples = {}
@@ -212,10 +210,43 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.amplitude_index = self.model_parameter_names.index('Amplitude')
 
 
+        # resolutions
+
+        self.scale_mean = reader.read_param(config_dict, 'scale_mean', 1)
+        self.scale_width = reader.read_param(config_dict, 'scale_width', 0)
+        self.width_scaling = self.scale_mean
+
+        if self.is_smeared:
+            self.res_index = self.model_parameter_names.index('resolution')
+
+            self.res_mean = reader.read_param(config_dict, 'gaussian_resolution_mean', 15.0)
+            self.res_width = reader.read_param(config_dict, 'gaussian_resolution_width', 1.0)
+            self.res = self.res_mean
+            if self.res <= 30.01/float(2*np.sqrt(2*np.log(2))):
+                logger.warning('Resolution small for shallow trap model. Setting to {}'.format(30.01/float(2*np.sqrt(2*np.log(2)))))
+                self.res = 30.01/float(2*np.sqrt(2*np.log(2)))
+
+
+
+            if self.resolution_model != 'gaussian':
+                self.two_gaussian_sigma_1_index = self.model_parameter_names.index('two_gaussian_sigma_1')
+                self.two_gaussian_sigma_2_index = self.model_parameter_names.index('two_gaussian_sigma_2')
+
+                self.two_gaussian_mu_1 = reader.read_param(config_dict, 'two_gaussian_mu1', 0)
+                self.two_gaussian_mu_2 = reader.read_param(config_dict, 'two_gaussian_mu2', 0)
+                self.two_gaussian_sigma_1_mean = reader.read_param(config_dict, 'two_gaussian_sigma_1_mean', 15)
+                self.two_gaussian_sigma_2_mean = reader.read_param(config_dict, 'two_gaussian_sigma_2_mean', 5)
+                self.two_gaussian_sigma_1_width = reader.read_param(config_dict, 'two_gaussian_sigma_1_width', 1)
+                self.two_gaussian_sigma_2_width = reader.read_param(config_dict, 'two_gaussian_sigma_2_width', 1)
+                self.two_gaussian_wide_fraction = reader.read_param(config_dict, 'two_gaussian_wide_fraction', 1.)
+                self.two_gaussian_sigma_1 = deepcopy(self.two_gaussian_sigma_1_mean)
+                self.two_gaussian_sigma_2 = deepcopy(self.two_gaussian_sigma_2_mean)
+
+
         # scatter peak ratio
         if self.is_scattered:
-            self.scatter_peak_ratio_b_index = self.model_parameter_names.index('scatter_peak_ratio_p')
-            self.scatter_peak_ratio_c_index = self.model_parameter_names.index('scatter_peak_ratio_q')
+            self.scatter_peak_ratio_b_index = self.model_parameter_names.index('scatter_peak_ratio_b')
+            self.scatter_peak_ratio_c_index = self.model_parameter_names.index('scatter_peak_ratio_c')
 
             self.scatter_peak_ratio_b_mean = reader.read_param(config_dict, 'scatter_peak_ratio_b_mean', 0.7)
             self.scatter_peak_ratio_b_width = reader.read_param(config_dict, 'scatter_peak_ratio_b_width', 0.1)
@@ -240,34 +271,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                                           [self.b_scale_corr*stds[2]*stds[0], self.c_scale_corr*stds[2]*stds[1], stds[2]**2]]
 
 
-        # resolutions
-        if self.is_smeared:
-            self.res_index = self.model_parameter_names.index('resolution')
 
-            self.res_mean = reader.read_param(config_dict, 'gaussian_resolution_mean', 15.0)
-            self.res_width = reader.read_param(config_dict, 'gaussian_resolution_width', 1.0)
-            self.res = self.res_mean
-            if self.res <= 30.01/float(2*np.sqrt(2*np.log(2))):
-                    logger.warning('Resolution small for shallow trap model. Setting to {}'.format(30.01/float(2*np.sqrt(2*np.log(2)))))
-                    self.res = 30.01/float(2*np.sqrt(2*np.log(2)))
-
-            self.scale_mean = reader.read_param(config_dict, 'scale_mean', 1)
-            self.scale_width = reader.read_param(config_dict, 'scale_width', 0)
-            self.width_scaling = self.scale_mean
-
-            if self.resolution_model != 'gaussian':
-                self.two_gaussian_sigma_1_index = self.model_parameter_names.index('two_gaussian_sigma_1')
-                self.two_gaussian_sigma_2_index = self.model_parameter_names.index('two_gaussian_sigma_2')
-
-                self.two_gaussian_mu_1 = reader.read_param(config_dict, 'two_gaussian_mu1', 0)
-                self.two_gaussian_mu_2 = reader.read_param(config_dict, 'two_gaussian_mu2', 0)
-                self.two_gaussian_sigma_1_mean = reader.read_param(config_dict, 'two_gaussian_sigma_1_mean', 15)
-                self.two_gaussian_sigma_2_mean = reader.read_param(config_dict, 'two_gaussian_sigma_2_mean', 5)
-                self.two_gaussian_sigma_1_width = reader.read_param(config_dict, 'two_gaussian_sigma_1_width', 1)
-                self.two_gaussian_sigma_2_width = reader.read_param(config_dict, 'two_gaussian_sigma_2_width', 1)
-                self.two_gaussian_wide_fraction = reader.read_param(config_dict, 'two_gaussian_wide_fraction', 1.)
-                self.two_gaussian_sigma_1 = self.two_gaussian_sigma_1_mean
-                self.two_gaussian_sigma_2 = self.two_gaussian_sigma_2_mean
 
         # identify tritium parameters
         self.tritium_model_indices = reader.read_param(config_dict, 'tritium_model_parameters', [0, 2])
@@ -275,6 +279,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.endpoint_index = self.model_parameter_names.index('endpoint')
         self.fixed_parameters[self.m_beta_index] = not self.fit_nu_mass
         self.endpoint=reader.read_param(config_dict, 'true_endpoint', 18.573e3)
+        logger.info('Tritium model parameters: {}'.format(np.array(self.model_parameter_names)[self.tritium_model_indices]))
 
 
         # final state spectrum
@@ -306,12 +311,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
 
-
-
-
-
         # =================
-        # fit configuration
+        # Fit configuration
         # =================
 
         self.print_level = reader.read_param(config_dict, 'print_level', 0)
@@ -402,7 +403,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
         # ==================================
-        # detection efficiency details
+        # detection efficiency configuration
         # ==================================
 
         self.tilted_efficiency = False
@@ -438,7 +439,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             raise ValueError('Max frequency undetermined')
 
         # ==================================
-        # configure lineshape
+        # lineshape configuration
         # ==================================
 
         # simplified lineshape parameters
@@ -683,7 +684,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
     def SamplePriors(self, sampled_parameters):
 
         for k in sampled_parameters.keys():
-            if k in self.nuisance_parameters and self.nuisance_parameters[k]:
+            if k in self.nuisance_parameters and self.nuisance_parameters[k] and sampled_parameters[k]:
                 raise ValueError('{} is nuisance parameter.'.format(k))
 
         for i, p in enumerate(self.model_parameter_names):
@@ -1193,30 +1194,6 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         E = np.array(E)
 
 
-        # lineshape params
-        if self.is_scattered:
-            prob_b = args[self.scatter_peak_ratio_b_index]
-            prob_c = args[self.scatter_peak_ratio_c_index]
-
-            if self.fixed_parameters[self.scatter_peak_ratio_b_index]:
-                prob_b = self.scatter_peak_ratio_b
-            if self.fixed_parameters[self.scatter_peak_ratio_c_index]:
-                prob_c = self.scatter_peak_ratio_c
-
-        if self.is_smeared:
-            res = args[self.res_index]
-            if self.fixed_parameters[self.res_index]:
-                res = self.res
-
-        if self.resolution_model != 'gaussian':
-            sig1 = args[self.two_gaussian_sigma_1_index]
-            sig2 = args[self.two_gaussian_sigma_2_index]
-
-            if self.fixed_parameters[self.two_gaussian_sigma_1_index]:
-                sig1 = self.two_gaussian_sigma_1
-            if self.fixed_parameters[self.two_gaussian_sigma_1_index]:
-                sig2 = self.two_gaussian_sigma_2
-
         # tritium args
         tritium_args = np.array(args)[self.tritium_model_indices]
 
@@ -1241,6 +1218,20 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         # smear spectrum
         if self.is_smeared or self.is_scattered:
+
+            # resolution params
+            res = args[self.res_index]
+            if self.fixed_parameters[self.res_index]:
+                res = self.res
+
+            if self.resolution_model != 'gaussian':
+                sig1 = args[self.two_gaussian_sigma_1_index]
+                sig2 = args[self.two_gaussian_sigma_2_index]
+
+                if self.fixed_parameters[self.two_gaussian_sigma_1_index]:
+                    sig1 = self.two_gaussian_sigma_1
+                if self.fixed_parameters[self.two_gaussian_sigma_1_index]:
+                    sig2 = self.two_gaussian_sigma_2
 
 
             max_energy = 1000
@@ -1273,6 +1264,16 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
             if self.is_scattered:
+                # scatter params
+                prob_b = args[self.scatter_peak_ratio_b_index]
+                prob_c = args[self.scatter_peak_ratio_c_index]
+
+                if self.fixed_parameters[self.scatter_peak_ratio_b_index]:
+                    prob_b = self.scatter_peak_ratio_b
+                if self.fixed_parameters[self.scatter_peak_ratio_c_index]:
+                    prob_c = self.scatter_peak_ratio_c
+
+
                 if prob_b == None:
                     prob_b = self.scatter_peak_ratio_b_mean
                     prob_c = self.scatter_peak_ratio_c_mean
@@ -1375,7 +1376,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 if E[0] -0.5*dE_bins >= self._energies[1]:
                     K_convolved_cut = K_convolved[self.energies>=min(E[0] -0.5*dE_bins)]
                     K_convolved = self.running_mean(K_convolved_cut, N)
-                    logger.warning('Cutting spectrum below Kmin:{} > {}'.format(E[0]-0.5*dE_bins, self_energies[0]))
+                    logger.warning('Cutting spectrum below Kmin:{} > {}'.format(E[0]-0.5*dE_bins, self._energies[0]))
                 else:
                     K_convolved = self.running_mean(K_convolved, N)
 
@@ -1396,8 +1397,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
         if self.is_distorted == True:
-            if self.fit_efficiency_tilt:
-                self.tilt = tilt
+            #if self.fit_efficiency_tilt:
+            #    self.tilt = tilt
             efficiency, efficiency_errors =  self.Efficiency(E)
 
         K_eff=K_convolved*efficiency
