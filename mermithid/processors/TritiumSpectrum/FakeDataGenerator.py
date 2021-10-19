@@ -2,7 +2,7 @@
 Generate binned or pseudo unbinned data
 Author: T. Weiss, C. Claessens, X. Huyan
 Date: 4/6/2020
-Updated: 2/9/2021
+Updated: 10/19/2021
 '''
 
 from __future__ import absolute_import
@@ -425,9 +425,9 @@ class FakeDataGenerator(BaseProcessor):
 
         ratesS[ratesS<0.] = 0.
         ratesB[ratesB<0.] = 0.
-        #rate_sumS, rate_sumB = np.sum(ratesS), np.sum(ratesB)
-        #probsS = np.array(ratesS)/rate_sumS
-        #probsB = np.array(ratesB)/rate_sumB
+        rate_sumS, rate_sumB = np.sum(ratesS), np.sum(ratesB)
+        probsS = np.array(ratesS)/rate_sumS
+        probsB = np.array(ratesB)/rate_sumB
 
 	    #Calculate three different rates variables, for each of the three runtimes
         runtime_ratios = [t/float(self.channel_runtimes[0]) for t in self.channel_runtimes]
@@ -436,26 +436,25 @@ class FakeDataGenerator(BaseProcessor):
         time4 = time.time()
 
 	    #Break up self.Koptions into three different arrays.
-	    #Then, sample KE variables for each of the arrays and appropriate elements of self.channel_runtimes, ratesS and ratesB.
+	    #Then, sample KE variables for each of the arrays and appropriate elements of self.channel_runtimes, probsS and probsB.
         #Finally, concatenate together the three KE arrays.
-        temp_Koptions, temp_ratesS, temp_ratesB = self.Koptions, ratesS, ratesB
-        split_Koptions, split_ratesS, split_ratesB = [], [], []
+        temp_Koptions, temp_probsS, temp_probsB = self.Koptions, probsS, probsB
+        split_Koptions, split_probsS, split_probsB = [], [], []
         for i in range(len(self.channel_bounds)):
-            print(len(temp_Koptions), len(temp_ratesS), len(temp_ratesB))
             split_Koptions.append(temp_Koptions[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
-            split_ratesS.append(temp_ratesS[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
-            split_ratesB.append(temp_ratesB[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
-            temp_ratesS = temp_ratesS[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
-            temp_ratesB = temp_ratesB[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
+            split_probsS.append(temp_probsS[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
+            split_probsB.append(temp_probsB[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
+            temp_probsS = temp_probsS[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
+            temp_probsB = temp_probsB[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
             temp_Koptions = temp_Koptions[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
 
         split_Koptions.append(temp_Koptions)
-        split_ratesS.append(temp_ratesS)
-        split_ratesB.append(temp_ratesB)
+        split_probsS.append(temp_probsS)
+        split_probsB.append(temp_probsB)
 
         rates = []
         for i in range(len(self.channel_runtimes)):
-            rates.append((S*runtime_ratios[i]*split_ratesS[i] + B*split_ratesB[i])/(S*runtime_ratios[i]+B)) 
+            rates.append((S*runtime_ratios[i]*split_probsS[i] + B*split_probsB[i])/(S*runtime_ratios[i]+B)) 
 
         self.Koptions = np.concatenate(split_Koptions)
         rates = np.concatenate(rates)
