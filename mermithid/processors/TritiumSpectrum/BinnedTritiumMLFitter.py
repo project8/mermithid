@@ -868,7 +868,6 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
     def GenerateData(self, params, N):
 
-        #print('Generating data')
         x = self.energies[0:-1]+0.5*(self.energies[1]-self.energies[0])
         pdf = np.longdouble(self.TritiumSpectrumBackground(x, *params))
         pdf[pdf<0]=0.

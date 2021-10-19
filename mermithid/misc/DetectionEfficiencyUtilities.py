@@ -1,13 +1,21 @@
 
-
-import numpy as np
-import matplotlib.pyplot as plt
 import os
+import numpy as np
+import scipy.special as scs
+import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from scipy.stats import binom
 from scipy import constants
-import helper_functions.alis_power as ap
-import helper_functions.plot_methods as pm
+#import seaborn as sns
+
+#sns.set()
+#sns.set_style('white')
+#sns.set_style("ticks", {"xtick.major.size": 5, "ytick.major.size": 5})
+#sns_color = sns.xkcd_palette(["dark blue", "bright blue", "bright red", "blood red", "red", "orange yellow", "pastel blue", "jade", "bright blue"])
+#sns.set_context("paper", font_scale=1.5, rc={'text.usetex' : True})
+#sns.set_style({"xtick.direction": "in","ytick.direction": "in"})
+#sns.set_style({"font.family": "sans-serif"})
+#sns.set_palette('bright', 12)
 
 
 def binomial_interval(n, k, alpha=1 / 3.1514872):
@@ -72,7 +80,7 @@ def power_efficiency(f, plot=False, savepath='.'):
     N = int(1e6)
     efficiency = np.zeros(len(f))
     efficiency_error = np.zeros((len(f),2))
-    power_factor = ap.Power(f)/ap.Power([1407e6+24.5e9])
+    power_factor = Power(f)/Power([1407e6+24.5e9])
 
     #if plot:
     #    N = int(1e6)
@@ -81,8 +89,8 @@ def power_efficiency(f, plot=False, savepath='.'):
 
     if plot:
         plt.figure(figsize=(7,5))
-        plt.hist(data0, histtype='step', bins=100, color=pm.sns_color[0])
-        plt.axvline(threshold, label='Detection threshold', color=pm.sns_color[4])
+        plt.hist(data0, histtype='step', bins=100, color='blue')
+        plt.axvline(threshold, label='Detection threshold', color='red')
         plt.ylabel('N')
         plt.legend()
         plt.xlabel('SNR')
@@ -99,7 +107,7 @@ def power_efficiency(f, plot=False, savepath='.'):
 
     if plot:
         plt.figure(figsize=(7,5))
-        plt.plot(freq2en(f*1e-6-24.5e3), efficiency, color=pm.sns_color[0])
+        plt.plot(freq2en(f*1e-6-24.5e3), efficiency, color='blue')
         #plt.fill_between(freq2en(f*1e-6-24.5e3), efficiency-efficiency_error.T[0], efficiency+efficiency_error.T[1], color=pm.sns_color[0], alpha=0.5)
         plt.ylabel('Efficiency')
         plt.xlabel('Energy [keV]')
@@ -257,3 +265,174 @@ def pseudo_integrated_efficiency(f, df, snr_efficiency_dict, alpha=1):
     return pseudo_y+y, y_error
 
 
+#====================
+# Alis power functions
+#====================
+
+c = 299792458
+m_kg = 9.10938291*1e-31
+me_keV = 510.998
+q_C = 1.60217657*1e-19
+Z0 = 119.917 * np.pi
+Rc = 0.06e-2
+L0 = 0.35
+L0 = 0.3
+L0 = 0.2
+H = 0.9359
+H = 0.95777194923080811
+H = 0.9578170819250281
+E = 17.83
+a = 1.07e-2
+b = 0.43e-2
+r = 1.006e-2/2 #Circ WG Radius
+theta = np.arange( 88 * np.pi / 180 , 89.999 * np.pi / 180 , 0.0001)
+#theta = 89.9*np.pi/180
+
+# ??
+n = 0
+def sinc(x):
+    if x == 0 :
+        return 1
+    return np.sin(x)/x
+def cot(x):
+    return np.cos(x)/np.sin(x)
+
+def alpha_function(n, L0, E, H, theta ):
+    gamma = 1 + E / me_keV
+    wc = q_C * H / ( gamma * m_kg )
+    v0 = c * ( 1 - 1 / gamma ** 2 )**0.5
+    wa = v0 / L0 * np.sin(theta)
+    #wa = v0 / L0 * np.mean(np.sin(theta))
+    f = wc / ( 2 * np.pi )
+    q = -0.25 * wc/wa * cot(theta)**2
+    #q = -0.25 * wc/wa * np.mean(cot(theta)**2)
+
+    return scs.jv( n , q )
+
+def beta_function(n, L0, E, H, theta ):
+
+    gamma = 1 + E / me_keV
+    wc = q_C * H / ( gamma * m_kg )
+    v0 = c * ( 1 - 1 / gamma ** 2 )**0.5
+    vz0 = v0 * np.cos(theta)
+    #vz0 = v0 * np.mean(np.cos(theta))
+    wa = v0 / L0 * np.sin(theta)
+    #wa = v0 / L0 * np.mean(np.sin(theta))
+    f = wc / ( 2 * np.pi )
+    Dw = 0.5 * wc * cot(theta)**2
+    #Dw = 0.5 * wc * np.mean(cot(theta)**2)
+    fc=c/(2*a)
+    vp = c/(1-(2*np.pi*fc/(wc+Dw))**2)**0.5
+    k = (wc + Dw) / vp
+    zmax = L0 * cot( theta )
+    #zmax = L0 * np.mean(cot( theta ))
+
+    return scs.jv( n , k * zmax )
+
+def freq_func( n, L0, E, H, theta ):
+    gamma = 1 + E / me_keV
+    wc = q_C * H / ( gamma * m_kg )
+    v0 = c * ( 1 - 1 / gamma ** 2 )**0.5
+    wa = v0 / L0 * np.sin(theta)
+    return (wc+n*wa)/(2*np.pi)
+
+#def power_function(n, L0, E, H, theta ):
+#
+#    an = 0
+#    for m in range( -5, 5 ):
+#        an += alpha_function ( n = m, L0 = L0 , E = E , H = H, theta = theta ) * beta_function( n = n - 2 * m, L0 = L0 , E = E , H = H, theta = theta )
+#    return abs( an ) ** 2
+
+def power_function(n, L0, E, H, theta):
+    zmax = L0 / np.tan(theta/180*np.pi)
+    gamma = 1 + E / me_keV
+    wc = q_C * H / ( gamma * m_kg )
+    Dw = 0.5 * wc * cot(theta)**2
+    fc=c/(2*a)
+    vp = c/(1-(2*np.pi*fc/(wc+Dw))**2)**0.5
+    k = wc / c
+    return scs.jv(n, k*zmax)**2
+
+def start_freq_func( L0, E, H, theta ):
+    gamma = 1 + E / me_keV
+    wc = q_C * H / ( gamma * m_kg )
+    Dw = 0.5 * wc * cot(theta)**2
+    #Dw = 0.5 * wc * np.mean(cot(theta)**2)
+    #print(Dw)
+    return ( wc + Dw ) / ( 2 * np.pi )
+
+#def start_freq_func( L0, E, H, theta ):
+#    gamma = 1 + E / me_keV
+#    wc = q_C * H / ( gamma * m_kg )
+#    Dw = 0.5 * wc * cot(theta)**2
+#    #print Dw
+#    return ( wc + Dw ) / ( 2 * np.pi )
+
+fc11 = 1.841 * c / (2 * np.pi * r)
+
+
+def z_11(f):
+    return Z0 / (1 - (fc11/f)**2)**0.5
+
+def p_11(f, E, rho):
+    gamma = 1 + E / me_keV
+    v0 = c * ( 1 - 1 / gamma ** 2 )**0.5
+
+    alpha = 0.108858 * r**2
+    return z_11(f) * q_C**2 * v0**2 / (8 * np.pi * alpha) * ( scs.jvp(1, 1.841 * rho / r )**2 + 1 / (1.841 * rho / r )**2 * scs.j1(1.841 * rho / r)**2 )
+
+
+def Power_17keV(f):
+    f = np.array(f)
+    P = np.zeros(len(f))
+
+    # powers from ali
+    E = 17.826e3
+    r = 0.0001
+    n = 0
+
+    for i in range(len(f)):
+        h = B_field(E*1e-3, f[i])
+        bla = start_freq_func(L0, E*1e-3, h, np.pi/2)
+        p = (p_11(bla, E*1e-3, r))
+
+        P[i] = p
+
+    return P
+
+
+def Power(f):
+    # powers from ali
+    f = np.array(f)
+    P = np.zeros(len(f))
+
+    E = energy(f)
+    r = 0.0001
+    n = 0
+
+
+    for i in range(len(E)):
+        p_dist = power_function(n, L0, E[i]*1e-3, H, np.pi/2)
+        bla = (start_freq_func(L0, E[i]*1e-3, H, np.pi/2))
+        p = p_11(bla, E[i]*1e-3, r)
+
+        P[i] = p
+
+    return P
+
+
+def energy(f, mixfreq=0):
+
+    B = 0.9578170819250281
+    emass = constants.electron_mass/constants.e*constants.c**2
+    gamma = (constants.e*B)/(2.0*np.pi*constants.electron_mass) * 1/(f+mixfreq)
+    #shallow trap 0.959012745568
+    #deep trap 0.95777194923080811
+    return (gamma -1)*emass
+
+
+
+def B_field(e_keV, f):
+    emass = constants.electron_mass/constants.e*constants.c**2*1e-3
+    b = (e_keV*1.0/emass + 1) * 2*np.pi*constants.electron_mass * f / constants.e
+    return b

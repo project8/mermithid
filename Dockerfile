@@ -22,6 +22,12 @@ RUN mkdir -p $MERMITHID_BUILD_PREFIX &&\
     echo 'export PYTHONPATH=$MERMITHID_BUILD_PREFIX/$(python3 -m site --user-site | sed "s%$(python3 -m site --user-base)%%"):$PYTHONPATH' >> setup.sh &&\
     /bin/true
 
+RUN source $COMMON_BUILD_PREFIX/setup.sh &&\
+    pip3 install iminuit &&\
+    pip3 install statsmodels &&\
+    pip3 install seaborn &&\
+    /bin/true
+
 ########################
 FROM mermithid_common as mermithid_done
 
@@ -55,7 +61,6 @@ RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
     cd /tmp_source &&\
 #    ls -altrh morpho &&\
     pip3 install . ./morpho --prefix $MERMITHID_BUILD_PREFIX &&\
-    pip3 install iminuit &&\
     /bin/true
 
 ########################
