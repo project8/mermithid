@@ -32,6 +32,10 @@ class ComplexLineShapeTests(unittest.TestCase):
         complexLineShape_config = {
             'bins_choice': np.linspace(0e6, 100e6, 1000),
             'gases': ["H2", "He", "Ar", "Kr"], # Ar, Kr
+            'fix_gas_composition': True,
+            'fix_width_scale_factor': True,
+            'factor': 0.4934,
+            'scatter_fractions_for_gases': [0.817, 0.07, 0.08],
             'max_scatters': 20,
             # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, composite_gaussian_scaled, simulated_resolution_scaled, 'simulated_resolution_scaled_fit_scatter_peak_ratio', 'gaussian_resolution_fit_scatter_peak_ratio'
             'resolution_function': 'simulated_resolution_scaled_fit_scatter_peak_ratio',
