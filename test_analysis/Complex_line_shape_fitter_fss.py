@@ -34,6 +34,10 @@ class ComplexLineShapeTests(unittest.TestCase):
         complexLineShape_config = {
             'bins_choice': np.linspace(0e6, 100e6, 1000),
             'gases': ["H2", "He", "Kr"], # "Ar", "Kr" # "Kr" for fss
+            'fix_gas_composition': True,
+            'fix_width_scale_factor': True,
+            'factor': 0.4934,
+            'scatter_fractions_for_gases': [0.950, 0.02],
             'max_scatters': 20,
             'fixed_scatter_proportion': True,
             # When fixed_scatter_proportion is True, set the scatter proportion for the gases below
