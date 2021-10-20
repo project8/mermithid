@@ -51,6 +51,9 @@ class MultiGasComplexLineShape(BaseProcessor):
         # Read other parameters
         self.bins_choice = reader.read_param(params, 'bins_choice', [])
         self.gases = reader.read_param(params, 'gases', ["H2", "Kr", "He", "Ar"])
+        self.fix_gas_composition = reader.read_param(params, 'fix_gas_composition', False)
+        self.fix_width_scale_factor = reader.read_param(params, 'fix_width_scale_factor', False)
+        self.scatter_fractions_for_gases = reader.read_param(params, 'scatter_fractions_for_gases', [])
         self.max_scatters = reader.read_param(params, 'max_scatters', 20)
         self.trap_weights = reader.read_param(params, 'trap_weights', {'weights':[0.076,  0.341, 0.381, 0.203], 'errors':[0.003, 0.013, 0.014, 0.02]}) #Weights from Xueying's Sept. 13 slides; errors currently arbitrary
         self.fixed_scatter_proportion = reader.read_param(params, 'fixed_scatter_proportion', True)
@@ -3504,7 +3507,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         
         return dictionary_of_fit_results
 
-    def generate_scatter_peaks(self, emitted_peak='shake'):
+    def generate_scatter_peaks(self, emitted_peak = self.base_shape):
         
         p = np.zeros(len(self.gases))
         scatter_fraction = self.scatter_fractions_for_gases
