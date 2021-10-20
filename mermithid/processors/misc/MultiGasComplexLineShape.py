@@ -51,6 +51,9 @@ class MultiGasComplexLineShape(BaseProcessor):
         # Read other parameters
         self.bins_choice = reader.read_param(params, 'bins_choice', [])
         self.gases = reader.read_param(params, 'gases', ["H2", "Kr", "He", "Ar"])
+        # when self.fix_gas_composition and self.fix_width_scale_factor are both True, 
+        # fit_data_simulated_resolution_scaled_fit_scatter_peak_ratio_with_fixed_gas_composition_and_width_scale_factor is used,
+        # Then the first N-1 gas compositions are set below through self.scatter_fractions_for_gases
         self.fix_gas_composition = reader.read_param(params, 'fix_gas_composition', False)
         self.fix_width_scale_factor = reader.read_param(params, 'fix_width_scale_factor', False)
         self.scatter_fractions_for_gases = reader.read_param(params, 'scatter_fractions_for_gases', [])
