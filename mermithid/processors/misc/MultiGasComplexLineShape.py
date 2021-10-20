@@ -3156,8 +3156,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         amplitude = p0[1]
         scale_factor = p0[2]
         survival_probability = p0[3]
-        scatter_peak_ratio_b = p0[4]
-        scatter_peak_ratio_c = p0[5]
+        scatter_peak_ratio_p = p0[4]
+        scatter_peak_ratio_q = p0[5]
         N = len(self.gases)
         scatter_fraction = p0[6:5+N]
 
@@ -3197,7 +3197,7 @@ class MultiGasComplexLineShape(BaseProcessor):
              quad_trap_interp = np.load(self.path_to_quad_trap_eff_interp, allow_pickle = True)
              quad_trap_count_rate_interp = quad_trap_interp.item()['count_rate_interp']
              eff_array = quad_trap_count_rate_interp(bins_Hz)
-         else:
+        else:
              eff_array = np.ones(len(bins_Hz))
         # Initial guesses for curve_fit
         B_field_guess = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[np.argmax(data_hist_freq)])
@@ -3515,7 +3515,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         
         return dictionary_of_fit_results
 
-    def generate_scatter_peaks(self, emitted_peak = self.base_shape):
+    def generate_scatter_peaks(self):
         
         p = np.zeros(len(self.gases))
         scatter_fraction = self.scatter_fractions_for_gases
@@ -3527,6 +3527,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         en_array = self.std_eV_array()
 
         scatter_peaks = np.zeros((self.max_scatters+1, len(en_array)))
+        emitted_peak = self.base_shape
         if emitted_peak == 'lorentzian':
             current_working_spectrum = self.std_lorenztian_17keV()
         elif emitted_peak == 'shake':
@@ -3573,8 +3574,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         B_field = p0[0]
         amplitude = p0[1]
         survival_probability = p0[2]
-        scatter_peak_ratio_b = p0[3]
-        scatter_peak_ratio_c = p0[4]
+        scatter_peak_ratio_p = p0[3]
+        scatter_peak_ratio_q = p0[4]
 
         x_eV = ConversionFunctions.Energy(bins_Hz, B_field)
         en_loss_array = self.std_eV_array()
@@ -3587,7 +3588,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
-        full_spectrum = self.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio_with_fixed_gas_composition_and_width_scale_factor(scatter_peaks, survival_probability, scatter_peak_ratio_b, scatter_peak_ratio_c)
+        full_spectrum = self.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio_with_fixed_gas_composition_and_width_scale_factor(scatter_peaks, survival_probability, scatter_peak_ratio_p, scatter_peak_ratio_q)
         f_intermediate[nonzero_idx] = np.interp(x_eV_minus_line[nonzero_idx], en_loss_array, full_spectrum)
         f_intermediate = f_intermediate*eff_array
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
