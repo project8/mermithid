@@ -102,6 +102,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.recon_eff_param_a = self.recon_eff_params[0]
         self.recon_eff_param_b = self.recon_eff_params[1]
         self.recon_eff_param_c = self.recon_eff_params[2]
+        self.factor = reader.read_param(params, 'factor', [])
 
         if not os.path.exists(self.shake_spectrum_parameters_json_path) and self.base_shape=='shake':
             raise IOError('Shake spectrum path does not exist')
