@@ -54,6 +54,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         # when self.fix_gas_composition and self.fix_width_scale_factor are both True, 
         # fit_data_simulated_resolution_scaled_fit_scatter_peak_ratio_with_fixed_gas_composition_and_width_scale_factor is used,
         # Then the first N-1 gas compositions are set below through self.scatter_fractions_for_gases
+        # Otherwise, fit_data_simulated_resolution_scaled_fit_scatter_peak_ratio is used
         self.fix_gas_composition = reader.read_param(params, 'fix_gas_composition', False)
         self.fix_width_scale_factor = reader.read_param(params, 'fix_width_scale_factor', False)
         self.scatter_fractions_for_gases = reader.read_param(params, 'scatter_fractions_for_gases', [])
@@ -166,10 +167,12 @@ class MultiGasComplexLineShape(BaseProcessor):
             else:
                 self.results = self.fit_data_simulated_resolution_scaled_fit_recon_eff(freq_bins, data_hist_freq)
         elif self.resolution_function == 'simulated_resolution_scaled_fit_scatter_peak_ratio':
-            self.results = self.fit_data_simulated_resolution_scaled_fit_scatter_peak_ratio(freq_bins, data_hist_freq)
+            if self.fix_gas_composition == True and self.fix_width_scale_factor == True:
+                self.results = self.fit_data_simulated_resolution_scaled_fit_scatter_peak_ratio_with_fixed_gas_composition_and_width_scale_factor(freq_bins, data_hist_freq)
+            else:
+                self.results = self.fit_data_simulated_resolution_scaled_fit_scatter_peak_ratio(freq_bins, data_hist_freq)
         elif self.resolution_function == 'gaussian_resolution_fit_scatter_peak_ratio':
             self.results = self.fit_data_gaussian_resolution_fit_scatter_peak_ratio(freq_bins, data_hist_freq)
-
         return True
 
 
