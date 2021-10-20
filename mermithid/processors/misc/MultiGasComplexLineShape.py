@@ -3130,13 +3130,12 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
         elif emitted_peak == 'dirac':
             current_working_spectrum = self.std_dirac()
-            
         current_working_spectrum = self.convolve_simulated_resolution_scaled(current_working_spectrum, scale_factor)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += zeroth_order_peak
         N = len(self.gases)
         for M in range(1, self.max_scatters + 1):
-            scatter_peak_ratio = np.exp(-1.*scatter_peak_ratio_b*M**scatter_peak_ratio_c)
+            scatter_peak_ratio = np.exp(-1.*scatter_peak_ratio_b*M**( -self.factor*scatter_peak_ratio_b + scatter_peak_ratio_c))#(-0.5179*scatter_peak_ratio_b + scatter_peak_ratio_c)  -0.448
             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
             for combination in gas_scatter_combinations:
                 entry_str = ''
@@ -3194,12 +3193,9 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
         bins_Hz = 0.5*(bins_Hz[1:] + bins_Hz[:-1])    
-        if self.use_quad_trap_eff_interp == True:     
-            quad_trap_interp = np.load(self.path_to_quad_trap_eff_interp, allow_pickle = True)
-            quad_trap_count_rate_interp = quad_trap_interp.item()['count_rate_interp']
-            eff_array = quad_trap_count_rate_interp(bins_Hz)
-        else:
-            eff_array = np.ones(len(bins_Hz))
+        quad_trap_interp = np.load(self.path_to_quad_trap_eff_interp, allow_pickle = True)
+        quad_trap_count_rate_interp = quad_trap_interp.item()['count_rate_interp']
+        eff_array = quad_trap_count_rate_interp(bins_Hz)
         # Initial guesses for curve_fit
         B_field_guess = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[np.argmax(data_hist_freq)])
         amplitude_guess = np.sum(data_hist_freq)
@@ -3209,8 +3205,9 @@ class MultiGasComplexLineShape(BaseProcessor):
         sigma_guess = 5
         gamma_guess = 3
         gaussian_portion_guess = 0.5
-        scale_factor_guess = 0.5
-        scatter_peak_ratio_parameter_guess = 0.5
+        scale_factor_guess = 1
+        scatter_peak_ratio_parameter_b_guess = 0.9
+        scatter_peak_ratio_parameter_c_guess = 1.0
         # Bounds for curve_fit
         B_field_min = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[0])
         B_field_max = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[-1])
@@ -3230,8 +3227,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         gas_scatter_fraction_parameter_str = []
         for i in range(N-1):
             gas_scatter_fraction_parameter_str += [self.gases[i]+' scatter fraction']
-        p0_guess = [B_field_guess, amplitude_guess, scale_factor_guess, survival_probability_guess, scatter_peak_ratio_parameter_guess, scatter_peak_ratio_parameter_guess]+ (N-1)*[scatter_fraction_guess]
-        p0_bounds = [(B_field_min,B_field_max), (amplitude_min,amplitude_max), (scale_factor_min, scale_factor_max), (survival_probability_min, survival_probability_max), (scatter_peak_ratio_parameter_min, scatter_peak_ratio_parameter_max), (scatter_peak_ratio_parameter_min, scatter_peak_ratio_parameter_max)] + (N-1)*[(scatter_fraction_min, scatter_fraction_max)]
+        p0_guess = [B_field_guess, amplitude_guess, scale_factor_guess, survival_probability_guess, scatter_peak_ratio_parameter_b_guess, scatter_peak_ratio_parameter_c_guess]+ (N-1)*[scatter_fraction_guess]
+        p0_bounds = [(B_field_min,B_field_max), (amplitude_min, amplitude_max), (scale_factor_min, scale_factor_max), (survival_probability_min, survival_probability_max), (scatter_peak_ratio_parameter_min, scatter_peak_ratio_parameter_max), (scatter_peak_ratio_parameter_min, scatter_peak_ratio_parameter_max)] + (N-1)*[(scatter_fraction_min, scatter_fraction_max)]
         parameter_names = ['B field','amplitude','width scale factor', 'survival probability','scatter peak ratio param b', 'scatter peak ratio param c'] + gas_scatter_fraction_parameter_str
         # Actually do the fitting
         m_binned = Minuit(lambda p: self.chi_2_simulated_resolution_scaled_fit_scatter_peak_ratio(bins_Hz, data_hist_freq, eff_array, p), p0_guess, name = parameter_names)
@@ -3270,6 +3267,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         bins_keV = ConversionFunctions.Energy(bins_Hz, B_field_fit)/1000
         bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
         reduced_chi2 = m_binned.fval/(len(fit_Hz)-m_binned.nfit)
+        correlation_matrix = m_binned.covariance.correlation()
     
         if print_params == True:
             output_string = '\n'
@@ -3311,7 +3309,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
-        'reduced_chi2': reduced_chi2
+        'reduced_chi2': reduced_chi2,
+        'correlation_matrix': np.array(correlation_matrix)
         }
         return dictionary_of_fit_results
 
@@ -3554,7 +3553,7 @@ class MultiGasComplexLineShape(BaseProcessor):
             scatter_peaks[M] = current_scatter_peak_spectrum
         return scatter_peaks
 
-    def make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio_with_fixed_gas_composition_and_width_scale_factor(self, scatter_peaks, survival_probability, scatter_peak_ratio_b, scatter_peak_ratio_c):
+    def make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio_with_fixed_gas_composition_and_width_scale_factor(self, scatter_peaks, survival_probability, scatter_peak_ratio_p, scatter_peak_ratio_q):
         scatter_spectra_file_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy')
         scatter_spectra = np.load(scatter_spectra_file_path, allow_pickle = True)
         en_array = self.std_eV_array()
@@ -3562,7 +3561,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         current_full_spectrum += scatter_peaks[0]
         N = len(self.gases)
         for M in range(1, self.max_scatters + 1):
-            scatter_peak_ratio = np.exp(-1.*scatter_peak_ratio_b*M**( - self.factor*scatter_peak_ratio_b + scatter_peak_ratio_c))#(-0.5179*scatter_peak_ratio_b + scatter_peak_ratio_c)  -0.448 -0.4934
+            scatter_peak_ratio = np.exp(-1.*scatter_peak_ratio_p*M**( - self.factor*scatter_peak_ratio_p + scatter_peak_ratio_q))#(-0.5179*scatter_peak_ratio_b + scatter_peak_ratio_c)  -0.448 -0.4934
             current_full_spectrum += scatter_peaks[M]*scatter_peak_ratio*survival_probability**M
         return current_full_spectrum
 
@@ -3641,7 +3640,7 @@ class MultiGasComplexLineShape(BaseProcessor):
             gas_scatter_fraction_parameter_str += [self.gases[i]+' scatter fraction']
         p0_guess = [B_field_guess, amplitude_guess, survival_probability_guess, scatter_peak_ratio_parameter_guess, scatter_peak_ratio_parameter_guess]
         p0_bounds = [(B_field_min,B_field_max), (amplitude_min, amplitude_max), (survival_probability_min, survival_probability_max), (scatter_peak_ratio_parameter_min, scatter_peak_ratio_parameter_max), (scatter_peak_ratio_parameter_min, scatter_peak_ratio_parameter_max)]
-        parameter_names = ['B field','amplitude', 'survival probability','scatter peak ratio param b', 'scatter peak ratio param c']
+        parameter_names = ['B field','amplitude', 'survival probability','scatter peak ratio param p', 'scatter peak ratio param q']
         
         scatter_peaks = self.generate_scatter_peaks()
         # Actually do the fitting
@@ -3659,8 +3658,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         #starting at index 2, grabs every other entry. (which is how scattering probs are filled in for N gases)
         amplitude_fit = params[1]
         survival_probability_fit = params[2]
-        scatter_peak_ratio_b_fit = params[3]
-        scatter_peak_ratio_c_fit = params[4]
+        scatter_peak_ratio_p_fit = params[3]
+        scatter_peak_ratio_q_fit = params[4]
         total_counts_fit = amplitude_fit
         logger.info('\n'+str(m_binned.params))            
 
@@ -3668,8 +3667,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         B_field_fit_err = perr[0]
         amplitude_fit_err = perr[1]
         survival_probability_fit_err = perr[2]
-        scatter_peak_ratio_b_fit_err = perr[3]
-        scatter_peak_ratio_c_fit_err = perr[4]
+        scatter_peak_ratio_p_fit_err = perr[3]
+        scatter_peak_ratio_q_fit_err = perr[4]
         total_counts_fit_err = amplitude_fit_err
     
         fit_Hz = self.spectrum_func_simulated_resolution_scaled_fit_scatter_peak_ratio_with_fixed_gas_composition_and_width_scale_factor(bins_Hz, eff_array, scatter_peaks, *params)
@@ -3689,9 +3688,9 @@ class MultiGasComplexLineShape(BaseProcessor):
             output_string += '-----------------\n'
             output_string += 'survival probability = {:.8e}'.format(survival_probability_fit) + ' +/- {:.8e}\n'.format(survival_probability_fit_err)
             output_string += '-----------------\n'
-            output_string += 'scatter_peak_ratio_b = {:.8e}'.format(scatter_peak_ratio_b_fit) + ' +/- {:.8e}\n'.format(scatter_peak_ratio_b_fit_err)
+            output_string += 'scatter_peak_ratio_p = {:.8e}'.format(scatter_peak_ratio_p_fit) + ' +/- {:.8e}\n'.format(scatter_peak_ratio_p_fit_err)
             output_string += '-----------------\n'
-            output_string += 'scatter_peak_ratio_c = {:.8e}'.format(scatter_peak_ratio_c_fit) + ' +/- {:.8e}\n'.format(scatter_peak_ratio_c_fit_err)
+            output_string += 'scatter_peak_ratio_q = {:.8e}'.format(scatter_peak_ratio_q_fit) + ' +/- {:.8e}\n'.format(scatter_peak_ratio_q_fit_err)
             output_string += '-----------------\n'
             scatter_fraction = np.zeros(len(self.gases))
             scatter_fraction[0:-1] = self.scatter_fractions_for_gases
@@ -3710,10 +3709,10 @@ class MultiGasComplexLineShape(BaseProcessor):
         'fit_Hz': fit_Hz,
         'B_field_fit': B_field_fit,
         'B_field_fit_err': B_field_fit_err,
-        'scatter_peak_ratio_b_fit': scatter_peak_ratio_b_fit,
-        'scatter_peak_ratio_b_fit_err': scatter_peak_ratio_b_fit_err,
-        'scatter_peak_ratio_c_fit': scatter_peak_ratio_c_fit,
-        'scatter_peak_ratio_c_fit_err': scatter_peak_ratio_c_fit_err,
+        'scatter_peak_ratio_p_fit': scatter_peak_ratio_p_fit,
+        'scatter_peak_ratio_p_fit_err': scatter_peak_ratio_p_fit_err,
+        'scatter_peak_ratio_q_fit': scatter_peak_ratio_q_fit,
+        'scatter_peak_ratio_q_fit_err': scatter_peak_ratio_q_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
