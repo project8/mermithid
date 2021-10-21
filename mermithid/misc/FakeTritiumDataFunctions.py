@@ -277,7 +277,7 @@ def convolved_bkgd_rate(K, Kmin, Kmax, lineshape, ls_params, min_energy, max_ene
 
 #Convolution of signal and lineshape using scipy.signal.convolve
 def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
-                                   lineshape, ls_params, scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, min_energy, max_energy,
+                                   lineshape, ls_params, scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, min_energy, max_energy,
                                    complexLineShape, final_state_array, resolution_function, ins_res_width_bounds, ins_res_width_factors):
     """K is an array-like object
     """
@@ -309,9 +309,10 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
             lineshape_rates = []
             scale_factors = [ls_params[0]*f for f in ins_res_width_factors]
             for scale in scale_factors:
-                lineshape_rates.append(np.flipud(complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(scale, ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')))
+                lineshape_rates.append(np.flipud(complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(scale, ls_params[1], scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, emitted_peak='dirac')))
         elif resolution_function == 'gaussian_resolution' or resolution_function == 'gaussian':
-            lineshape_rates = complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')
+            logger.warn("Scatter peak ratio function for lineshape with Gaussian resolution may not be up-to-date!")
+            lineshape_rates = complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, emitted_peak='dirac')
         else:
             logger.warn('{} is not a resolution function that has been implemented in the FakeDataGenerator'.format(resolution_function))
 
@@ -338,7 +339,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
 
 
 #Convolution of background and lineshape using scipy.signal.convolve
-def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, min_energy, max_energy, complexLineShape, resolution_function):
+def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, min_energy, max_energy, complexLineShape, resolution_function):
     """K is an array-like object
     """
     energy_half_range = max(max_energy, abs(min_energy))
@@ -355,9 +356,9 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, scatter_peak
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
         if resolution_function == 'simulated_resolution' or resolution_function == 'simulated':
-            lineshape_rates = complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')
+            lineshape_rates = complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_p, scatter_peak_ratio_p, scatter_fraction, emitted_peak='dirac')
         elif resolution_function == 'gaussian_resolution' or resolution_function == 'gaussian':
-            lineshape_rates = complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='dirac')
+            lineshape_rates = complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, emitted_peak='dirac')
         else:
             logger.warn('{} is not a resolution function that has been implemented in the FakeDataGenerator'.format(resolution_function))
         lineshape_rates = np.flipud(lineshape_rates)

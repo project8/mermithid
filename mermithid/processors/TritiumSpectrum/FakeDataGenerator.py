@@ -54,8 +54,9 @@ class FakeDataGenerator(BaseProcessor):
         – gases: list of strings naming gases to be included in complex lineshape model. Options: 'H2', 'He', 'Kr', 'Ar', 'CO'
         - NScatters: lineshape parameter - number of scatters included in lineshape
         - trap_weights: distionary of two lists, labeled 'weights' and 'errors', which respectively include the fractions of counts from each trap and the uncertainties on those fractions
-        - scatter_peak_ratio_b: "b" in reconstrudction efficiency curve model: e^(-b*i^c), where i is the scatter order
-        - scatter_peak_ratio_c: "c" in the same reconstruction efficiency model
+        - scatter_peak_ratio_p: "p" in reconstrudction efficiency curve model: e^(-p*i^(-factor*p+q)), where i is the scatter order
+        - scatter_peak_ratio_q: "q" in the same reconstruction efficiency model
+        - scatter_peak_ratio_factor: "factor" in the same reconstruction efficiency model
         – scatter_proportion: list of proportion of scatters due to each gas in self.gases (in the same order), in complex lineshape
         - survival_prob: lineshape parameter - probability of electron staying in the trap between two inelastics scatters (it could escape due to elastics scatters or the inelastics scatters, themselves)
         – use_radiation_loss: if True, radiation loss will be included in the complex lineshape; should be set to True except for testing purposes
@@ -127,8 +128,9 @@ class FakeDataGenerator(BaseProcessor):
         self.NScatters = reader.read_param(params, 'NScatters', 20)
         self.trap_weights = reader.read_param(params, 'trap_weights', {'weights':[0.076,  0.341, 0.381, 0.203], 'errors':[0.003, 0.013, 0.014, 0.02]})
         #self.recon_eff_params = reader.read_param(params, 'recon_eff_params', [0.005569990343215976, 0.351, 0.546])
-        self.scatter_peak_ratio_b = reader.read_param(params, 'scatter_peak_ratio_b', 0.686312493)
-        self.scatter_peak_ratio_c = reader.read_param(params, 'scatter_peak_ratio_c', 0.52481056)
+        self.scatter_peak_ratio_p = reader.read_param(params, 'scatter_peak_ratio_p', 1.)
+        self.scatter_peak_ratio_q = reader.read_param(params, 'scatter_peak_ratio_q', 0.6)
+        self.scatter_peak_ratio_factor = reader.read_param(params, 'scatter_peak_ratio_factor', 0.5)
         self.scatter_proportion = reader.read_param(params, 'scatter_proportion', [])
         self.survival_prob = reader.read_param(params, 'survival_prob', 1.)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
@@ -214,8 +216,9 @@ class FakeDataGenerator(BaseProcessor):
                     'use_radiation_loss': self.use_radiation_loss,
                     'sample_ins_res_errors': self.sample_ins_resolution_errors,
                     'resolution_function': self.resolution_function,
-                    'scatter_peak_ratio_b': self.scatter_peak_ratio_b,
-                    'scatter_peak_ratio_c': self.scatter_peak_ratio_c,
+                    'scatter_peak_ratio_p': self.scatter_peak_ratio_p,
+                    'scatter_peak_ratio_q': self.scatter_peak_ratio_q,
+					'factor': self.scatter_peak_ratio_factor,
                     'fit_recon_eff': self.fit_recon_eff,
 
                     #For analytics resolution functions, only:
@@ -386,7 +389,7 @@ class FakeDataGenerator(BaseProcessor):
 
         if array_method == True:
             ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean,
-            mass, Kmin, lineshape, params, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, self.scatter_proportion, min_energy, max_energy,
+            mass, Kmin, lineshape, params, self.scatter_peak_ratio_p, self.scatter_peak_ratio_q, self.scatter_proportion, min_energy, max_energy,
             self.complexLineShape, self.final_state_array, self.resolution_function, self.ins_res_width_bounds, self.ins_res_width_factors)
         else:
             ratesS = [convolved_spectral_rate(K, Q_mean, mass, Kmin,
@@ -402,7 +405,7 @@ class FakeDataGenerator(BaseProcessor):
         # background
         if array_method == True:
             ratesB = convolved_bkgd_rate_arrays(self.Koptions, Kmin, Kmax,
-                                                lineshape, params, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, self.scatter_proportion, min_energy, max_energy,
+                                                lineshape, params, self.scatter_peak_ratio_p, self.scatter_peak_ratio_q, self.scatter_proportion, min_energy, max_energy,
                                                 self.complexLineShape, self.resolution_function)
         else:
             ratesB = [convolved_bkgd_rate(K, Kmin, Kmax, lineshape, params,
