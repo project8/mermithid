@@ -186,7 +186,7 @@ class BinnedDataFitter(BaseProcessor):
             logger.error('FYI, the parameters are: {}'.format(params))
 
         # exclude bins where expectation is <= zero or nan
-        index = np.where(expectation>0)
+        index = np.where(expectation>0)#np.finfo(0.0).resolution)
 
         # poisson log likelihoood
         ll = (self.hist[index]*np.log(expectation[index]) - expectation[index]).sum()

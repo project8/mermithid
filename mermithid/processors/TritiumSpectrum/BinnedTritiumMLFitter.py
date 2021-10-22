@@ -157,6 +157,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.integrate_bins = reader.read_param(config_dict, 'integrate_bins', True) # integrate spectrum over bin widths
         self.fit_efficiency_tilt = reader.read_param(config_dict, 'fit_efficiency_tilt', False) # efficiency slope is free parameter
         self.fit_nu_mass = reader.read_param(config_dict, 'fit_neutrino_mass', False)
+        self.use_relative_livetime_correction = reader.read_param(config_dict, 'use_relative_livetime_correction', False)
 
         # detector response options
         self.NScatters = reader.read_param(config_dict, 'NScatters', 20)
@@ -193,7 +194,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         # check that configuration is consistent
         if (len(self.model_parameter_names) != len(self.model_parameter_means) or len(self.model_parameter_names) != len(self.model_parameter_widths) or len(self.model_parameter_names) != len(self.fixed_parameters)):
-            raise IndexError('Number of parameter names does not match other parameter configurations')
+            logger.error('Number of parameter names does not match other parameter configurations')
+            return False
 
 
         # ====================================
@@ -222,11 +224,6 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.res_mean = reader.read_param(config_dict, 'gaussian_resolution_mean', 15.0)
             self.res_width = reader.read_param(config_dict, 'gaussian_resolution_width', 1.0)
             self.res = self.res_mean
-            if self.res <= 30.01/float(2*np.sqrt(2*np.log(2))):
-                logger.warning('Resolution small for shallow trap model. Setting to {}'.format(30.01/float(2*np.sqrt(2*np.log(2)))))
-                self.res = 30.01/float(2*np.sqrt(2*np.log(2)))
-
-
 
             if self.resolution_model != 'gaussian':
                 self.two_gaussian_sigma_1_index = self.model_parameter_names.index('two_gaussian_sigma_1')
@@ -300,13 +297,20 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.endpoint_mean = reader.read_param(config_dict,'endpoint_mean', self.model_parameter_means[self.endpoint_index])
         self.endpoint_width = reader.read_param(config_dict, 'endpoint_width', self.model_parameter_widths[self.endpoint_index])
 
-        # frequency range
+        # frequency an energy range
         self.min_frequency = reader.read_param(config_dict, 'min_frequency', "required")
         self.max_frequency = reader.read_param(config_dict, 'max_frequency', None)
-
+        self.max_energy = reader.read_param(config_dict, 'resolution_energy_max', 1200)
 
         # path to json with efficiency dictionary
         self.efficiency_file_path = reader.read_param(config_dict, 'efficiency_file_path', '')
+
+        # channel livetimes
+        self.channel_transition_freqs = np.array(reader.read_param(config_dict, 'channel_transition_freqs', [[0,1.38623121e9+24.5e9],
+                                                                                        [1.38623121e9+24.5e9, 1.44560621e9+24.5e9],
+                                                                                        [1.44560621e9+24.5e9, 50e9]]))
+        self.channel_livetimes = reader.read_param(config_dict, 'channel_livetimes', [7185228, 7129663, 7160533])
+        self.channel_relative_livetimes = np.array(self.channel_livetimes)/ np.max(self.channel_livetimes)
 
 
 
@@ -488,8 +492,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
             self.multi_gas_lineshape = self.complex_lineshape
         else:
-            self.multi_gas_lineshape = self.more_accurate_simplified_multi_gas_lineshape
-            logger.info('Using default lineshape: more-accurate-simplified')
+            logger.error('Unknown configure lineshape')
+            return False
 
         # scatter peak ratio
         self.scatter_peak_ratio = reader.read_param(config_dict, 'scatter_peak_ratio', 'modified_exponential')
@@ -524,6 +528,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         # adjust energy stepsize to match bin division
         self.denergy = self.dbins/np.round(self.dbins/self.denergy)
 
+
         self._energies = np.arange(self.Energy(self.max_frequency), self.Energy(self.max_frequency)+(self.N_energy_bins)*self.denergy, self.denergy)
         self._bins = np.arange(np.min(self.energies), self.Energy(self.max_frequency)+(self.N_bins)*self.dbins, self.dbins)
 
@@ -543,7 +548,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self._bin_efficiency, self._bin_efficiency_errors = self.Efficiency(self.bin_centers)
         self._full_efficiency, self._full_efficiency_errors = self.Efficiency(self.energies)
 
-
+        self.ReSetBins()
         # ==================================
         # configure parent BinnedDataFitter
         # ==================================
@@ -696,9 +701,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         sample_values = []
         if 'resolution' in sampled_parameters.keys() and sampled_parameters['resolution']:
             self.res = self.Gaussian_sample(self.res_mean, self.res_width)
-            if self.res <= 30.01/float(2*np.sqrt(2*np.log(2))):
-                logger.warning('Sampled resolution small. Setting to {}'.format(30.01/float(2*np.sqrt(2*np.log(2)))))
-                self.res = 30.01/float(2*np.sqrt(2*np.log(2)))
+            #if self.res <= 30.01/float(2*np.sqrt(2*np.log(2))):
+            #    logger.warning('Sampled resolution small. Setting to {}'.format(30.01/float(2*np.sqrt(2*np.log(2)))))
+            #    self.res = 30.01/float(2*np.sqrt(2*np.log(2)))
             self.parameter_samples['resolution'] = self.res
             sample_values.append(self.res)
         if 'two_gaussian_sigma_1' in sampled_parameters.keys() and sampled_parameters['two_gaussian_sigma_1']:
@@ -851,6 +856,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         #self.energies = np.arange(self.Energy(self.max_frequency), self.Energy(self.min_frequency), self.denergy)
         #self.bins = np.arange(np.min(self.energies), np.max(self.energies), self.dbins)
 
+        #self._bin_efficiency, self._bin_efficiency_error = [], []
         self.energies = np.arange(self.Energy(self.max_frequency), self.Energy(self.max_frequency)+(self.N_energy_bins)*self.denergy, self.denergy)
         self.bins = np.arange(np.min(self.energies), np.min(self.energies)+(self.N_bins)*self.dbins, self.dbins)
         self._bin_efficiency, self._bin_efficiency_error = [], []
@@ -860,6 +866,10 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         if len(self._bins) > self.N_bins:
             self._bins = self._bins[:-1]
 
+        if self.use_relative_livetime_correction:
+            self.channel_energy_edges = self.Energy(self.channel_transition_freqs)
+            #logger.info('Channel energy edges: {}'.format(self.channel_energy_edges))
+
 
 
     # =========================================================================
@@ -868,7 +878,6 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
     def GenerateData(self, params, N):
 
-        #print('Generating data')
         x = self.energies[0:-1]+0.5*(self.energies[1]-self.energies[0])
         pdf = np.longdouble(self.TritiumSpectrumBackground(x, *params))
         pdf[pdf<0]=0.
@@ -940,11 +949,43 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         return f
 
 
-    def approximate_shape(self, K, Q, m_nu_squared, index):
+    def approximate_shape(self, K, Q, m_nu_squared):#, index):
         shape = np.zeros(len(K))
-        nu_mass_shape = ((Q - K[index])**2 -m_nu_squared)**0.5
-        shape[index] = (Q - K[index])*nu_mass_shape
+        nu_mass_shape_squared = (Q - K)**2 -m_nu_squared
+        Q_minus_K = Q-K
+        index = np.where((nu_mass_shape_squared>0) & (Q_minus_K>0))
+        nu_mass_shape = np.sqrt(nu_mass_shape_squared[index])
+
+        shape[index] = (Q_minus_K[index])*nu_mass_shape
         return shape
+
+    def chopped_approximate_spectrum(self, E, Q, m_nu_squared):
+
+        if self.use_final_states:
+            N_states = len(self.final_state_array[0])
+            Q_states = Q+self.final_state_array[0]-np.max(self.final_state_array[0])
+            approximate_e_phase_space = self.ephasespace(E, Q)
+
+            beta_rates_array = [self.approximate_shape(E, Q_states[i], m_nu_squared)#, index[i])
+                                * self.final_state_array[1][i]
+                                * approximate_e_phase_space for i in range(N_states)]
+
+            to_return = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])
+
+        else:
+            approximate_e_phase_space = self.ephasespace(E, Q)
+            beta_rates_array = self.approximate_shape(E, Q, m_nu_squared) * approximate_e_phase_space
+            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3) * beta_rates_array
+
+        channel_a_index = np.where((E<self.channel_energy_edges[0][0]) & (E>self.channel_energy_edges[0][1]))
+        channel_b_index = np.where((E<self.channel_energy_edges[1][0]) & (E>self.channel_energy_edges[1][1]))
+        channel_c_index = np.where((E<self.channel_energy_edges[2][0]) & (E>self.channel_energy_edges[2][1]))
+
+        spectrum[channel_a_index] = spectrum[channel_a_index]*self.channel_relative_livetimes[0]
+        spectrum[channel_b_index] = spectrum[channel_b_index]*self.channel_relative_livetimes[1]
+        spectrum[channel_c_index] = spectrum[channel_c_index]*self.channel_relative_livetimes[2]
+
+        return spectrum
 
 
     def approximate_spectrum(self, E, Q, m_nu_squared=0):
@@ -954,51 +995,35 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         but the ephasespace is approximate and neutrino parameter is mass squared (some factors neglected)
         """
-        # mnu is used in heaviside function
-        #if m_nu_squared >=0:
-        mnu = np.abs(m_nu_squared)**0.5
-        #else:
-        #    mnu = 0
 
         if self.use_final_states:
-            if isinstance(E, list) or isinstance(E, np.ndarray):
-                N_states = len(self.final_state_array[0])
-                Q_states = Q+self.final_state_array[0]-np.max(self.final_state_array[0])
-                approximate_e_phase_space = self.ephasespace(E, Q)
+            N_states = len(self.final_state_array[0])
+            Q_states = Q+self.final_state_array[0]-np.max(self.final_state_array[0])
+            approximate_e_phase_space = self.ephasespace(E, Q)
 
-                index = [np.where(((Q_states[i]-E)**2-m_nu_squared > 0) & (Q_states[i]-E > 0)) for i in range(N_states)]
-                #index = [np.where(E < Q_states[i] -mnu) for i in range(N_states)]
-                beta_rates_array = [self.approximate_shape(E, Q_states[i], m_nu_squared, index[i])
-                                    * self.final_state_array[1][i]
-                                    * approximate_e_phase_space for i in range(N_states)]
+            #index = [np.where(((Q_states[i]-E)**2-m_nu_squared > 0) & (Q_states[i]-E > 0)) for i in range(N_states)]
+            #index = [np.where(E < Q_states[i] -mnu) for i in range(N_states)]
+            beta_rates_array = [self.approximate_shape(E, Q_states[i], m_nu_squared)#, index[i])
+                                * self.final_state_array[1][i]
+                                * approximate_e_phase_space for i in range(N_states)]
 
-                to_return = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])
-                return to_return
-
-            else:
-                logger.warning('E is not array!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-
-                return_value = 0.
-
-                for i, e_binding in enumerate(self.final_state_array[0]):
-                    # binding energies are negative
-                    Q_state = Q+e_binding
-                    if Q_state-mnu > E > 0:
-                        return_value += self.final_state_array[1][i] *(GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*self.ephasespace(E, Q_state)*
-                                                                       (Q_state - E)*np.sqrt((Q_state - E)**2 - (mnu)**2))
-
-                return return_value/np.sum(self.final_state_array[1])
+            to_return = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])
 
         else:
-            beta_rates = np.zeros(len(E))
+            approximate_e_phase_space = self.ephasespace(E, Q)
+            #index = np.where(((Q-E)**2-m_nu_squared > 0) & (Q-E > 0))
+            beta_rates_array = self.approximate_shape(E, Q, m_nu_squared) * approximate_e_phase_space
 
-            index = np.where(E < Q-mnu)
-            K = E[index]
+            #beta_rates = np.zeros(len(E))
 
-            nu_mass_shape = ((Q - K)**2 -m_nu_squared)**0.5
-            beta_rates[index] = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*self.ephasespace(K, Q)*(Q - K)*nu_mass_shape
+            #index = np.where(E < Q-mnu)
+            #K = E[index]
 
-            return beta_rates
+            #nu_mass_shape = ((Q - K)**2 -m_nu_squared)**0.5
+            #beta_rates[index] = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*self.ephasespace(K, Q)*(Q - K)*nu_mass_shape
+            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3) * beta_rates_array
+
+        return spectrum
 
     def ephasespace(self, K, Q):
         #G = rad_corr(K, Q)         #Radiative correction
@@ -1011,6 +1036,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         return pe(K)*Ee(K)*F#*G*S*I*R*LC*X
 
     def which_model(self, *pars):
+        if self.use_relative_livetime_correction:
+            return self.chopped_approximate_spectrum(*pars)
         if self.use_approx_model:
             return self.approximate_spectrum(*pars)
         else:
@@ -1068,7 +1095,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
 
-        sig0 = FWHM/float(2*np.sqrt(2*np.log(2)))
+        # sig0 = FWHM/float(2*np.sqrt(2*np.log(2)))
         #shape0 = self.gauss_resolution_f(K, 1, sig0, Kcenter)
         #shape0 *= 1/np.sum(shape0)
         shape0 = np.zeros(len(K))
@@ -1078,6 +1105,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         hydrogen_scattering = np.zeros(len(K))
         helium_scattering = np.zeros(len(K))
+
+        if FWHM < 30:
+            FWHM = 30
 
         #plt.figure(figsize=(10,10))
 
@@ -1133,9 +1163,13 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         q0, q1, q2, q3 = self.helium_lineshape_p[1], self.helium_lineshape_p[3], self.helium_lineshape_p[5], self.helium_lineshape_p[7]
 
 
+
         sig0 = FWHM/float(2*np.sqrt(2*np.log(2)))
+        if sig0 < 6:
+            logger.warning('Scatter resolution < 6 eV. Setting to 6 eV')
+            sig0 = 6
         #shape = self.gauss_resolution_f(K, 1, sig0, Kcenter)
-        shape = np.zeros(len(K))
+        #shape = np.zeros(len(K))
         norm = 1.
 
         hydrogen_scattering = np.zeros(len(K))
@@ -1146,8 +1180,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         for i in range(self.NScatters):
 
             # hydrogen scattering
-            sig = p0[i]+p1[i]*FWHM
-            mu = -(p2[i]+p3[i]*np.log(FWHM-30))
+            mu = -p0[i]+p1[i]*sig0
+            sig = p2[i]+p3[i]*sig0
 
             if self.use_fixed_scatter_peak_ratio:
                 probi = prob_b**(i+1)
@@ -1160,8 +1194,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             #plt.plot(K, h_scatter_i, color='blue', label='hydrogen')
 
             # helium scattering
-            mu_he = -(q0[i]+q1[i]*FWHM)
-            sig_he = q2[i]+q3[i]*FWHM
+            mu_he = -q0[i]+q1[i]*sig0
+            sig_he = q2[i]+q3[i]*sig0
             he_scatter_i = probi*self.gauss_resolution_f(K, 1, sig_he, mu_he+Kcenter)
             helium_scattering += he_scatter_i
 
@@ -1170,7 +1204,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         #plt.plot(K, (shape + hydrogen_scattering)/np.max(shape + hydrogen_scattering), color='blue', label='hydrogen')
         #plt.plot(K, (shape + helium_scattering)/np.max(shape + helium_scattering), color='red', label='helium')
         # full lineshape
-        lineshape = (shape + self.hydrogen_proportion*hydrogen_scattering + (1-self.hydrogen_proportion)*helium_scattering)
+        lineshape = self.hydrogen_proportion*hydrogen_scattering + (1-self.hydrogen_proportion)*helium_scattering
 
         #plt.plot(K, lineshape/np.max(lineshape), color='black', label='full')
         #plt.xlim(-200, 200)
@@ -1234,7 +1268,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                     sig2 = self.two_gaussian_sigma_2
 
 
-            max_energy = 1000
+            max_energy = self.max_energy
             dE = self.energies[1]-self.energies[0]#E[1]-E[0]
             n_dE = round(max_energy/dE)
             #e_add = np.arange(np.min(self.energies)-round(max_energy/dE)*dE, np.min(self.energies), dE)
@@ -1281,10 +1315,6 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
                 # simplified lineshape
                 FWHM = 2.*np.sqrt(2.*np.log(2.))*res *self.width_scaling
-                if FWHM < 30.01:
-                    #logger.warning('FWHM smaller 30. Setting to 30 instead.')
-                    FWHM = 30.01
-
 
                 # get lineshape
                 if not self.use_helium_scattering:
@@ -1336,9 +1366,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
                 FWHM = 2.*np.sqrt(2.*np.log(2.))*res*self.width_scaling
-                if FWHM < 30.01:
-                    logger.warning('FWHM smaller 30. Setting to 30 instead.')
-                    FWHM = 30.01
+
                 #logger.info('Plotting lineshape for FWHM {} and hydrogen proportion {}.'.format(FWHM, self.hydrogen_proportion))
                 #simple_ls, simple_norm = self.simplified_ls(e_lineshape, 0, FWHM, prob_b, prob_c)
                 #simple_ls = (self.gauss_resolution_f(e_lineshape, 1, res, 0)+simple_ls)/simple_norm
@@ -1391,15 +1419,15 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             K_convolved = np.interp(E, self._energies, K_convolved)*(len(E)*1./len(self._energies))
 
 
-        # multiply efficiency
-        efficiency = np.ones(len(E))
-        efficiency_errors = [np.zeros(len(E)), np.zeros(len(E))]
-
 
         if self.is_distorted == True:
             #if self.fit_efficiency_tilt:
             #    self.tilt = tilt
             efficiency, efficiency_errors =  self.Efficiency(E)
+        else:
+            # multiply efficiency
+            efficiency = np.ones(len(E))
+            efficiency_errors = [np.zeros(len(E)), np.zeros(len(E))]
 
         K_eff=K_convolved*efficiency
         # finally
