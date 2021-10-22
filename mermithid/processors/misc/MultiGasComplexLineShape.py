@@ -3609,9 +3609,12 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
         bins_Hz = 0.5*(bins_Hz[1:] + bins_Hz[:-1])    
-        quad_trap_interp = np.load(self.path_to_quad_trap_eff_interp, allow_pickle = True)
-        quad_trap_count_rate_interp = quad_trap_interp.item()['count_rate_interp']
-        eff_array = quad_trap_count_rate_interp(bins_Hz)
+        if self.use_quad_trap_eff_interp == True:     
+            quad_trap_interp = np.load(self.path_to_quad_trap_eff_interp, allow_pickle = True)
+            quad_trap_count_rate_interp = quad_trap_interp.item()['count_rate_interp']
+            eff_array = quad_trap_count_rate_interp(bins_Hz)
+        else:
+            eff_array = np.ones(len(bins_Hz))
         # Initial guesses for curve_fit
         B_field_guess = ComplexLineShapeUtilities.central_frequency_to_B_field(bins_Hz[np.argmax(data_hist_freq)])
         amplitude_guess = np.sum(data_hist_freq)
