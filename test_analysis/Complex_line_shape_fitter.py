@@ -31,27 +31,12 @@ class ComplexLineShapeTests(unittest.TestCase):
 
         complexLineShape_config = {
             'bins_choice': np.linspace(0e6, 100e6, 1000),
-            'gases': ["H2", "He", "Ar", "Kr"], # Ar, Kr
+            'gases': ["H2", "He"], # "Ar", "Kr" # "Kr" for fss
             'fix_gas_composition': True,
             'fix_width_scale_factor': True,
             'factor': 0.4934,
-            'scatter_fractions_for_gases': [0.817, 0.07, 0.08],
+            'scatter_fractions_for_gases': [0.894],
             'max_scatters': 20,
-            # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, composite_gaussian_scaled, simulated_resolution_scaled, 'simulated_resolution_scaled_fit_scatter_peak_ratio', 'gaussian_resolution_fit_scatter_peak_ratio'
-            'resolution_function': 'simulated_resolution_scaled_fit_scatter_peak_ratio',
-             #choose the parameters you want to fix from ['B field','amplitude','width scale factor', 'survival probability','scatter peak ratio param b', 'scatter peak ratio param c'] plus the gas scatter fractions as ['H2 scatter fraction'],
-            'fixed_parameter_names': ['survival probability', 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'],
-            'fixed_parameter_values': [1.0, 1.0, 0.817, 0.07, 0.08],
-            # This is an important parameter which determines how finely resolved
-            # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
-            'num_points_in_std_array': 4000,
-            'RF_ROI_MIN': 25859375000.0,
-            # shake_spectrum_parameters.json and oscillator strength data can be found at https://github.com/project8/scripts/tree/master/yuhao/line_shape_fitting/data
-            'shake_spectrum_parameters_json_path': '../mermithid/misc/shake_spectrum_parameters.json',
-            'path_to_osc_strengths_files': '/host/',
-            'path_to_scatter_spectra_file': '/host/',
-            'path_to_ins_resolution_data_txt': '/host/October_FTC_resolution/all_res_cf14.400.txt',
-            
             'fixed_scatter_proportion': True,
             # When fixed_scatter_proportion is True, set the scatter proportion for the gases below
             'gas_scatter_proportion': [0.8, 0.2],#0.827, 0.076, 0.068, 0.028 # 0.75, 0.25
@@ -59,9 +44,13 @@ class ComplexLineShapeTests(unittest.TestCase):
             'free_gases': ["H2", "He"],
             'fixed_gases': ["Ar", "Kr"],
             'scatter_proportion_for_fixed_gases': [0.018, 0.039],
+            'use_radiation_loss': True,
+            'sample_ins_res_errors': False,
             'fixed_survival_probability': False,
             # When option fixed_survival_probability is True, assign the survival probability below
             'survival_prob': 15/16., # assuming total cross section for elastic scattering is 1/10 of inelastic scattering
+            # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, composite_gaussian_scaled, simulated_resolution_scaled, 'simulated_resolution_scaled_fit_scatter_peak_ratio', 'gaussian_resolution_fit_scatter_peak_ratio'
+            'resolution_function': 'simulated_resolution_scaled_fit_scatter_peak_ratio',
             # specific choice of parameters in the gaussian lorentzian composite resolution function
             'recon_eff_param_a': 0.005569990343215976,
             'recon_eff_param_b': 0.351,
@@ -73,7 +62,19 @@ class ComplexLineShapeTests(unittest.TestCase):
             'A_array': [0.076, 0.341, 0.381, 0.203],
             #parameter for simulated resolution scaled resolution 
             'fit_recon_eff': False,
-            #parameters for simulated resolution scaled with scatter peak ratio fitted        
+            #parameters for simulated resolution scaled with scatter peak ratio fitted
+            #choose the parameters you want to fix from ['B field','amplitude', 'width scale factor', 'survival probability','scatter peak ratio param b', 'scatter peak ratio param c'] plus the gas scatter fractions as ['H2 scatter fraction'],
+            'fixed_parameter_names': ['survival probability'], #, 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'
+            'fixed_parameter_values': [1.0],   #[1.0, 1.0, 0.886, 0.02, 0.06]   
+            # This is an important parameter which determines how finely resolved
+            # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
+            'num_points_in_std_array': 4000,
+            'RF_ROI_MIN': 25859375000.0, #24.5e9 + 1.40812680e+09 - 50e6, #25850000000.0
+            # shake_spectrum_parameters.json and oscillator strength data can be found at https://github.com/project8/scripts/tree/master/yuhao/line_shape_fitting/data
+            'shake_spectrum_parameters_json_path': '../mermithid/misc/shake_spectrum_parameters.json',
+            'path_to_osc_strengths_files': '/host/',
+            'path_to_scatter_spectra_file': '/host/',
+            'path_to_ins_resolution_data_txt': '/host/March_FTC_resolution/all_res_cf15.300.txt'       
             
         }
 
