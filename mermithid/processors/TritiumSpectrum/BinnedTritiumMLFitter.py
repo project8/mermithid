@@ -180,6 +180,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         # width for constraints or sample distributions
         self.model_parameter_widths = reader.read_param(config_dict, 'model_parameter_widths', [100, 0.1, 0.1, 500, 0.1, 0, 3, 1, 1])
         self.fixed_parameters = reader.read_param(config_dict, 'fixed_parameters', [False, False, False, False, True, True, True, True, True])
+        self.fixed_parameter_dict = reader.read_param(config_dict, 'fixed_parameter_dict', {})
         self.limits = reader.read_param(config_dict, 'model_parameter_limits',
                                                     [[18e3, 20e3],
                                                      [0, None],
@@ -585,6 +586,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.fixes = self.fixed_parameters #[self.fix_endpoint, self.fix_background, self.fix_nu_mass, self.fix_amplitude,
                       #self.fix_scatter_peak_ratio_b, self.fix_scatter_peak_ratio_c,
                       #self.fix_res, self.fix_two_gaussian_sigma_1, self.fix_two_gaussian_sigma_2]
+
+        self.fixed_dict = self.fixed_parameter_dict
 
         # self.limits = [energy_limits,
         #            [0, None],

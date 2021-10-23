@@ -44,6 +44,8 @@ class MCUncertaintyPropagation(BaseProcessor):
         self.sample_parameters = reader.read_param(params, 'sample_parameters', [])
         self.stat_sys_combined = reader.read_param(params, 'stat_sys_combined', [True, True, True])
         self.N = reader.read_param(params, 'N_samples', 50)
+        self.fitted_params = reader.read_param(params, "initial_best_fit", [])
+        self.fitted_params_errors = reader.read_param(params, "initial_best_fit_errors", [])
 
         return True
 
@@ -54,7 +56,8 @@ class MCUncertaintyPropagation(BaseProcessor):
         for k in self.fit_options.keys():
             self.fit_config_dict[k] = self.fit_options[k]
 
-        self.InitialFit()
+        if len(self.fitted_params) == 0 or len(self.fitted_params_errors) == 0:
+            self.InitialFit()
         self.ParameterSampling()
 
 
@@ -88,8 +91,8 @@ class MCUncertaintyPropagation(BaseProcessor):
 
 
         logger.info('Best fit: {}'.format(self.fitted_params))
-        x, pdf, bins, fitted_model, asimov_data = self.model(self.fit_config_dict,
-                                                                     params=self.fitted_params)
+        #x, pdf, bins, fitted_model, asimov_data = self.model(self.fit_config_dict,
+        #                                                             params=self.fitted_params)
         return True
 
     def ParameterSampling(self):

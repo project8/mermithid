@@ -57,6 +57,7 @@ class BinnedDataFitter(BaseProcessor):
         self.initial_values = reader.read_param(params, 'initial_values', [1]*len(self.parameter_names))
         self.limits = reader.read_param(params, 'limits', [[None, None]]*len(self.parameter_names))
         self.fixes = reader.read_param(params, 'fixed', [False]*len(self.parameter_names))
+        self.fixes_dict = reader.read_param(params, 'fixed_parameter_dict', {})
         self.bins = reader.read_param(params, 'bins', np.linspace(-2, 2, 100))
         self.binned_data = reader.read_param(params, 'binned_data', False)
         self.print_level = reader.read_param(params, 'print_level', 1)
@@ -131,7 +132,11 @@ class BinnedDataFitter(BaseProcessor):
         m_binned.print_level = self.print_level
 
         for i, name in enumerate(self.parameter_names):
-            m_binned.fixed[name] = self.fixes[i]
+            if name in self.fixes_dict.keys():
+                m_binned.fixed[name]= self.fixes_dict[name]
+                logger.info('Fixing {}'.format(name))
+            else:
+                m_binned.fixed[name] = self.fixes[i]
             m_binned.limits[name] = self.limits[i]
 
         # minimze
