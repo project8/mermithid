@@ -1220,18 +1220,21 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         if self.is_smeared or self.is_scattered:
 
             # resolution params
-            res = args[self.res_index]
             if self.fixed_parameters[self.res_index]:
                 res = self.res
+            else:
+                res = args[self.res_index]
 
             if self.resolution_model != 'gaussian':
-                sig1 = args[self.two_gaussian_sigma_1_index]
-                sig2 = args[self.two_gaussian_sigma_2_index]
 
                 if self.fixed_parameters[self.two_gaussian_sigma_1_index]:
                     sig1 = self.two_gaussian_sigma_1
+                else:
+                    sig1 = args[self.two_gaussian_sigma_1_index]
                 if self.fixed_parameters[self.two_gaussian_sigma_1_index]:
                     sig2 = self.two_gaussian_sigma_2
+                else:
+                    sig2 = args[self.two_gaussian_sigma_2_index]
 
 
             max_energy = 1000
