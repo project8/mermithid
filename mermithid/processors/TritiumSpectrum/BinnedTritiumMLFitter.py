@@ -587,7 +587,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                       #self.fix_scatter_peak_ratio_b, self.fix_scatter_peak_ratio_c,
                       #self.fix_res, self.fix_two_gaussian_sigma_1, self.fix_two_gaussian_sigma_2]
 
-        self.fixed_dict = self.fixed_parameter_dict
+        self.fixes_dict = self.fixed_parameter_dict
 
         # self.limits = [energy_limits,
         #            [0, None],
@@ -973,7 +973,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                                 * self.final_state_array[1][i]
                                 * approximate_e_phase_space for i in range(N_states)]
 
-            to_return = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])
+            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])
 
         else:
             approximate_e_phase_space = self.ephasespace(E, Q)
@@ -1010,7 +1010,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                                 * self.final_state_array[1][i]
                                 * approximate_e_phase_space for i in range(N_states)]
 
-            to_return = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])
+            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])
 
         else:
             approximate_e_phase_space = self.ephasespace(E, Q)
@@ -1257,18 +1257,21 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         if self.is_smeared or self.is_scattered:
 
             # resolution params
-            res = args[self.res_index]
             if self.fixed_parameters[self.res_index]:
                 res = self.res
+            else:
+                res = args[self.res_index]
 
             if self.resolution_model != 'gaussian':
-                sig1 = args[self.two_gaussian_sigma_1_index]
-                sig2 = args[self.two_gaussian_sigma_2_index]
 
                 if self.fixed_parameters[self.two_gaussian_sigma_1_index]:
                     sig1 = self.two_gaussian_sigma_1
+                else:
+                    sig1 = args[self.two_gaussian_sigma_1_index]
                 if self.fixed_parameters[self.two_gaussian_sigma_1_index]:
                     sig2 = self.two_gaussian_sigma_2
+                else:
+                    sig2 = args[self.two_gaussian_sigma_2_index]
 
 
             max_energy = self.max_energy
