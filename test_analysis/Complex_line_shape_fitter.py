@@ -34,7 +34,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             'gases': ["H2", "He"], # "Ar", "Kr" # "Kr" for fss
             'fix_gas_composition': True,
             'fix_width_scale_factor': True,
-            'factor': 0.4934,
+            'factor': 0.4626,
             'scatter_fractions_for_gases': [0.894],
             'max_scatters': 20,
             'fixed_scatter_proportion': True,
