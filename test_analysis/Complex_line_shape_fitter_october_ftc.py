@@ -36,7 +36,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             'bins_choice': np.linspace(0e6, 100e6, 1000),
             'gases': ["H2", "He", "Ar", "Kr"], # "Ar", "Kr" # "Kr" for fss ["H2", "He", "Ar", "Kr"]
             'fix_gas_composition': True,
-            'fix_width_scale_factor': True,
+            'fix_width_scale_factor': False,
             'scatter_fractions_for_gases': [0.817, 0.07, 0.08],
             'factor': 0.4934,
             'max_scatters': 20,
@@ -66,7 +66,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             'fit_recon_eff': False,
             #parameters for simulated resolution scaled with scatter peak ratio fitted
             #choose the parameters you want to fix from ['B field','amplitude', 'width scale factor', 'survival probability','scatter peak ratio param b', 'scatter peak ratio param c'] plus the gas scatter fractions as ['H2 scatter fraction'],
-            'fixed_parameter_names': ['survival probability'], #, 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'
+            'fixed_parameter_names': ['survival probability', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'], #, 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'
             'fixed_parameter_values': [1.0],   #[1.0, 1.0, 0.886, 0.02, 0.06]   
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
@@ -101,48 +101,50 @@ class ComplexLineShapeTests(unittest.TestCase):
 
         #fixed_para_values_array = [[1.0, 1.0, 0.817, 0.07, 0.08], [1.0, 1.0, 0.886, 0.02, 0.06], [1.0, 1.0, 0.748, 0.12, 0.1], [1.0, 1.0, 0.777, 0.138, 0.06], [1.0, 1.0, 0.857, 0.002, 0.1], [1.0, 1.0, 0.845, 0.086, 0.1]]# [1.0, 1.0, 0.817, 0.07, 0.08], [1.0, 1.0, 0.886, 0.02, 0.06], [1.0, 1.0, 0.748, 0.12, 0.1], [1.0, 1.0, 0.777, 0.138, 0.06], [1.0, 1.0, 0.857, 0.002, 0.1]
         f_array = np.arange(0.4, 0.61, 0.01)
-#        i = 10
+        gas_variation_array = [[0.817, 0.07, 0.08], [0.886, 0.02, 0.06], [0.748, 0.12, 0.1], [0.777, 0.138, 0.06], [0.857, 0.002, 0.1], [0.845, 0.046, 0.08]]# [1.0, 1.0, 0.817, 0.07, 0.08], [1.0, 1.0, 0.886, 0.02, 0.06], [1.0, 1.0, 0.748, 0.12, 0.1], [1.0, 1.0, 0.777, 0.138, 0.06], [1.0, 1.0, 0.857, 0.002, 0.1]]
         max_snr_array = ['13.000', '13.500', '14.000', '14.500', '15.000', '15.500', '16.000', '16.500']
-        for f in [0.4626]:
-            output_dict = {}
-            for i in range(11):
-                complexLineShape_config['path_to_ins_resolution_data_txt'] = '/host/res_stat_October_ftc/res_stat_{}.txt'.format(i)
-                if i == 10:
-                        complexLineShape_config['path_to_ins_resolution_data_txt'] = '/host/October_FTC_resolution/all_res_cf14.300.txt'
+        f = 0.4626
+        output_dict = {}
 
-                complexLineShape_config['fixed_parameter_values'] = [1.0]
-            
-                complexLineShape_config['factor'] = f
-            
-                complexLineShape.Configure(complexLineShape_config)       
+#         complexLineShape_config['path_to_ins_resolution_data_txt'] = '/host/res_stat_October_ftc/res_stat_{}.txt'.format(i)
+#         if i == 10:
+        complexLineShape_config['path_to_ins_resolution_data_txt'] = '/host/October_FTC_resolution/all_res_cf14.300.txt'
 
-                complexLineShape.Run()
+        complexLineShape_config['fixed_parameter_values'] = [1.0, 0.817, 0.07, 0.08]
 
-                results = complexLineShape.results
-            
-                logger.info(results['output_string'])
-                logger.info('\n'+str(results['correlation_matrix']))
+        complexLineShape_config['factor'] = f
+    
+        complexLineShape_config['scatter_fractions_for_gases'] = [0.817, 0.07, 0.08]
 
-                # plot fit with shake spectrum
-                plt.rcParams.update({'font.size': 15})
-                plt.figure(figsize=(15,9))
-                plt.step(
-                results['bins_Hz']/1e9, results['data_hist_freq'],
-                label = 'data\n total counts = {}\n'.format(len(data['StartFrequency']))
-                )
-                plt.plot(results['bins_Hz']/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
-                plt.legend(loc = 'upper left', fontsize = 12)
-                plt.xlabel('frequency GHz')
-                if complexLineShape_config['resolution_function'] == 'simulated_resolution_scaled_fit_scatter_peak_ratio':
-                    plot_title = 'data file:{},\n gases: {},\n resolution function: {}({}),\n fixed parameters:\n {}'.format(os.path.basename(reader_config['filename']),complexLineShape_config['gases'], complexLineShape_config['resolution_function'], os.path.basename(complexLineShape_config['path_to_ins_resolution_data_txt']), complexLineShape_config['fixed_parameter_names'])
-                if complexLineShape_config['resolution_function'] == 'gaussian_resolution_fit_scatter_peak_ratio':
-                    plot_title = 'data file:{},\n gases: {},\n resolution function: {},\n fixed parameters:\n {}'.format(os.path.basename(reader_config['filename']),complexLineShape_config['gases'], complexLineShape_config['resolution_function'], complexLineShape_config['fixed_parameter_names'])
-                plt.title(plot_title)
-                plt.tight_layout()
-                #plt.savefig('/host/plots/fit_FTC_march_with_simulated_resolution_cf{}_sp_1.0_width_factor_1.0.png'.format(file_cf))
-                plt.savefig('/host/plots/fit_October_FTC_with_simulated_resolution.png')# March_FTC
-                output_dict['correlation factor res stat {}'.format(i)] = results
-            np.save('/host/october_correlation_res_stat_for_factor_{:.5}.npy'.format(f), output_dict)
+        complexLineShape.Configure(complexLineShape_config)       
+
+        complexLineShape.Run()
+
+        results = complexLineShape.results
+
+        logger.info(results['output_string'])
+        logger.info('\n'+str(results['correlation_matrix']))
+
+        # plot fit with shake spectrum
+        plt.rcParams.update({'font.size': 15})
+        plt.figure(figsize=(15,9))
+        plt.step(
+        results['bins_Hz']/1e9, results['data_hist_freq'],
+        label = 'data\n total counts = {}\n'.format(len(data['StartFrequency']))
+        )
+        plt.plot(results['bins_Hz']/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
+        plt.legend(loc = 'upper left', fontsize = 12)
+        plt.xlabel('frequency GHz')
+        if complexLineShape_config['resolution_function'] == 'simulated_resolution_scaled_fit_scatter_peak_ratio' or complexLineShape_config['resolution_function'] == 'simulated_resolution_scaled_fit_scatter_peak_ratio2':
+            plot_title = 'data file:{},\n gases: {},\n resolution function: {}({}),\n fixed parameters:\n {}'.format(os.path.basename(reader_config['filename']),complexLineShape_config['gases'], complexLineShape_config['resolution_function'], os.path.basename(complexLineShape_config['path_to_ins_resolution_data_txt']), complexLineShape_config['fixed_parameter_names'])
+        if complexLineShape_config['resolution_function'] == 'gaussian_resolution_fit_scatter_peak_ratio':
+            plot_title = 'data file:{},\n gases: {},\n resolution function: {},\n fixed parameters:\n {}'.format(os.path.basename(reader_config['filename']),complexLineShape_config['gases'], complexLineShape_config['resolution_function'], complexLineShape_config['fixed_parameter_names'])
+        plt.title(plot_title)
+        plt.tight_layout()
+        #plt.savefig('/host/plots/fit_FTC_march_with_simulated_resolution_cf{}_sp_1.0_width_factor_1.0.png'.format(file_cf))
+        plt.savefig('/host/plots/fit_October_FTC_with_simulated_resolution2.png')# March_FTC
+#        output_dict['october max snr 18.000'] = results
+#        np.save('/host/october_max_snr_18.000_for_factor_{:.5}.npy'.format(f), output_dict)
 #             time.sleep(600)
 #             output_file = open('/host/october_res_upper_and_lower_bounds_results.txt', 'a')
 #             output_file.write('{}\n\n {}\n\n\n'.format('lower bound', results['output_string']))
