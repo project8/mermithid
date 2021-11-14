@@ -44,17 +44,17 @@ class MiscTest(unittest.TestCase):
 
         sens_config_dict = {
             # required
-            "config_file_path": "/home/chrischtel/repos/scripts/rreimann/data/Sensitivity/Config_PhaseIII_FSCD_molecular_V_eff_2cm3.cfg",
+            "config_file_path": "/host_termite/sensitivity_config_files/Config_PhaseIII_FSCD_molecular_V_eff_2cm3.cfg",
             "plot_path": "./sensitivity_curve.pdf",
             # optional
             "track_length_axis": True,
             "molecular_axis": True,
-            "atomic_axis": True,
+            "atomic_axis": False,
             "y_limits": [1e-2, 1e2],
             "main_curve_upper_label": r"molecular"+"\n"+r"$V_\mathrm{eff} = 2\, \mathrm{cm}^3$"+"\n"+r"$\sigma_B = 7\,\mathrm{ppm}$",
             "goals": {"Phase III (2 eV)": 2, "Phase IV (40 meV)": 0.04},
-            "comparison_curve": True,
-            "comparison_config_file_path": "/home/chrischtel/repos/scripts/rreimann/data/Sensitivity/Config_PhaseIV_atomic_V_eff_5m3.cfg",
+            "comparison_curve": False,
+            "comparison_config_file_path": "/host_scripts/rreimann/data/Sensitivity/Config_PhaseIV_atomic_V_eff_5m3.cfg",
             "B": np.arange(1, 8)*1e-6
 
             }
