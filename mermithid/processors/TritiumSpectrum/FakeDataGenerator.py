@@ -60,6 +60,7 @@ class FakeDataGenerator(BaseProcessor):
         - detailed_or_simplified_lineshape: If use lineshape, this string determines which lineshape model is used.
         - apply_efficiency (boolean): determines whether tritium spectrum is multiplied by efficiency
         - return_frequency: data is always generated as energies. If this parameter is true a list of frequencies is added to the dictionary
+        - molecular_final_states: if True molecular final states are included in tritium spectrum (using spectrum from Bodine et. al 2015)
         """
 
         # Read other parameters
@@ -98,17 +99,20 @@ class FakeDataGenerator(BaseProcessor):
         self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
         self.NScatters = reader.read_param(params, 'NScatters', 20)
         self.scatter_proportion = reader.read_param(params, 'scatter_proportion', 1.0)
+        self.min_energy = reader.read_param(params,'min_lineshape_energy', -1000)
 
         #paths
         self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
         self.detailed_scatter_spectra_path = reader.read_param(params, 'path_to_detailed_scatter_spectra_dir', '.')
         self.efficiency_path = reader.read_param(params, 'efficiency_path', '')
+        self.final_states_file = reader.read_param(params, 'final_states_file', '')
 
         #options
         self.use_lineshape = reader.read_param(params, 'use_lineshape', True)
         self.detailed_or_simplified_lineshape = reader.read_param(params, 'detailed_or_simplified_lineshape', 'detailed')
         self.apply_efficiency = reader.read_param(params, 'apply_efficiency', False)
         self.return_frequency = reader.read_param(params, 'return_frequency', True)
+        self.molecular_final_states = reader.read_param(params, 'molecular_final_states', False)
 
         # will be replaced with complex lineshape object if detailed lineshape is used
         self.complexLineShape = None
@@ -164,12 +168,25 @@ class FakeDataGenerator(BaseProcessor):
                 logger.info('Checking existence of scatter spectra files')
                 self.complexLineShape.check_existence_of_scatter_file()
             else:
-                raise ValueError("'detailed_or_simplified' is neither 'detailed' nor 'simplified'")
+                logger.error("'detailed_or_simplified' is neither 'detailed' nor 'simplified'")
+                return False
 
         else:
             self.lineshape = 'gaussian'
             self.SimpParams = [self.broadening]
             logger.info('Lineshape is Gaussian')
+
+        # check final states file existence
+        if self.molecular_final_states:
+            logger.info('Going to use molecular final states from Bodine et al 2015')
+            with open(self.final_states_file, 'r') as infile:
+                a = json.load(infile)
+                index = np.where(np.array(a['Probability'])[:-1]>0)
+                self.final_state_array = [np.array(a['Binding energy'])[index], np.array(a['Probability'])[index]]
+        else:
+            logger.info('Not using molecular final state spectrum')
+            self.final_state_array = np.array([[0.], [1.]])
+
         return True
 
 
@@ -267,10 +284,10 @@ class FakeDataGenerator(BaseProcessor):
         FWHM_convert = 2*math.sqrt(2*math.log(2))
         if lineshape=='gaussian':
             max_energy = nstdevs*params[0]
-            min_energy = -1000
+            min_energy = self.min_energy
         elif lineshape=='simplified_scattering' or lineshape=='simplified' or lineshape=='detailed_scattering' or lineshape=='detailed':
             max_energy = nstdevs/FWHM_convert*params[0]
-            min_energy = -1000
+            min_energy = self.min_energy
 
         Kmax_eff = Kmax+max_energy #Maximum energy for data is slightly above Kmax>Q-m
         Kmin_eff = Kmin+min_energy #Minimum is slightly below Kmin<Q-m
@@ -298,7 +315,9 @@ class FakeDataGenerator(BaseProcessor):
         time0 = time.time()
 
         if array_method == True:
-            ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean, mass, Kmin, lineshape, params, min_energy, max_energy, self.complexLineShape)
+            ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean, mass, Kmin,
+                                                    lineshape, params, min_energy, max_energy,
+                                                    self.complexLineShape, self.final_state_array)
         else:
             ratesS = [convolved_spectral_rate(K, Q_mean, mass, Kmin, lineshape, params, min_energy, max_energy) for K in self.Koptions]
 
@@ -310,7 +329,9 @@ class FakeDataGenerator(BaseProcessor):
 
         # background
         if array_method == True:
-            ratesB = convolved_bkgd_rate_arrays(self.Koptions, Kmin, Kmax, lineshape, params, min_energy, max_energy, self.complexLineShape)
+            ratesB = convolved_bkgd_rate_arrays(self.Koptions, Kmin, Kmax,
+                                                lineshape, params, min_energy, max_energy,
+                                                self.complexLineShape)
         else:
             ratesB = [convolved_bkgd_rate(K, Kmin, Kmax, lineshape, params, min_energy, max_energy) for K in self.Koptions]
 

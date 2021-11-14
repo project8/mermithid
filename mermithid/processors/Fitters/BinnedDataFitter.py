@@ -54,13 +54,12 @@ class BinnedDataFitter(BaseProcessor):
         # Read other parameters
         self.namedata = reader.read_param(params, 'variables', "required")
         self.parameter_names = reader.read_param(params, 'parameter_names', ['A', 'mu', 'sigma'])
-        self.initial_values = reader.read_param(params, 'initial_values', [1, 0, 1])
-        self.limits = reader.read_param(params, 'limits', [[None, None], [None, None], [None, None]])
-        self.fixes = reader.read_param(params, 'fixed', [False, False, False])
+        self.initial_values = reader.read_param(params, 'initial_values', [1]*len(self.parameter_names))
+        self.limits = reader.read_param(params, 'limits', [[None, None]]*len(self.parameter_names))
+        self.fixes = reader.read_param(params, 'fixed', [False]*len(self.parameter_names))
         self.bins = reader.read_param(params, 'bins', np.linspace(-2, 2, 100))
         self.binned_data = reader.read_param(params, 'binned_data', False)
         self.print_level = reader.read_param(params, 'print_level', 1)
-
         self.constrained_parameters = reader.read_param(params, 'constrained_parameter_indices', [])
         self.constrained_means = reader.read_param(params, 'constrained_parameter_means', [])
         self.constrained_widths = reader.read_param(params, 'constrained_parameter_widths', [])
@@ -90,6 +89,7 @@ class BinnedDataFitter(BaseProcessor):
         self.results = {}
         self.results['param_values'] = result_array
         self.results['param_errors'] = error_array
+        self.results['correlation_matrix'] = np.array(self.m_binned.covariance.correlation())
         for i, k in enumerate(self.parameter_names):
             self.results[k] = {'value': result_array[i], 'error': error_array[i]}
 
@@ -108,7 +108,7 @@ class BinnedDataFitter(BaseProcessor):
 
     def fit(self):
         # Now minimize neg log likelihood using iMinuit
-        if self.print_level == 1:
+        if self.print_level > 0:
             logger.info('This is the plan:')
             logger.info('Fitting data consisting of {} elements'.format(np.sum(self.hist)))
             logger.info('Fit parameters: {}'.format(self.parameter_names))
@@ -118,29 +118,39 @@ class BinnedDataFitter(BaseProcessor):
             logger.info('Fixed in fit: {}'.format(self.fixes))
             logger.info('Constrained parameters: {}'.format([self.parameter_names[i] for i in self.constrained_parameters]))
 
-        m_binned = Minuit.from_array_func(self.negPoissonLogLikelihood,
+        m_binned = Minuit(self.negPoissonLogLikelihood,
                                       self.initial_values,
-                                      error=self.parameter_errors,
-                                      errordef = 0.5, limit = self.limits,
+        #                              error=self.parameter_errors,
+        #                              errordef = 0.5, limit = self.limits,
                                       name=self.parameter_names,
-                                      fix=self.fixes,
-                                      print_level=self.print_level,
-                                      throw_nan=True
+        #                              fix=self.fixes,
+        #                              print_level=self.print_level,
+        #                              throw_nan=True
                                       )
 
+        m_binned.errordef = 0.5
+        m_binned.errors = self.parameter_errors
+        m_binned.throw_nan = True
+        m_binned.print_level = self.print_level
+
+        for i, name in enumerate(self.parameter_names):
+            m_binned.fixed[name] = self.fixes[i]
+            m_binned.limits[name] = self.limits[i]
 
         # minimze
-        m_binned.migrad(resume=False)
+        m_binned.simplex().migrad()
+        m_binned.hesse()
         #self.param_states = m_binned.get_param_states()
         self.m_binned = m_binned
 
         # results
-        result_array = m_binned.np_values()
-        error_array = m_binned.np_errors()
+        result_array = np.array(m_binned.values)
+        error_array = np.array(m_binned.errors)
 
         if self.print_level == 1:
             logger.info('Fit results: {}'.format(result_array))
             logger.info('Errors: {}'.format(error_array))
+
         return result_array, error_array
 
 
@@ -155,7 +165,8 @@ class BinnedDataFitter(BaseProcessor):
             expectation = model_return
 
         if np.min(expectation) < 0:
-            logger.error('Expectation contains negative numbers. They will be excluded but something could be horribly wrong.')
+            logger.error('Expectation contains negative numbers: Minimum {} -> {}. They will be excluded but something could be horribly wrong.'.format(np.argmin(expectation), np.min(expectation)))
+            logger.error('FYI, the parameters are: {}'.format(params))
 
         # exclude bins where expectation is <= zero or nan
         index = np.where(expectation>0)

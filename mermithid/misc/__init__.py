@@ -8,5 +8,4 @@ from . import KuriePlotTools
 from . import TritiumFormFactor
 from . import FakeTritiumDataFunctions
 from . import ConversionFunctions
-from . import KrLineshapeFunctions
 from . import SensitivityFormulas
