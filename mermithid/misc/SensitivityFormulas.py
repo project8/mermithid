@@ -386,6 +386,7 @@ class Sensitivity(object):
 
         # position uncertainty is linear in wavelength
         # position uncertainty is nearly constant w.r.t. radial position
+        # based on https://3.basecamp.com/3700981/buckets/3107037/uploads/3442593126
         rRecoErr = self.MagneticField.rRecoErr
         delta_rRecoErr = self.MagneticField.relative_Uncertainty_rRecoErr * rRecoErr
 
