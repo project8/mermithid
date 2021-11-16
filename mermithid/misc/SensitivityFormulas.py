@@ -151,6 +151,14 @@ class Sensitivity(object):
             signal_rate *= 2
         return signal_rate
 
+    def SignalEvents(self):
+        """Number of signal events."""
+        return self.SignalRate()*self.Experiment.LiveTime*self.DeltaEWidth()**3
+
+    def BackgroundEvents(self):
+        """Number of background events."""
+        return self.Experiment.background_rate_per_eV*self.Experiment.LiveTime*self.DeltaEWidth()
+
     def DeltaEWidth(self):
         """optimal energy bin width"""
         labels, sigmas, deltas = self.get_systematics()
@@ -161,7 +169,7 @@ class Sensitivity(object):
         """Pure statistic sensitivity assuming Poisson count experiment in a single bin"""
         sig_rate = self.SignalRate()
         DeltaE = self.DeltaEWidth()
-        sens = 4/(6*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*DeltaE
+        sens = 2/(3*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*DeltaE
                                                                   +self.Experiment.background_rate_per_eV*self.Experiment.LiveTime/DeltaE)
         return sens
 
