@@ -1,5 +1,10 @@
 '''
-Summarize sensitivity formulas in class...
+Class calculating neutrino mass sensitivities based on analytic formulas from CDR.
+Author: R. Reimann, C. Claessens
+Date:11/17/2020
+
+The statistical method and formulars are described in 
+CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc673d862fa923d53.
 '''
 import numpy as np
 import configparser
@@ -114,13 +119,6 @@ class Sensitivity(object):
 
         self.Experiment = NameSpace({opt: eval(self.cfg.get('Experiment', opt)) for opt in self.cfg.options('Experiment')})
 
-        # self.Tritium_atomic = NameSpace({opt: eval(self.cfg.get('Tritium_atomic', opt)) for opt in self.cfg.options('Tritium_atomic')})
-        # self.Tritium_molecular = NameSpace({opt: eval(self.cfg.get('Tritium_molecular', opt)) for opt in self.cfg.options('Tritium_molecular')})
-        # if self.Experiment.atomic:
-        #     self.Tritium = self.Tritium_atomic
-        # else:
-        #     self.Tritium = self.Tritium_molecular
-
         self.T_livetime = tritium_livetime
         if self.Experiment.atomic:
             self.T_mass = tritium_mass_atomic
@@ -169,6 +167,11 @@ class Sensitivity(object):
         return sens
 
     def sensitivity(self, **kwargs):
+        """Combined statisical and systematic uncertainty. 
+        Using kwargs settings in namespaces can be changed.
+        Example how to change number density which lives in namespace Experiment:
+            self.sensitivity(Experiment={"number_density": rho})
+        """
         for sect, options in kwargs.items():
             for opt, val in options.items():
                 self.__dict__[sect].__dict__[opt] = val
@@ -181,12 +184,15 @@ class Sensitivity(object):
         return sigma_m_beta_2
 
     def CL90(self, **kwargs):
+        """ Gives 90% CL upper limit on neutrino mass."""
+        # 90% of gaussian are contained in +-1.64 sigma region
         return np.sqrt(np.sqrt(1.64)*self.sensitivity(**kwargs))
 
     # PHYSICS Functions
     def frequency(self, energy, magnetic_field):
         # cyclotron frequency
-        gamma = lambda energy: energy/(me*c0**2) + 1  # E_kin / E_0 + 1
+        # gamma = E_kin/E_0 + 1
+        gamma = lambda energy: energy/(me*c0**2) + 1
         frequency = e*magnetic_field/(2*np.pi*me)/gamma(energy)
         return frequency
 
@@ -307,47 +313,6 @@ class Sensitivity(object):
         delta_sigma_f = np.sqrt((delta_sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_uncertainty**2)/2)
 
         return sigma_f, delta_sigma_f
-
-    # def syst_frequency_extraction(self):
-    #     # cite{https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398} (Section 1.2, p 7-9)
-    #     # Are we double counting the antenna collection efficiency? We use it here. Does it also impact the effective volume, v_eff ?
-    #     # Are we double counting the effect of magnetic field uncertainty here? Is 'sigma_f_Bfield' the same as 'rRecoErr', 'delta_rRecoErr', 'rRecoPhiErr', 'delta_rRecoPhiErr'?
-
-    #     if self.FrequencyExtraction.UseFixedValue:
-    #         sigma = self.FrequencyExtraction.Default_Systematic_Smearing
-    #         delta = self.FrequencyExtraction.Default_Systematic_Uncertainty
-    #         return sigma, delta
-
-    #     ScalingFactorCRLB = self.FrequencyExtraction.CRLB_scaling_factor # Cramer-Rao lower bound / how much worse are we than the lower bound
-    #     ts = self.FrequencyExtraction.track_timestep
-    #     Gdot = self.FrequencyExtraction.track_onset_rate
-    #     Ke = self.T_endpoint
-
-    #     fEndpoint = self.frequency(self.T_endpoint, self.MagneticField.nominal_field) # cyclotron frequency at the endpoint
-    #     betae = np.sqrt(Ke**2+2*Ke*me*c0**2)/(Ke+me*c0**2) # electron speed at energy Ke
-    #     Pe = 2*np.pi*(e*fEndpoint*betae*np.sin(self.FrequencyExtraction.pitch_angle))**2/(3*eps0*c0*(1-(betae)**2)) # electron radiation power
-    #     alpha_approx = fEndpoint * 2 * np.pi * Pe/me/c0**2 # track slope
-    #     sigNoise = np.sqrt(kB*self.FrequencyExtraction.noise_temperature/ts) # noise level
-    #     Amplitude = np.sqrt(self.FrequencyExtraction.epsilon_collection*Pe)
-    #     Nsteps = 1 / (self.Experiment.number_density * self.Te_crosssection*betae*c0*ts) # Number of timesteps of length ts
-
-    #     # sigma_f from Cramer-Rao lower bound in Hz
-    #     sigma_f_CRLB = (ScalingFactorCRLB /(2*np.pi) * sigNoise/Amplitude * np.sqrt(alpha_approx**2/(2*Gdot)
-    #                 + 96.*Nsteps/(ts**2*(Nsteps**4-5*Nsteps**2+4))))
-    #     # uncertainty in alpha
-    #     delta_alpha = 6*sigNoise/(Amplitude*ts**2) * np.sqrt(10/(Nsteps*(Nsteps**4-5*Nsteps**2+4)))
-    #     # uncetainty in sigma_f in Hz due to uncertainty in alpha
-    #     delta_sigma_f_CRLB = delta_alpha * alpha_approx *sigNoise**2/(8*np.pi**2*Amplitude**2*Gdot*sigma_f_CRLB*ScalingFactorCRLB**2)
-
-    #     # sigma_f from Cramer-Rao lower bound in eV
-    #     sigma_K_f_CRLB =  e*self.MagneticField.nominal_field/(2*np.pi*fEndpoint**2)*sigma_f_CRLB*c0**2
-    #     delta_sigma_K_f_CRLB = e*self.MagneticField.nominal_field/(2*np.pi*fEndpoint**2)*delta_sigma_f_CRLB*c0**2
-
-    #     # combined sigma_f in eV
-    #     sigma_f = np.sqrt(sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_smearing**2)
-    #     delta_sigma_f = np.sqrt((delta_sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_uncertainty**2)/2)
-
-    #     return sigma_f, delta_sigma_f
 
     def syst_magnetic_field(self):
         if self.MagneticField.UseFixedValue:
