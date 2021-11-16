@@ -155,18 +155,23 @@ class Sensitivity(object):
             signal_rate *= 2
         return signal_rate
 
+    def BackgroundRate(self):
+        """background rate, can be calculated from multiple components. 
+        Assumes that background rate is constant over considered energy / frequency range."""
+        return self.Experiment.background_rate_per_eV
+
     def SignalEvents(self):
         """Number of signal events."""
         return self.SignalRate()*self.Experiment.LiveTime*self.DeltaEWidth()**3
 
     def BackgroundEvents(self):
         """Number of background events."""
-        return self.Experiment.background_rate_per_eV*self.Experiment.LiveTime*self.DeltaEWidth()
+        return self.BackgroundRate()*self.Experiment.LiveTime*self.DeltaEWidth()
 
     def DeltaEWidth(self):
         """optimal energy bin width"""
         labels, sigmas, deltas = self.get_systematics()
-        return np.sqrt(self.Experiment.background_rate_per_eV/self.SignalRate()
+        return np.sqrt(self.BackgroundRate()/self.SignalRate()
                               + 8*np.log(2)*(np.sum(sigmas**2)))
 
     def StatSens(self):
@@ -174,7 +179,7 @@ class Sensitivity(object):
         sig_rate = self.SignalRate()
         DeltaE = self.DeltaEWidth()
         sens = 2/(3*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*DeltaE
-                                                                  +self.Experiment.background_rate_per_eV*self.Experiment.LiveTime/DeltaE)
+                                                                  +self.BackgroundRate()*self.Experiment.LiveTime/DeltaE)
         return sens
 
     def SystSens(self):
