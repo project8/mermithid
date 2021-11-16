@@ -335,9 +335,25 @@ class Sensitivity(object):
         sigma_f = np.sqrt(sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_smearing**2)
         delta_sigma_f = np.sqrt((delta_sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_uncertainty**2)/2)
 
+        # the magnetic_field_smearing and uncertainty added here consider the following effect:
+        # thinking in terms of a phase II track, there is some smearing of the track / width of the track which influences the frequency extraction
+        # this does not account for any effect comming from converting frequency to energy
+        # the reason behind the track width / smearing is the change in B field that the electron sees within one axial oscillation. 
+        # Depending on the trap shape this smearing may be different.
+
         return sigma_f, delta_sigma_f
 
     def syst_magnetic_field(self):
+
+        # magnetic field uncertainties can be decomposed in several part
+        # * true magnetic field inhomogeneity 
+        #   (would be there also without a trap)
+        # * magnetic field calibration has uncertainties
+        #   (would be there also without a trap)
+        # * position / pitch angle reconstruction has uncertainties
+        #   (this can even be the degenerancy we see for harmonic traps)
+        #   (depends on trap shape)
+
         if self.MagneticField.UseFixedValue:
             sigma = self.MagneticField.Default_Systematic_Smearing
             delta = self.MagneticField.Default_Systematic_Uncertainty
@@ -363,6 +379,8 @@ class Sensitivity(object):
         BdotErr = Delta_t_since_calib * np.sqrt(shiftBdot**2 + smearBdot**2)
         delta_BdotErr = Delta_t_since_calib**2/BdotErr * np.sqrt(shiftBdot**2 * delta_shiftBdot**2 + smearBdot**2 * delta_smearBdot**2)
 
+        # position uncertainty is linear in wavelength
+        # position uncertainty is nearly constant w.r.t. radial position
         rRecoErr = self.MagneticField.rRecoErr
         delta_rRecoErr = self.MagneticField.relative_Uncertainty_rRecoErr * rRecoErr
 
