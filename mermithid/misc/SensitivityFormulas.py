@@ -218,6 +218,18 @@ class Sensitivity(object):
     # SYSTEMATICS
 
     def get_systematics(self):
+        """ Returns list of energy broadenings (sigmas) and 
+        uncertainties on these energy broadenings (deltas)
+        for all considered systematics. We need to make sure 
+        that we do not include effects twice or miss any 
+        important effect. 
+
+        Returns:
+             * list of labels
+             * list of energy broadenings
+             * list of energy broadening uncertainties
+        """
+
         # Different types of uncertainty contributions
         sigma_trans, delta_sigma_trans = self.syst_doppler_broadening()
         sigma_f, delta_sigma_f = self.syst_frequency_extraction()
