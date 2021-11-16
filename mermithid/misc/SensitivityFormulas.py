@@ -96,7 +96,11 @@ def track_length(rho, kin_energy=None, molecular=True):
     crosssect = tritium_electron_crosssection_molecular if molecular else tritium_electron_crosssection_atomic
     return 1 / (rho * crosssect * beta(kin_energy) * c0)
 
+def sin2theta_sq_to_Ue4_sq(sin2theta_sq):
+    return 0.5*(1-np.sqrt(1-sin2theta_sq**2))
 
+def Ue4_sq_to_sin2theta_sq(Ue4_sq):
+    return 4*Ue4_sq*(1-Ue4_sq)
 
 ###############################################################################
 class Sensitivity(object):
@@ -200,6 +204,9 @@ class Sensitivity(object):
         """ Gives 90% CL upper limit on neutrino mass."""
         # 90% of gaussian are contained in +-1.64 sigma region
         return np.sqrt(np.sqrt(1.64)*self.sensitivity(**kwargs))
+
+    def sterial_m2_limit(self, Ue4_sq):
+        return np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens())
 
     # PHYSICS Functions
     def BToKeErr(self, BErr, B):
