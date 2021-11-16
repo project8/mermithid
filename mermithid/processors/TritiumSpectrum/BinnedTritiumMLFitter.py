@@ -246,6 +246,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.scatter_peak_ratio_b_index = self.model_parameter_names.index('scatter_peak_ratio_b')
             self.scatter_peak_ratio_c_index = self.model_parameter_names.index('scatter_peak_ratio_c')
 
+            self.spr_factor = reader.read_param(config_dict, 'SPR_factor', 0)
             self.scatter_peak_ratio_b_mean = reader.read_param(config_dict, 'scatter_peak_ratio_b_mean', 0.7)
             self.scatter_peak_ratio_b_width = reader.read_param(config_dict, 'scatter_peak_ratio_b_width', 0.1)
             self.scatter_peak_ratio_c_mean = reader.read_param(config_dict, 'scatter_peak_ratio_c_mean', 0.7)
@@ -347,55 +348,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 if self.nuisance_parameters[p]:
                     self.constrained_parameters.append(i)
                     self.constrained_means.append(self.model_parameter_means[i])
-                    self.constrained_widths.append(self.model_parameter_means[i])
+                    self.constrained_widths.append(self.model_parameter_widths[i])
             if i in self.constrained_parameters:
                 self.fixed_parameters[i] = False
-
-        # if 'res' in self.nuisance_parameters.keys():
-        #     self.fix_res = not self.nuisance_parameters['res']
-        #     self.constrained_parameters.append(6)
-        #     self.constrained_means.append(self.res_mean)
-        #     self.constrained_widths.append(self.res_width)
-        # else:
-        #     self.fix_res = True
-
-        # if 'scatter_peak_ratio_b' in self.nuisance_parameters.keys():
-        #     self.fix_scatter_peak_ratio_b = not self.nuisance_parameters['scatter_peak_ratio_b']
-        #     self.constrained_parameters.append(4)
-        #     self.constrained_means.append(self.scatter_peak_ratio_b_mean)
-        #     self.constrained_widths.append(self.scatter_peak_ratio_b_width)
-        # else:
-        #     self.fix_scatter_peak_ratio_b = True
-
-        # if 'scatter_peak_ratio_c' in self.nuisance_parameters.keys():
-        #     self.fix_scatter_peak_ratio_c = not self.nuisance_parameters['scatter_peak_ratio_c']
-        #     self.constrained_parameters.append(5)
-        #     self.constrained_means.append(self.scatter_peak_ratio_c_mean)
-        #     self.constrained_widths.append(self.scatter_peak_ratio_c_width)
-        # else:
-        #     self.fix_scatter_peak_ratio_c = True
-
-        # if 'two_gaussian_sigma_1' in self.nuisance_parameters.keys():
-        #     self.fix_two_gaussian_sigma_1 = not self.nuisance_parameters['two_gaussian_sigma_1']
-        #     self.constrained_parameters.append(7)
-        #     self.constrained_means.append(self.two_gaussian_sigma_1_mean)
-        #     self.constrained_widths.append(self.two_gaussian_sigma_1_width)
-        # else:
-        #     self.fix_two_gaussian_sigma_1 = True
-
-        # if 'two_gaussian_sigma_2' in self.nuisance_parameters.keys():
-        #     self.fix_two_gaussian_sigma_2 = not self.nuisance_parameters['two_gaussian_sigma_2']
-        #     self.constrained_parameters.append(8)
-        #     self.constrained_means.append(self.two_gaussian_sigma_2_mean)
-        #     self.constrained_widths.append(self.two_gaussian_sigma_2_width)
-        # else:
-        #     self.fix_two_gaussian_sigma_2 = True
-
-        # """if 'B' in self.nuisance_parameters.keys():
-        #     self.fix_B = not self.nuisance_parameters['B']
-        #     self.constrained_parameters.append(9)
-        #     self.constrained_means.append(self.B_mean)
-        #     self.constrained_widths.append(self.B_width)"""
 
 
         # MC uncertainty propagation does not need the fit uncertainties returned by iminuit. uncertainties are instead obtained from the distribution of fit results.
@@ -1050,7 +1005,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         '''
         ratio of successive peaks taking reconstruction efficiency into account
         '''
-        return np.exp(-prob_b*j**prob_c)
+        c = -self.spr_factor*prob_b + prob_c
+        return np.exp(-prob_b*j**c)
 
 
     def simplified_ls(self, K, Kcenter, FWHM, prob_b, prob_c=1):
@@ -1257,19 +1213,22 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         if self.is_smeared or self.is_scattered:
 
             # resolution params
-            if self.fixed_parameters[self.res_index]:
+            if 'resolution' not in self.model_parameter_names or 'resolution' in self.parameter_samples.keys():#self.fixed_parameters[self.res_index]:
                 res = self.res
+                #logger.info('Using self.res')
             else:
                 res = args[self.res_index]
 
             if self.resolution_model != 'gaussian':
 
-                if self.fixed_parameters[self.two_gaussian_sigma_1_index]:
+                if 'two_gaussian_sigma_1' not in self.model_parameter_names or 'two_gaussian_sigma_1' in self.parameter_samples.keys():
                     sig1 = self.two_gaussian_sigma_1
+                    #logger.info('Using self.two_gaussian_sigma_1')
                 else:
                     sig1 = args[self.two_gaussian_sigma_1_index]
-                if self.fixed_parameters[self.two_gaussian_sigma_1_index]:
+                if 'two_gaussian_sigma_2' not in self.model_parameter_names or 'two_gaussian_sigma_2' in self.parameter_samples.keys():
                     sig2 = self.two_gaussian_sigma_2
+                    #logger.info('Using self.two_gaussian_sigma_2')
                 else:
                     sig2 = args[self.two_gaussian_sigma_2_index]
 

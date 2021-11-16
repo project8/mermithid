@@ -46,6 +46,7 @@ class MCUncertaintyPropagation(BaseProcessor):
         self.N = reader.read_param(params, 'N_samples', 50)
         self.fitted_params = reader.read_param(params, "initial_best_fit", [])
         self.fitted_params_errors = reader.read_param(params, "initial_best_fit_errors", [])
+        self.Counts = reader.read_param(params, "Counts", 0)
 
         return True
 
@@ -56,7 +57,7 @@ class MCUncertaintyPropagation(BaseProcessor):
         for k in self.fit_options.keys():
             self.fit_config_dict[k] = self.fit_options[k]
 
-        if len(self.fitted_params) == 0 or len(self.fitted_params_errors) == 0:
+        if len(self.fitted_params) == 0 or len(self.fitted_params_errors) == 0 or self.Counts == 0:
             self.InitialFit()
         self.ParameterSampling()
 

@@ -120,6 +120,8 @@ class BinnedDataFitter(BaseProcessor):
             logger.info('Limits: {}'.format(self.limits))
             logger.info('Fixed in fit: {}'.format(self.fixes))
             logger.info('Constrained parameters: {}'.format([self.parameter_names[i] for i in self.constrained_parameters]))
+            logger.info('Constraint means: {}'.format(self.constrained_means))
+            logger.info('Constraint widths: {}'.format(self.constrained_widths))
 
         m_binned = Minuit(self.negPoissonLogLikelihood,
                                       self.initial_values,
@@ -134,7 +136,7 @@ class BinnedDataFitter(BaseProcessor):
         for i, name in enumerate(self.parameter_names):
             if name in self.fixes_dict.keys():
                 m_binned.fixed[name]= self.fixes_dict[name]
-                logger.info('Fixing {}'.format(name))
+                #logger.info('Fixing {}'.format(name))
             else:
                 m_binned.fixed[name] = self.fixes[i]
             m_binned.limits[name] = self.limits[i]
