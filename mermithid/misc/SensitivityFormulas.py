@@ -189,20 +189,11 @@ class Sensitivity(object):
         return np.sqrt(np.sqrt(1.64)*self.sensitivity(**kwargs))
 
     # PHYSICS Functions
-    def frequency(self, energy, magnetic_field):
-        # cyclotron frequency
-        # gamma = E_kin/E_0 + 1
-        gamma = lambda energy: energy/(me*c0**2) + 1
-        frequency = e*magnetic_field/(2*np.pi*me)/gamma(energy)
-        return frequency
-
     def BToKeErr(self, BErr, B):
-         return e*BErr/(2*np.pi*self.frequency(self.T_endpoint, B)/c0**2)
+         return e*BErr/(2*np.pi*frequency(self.T_endpoint, B)/c0**2)
 
     def track_length(self, rho):
-        Ke = self.T_endpoint
-        betae = np.sqrt(Ke**2+2*Ke*me*c0**2)/(Ke+me*c0**2) # electron speed at energy Ke
-        return 1 / (rho * self.Te_crosssection*betae*c0)
+        return track_length(rho, self.T_endpoint, not self.Experiment.atomic)
 
     # SYSTEMATICS
 
