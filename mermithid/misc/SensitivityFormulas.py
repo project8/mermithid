@@ -145,7 +145,8 @@ class Sensitivity(object):
         """signal events in the energy interval before the endpoint, scale with DeltaE**3"""
         signal_rate = self.Experiment.number_density*self.Experiment.v_eff*self.last_1ev_fraction/self.T_livetime
         if not self.Experiment.atomic:
-            signal_rate *= 2
+            avg_n_T_atoms = self.AvgNumTAtomsPerParticle_MolecularExperiment(self.Experiment.gas_fractions, self.Experiment.H2_type_gas_fractions)
+            signal_rate *= avg_n_T_atoms
         return signal_rate
 
     def DeltaEWidth(self):
@@ -183,7 +184,28 @@ class Sensitivity(object):
     def CL90(self, **kwargs):
         return np.sqrt(np.sqrt(1.64)*self.sensitivity(**kwargs))
 
+
     # PHYSICS Functions
+    
+    def AvgNumTAtomsPerParticle_MolecularExperiment(self, gas_fractions, H2_type_gas_fractions):
+        """
+        Given gas composition info (H2 vs. other gases, and how much of each H2-type isotopolog), returns an average number of tritium atoms per gas particle.
+
+        Inputs:
+        - gas_fractions: dict of composition fractions of each gas (different from scatter fractions!); all H2 isotopologs are combined under key 'H2'
+        - H2_type_gas_fractions: dict with fraction of each isotopolog, out of total amount of H2
+        """
+        H2_iso_avg_num = 0
+        for (key, val) in H2_type_gas_fractions.items():
+            if key=='T2':
+              H2_iso_avg_num += 2*val
+            elif key=='HT' or key=='DT':
+              H2_iso_avg_num += val
+            elif key=='H2' or key=='HD' or key=='D2':
+              pass
+        return gas_fractions['H2']*H2_iso_avg_num
+
+
     def frequency(self, energy, magnetic_field):
         # cyclotron frequency
         gamma = lambda energy: energy/(me*c0**2) + 1  # E_kin / E_0 + 1
