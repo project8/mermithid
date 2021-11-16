@@ -52,8 +52,11 @@ rad = 1
 deg = np.pi/180
 
 
-from morpho.utilities import morphologging
-logger = morphologging.getLogger(__name__)
+try:
+    from morpho.utilities import morphologging
+    logger = morphologging.getLogger(__name__)
+except:
+    print("Run without morpho!")
 
 class NameSpace(object):
     def __init__(self, iteritems):
@@ -110,12 +113,14 @@ class Sensitivity(object):
             self.cfg.read_file(configfile)
 
         # display configuration
-        logger.info("Config file content:")
-        for sect in self.cfg.sections():
-           logger.info('    Section: {}'.format(sect))
-           for k,v in self.cfg.items(sect):
-              logger.info('        {} = {}'.format(k,v))
-
+        try:
+            logger.info("Config file content:")
+            for sect in self.cfg.sections():
+               logger.info('    Section: {}'.format(sect))
+               for k,v in self.cfg.items(sect):
+                  logger.info('        {} = {}'.format(k,v))
+        except:
+            pass
 
         self.Experiment = NameSpace({opt: eval(self.cfg.get('Experiment', opt)) for opt in self.cfg.options('Experiment')})
 
