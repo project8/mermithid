@@ -398,6 +398,8 @@ class Sensitivity(object):
             sigma = self.MissingTracks.Default_Systematic_Smearing
             delta = self.MissingTracks.Default_Systematic_Uncertainty
             return sigma, delta
+        else:
+            raise NotImplementedError("Missing track systematic is not implemented.")
 
     def syst_plasma_effects(self):
         if self.PlasmaEffects.UseFixedValue:
@@ -405,4 +407,4 @@ class Sensitivity(object):
             delta = self.PlasmaEffects.Default_Systematic_Uncertainty
             return sigma, delta
         else:
-            raise NotImplementedError()
+            raise NotImplementedError("Plasma effect sysstematic is not implemented.")
