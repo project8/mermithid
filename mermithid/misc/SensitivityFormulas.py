@@ -124,7 +124,7 @@ class Sensitivity(object):
 
         self.Experiment = NameSpace({opt: eval(self.cfg.get('Experiment', opt)) for opt in self.cfg.options('Experiment')})
 
-        self.T_livetime = tritium_livetime
+        self.tau_tritium = tritium_livetime
         if self.Experiment.atomic:
             self.T_mass = tritium_mass_atomic
             self.Te_crosssection = tritium_electron_crosssection_atomic
@@ -146,7 +146,7 @@ class Sensitivity(object):
     # SENSITIVITY
     def SignalRate(self):
         """signal events in the energy interval before the endpoint, scale with DeltaE**3"""
-        signal_rate = self.Experiment.number_density*self.Experiment.v_eff*self.last_1ev_fraction/self.T_livetime
+        signal_rate = self.Experiment.number_density*self.Experiment.v_eff*self.last_1ev_fraction/self.tau_livetime
         if not self.Experiment.atomic:
             signal_rate *= 2
         return signal_rate
