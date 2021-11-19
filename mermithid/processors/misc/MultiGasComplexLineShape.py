@@ -3517,8 +3517,6 @@ class MultiGasComplexLineShape(BaseProcessor):
         p = np.zeros(len(self.gases))
         p[0:-1] = scatter_fraction
         p[-1] = 1 - sum(scatter_fraction)
-        scatter_spectra_file_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy')
-        scatter_spectra = np.load(scatter_spectra_file_path, allow_pickle = True)
         en_array = self.std_eV_array()
         current_full_spectrum = np.zeros(len(en_array))
         if emitted_peak == 'lorentzian':
