@@ -418,6 +418,10 @@ class Sensitivity(object):
         return self.BToKeErr(Berr, B), self.BToKeErr(delta_Berr, B)
 
     def syst_missing_tracks(self):
+        # this systematic should describe the energy broadening due to the line shape.
+        # Line shape is caused because you miss the first n tracks but then detect the n+1 
+        # track and you assume that this is the start frequency. 
+        # This depends on the gas composition, density and cross-section.
         if self.MissingTracks.UseFixedValue:
             sigma = self.MissingTracks.Default_Systematic_Smearing
             delta = self.MissingTracks.Default_Systematic_Uncertainty
