@@ -37,7 +37,8 @@ class FakeDataGenerator(BaseProcessor):
         All parameters have defaults.
         Configurable parameters are:
         - Q [eV]: endpoint energy
-        - neutrino_mass [eV]: true neutrino mass
+        - neutrino_masses [eV]: list of neutrino mass eigenvalues
+        – sin2_2thetas: sin^2(2*theta) for each consecutive pair of neutrino_masses, where theta is the mixing angle
         – Kmin [eV]: low energy cut-off
         – Kmax [eV]: high energy cut-off
         - minf [Hz]: low frequency cut-off
@@ -93,7 +94,8 @@ class FakeDataGenerator(BaseProcessor):
 
         # Read other parameters
         self.Q = reader.read_param(params, 'Q', QT2) #Choose the atomic or molecular tritium endpoint
-        self.m = reader.read_param(params, 'neutrino_mass', 0.2) #Neutrino mass (eV)
+        self.m = reader.read_param(params, 'neutrino_masses', [0.08, 3.3]) #Neutrino mass (eV)
+        self.sin2_2theta = reader.read_param(params, 'sin2_2thetas', 0.42)
         self.Kmin = reader.read_param(params, 'Kmin', self.Q-self.m-2300)  #Energy corresponding to lower bound of frequency ROI (eV)
         self.Kmax = reader.read_param(params, 'Kmax', self.Q-self.m+1000)   #Same, for upper bound (eV)
         self.minf = reader.read_param(params, 'minf', 25813125000.0) #Minimum frequency
