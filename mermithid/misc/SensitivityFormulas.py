@@ -211,7 +211,7 @@ class Sensitivity(object):
         return np.sqrt(np.sqrt(1.64)*self.sensitivity(**kwargs))
 
     def sterial_m2_limit(self, Ue4_sq):
-        return np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens())
+        return np.sqrt(np.sqrt(1.64)*np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens()**2))
 
     # PHYSICS Functions
     def BToKeErr(self, BErr, B):
