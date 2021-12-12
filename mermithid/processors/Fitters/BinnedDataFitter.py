@@ -174,6 +174,7 @@ class BinnedDataFitter(BaseProcessor):
         if self.print_level == 1:
             logger.info('Fit results: {}'.format(result_array))
             logger.info('Errors: {}'.format(error_array))
+            #logger.info('Correlation matrix: {}'.format(self.m_binned.covariance.correlation()))
 
         return result_array, error_array
 

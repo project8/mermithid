@@ -78,6 +78,7 @@ class MCUncertaintyPropagation(BaseProcessor):
 
         fit_successful = False
         counter = 0
+        self.fit_config_dict['print_level'] = 1
         #while (not fit_successful) and counter < 15:
         #    counter += 1
         #    try:
@@ -85,6 +86,7 @@ class MCUncertaintyPropagation(BaseProcessor):
         self.fitted_params, self.fitted_params_errors, self.Counts = self.fit(self.data,
                                                                self.fit_config_dict)
         fit_successful = True
+        self.fit_config_dict['print_level'] = 0
         #    except Exception as e:
         #       print(e)
         #       logger.error('Repeating fit')
@@ -128,18 +130,18 @@ class MCUncertaintyPropagation(BaseProcessor):
                 for i in range(start_j, self.N):
                     fit_successful = False
                     counter = 0
-                    while (not fit_successful) and counter < 5:
-                        counter += 1
-                        try:
-                            all_fit_returns.append(self.gen_and_fit(self.fitted_params, self.Counts,
+                    #while (not fit_successful) and counter < 5:
+                    #    counter += 1
+                    #    try:
+                    all_fit_returns.append(self.gen_and_fit(self.fitted_params, self.Counts,
                                                              self.fit_config_dict,
                                                              parameter_sampling[k_i],
                                                              i, fixed_data))
-                            fit_successful = True
-                        except Exception as e:
-                            print(e)
-                            logger.error('Repeating fit')
-                            continue
+                    #        fit_successful = True
+                    #    except Exception as e:
+                    #        print(e)
+                    #        logger.error('Repeating fit')
+                    #        continue
 
 
 

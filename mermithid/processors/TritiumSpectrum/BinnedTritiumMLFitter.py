@@ -80,6 +80,8 @@ def GenAndFit(params, counts, fit_config_dict, sampled_priors={},
     results, errors = T.SampleConvertAndFit(sampled_priors, params)
     parameter_samples = T.parameter_samples
 
+    logger.info('Fit results: {}'.format(results))
+
 
     if fit_config_dict['minos_intervals']:
         return results, T.minos_errors, parameter_samples
@@ -220,15 +222,18 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.width_scaling = self.scale_mean
 
         if self.is_smeared:
-            self.res_index = self.model_parameter_names.index('resolution')
+            if 'resolution' in self.model_parameter_names:
+                self.res_index = self.model_parameter_names.index('resolution')
 
             self.res_mean = reader.read_param(config_dict, 'gaussian_resolution_mean', 15.0)
             self.res_width = reader.read_param(config_dict, 'gaussian_resolution_width', 1.0)
             self.res = self.res_mean
 
             if self.resolution_model != 'gaussian':
-                self.two_gaussian_sigma_1_index = self.model_parameter_names.index('two_gaussian_sigma_1')
-                self.two_gaussian_sigma_2_index = self.model_parameter_names.index('two_gaussian_sigma_2')
+                if 'two_gaussian_sigma_1' in self.model_parameter_names:
+                    self.two_gaussian_sigma_1_index = self.model_parameter_names.index('two_gaussian_sigma_1')
+                if 'two_gaussian_sigma_2' in self.model_parameter_names:
+                    self.two_gaussian_sigma_2_index = self.model_parameter_names.index('two_gaussian_sigma_2')
 
                 self.two_gaussian_mu_1 = reader.read_param(config_dict, 'two_gaussian_mu1', 0)
                 self.two_gaussian_mu_2 = reader.read_param(config_dict, 'two_gaussian_mu2', 0)
@@ -243,8 +248,10 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         # scatter peak ratio
         if self.is_scattered:
-            self.scatter_peak_ratio_b_index = self.model_parameter_names.index('scatter_peak_ratio_b')
-            self.scatter_peak_ratio_c_index = self.model_parameter_names.index('scatter_peak_ratio_c')
+            if 'scatter_peak_ratio_b' in self.model_parameter_names:
+                self.scatter_peak_ratio_b_index = self.model_parameter_names.index('scatter_peak_ratio_b')
+            if 'scatter_peak_ratio_c' in self.model_parameter_names:
+                self.scatter_peak_ratio_c_index = self.model_parameter_names.index('scatter_peak_ratio_c')
 
             self.spr_factor = reader.read_param(config_dict, 'SPR_factor', 0)
             self.scatter_peak_ratio_b_mean = reader.read_param(config_dict, 'scatter_peak_ratio_b_mean', 0.7)
@@ -358,7 +365,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         # imnuit can calculated hesse and minos intervals. the former are symmetric. we want the asymetric intrevals-> minos
         # minos_cls is the list of uncertainty level that should be obtained: e.g. [0.68, 0.9]
         self.minos_intervals = reader.read_param(config_dict, 'minos_intervals', False)
-        self.minos_cls = reader.read_param(config_dict, 'minos_confidence_levels', [0.683, 0.9])
+        self.minos_cls = reader.read_param(config_dict, 'minos_confidence_levels', [0.683])
 
 
 
@@ -906,16 +913,35 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         f = A*(1/(sigma*np.sqrt(2*np.pi)))*np.exp(-(((energy_array-mu)/sigma)**2.)/2.)
         return f
 
+    def beta_rates(self, K, Q, mnu_squared, index):
+        beta_rates = np.zeros(len(K))
+        nu_mass_shape = ((Q - K[index])**2 -mnu_squared)**0.5
+        beta_rates[index] = nu_mass_shape*(Q - K[index])
+        return beta_rates
 
     def approximate_shape(self, K, Q, m_nu_squared):#, index):
-        shape = np.zeros(len(K))
-        nu_mass_shape_squared = (Q - K)**2 -m_nu_squared
-        Q_minus_K = Q-K
-        index = np.where((nu_mass_shape_squared>0) & (Q_minus_K>0))
-        nu_mass_shape = np.sqrt(nu_mass_shape_squared[index])
+        spectrum = np.zeros(len(K))
 
-        shape[index] = (Q_minus_K[index])*nu_mass_shape
-        return shape
+        Q_minus_K = Q-K
+
+        if m_nu_squared >= 0:
+            nu_mass_shape_squared = (Q - K)**2 -m_nu_squared
+            index = np.where((nu_mass_shape_squared>0) & (Q_minus_K>0))
+            nu_mass_shape = np.sqrt(nu_mass_shape_squared[index])
+            spectrum[index] = (Q_minus_K[index])*nu_mass_shape
+        else:
+            # mainz shape
+            k_squared = -m_nu_squared
+            mu = 0.66*np.sqrt(k_squared)
+            index = np.where(Q_minus_K+mu>0)
+            spectrum[index] = (Q_minus_K[index]+mu*np.exp(-1-Q_minus_K[index]/mu))*np.sqrt(Q_minus_K[index]**2+k_squared)
+        #else:
+        #    # lanl
+        #    k_squared = -m_nu_squared
+        #    index = np.where(Q_minus_K > 0)
+        #    spectrum[index] = Q_minus_K[index]**2+k_squared/2
+
+        return spectrum
 
     def chopped_approximate_spectrum(self, E, Q, m_nu_squared):
 
@@ -968,19 +994,20 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])
 
         else:
+
+
+            #beta_rates_array = self.approximate_shape(E, Q, m_nu_squared) * approximate_e_phase_space
+
+
+
+            #nu_mass_shape = ((Q - E)**2 -m_nu)
+            #Q_minus_K = Q-E
+
+            #spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3) * beta_rates_array
+            #index = np.where((nu_mass_shape>0) & (Q_minus_K>0))
+            #approximate_e_phase_space = np.zeros(len(E))
             approximate_e_phase_space = self.ephasespace(E, Q)
-            #index = np.where(((Q-E)**2-m_nu_squared > 0) & (Q-E > 0))
-            beta_rates_array = self.approximate_shape(E, Q, m_nu_squared) * approximate_e_phase_space
-
-            #beta_rates = np.zeros(len(E))
-
-            #index = np.where(E < Q-mnu)
-            #K = E[index]
-
-            #nu_mass_shape = ((Q - K)**2 -m_nu_squared)**0.5
-            #beta_rates[index] = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*self.ephasespace(K, Q)*(Q - K)*nu_mass_shape
-            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3) * beta_rates_array
-
+            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*self.approximate_shape(E, Q, m_nu_squared)*approximate_e_phase_space
         return spectrum
 
     def ephasespace(self, K, Q):
@@ -1264,19 +1291,17 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
             if self.is_scattered:
                 # scatter params
-                prob_b = args[self.scatter_peak_ratio_b_index]
-                prob_c = args[self.scatter_peak_ratio_c_index]
-
-                if self.fixed_parameters[self.scatter_peak_ratio_b_index]:
+                if 'scatter_peak_ratio_b' not in self.model_parameter_names:
                     prob_b = self.scatter_peak_ratio_b
-                if self.fixed_parameters[self.scatter_peak_ratio_c_index]:
                     prob_c = self.scatter_peak_ratio_c
+                else:
+                    prob_b = args[self.scatter_peak_ratio_b_index]
+                    prob_c = args[self.scatter_peak_ratio_c_index]
 
-
-                if prob_b == None:
-                    prob_b = self.scatter_peak_ratio_b_mean
-                    prob_c = self.scatter_peak_ratio_c_mean
-
+                    if self.fixed_parameters[self.scatter_peak_ratio_b_index]:
+                        prob_b = self.scatter_peak_ratio_b
+                    if self.fixed_parameters[self.scatter_peak_ratio_c_index]:
+                        prob_c = self.scatter_peak_ratio_c
 
                 # simplified lineshape
                 FWHM = 2.*np.sqrt(2.*np.log(2.))*res *self.width_scaling
