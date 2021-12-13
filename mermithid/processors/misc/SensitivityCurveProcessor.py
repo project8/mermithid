@@ -169,11 +169,11 @@ class SensitivityCurveProcessor(BaseProcessor):
         logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.Experiment.v_eff))
         logger.info('Total signal: {}'.format(rho_opt*self.sens_main.Experiment.v_eff*
                                                    self.sens_main.Experiment.LiveTime/
-                                                   self.sens_main.T_livetime*2))
+                                                   self.sens_main.tau_tritium*2))
         logger.info('Signal in last eV: {}'.format(self.sens_main.last_1ev_fraction*eV**3*
                                                    rho_opt*self.sens_main.Experiment.v_eff*
                                                    self.sens_main.Experiment.LiveTime/
-                                                   self.sens_main.T_livetime*2))
+                                                   self.sens_main.tau_tritium*2))
 
         return True
 

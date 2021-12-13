@@ -1,5 +1,10 @@
 '''
-Summarize sensitivity formulas in class...
+Class calculating neutrino mass sensitivities based on analytic formulas from CDR.
+Author: R. Reimann, C. Claessens
+Date:11/17/2020
+
+The statistical method and formulars are described in 
+CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc673d862fa923d53.
 '''
 import numpy as np
 import configparser
@@ -47,8 +52,11 @@ rad = 1
 deg = np.pi/180
 
 
-from morpho.utilities import morphologging
-logger = morphologging.getLogger(__name__)
+try:
+    from morpho.utilities import morphologging
+    logger = morphologging.getLogger(__name__)
+except:
+    print("Run without morpho!")
 
 class NameSpace(object):
     def __init__(self, iteritems):
@@ -88,7 +96,11 @@ def track_length(rho, kin_energy=None, molecular=True):
     crosssect = tritium_electron_crosssection_molecular if molecular else tritium_electron_crosssection_atomic
     return 1 / (rho * crosssect * beta(kin_energy) * c0)
 
+def sin2theta_sq_to_Ue4_sq(sin2theta_sq):
+    return 0.5*(1-np.sqrt(1-sin2theta_sq**2))
 
+def Ue4_sq_to_sin2theta_sq(Ue4_sq):
+    return 4*Ue4_sq*(1-Ue4_sq)
 
 ###############################################################################
 class Sensitivity(object):
@@ -105,23 +117,18 @@ class Sensitivity(object):
             self.cfg.read_file(configfile)
 
         # display configuration
-        logger.info("Config file content:")
-        for sect in self.cfg.sections():
-           logger.info('    Section: {}'.format(sect))
-           for k,v in self.cfg.items(sect):
-              logger.info('        {} = {}'.format(k,v))
-
+        try:
+            logger.info("Config file content:")
+            for sect in self.cfg.sections():
+               logger.info('    Section: {}'.format(sect))
+               for k,v in self.cfg.items(sect):
+                  logger.info('        {} = {}'.format(k,v))
+        except:
+            pass
 
         self.Experiment = NameSpace({opt: eval(self.cfg.get('Experiment', opt)) for opt in self.cfg.options('Experiment')})
 
-        # self.Tritium_atomic = NameSpace({opt: eval(self.cfg.get('Tritium_atomic', opt)) for opt in self.cfg.options('Tritium_atomic')})
-        # self.Tritium_molecular = NameSpace({opt: eval(self.cfg.get('Tritium_molecular', opt)) for opt in self.cfg.options('Tritium_molecular')})
-        # if self.Experiment.atomic:
-        #     self.Tritium = self.Tritium_atomic
-        # else:
-        #     self.Tritium = self.Tritium_molecular
-
-        self.T_livetime = tritium_livetime
+        self.tau_tritium = tritium_livetime
         if self.Experiment.atomic:
             self.T_mass = tritium_mass_atomic
             self.Te_crosssection = tritium_electron_crosssection_atomic
@@ -143,24 +150,37 @@ class Sensitivity(object):
     # SENSITIVITY
     def SignalRate(self):
         """signal events in the energy interval before the endpoint, scale with DeltaE**3"""
-        signal_rate = self.Experiment.number_density*self.Experiment.v_eff*self.last_1ev_fraction/self.T_livetime
+        signal_rate = self.Experiment.number_density*self.Experiment.v_eff*self.last_1ev_fraction/self.tau_tritium
         if not self.Experiment.atomic:
             avg_n_T_atoms = self.AvgNumTAtomsPerParticle_MolecularExperiment(self.Experiment.gas_fractions, self.Experiment.H2_type_gas_fractions)
             signal_rate *= avg_n_T_atoms
         return signal_rate
 
+    def BackgroundRate(self):
+        """background rate, can be calculated from multiple components. 
+        Assumes that background rate is constant over considered energy / frequency range."""
+        return self.Experiment.background_rate_per_eV
+
+    def SignalEvents(self):
+        """Number of signal events."""
+        return self.SignalRate()*self.Experiment.LiveTime*self.DeltaEWidth()**3
+
+    def BackgroundEvents(self):
+        """Number of background events."""
+        return self.BackgroundRate()*self.Experiment.LiveTime*self.DeltaEWidth()
+
     def DeltaEWidth(self):
         """optimal energy bin width"""
         labels, sigmas, deltas = self.get_systematics()
-        return np.sqrt(self.Experiment.background_rate_per_eV/self.SignalRate()
+        return np.sqrt(self.BackgroundRate()/self.SignalRate()
                               + 8*np.log(2)*(np.sum(sigmas**2)))
 
     def StatSens(self):
         """Pure statistic sensitivity assuming Poisson count experiment in a single bin"""
         sig_rate = self.SignalRate()
         DeltaE = self.DeltaEWidth()
-        sens = 4/(6*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*DeltaE
-                                                                  +self.Experiment.background_rate_per_eV*self.Experiment.LiveTime/DeltaE)
+        sens = 2/(3*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*DeltaE
+                                                                  +self.BackgroundRate()*self.Experiment.LiveTime/DeltaE)
         return sens
 
     def SystSens(self):
@@ -170,6 +190,11 @@ class Sensitivity(object):
         return sens
 
     def sensitivity(self, **kwargs):
+        """Combined statisical and systematic uncertainty. 
+        Using kwargs settings in namespaces can be changed.
+        Example how to change number density which lives in namespace Experiment:
+            self.sensitivity(Experiment={"number_density": rho})
+        """
         for sect, options in kwargs.items():
             for opt, val in options.items():
                 self.__dict__[sect].__dict__[opt] = val
@@ -182,8 +207,12 @@ class Sensitivity(object):
         return sigma_m_beta_2
 
     def CL90(self, **kwargs):
+        """ Gives 90% CL upper limit on neutrino mass."""
+        # 90% of gaussian are contained in +-1.64 sigma region
         return np.sqrt(np.sqrt(1.64)*self.sensitivity(**kwargs))
 
+    def sterial_m2_limit(self, Ue4_sq):
+        return np.sqrt(np.sqrt(1.64)*np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens()**2))
 
     # PHYSICS Functions
     
@@ -205,24 +234,27 @@ class Sensitivity(object):
               pass
         return gas_fractions['H2']*H2_iso_avg_num
 
-
-    def frequency(self, energy, magnetic_field):
-        # cyclotron frequency
-        gamma = lambda energy: energy/(me*c0**2) + 1  # E_kin / E_0 + 1
-        frequency = e*magnetic_field/(2*np.pi*me)/gamma(energy)
-        return frequency
-
     def BToKeErr(self, BErr, B):
-         return e*BErr/(2*np.pi*self.frequency(self.T_endpoint, B)/c0**2)
+         return e*BErr/(2*np.pi*frequency(self.T_endpoint, B)/c0**2)
 
     def track_length(self, rho):
-        Ke = self.T_endpoint
-        betae = np.sqrt(Ke**2+2*Ke*me*c0**2)/(Ke+me*c0**2) # electron speed at energy Ke
-        return 1 / (rho * self.Te_crosssection*betae*c0)
+        return track_length(rho, self.T_endpoint, not self.Experiment.atomic)
 
     # SYSTEMATICS
 
     def get_systematics(self):
+        """ Returns list of energy broadenings (sigmas) and 
+        uncertainties on these energy broadenings (deltas)
+        for all considered systematics. We need to make sure 
+        that we do not include effects twice or miss any 
+        important effect. 
+
+        Returns:
+             * list of labels
+             * list of energy broadenings
+             * list of energy broadening uncertainties
+        """
+
         # Different types of uncertainty contributions
         sigma_trans, delta_sigma_trans = self.syst_doppler_broadening()
         sigma_f, delta_sigma_f = self.syst_frequency_extraction()
@@ -328,50 +360,25 @@ class Sensitivity(object):
         sigma_f = np.sqrt(sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_smearing**2)
         delta_sigma_f = np.sqrt((delta_sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_uncertainty**2)/2)
 
+        # the magnetic_field_smearing and uncertainty added here consider the following effect:
+        # thinking in terms of a phase II track, there is some smearing of the track / width of the track which influences the frequency extraction
+        # this does not account for any effect comming from converting frequency to energy
+        # the reason behind the track width / smearing is the change in B field that the electron sees within one axial oscillation. 
+        # Depending on the trap shape this smearing may be different.
+
         return sigma_f, delta_sigma_f
 
-    # def syst_frequency_extraction(self):
-    #     # cite{https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398} (Section 1.2, p 7-9)
-    #     # Are we double counting the antenna collection efficiency? We use it here. Does it also impact the effective volume, v_eff ?
-    #     # Are we double counting the effect of magnetic field uncertainty here? Is 'sigma_f_Bfield' the same as 'rRecoErr', 'delta_rRecoErr', 'rRecoPhiErr', 'delta_rRecoPhiErr'?
-
-    #     if self.FrequencyExtraction.UseFixedValue:
-    #         sigma = self.FrequencyExtraction.Default_Systematic_Smearing
-    #         delta = self.FrequencyExtraction.Default_Systematic_Uncertainty
-    #         return sigma, delta
-
-    #     ScalingFactorCRLB = self.FrequencyExtraction.CRLB_scaling_factor # Cramer-Rao lower bound / how much worse are we than the lower bound
-    #     ts = self.FrequencyExtraction.track_timestep
-    #     Gdot = self.FrequencyExtraction.track_onset_rate
-    #     Ke = self.T_endpoint
-
-    #     fEndpoint = self.frequency(self.T_endpoint, self.MagneticField.nominal_field) # cyclotron frequency at the endpoint
-    #     betae = np.sqrt(Ke**2+2*Ke*me*c0**2)/(Ke+me*c0**2) # electron speed at energy Ke
-    #     Pe = 2*np.pi*(e*fEndpoint*betae*np.sin(self.FrequencyExtraction.pitch_angle))**2/(3*eps0*c0*(1-(betae)**2)) # electron radiation power
-    #     alpha_approx = fEndpoint * 2 * np.pi * Pe/me/c0**2 # track slope
-    #     sigNoise = np.sqrt(kB*self.FrequencyExtraction.noise_temperature/ts) # noise level
-    #     Amplitude = np.sqrt(self.FrequencyExtraction.epsilon_collection*Pe)
-    #     Nsteps = 1 / (self.Experiment.number_density * self.Te_crosssection*betae*c0*ts) # Number of timesteps of length ts
-
-    #     # sigma_f from Cramer-Rao lower bound in Hz
-    #     sigma_f_CRLB = (ScalingFactorCRLB /(2*np.pi) * sigNoise/Amplitude * np.sqrt(alpha_approx**2/(2*Gdot)
-    #                 + 96.*Nsteps/(ts**2*(Nsteps**4-5*Nsteps**2+4))))
-    #     # uncertainty in alpha
-    #     delta_alpha = 6*sigNoise/(Amplitude*ts**2) * np.sqrt(10/(Nsteps*(Nsteps**4-5*Nsteps**2+4)))
-    #     # uncetainty in sigma_f in Hz due to uncertainty in alpha
-    #     delta_sigma_f_CRLB = delta_alpha * alpha_approx *sigNoise**2/(8*np.pi**2*Amplitude**2*Gdot*sigma_f_CRLB*ScalingFactorCRLB**2)
-
-    #     # sigma_f from Cramer-Rao lower bound in eV
-    #     sigma_K_f_CRLB =  e*self.MagneticField.nominal_field/(2*np.pi*fEndpoint**2)*sigma_f_CRLB*c0**2
-    #     delta_sigma_K_f_CRLB = e*self.MagneticField.nominal_field/(2*np.pi*fEndpoint**2)*delta_sigma_f_CRLB*c0**2
-
-    #     # combined sigma_f in eV
-    #     sigma_f = np.sqrt(sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_smearing**2)
-    #     delta_sigma_f = np.sqrt((delta_sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_uncertainty**2)/2)
-
-    #     return sigma_f, delta_sigma_f
-
     def syst_magnetic_field(self):
+
+        # magnetic field uncertainties can be decomposed in several part
+        # * true magnetic field inhomogeneity 
+        #   (would be there also without a trap)
+        # * magnetic field calibration has uncertainties
+        #   (would be there also without a trap)
+        # * position / pitch angle reconstruction has uncertainties
+        #   (this can even be the degenerancy we see for harmonic traps)
+        #   (depends on trap shape)
+
         if self.MagneticField.UseFixedValue:
             sigma = self.MagneticField.Default_Systematic_Smearing
             delta = self.MagneticField.Default_Systematic_Uncertainty
@@ -397,6 +404,9 @@ class Sensitivity(object):
         BdotErr = Delta_t_since_calib * np.sqrt(shiftBdot**2 + smearBdot**2)
         delta_BdotErr = Delta_t_since_calib**2/BdotErr * np.sqrt(shiftBdot**2 * delta_shiftBdot**2 + smearBdot**2 * delta_smearBdot**2)
 
+        # position uncertainty is linear in wavelength
+        # position uncertainty is nearly constant w.r.t. radial position
+        # based on https://3.basecamp.com/3700981/buckets/3107037/uploads/3442593126
         rRecoErr = self.MagneticField.rRecoErr
         delta_rRecoErr = self.MagneticField.relative_Uncertainty_rRecoErr * rRecoErr
 
@@ -428,10 +438,16 @@ class Sensitivity(object):
         return self.BToKeErr(Berr, B), self.BToKeErr(delta_Berr, B)
 
     def syst_missing_tracks(self):
+        # this systematic should describe the energy broadening due to the line shape.
+        # Line shape is caused because you miss the first n tracks but then detect the n+1 
+        # track and you assume that this is the start frequency. 
+        # This depends on the gas composition, density and cross-section.
         if self.MissingTracks.UseFixedValue:
             sigma = self.MissingTracks.Default_Systematic_Smearing
             delta = self.MissingTracks.Default_Systematic_Uncertainty
             return sigma, delta
+        else:
+            raise NotImplementedError("Missing track systematic is not implemented.")
 
     def syst_plasma_effects(self):
         if self.PlasmaEffects.UseFixedValue:
@@ -439,4 +455,4 @@ class Sensitivity(object):
             delta = self.PlasmaEffects.Default_Systematic_Uncertainty
             return sigma, delta
         else:
-            raise NotImplementedError()
+            raise NotImplementedError("Plasma effect sysstematic is not implemented.")
