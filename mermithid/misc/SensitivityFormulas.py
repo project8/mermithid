@@ -3,7 +3,7 @@ Class calculating neutrino mass sensitivities based on analytic formulas from CD
 Author: R. Reimann, C. Claessens
 Date:11/17/2020
 
-The statistical method and formulars are described in 
+The statistical method and formulars are described in
 CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc673d862fa923d53.
 '''
 import numpy as np
@@ -152,12 +152,15 @@ class Sensitivity(object):
         """signal events in the energy interval before the endpoint, scale with DeltaE**3"""
         signal_rate = self.Experiment.number_density*self.Experiment.v_eff*self.last_1ev_fraction/self.tau_tritium
         if not self.Experiment.atomic:
-            avg_n_T_atoms = self.AvgNumTAtomsPerParticle_MolecularExperiment(self.Experiment.gas_fractions, self.Experiment.H2_type_gas_fractions)
-            signal_rate *= avg_n_T_atoms
+            if hasattr(self.Experiment, 'gas_fractions'):
+                avg_n_T_atoms = self.AvgNumTAtomsPerParticle_MolecularExperiment(self.Experiment.gas_fractions, self.Experiment.H2_type_gas_fractions)
+                signal_rate *= avg_n_T_atoms
+            else:
+                signal_rate *= 2
         return signal_rate
 
     def BackgroundRate(self):
-        """background rate, can be calculated from multiple components. 
+        """background rate, can be calculated from multiple components.
         Assumes that background rate is constant over considered energy / frequency range."""
         return self.Experiment.background_rate_per_eV
 
@@ -190,7 +193,7 @@ class Sensitivity(object):
         return sens
 
     def sensitivity(self, **kwargs):
-        """Combined statisical and systematic uncertainty. 
+        """Combined statisical and systematic uncertainty.
         Using kwargs settings in namespaces can be changed.
         Example how to change number density which lives in namespace Experiment:
             self.sensitivity(Experiment={"number_density": rho})
@@ -215,7 +218,7 @@ class Sensitivity(object):
         return np.sqrt(np.sqrt(1.64)*np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens()**2))
 
     # PHYSICS Functions
-    
+
     def AvgNumTAtomsPerParticle_MolecularExperiment(self, gas_fractions, H2_type_gas_fractions):
         """
         Given gas composition info (H2 vs. other gases, and how much of each H2-type isotopolog), returns an average number of tritium atoms per gas particle.
@@ -243,11 +246,11 @@ class Sensitivity(object):
     # SYSTEMATICS
 
     def get_systematics(self):
-        """ Returns list of energy broadenings (sigmas) and 
+        """ Returns list of energy broadenings (sigmas) and
         uncertainties on these energy broadenings (deltas)
-        for all considered systematics. We need to make sure 
-        that we do not include effects twice or miss any 
-        important effect. 
+        for all considered systematics. We need to make sure
+        that we do not include effects twice or miss any
+        important effect.
 
         Returns:
              * list of labels
@@ -363,7 +366,7 @@ class Sensitivity(object):
         # the magnetic_field_smearing and uncertainty added here consider the following effect:
         # thinking in terms of a phase II track, there is some smearing of the track / width of the track which influences the frequency extraction
         # this does not account for any effect comming from converting frequency to energy
-        # the reason behind the track width / smearing is the change in B field that the electron sees within one axial oscillation. 
+        # the reason behind the track width / smearing is the change in B field that the electron sees within one axial oscillation.
         # Depending on the trap shape this smearing may be different.
 
         return sigma_f, delta_sigma_f
@@ -371,7 +374,7 @@ class Sensitivity(object):
     def syst_magnetic_field(self):
 
         # magnetic field uncertainties can be decomposed in several part
-        # * true magnetic field inhomogeneity 
+        # * true magnetic field inhomogeneity
         #   (would be there also without a trap)
         # * magnetic field calibration has uncertainties
         #   (would be there also without a trap)
@@ -439,8 +442,8 @@ class Sensitivity(object):
 
     def syst_missing_tracks(self):
         # this systematic should describe the energy broadening due to the line shape.
-        # Line shape is caused because you miss the first n tracks but then detect the n+1 
-        # track and you assume that this is the start frequency. 
+        # Line shape is caused because you miss the first n tracks but then detect the n+1
+        # track and you assume that this is the start frequency.
         # This depends on the gas composition, density and cross-section.
         if self.MissingTracks.UseFixedValue:
             sigma = self.MissingTracks.Default_Systematic_Smearing
