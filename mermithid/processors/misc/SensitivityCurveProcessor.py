@@ -165,7 +165,7 @@ class SensitivityCurveProcessor(BaseProcessor):
 
         rho_opt = self.rhos[self.opt_ref]
         logger.info('Main curve (veff = {} cm**3, rho = {} /m**3):'.format(self.sens_main.Experiment.v_eff/(cm**3), rho_opt*(m**3)))
-        logger.info('Sensitivitiy limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
+        logger.info('Sensitivity limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
         logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.Experiment.v_eff))
         logger.info('Total signal: {}'.format(rho_opt*self.sens_main.Experiment.v_eff*
                                                    self.sens_main.Experiment.LiveTime/
