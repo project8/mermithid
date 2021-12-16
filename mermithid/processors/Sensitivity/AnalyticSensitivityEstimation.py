@@ -53,7 +53,7 @@ class AnalyticSensitivityEstimation(BaseProcessor, Sensitivity):
         # file paths
         self.config_file_path = reader.read_param(params, 'config_file_path', "required")
 
-        # setup sensitivities requires to run Sensitivity input class __init__
+        # Configuration is done in __init__ of SensitivityClass
         Sensitivity.__init__(self, self.config_file_path)
 
         return True
@@ -67,7 +67,9 @@ class AnalyticSensitivityEstimation(BaseProcessor, Sensitivity):
         return True
 
 
-    # Sensitivity formulas
+    # Sensitivity formulas:
+    # These are the functions that have so far been in the SensitivityClass but would not be used by a fake data experiment
+    # I did not include DeltaEWidth here becuase I consider it more general information about an experiment that could be used by the fake data studies too
 
     def StatSens(self):
         """Pure statistic sensitivity assuming Poisson count experiment in a single bin"""
