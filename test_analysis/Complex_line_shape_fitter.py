@@ -22,7 +22,7 @@ class ComplexLineShapeTests(unittest.TestCase):
 
         reader_config = {
             "action": "read",
-            "filename": "/host/shallow_trap_high_stats_above_10600_channel_a_concat.root",
+            "filename": "/host/october_2019_kr_calibration_channel_b_merged.root",
             "object_type": "TMultiTrackEventData",
             "object_name": "multiTrackEvents:Event",
             "use_katydid": False,
@@ -31,7 +31,11 @@ class ComplexLineShapeTests(unittest.TestCase):
 
         complexLineShape_config = {
             'bins_choice': np.linspace(0e6, 100e6, 1000),
-            'gases': ["H2", "He"], # Ar, Kr
+            'gases': ["H2", "He"], # "Ar", "Kr" # "Kr" for fss
+            'fix_gas_composition': True,
+            'fix_width_scale_factor': True,
+            'factor': 0.4626,
+            'scatter_fractions_for_gases': [0.894],
             'max_scatters': 20,
             'fixed_scatter_proportion': True,
             # When fixed_scatter_proportion is True, set the scatter proportion for the gases below
@@ -40,11 +44,13 @@ class ComplexLineShapeTests(unittest.TestCase):
             'free_gases': ["H2", "He"],
             'fixed_gases': ["Ar", "Kr"],
             'scatter_proportion_for_fixed_gases': [0.018, 0.039],
+            'use_radiation_loss': True,
+            'sample_ins_res_errors': False,
             'fixed_survival_probability': False,
             # When option fixed_survival_probability is True, assign the survival probability below
             'survival_prob': 15/16., # assuming total cross section for elastic scattering is 1/10 of inelastic scattering
             # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, composite_gaussian_scaled, simulated_resolution_scaled, 'simulated_resolution_scaled_fit_scatter_peak_ratio', 'gaussian_resolution_fit_scatter_peak_ratio'
-            'resolution_function': 'gaussian_resolution_fit_scatter_peak_ratio',
+            'resolution_function': 'simulated_resolution_scaled_fit_scatter_peak_ratio',
             # specific choice of parameters in the gaussian lorentzian composite resolution function
             'recon_eff_param_a': 0.005569990343215976,
             'recon_eff_param_b': 0.351,
@@ -57,18 +63,19 @@ class ComplexLineShapeTests(unittest.TestCase):
             #parameter for simulated resolution scaled resolution 
             'fit_recon_eff': False,
             #parameters for simulated resolution scaled with scatter peak ratio fitted
-            #choose the parameters you want to fix from ['B field','amplitude','width scale factor', 'survival probability','scatter peak ratio param b', 'scatter peak ratio param c'] plus the gas scatter fractions as ['H2 scatter fraction'],
-            'fixed_parameter_names': ['survival probability', 'H2 scatter fraction'],
-            'fixed_parameter_values': [1.0, 0.896],        
+            #choose the parameters you want to fix from ['B field','amplitude', 'width scale factor', 'survival probability','scatter peak ratio param b', 'scatter peak ratio param c'] plus the gas scatter fractions as ['H2 scatter fraction'],
+            'fixed_parameter_names': ['survival probability'], #, 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'
+            'fixed_parameter_values': [1.0],   #[1.0, 1.0, 0.886, 0.02, 0.06]   
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
-            'num_points_in_std_array': 10000,
-            'RF_ROI_MIN': 25850000000.0,
+            'num_points_in_std_array': 4000,
+            'RF_ROI_MIN': 25859375000.0, #24.5e9 + 1.40812680e+09 - 50e6, #25850000000.0
             # shake_spectrum_parameters.json and oscillator strength data can be found at https://github.com/project8/scripts/tree/master/yuhao/line_shape_fitting/data
             'shake_spectrum_parameters_json_path': '../mermithid/misc/shake_spectrum_parameters.json',
             'path_to_osc_strengths_files': '/host/',
             'path_to_scatter_spectra_file': '/host/',
-            'path_to_ins_resolution_data_txt': '/host/res_all_conversion_max15.5_alltraps.txt'
+            'path_to_ins_resolution_data_txt': '/host/March_FTC_resolution/all_res_cf15.300.txt'       
+            
         }
 
         b = IOCicadaProcessor("reader")
@@ -105,7 +112,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             plot_title = 'fit ftc march with gases: {},\n scatter proportion: {},\n resolution function: {},\n sigma_array: {},\n A_array: {},\n'.format(complexLineShape_config['gases'], complexLineShape_config['gas_scatter_proportion'], complexLineShape_config['resolution_function'], complexLineShape_config['sigma_array'], complexLineShape_config['A_array'])
         plt.title(plot_title)
         plt.tight_layout()
-        plt.savefig('/host/plots/fit_shallow_trap_above_10600_with_gaussian_resolution.png'.format(len(complexLineShape_config['gases'])))
+        plt.savefig('/host/plots/fit_october_ftc_simulated_resolution.png')
 
 if __name__ == '__main__':
 

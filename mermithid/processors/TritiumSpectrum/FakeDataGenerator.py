@@ -2,7 +2,7 @@
 Generate binned or pseudo unbinned data
 Author: T. Weiss, C. Claessens, X. Huyan
 Date: 4/6/2020
-Updated: 2/9/2021
+Updated: 10/19/2021
 '''
 
 from __future__ import absolute_import
@@ -46,16 +46,17 @@ class FakeDataGenerator(BaseProcessor):
         - B_field: used for energy-frequency conversion
         - sig_trans [eV]: width of thermal broadening
         - other_sig [eV]: width of other broadening
-        - runtime [s]: used to calculate number of background events
+        - channel_runtimes [s]: live time for each channel
+        - channel_bounds [Hz]: inner bounds between channels (one less than the number of channels)
         - S: number of signal events
-        - A_b [1/eV/s]: background rate
         - poisson_stats (boolean): if True number of total events is random
         - err_from_B [eV]: energy uncertainty originating from B uncertainty
         – gases: list of strings naming gases to be included in complex lineshape model. Options: 'H2', 'He', 'Kr', 'Ar', 'CO'
         - NScatters: lineshape parameter - number of scatters included in lineshape
         - trap_weights: distionary of two lists, labeled 'weights' and 'errors', which respectively include the fractions of counts from each trap and the uncertainties on those fractions
-        - scatter_peak_ratio_b: "b" in reconstrudction efficiency curve model: e^(-b*i^c), where i is the scatter order
-        - scatter_peak_ratio_c: "c" in the same reconstruction efficiency model
+        - scatter_peak_ratio_p: "p" in reconstrudction efficiency curve model: e^(-p*i^(-factor*p+q)), where i is the scatter order
+        - scatter_peak_ratio_q: "q" in the same reconstruction efficiency model
+        - scatter_peak_ratio_factor: "factor" in the same reconstruction efficiency model
         – scatter_proportion: list of proportion of scatters due to each gas in self.gases (in the same order), in complex lineshape
         - survival_prob: lineshape parameter - probability of electron staying in the trap between two inelastics scatters (it could escape due to elastics scatters or the inelastics scatters, themselves)
         – use_radiation_loss: if True, radiation loss will be included in the complex lineshape; should be set to True except for testing purposes
@@ -112,11 +113,12 @@ class FakeDataGenerator(BaseProcessor):
         self.broadening = np.sqrt(self.sig_trans**2+self.other_sig**2) #Total energy broadening (eV)
 
         # Phase II Spectrum parameters
-        self.runtime = reader.read_param(params, 'runtime', 6.57e6) #In seconds. Default time is ~2.5 months.
+        self.channel_runtimes = reader.read_param(params, 'channel_runtimes', [7185228., 7129663., 7160533.])
+        self.channel_bounds = reader.read_param(params, 'channel_bounds', [1.38623121e9+24.5e9, 1.44560621e9+24.5e9])
         self.S = reader.read_param(params, 'S', 3300)
         self.B_1kev = reader.read_param(params, 'B_1keV', 0.1) #Background rate per keV for full runtime
-        self.A_b = reader.read_param(params, 'A_b', self.B_1kev/float(self.runtime)/1000.) #Flat background activity: events/s/eV
-        self.B =self.A_b*self.runtime*(self.Kmax-self.Kmin) #Background poisson rate
+        #self.A_b = reader.read_param(params, 'A_b', self.B_1kev/float(self.runtime)/1000.) #Flat background activity: events/s/eV #No longer in use
+        #self.B =self.A_b*self.runtime*(self.Kmax-self.Kmin) #Background poisson rate #No longer in use
         self.poisson_stats = reader.read_param(params, 'poisson_stats', True)
         self.err_from_B = reader.read_param(params, 'err_from_B', 0.) #In eV, kinetic energy error from f_c --> K conversion
 
@@ -126,8 +128,9 @@ class FakeDataGenerator(BaseProcessor):
         self.NScatters = reader.read_param(params, 'NScatters', 20)
         self.trap_weights = reader.read_param(params, 'trap_weights', {'weights':[0.076,  0.341, 0.381, 0.203], 'errors':[0.003, 0.013, 0.014, 0.02]})
         #self.recon_eff_params = reader.read_param(params, 'recon_eff_params', [0.005569990343215976, 0.351, 0.546])
-        self.scatter_peak_ratio_b = reader.read_param(params, 'scatter_peak_ratio_b', 0.686312493)
-        self.scatter_peak_ratio_c = reader.read_param(params, 'scatter_peak_ratio_c', 0.52481056)
+        self.scatter_peak_ratio_p = reader.read_param(params, 'scatter_peak_ratio_p', 1.)
+        self.scatter_peak_ratio_q = reader.read_param(params, 'scatter_peak_ratio_q', 0.6)
+        self.scatter_peak_ratio_factor = reader.read_param(params, 'scatter_peak_ratio_factor', 0.5)
         self.scatter_proportion = reader.read_param(params, 'scatter_proportion', [])
         self.survival_prob = reader.read_param(params, 'survival_prob', 1.)
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
@@ -213,8 +216,9 @@ class FakeDataGenerator(BaseProcessor):
                     'use_radiation_loss': self.use_radiation_loss,
                     'sample_ins_res_errors': self.sample_ins_resolution_errors,
                     'resolution_function': self.resolution_function,
-                    'scatter_peak_ratio_b': self.scatter_peak_ratio_b,
-                    'scatter_peak_ratio_c': self.scatter_peak_ratio_c,
+                    'scatter_peak_ratio_p': self.scatter_peak_ratio_p,
+                    'scatter_peak_ratio_q': self.scatter_peak_ratio_q,
+					'factor': self.scatter_peak_ratio_factor,
                     'fit_recon_eff': self.fit_recon_eff,
 
                     #For analytics resolution functions, only:
@@ -385,7 +389,7 @@ class FakeDataGenerator(BaseProcessor):
 
         if array_method == True:
             ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean,
-            mass, Kmin, lineshape, params, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, self.scatter_proportion, min_energy, max_energy,
+            mass, Kmin, lineshape, params, self.scatter_peak_ratio_p, self.scatter_peak_ratio_q, self.scatter_proportion, min_energy, max_energy,
             self.complexLineShape, self.final_state_array, self.resolution_function, self.ins_res_width_bounds, self.ins_res_width_factors)
         else:
             ratesS = [convolved_spectral_rate(K, Q_mean, mass, Kmin,
@@ -401,7 +405,7 @@ class FakeDataGenerator(BaseProcessor):
         # background
         if array_method == True:
             ratesB = convolved_bkgd_rate_arrays(self.Koptions, Kmin, Kmax,
-                                                lineshape, params, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, self.scatter_proportion, min_energy, max_energy,
+                                                lineshape, params, self.scatter_peak_ratio_p, self.scatter_peak_ratio_q, self.scatter_proportion, min_energy, max_energy,
                                                 self.complexLineShape, self.resolution_function)
         else:
             ratesB = [convolved_bkgd_rate(K, Kmin, Kmax, lineshape, params,
@@ -422,22 +426,49 @@ class FakeDataGenerator(BaseProcessor):
             ratesS = convolve(ratesS, gaussian_rates, mode='same')
             ratesB = convolve(ratesB, gaussian_rates, mode='same')
 
-
         ratesS[ratesS<0.] = 0.
         ratesB[ratesB<0.] = 0.
         logger.info('Combinging {} signal events with {} background events'.format(S, B))
         rate_sumS, rate_sumB = np.sum(ratesS), np.sum(ratesB)
         probsS = np.array(ratesS)/rate_sumS
         probsB = np.array(ratesB)/rate_sumB
-        self.probs = (S*probsS + B*probsB)/(S+B)
+
+	    #Calculate three different rates variables, for each of the three runtimes
+        runtime_ratios = [t/float(self.channel_runtimes[0]) for t in self.channel_runtimes]
 
         logger.info('Generating data')
         time4 = time.time()
+
+	    #Break up self.Koptions into three different arrays.
+	    #Then, sample KE variables for each of the arrays and appropriate elements of self.channel_runtimes, probsS and probsB.
+        #Finally, concatenate together the three KE arrays.
+        temp_Koptions, temp_probsS, temp_probsB = self.Koptions, probsS, probsB
+        split_Koptions, split_probsS, split_probsB = [], [], []
+        for i in range(len(self.channel_bounds)):
+            split_Koptions.append(temp_Koptions[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
+            split_probsS.append(temp_probsS[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
+            split_probsB.append(temp_probsB[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
+            temp_probsS = temp_probsS[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
+            temp_probsB = temp_probsB[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
+            temp_Koptions = temp_Koptions[Frequency(temp_Koptions, self.B_field)>self.channel_bounds[i]]
+
+        split_Koptions.append(temp_Koptions)
+        split_probsS.append(temp_probsS)
+        split_probsB.append(temp_probsB)
+
+        rates = []
+        for i in range(len(self.channel_runtimes)):
+            rates.append((S*runtime_ratios[i]*split_probsS[i] + B*split_probsB[i])/(S*runtime_ratios[i]+B)) 
+
+        self.Koptions = np.concatenate(split_Koptions)
+        rates = np.concatenate(rates)
+        self.probs = rates/np.sum(rates)
 
         if self.poisson_stats:
             KE = np.random.choice(self.Koptions, np.random.poisson(S+B), p = self.probs)
         else:
             KE = np.random.choice(self.Koptions, round(S+B), p = self.probs)
+
         time5 = time.time()
 
         logger.info('... took {} s'.format(time5-time4))
