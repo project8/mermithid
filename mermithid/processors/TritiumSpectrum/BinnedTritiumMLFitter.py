@@ -169,7 +169,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.helium_lineshape_path = reader.read_param(config_dict, 'helium_lineshape_path', "optional")
         self.hydrogen_proportion = reader.read_param(config_dict, 'hydrogen_proportion', 1)
         self.use_helium_scattering = reader.read_param(config_dict, 'use_helium_scattering', False)
-        self.correlated_b_c_scale = reader.read_param(config_dict, 'correlated_b_c_scale', False)
+        self.correlated_p_q_scale = reader.read_param(config_dict, 'correlated_p_q_scale', False)
 
 
         # configure model parameter names
@@ -689,7 +689,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.parameter_samples['scatter_peak_ratio'] = self.scatter_peak_ratio_p
             sample_values.append(self.scatter_peak_ratio_p)
 
-        if self.correlated_b_c_scale and 'scatter_peak_ratio_p' in sampled_parameters.keys() and 'scatter_peak_ratio_q' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_p'] and sampled_parameters['scatter_peak_ratio_q']:
+        if self.correlated_p_q_scale and 'scatter_peak_ratio_p' in sampled_parameters.keys() and 'scatter_peak_ratio_q' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_p'] and sampled_parameters['scatter_peak_ratio_q']:
             logger.info('Correlated b, c, scale sampling')
             correlated_vars = np.random.multivariate_normal([self.scatter_peak_ratio_p_mean, self.scatter_peak_ratio_q_mean, self.scale_mean], self.b_c_scale_cov_matrix)
             self.scatter_peak_ratio_p = correlated_vars[0]
@@ -925,13 +925,13 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             nu_mass_shape_squared = (Q - K)**2 -m_nu_squared
             index = np.where((nu_mass_shape_squared>0) & (Q_minus_K>0))
             nu_mass_shape = np.sqrt(nu_mass_shape_squared[index])
-            spectrum[index] = (Q_minus_K[index])*nu_mass_shape
+            spectrum[index] = (Q_minus_K[index])*nu_mass_shape*self.ephasespace(K[index], Q)
         else:
             # mainz shape for negative mbeta**2
             k_squared = -m_nu_squared
             mu = 0.66*np.sqrt(k_squared)
             index = np.where(Q_minus_K+mu>0)
-            spectrum[index] = (Q_minus_K[index]+mu*np.exp(-1-Q_minus_K[index]/mu))*np.sqrt(Q_minus_K[index]**2+k_squared)
+            spectrum[index] = (Q_minus_K[index]+mu*np.exp(-1-Q_minus_K[index]/mu))*np.sqrt(Q_minus_K[index]**2+k_squared)*self.ephasespace(K[index], Q)
         #else:
         #    # lanl shape for negative mbeta**2
         #    k_squared = -m_nu_squared
@@ -940,33 +940,33 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         return spectrum
 
-    def chopped_approximate_spectrum(self, E, Q, m_nu_squared):
+    # def chopped_approximate_spectrum(self, E, Q, m_nu_squared):
 
-        if self.use_final_states:
-            N_states = len(self.final_state_array[0])
-            Q_states = Q+self.final_state_array[0]-np.max(self.final_state_array[0])
-            approximate_e_phase_space = self.ephasespace(E, Q)
+    #     if self.use_final_states:
+    #         N_states = len(self.final_state_array[0])
+    #         Q_states = Q+self.final_state_array[0]-np.max(self.final_state_array[0])
+    #         approximate_e_phase_space = self.ephasespace(E, Q)
 
-            beta_rates_array = [self.beta_rates(E, Q_states[i], m_nu_squared)#, index[i])
-                                * self.final_state_array[1][i]
-                                * approximate_e_phase_space for i in range(N_states)]
+    #         beta_rates_array = [self.beta_rates(E, Q_states[i], m_nu_squared)#, index[i])
+    #                             * self.final_state_array[1][i]
+    #                             * approximate_e_phase_space for i in range(N_states)]
 
-            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])
+    #         spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])
 
-        else:
-            approximate_e_phase_space = self.ephasespace(E, Q)
-            beta_rates_array = self.beta_rates(E, Q, m_nu_squared) * approximate_e_phase_space
-            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3) * beta_rates_array
+    #     else:
+    #         approximate_e_phase_space = self.ephasespace(E, Q)
+    #         beta_rates_array = self.beta_rates(E, Q, m_nu_squared) * approximate_e_phase_space
+    #         spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3) * beta_rates_array
 
-        channel_a_index = np.where((E<self.channel_energy_edges[0][0]) & (E>self.channel_energy_edges[0][1]))
-        channel_b_index = np.where((E<self.channel_energy_edges[1][0]) & (E>self.channel_energy_edges[1][1]))
-        channel_c_index = np.where((E<self.channel_energy_edges[2][0]) & (E>self.channel_energy_edges[2][1]))
+    #     channel_a_index = np.where((E<self.channel_energy_edges[0][0]) & (E>self.channel_energy_edges[0][1]))
+    #     channel_b_index = np.where((E<self.channel_energy_edges[1][0]) & (E>self.channel_energy_edges[1][1]))
+    #     channel_c_index = np.where((E<self.channel_energy_edges[2][0]) & (E>self.channel_energy_edges[2][1]))
 
-        spectrum[channel_a_index] = spectrum[channel_a_index]*self.channel_relative_livetimes[0]
-        spectrum[channel_b_index] = spectrum[channel_b_index]*self.channel_relative_livetimes[1]
-        spectrum[channel_c_index] = spectrum[channel_c_index]*self.channel_relative_livetimes[2]
+    #     spectrum[channel_a_index] = spectrum[channel_a_index]*self.channel_relative_livetimes[0]
+    #     spectrum[channel_b_index] = spectrum[channel_b_index]*self.channel_relative_livetimes[1]
+    #     spectrum[channel_c_index] = spectrum[channel_c_index]*self.channel_relative_livetimes[2]
 
-        return spectrum
+    #     return spectrum
 
 
     def approximate_spectrum(self, E, Q, m_nu_squared=0):
@@ -993,7 +993,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         else:
 
             approximate_e_phase_space = self.ephasespace(E, Q)
-            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*self.beta_rates(E, Q, m_nu_squared)*approximate_e_phase_space
+            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*self.beta_rates(E, Q, m_nu_squared)#*approximate_e_phase_space
 
         if self.use_relative_livetime_correction:
             # scale spectrum in frequency ranges according to channel livetimes
