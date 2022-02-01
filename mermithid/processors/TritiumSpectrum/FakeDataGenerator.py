@@ -146,7 +146,9 @@ class FakeDataGenerator(BaseProcessor):
         self.min_energy = reader.read_param(params,'min_lineshape_energy', -1000)
         self.scale_factor = reader.read_param(params, 'scale_factor', 1.0)
         self.ins_res_width_bounds = reader.read_param(params, 'ins_res_width_bounds', None) #Default values here need to be corrected
-        self.ins_res_width_factors = reader.read_param(params, 'ins_res_width_factors', [1])
+        self.ins_res_width_factors = reader.read_param(params, 'ins_res_width_factors', [1.])
+        self.p_factors = reader.read_param(params, 'p_factors', [1.])
+        self.q_factors = reader.read_param(params, 'q_factors', [1.])
 
         #paths
         self.efficiency_path = reader.read_param(params, 'efficiency_path', '')
@@ -390,14 +392,17 @@ class FakeDataGenerator(BaseProcessor):
         if array_method == True:
             ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean,
             mass, Kmin, lineshape, params, self.scatter_peak_ratio_p, self.scatter_peak_ratio_q, self.scatter_proportion, min_energy, max_energy,
-            self.complexLineShape, self.final_state_array, self.resolution_function, self.ins_res_width_bounds, self.ins_res_width_factors)
+            self.complexLineShape, self.final_state_array, self.resolution_function, self.ins_res_width_bounds, self.ins_res_width_factors, self.p_factors, self.q_factors)
         else:
             ratesS = [convolved_spectral_rate(K, Q_mean, mass, Kmin,
                 lineshape, params, min_energy, max_energy) for K in
                 self.Koptions]
 
         # multiply rates by efficiency
+        #if self.ins_res_width_bounds==None:
         ratesS = ratesS*efficiency
+        #else:
+        #ratesS = [r*efficiency for r in ratesS]
 
         time1 = time.time()
         logger.info('... signal rate took {} s'.format(time1-time0))
@@ -423,13 +428,24 @@ class FakeDataGenerator(BaseProcessor):
             #Generating finely spaced points on a gaussian
             gaussian_rates = gaussian(K_lineshape, [err_from_B, 0])
 
-            ratesS = convolve(ratesS, gaussian_rates, mode='same')
             ratesB = convolve(ratesB, gaussian_rates, mode='same')
-
+            #if self.ins_res_width_bounds==None:
+            ratesS = convolve(ratesS, gaussian_rates, mode='same')
+        
         ratesS[ratesS<0.] = 0.
-        ratesB[ratesB<0.] = 0.
-        rate_sumS, rate_sumB = np.sum(ratesS), np.sum(ratesB)
+        rate_sumS = np.sum(ratesS)
         probsS = np.array(ratesS)/rate_sumS
+        """
+        else:
+            rate_sumS, probsS = [], []
+            for i in range(len(ratesS)):
+                ratesS[i] = convolve(ratesS[i], gaussian_rates, mode='same')
+                rate_sumS.append(np.sum(ratesS[i]))
+                probsS.append(np.array(ratesS[i])/rate_sumS[i])
+        """
+            
+        ratesB[ratesB<0.] = 0.
+        rate_sumB = np.sum(ratesB)
         probsB = np.array(ratesB)/rate_sumB
 
 	    #Calculate three different rates variables, for each of the three runtimes
@@ -441,6 +457,7 @@ class FakeDataGenerator(BaseProcessor):
 	    #Break up self.Koptions into three different arrays.
 	    #Then, sample KE variables for each of the arrays and appropriate elements of self.channel_runtimes, probsS and probsB.
         #Finally, concatenate together the three KE arrays.
+        #if self.ins_res_width_bounds==None:
         temp_Koptions, temp_probsS, temp_probsB = self.Koptions, probsS, probsB
         split_Koptions, split_probsS, split_probsB = [], [], []
         for i in range(len(self.channel_bounds)):
