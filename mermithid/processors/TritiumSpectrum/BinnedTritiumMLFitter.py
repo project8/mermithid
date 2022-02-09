@@ -55,7 +55,7 @@ def GenAndFit(params, counts, fit_config_dict, sampled_priors={},
         logger.info('Sampling: {}'.format(i))
 
 
-    T = BinnedTritiumMLFitter("TritiumFitter")
+    T = BinnedTritiumMLFitter("TritiumFitter_{}".format(i))
     T.InternalConfigure(fit_config_dict)
     #T.error_scaling = error_scaling
     T.integrate_bins = True
@@ -80,7 +80,7 @@ def GenAndFit(params, counts, fit_config_dict, sampled_priors={},
     results, errors = T.SampleConvertAndFit(sampled_priors, params)
     parameter_samples = T.parameter_samples
 
-    logger.info('Fit results: {}'.format(results))
+    #logger.info('Fit results: {}'.format(results))
 
 
     if fit_config_dict['minos_intervals']:
@@ -980,20 +980,19 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         if self.use_final_states:
             N_states = len(self.final_state_array[0])
             Q_states = Q+self.final_state_array[0]-np.max(self.final_state_array[0])
-            approximate_e_phase_space = self.ephasespace(E, Q)
 
             #index = [np.where(((Q_states[i]-E)**2-m_nu_squared > 0) & (Q_states[i]-E > 0)) for i in range(N_states)]
             #index = [np.where(E < Q_states[i] -mnu) for i in range(N_states)]
             beta_rates_array = [self.beta_rates(E, Q_states[i], m_nu_squared)#, index[i])
                                 * self.final_state_array[1][i]
-                                * approximate_e_phase_space for i in range(N_states)]
+                                 for i in range(N_states)]
 
             spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])
 
         else:
 
-            approximate_e_phase_space = self.ephasespace(E, Q)
-            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*self.beta_rates(E, Q, m_nu_squared)#*approximate_e_phase_space
+            #approximate_e_phase_space = self.ephasespace(E, Q)
+            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*self.beta_rates(E, Q, m_nu_squared)
 
         if self.use_relative_livetime_correction:
             # scale spectrum in frequency ranges according to channel livetimes
