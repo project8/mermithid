@@ -143,7 +143,7 @@ class BinnedDataFitter(BaseProcessor):
 
         # minimze
         m_binned.simplex().migrad()
-        m_binned.hesse()
+        #m_binned.hesse()
         #m_binned.minos()
         #self.param_states = m_binned.get_param_states()
         #logger.info(self.param_states)

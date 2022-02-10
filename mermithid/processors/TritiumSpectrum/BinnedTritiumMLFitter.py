@@ -170,15 +170,16 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.hydrogen_proportion = reader.read_param(config_dict, 'hydrogen_proportion', 1)
         self.use_helium_scattering = reader.read_param(config_dict, 'use_helium_scattering', False)
         self.correlated_p_q_scale = reader.read_param(config_dict, 'correlated_p_q_scale', False)
+        self.derived_two_gaussian_model = reader.read_param(config_dict, 'derived_two_gaussian_model', True)
 
 
         # configure model parameter names
         self.model_parameter_names = reader.read_param(config_dict, 'model_parameter_names',
                                                        ['endpoint', 'background', 'm_beta_squared', 'Amplitude',
                                                         'scatter_peak_ratio_p', 'scatter_peak_ratio_q',
-                                                        'resolution', 'two_gaussian_sigma_1', 'two_gaussian_sigma_2'] )
+                                                        'resolution', 'two_gaussian_mu_1', 'two_gaussian_mu_2'] )
         # initial values and mean of constaints (if constraint) or mean of distribution (if sampled)
-        self.model_parameter_means = reader.read_param(config_dict, 'model_parameter_means', [18.6e3, 0, 0, 5000, 0.8, 1, 15, 10, 10])
+        self.model_parameter_means = reader.read_param(config_dict, 'model_parameter_means', [18.6e3, 0, 0, 5000, 0.8, 1, 15, 0, 0])
         # width for constraints or sample distributions
         self.model_parameter_widths = reader.read_param(config_dict, 'model_parameter_widths', [100, 0.1, 0.1, 500, 0.1, 0, 3, 1, 1])
         self.fixed_parameters = reader.read_param(config_dict, 'fixed_parameters', [False, False, False, False, True, True, True, True, True])
@@ -191,8 +192,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                                                      [0.1, 1.],
                                                      [0.1, 1.],
                                                      [12, 100],
-                                                     [1, 100],
-                                                     [1, 100]])
+                                                     [-100, 100],
+                                                     [-100, 100]])
 
 
         # check that configuration is consistent
@@ -230,20 +231,33 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.res = self.res_mean
 
             if self.resolution_model != 'gaussian':
-                if 'two_gaussian_sigma_1' in self.model_parameter_names:
-                    self.two_gaussian_sigma_1_index = self.model_parameter_names.index('two_gaussian_sigma_1')
-                if 'two_gaussian_sigma_2' in self.model_parameter_names:
-                    self.two_gaussian_sigma_2_index = self.model_parameter_names.index('two_gaussian_sigma_2')
-
+                self.two_gaussian_fraction = reader.read_param(config_dict, 'two_gaussian_fraction', 1.)
                 self.two_gaussian_mu_1 = reader.read_param(config_dict, 'two_gaussian_mu1', 0)
                 self.two_gaussian_mu_2 = reader.read_param(config_dict, 'two_gaussian_mu2', 0)
-                self.two_gaussian_sigma_1_mean = reader.read_param(config_dict, 'two_gaussian_sigma_1_mean', 15)
-                self.two_gaussian_sigma_2_mean = reader.read_param(config_dict, 'two_gaussian_sigma_2_mean', 5)
-                self.two_gaussian_sigma_1_width = reader.read_param(config_dict, 'two_gaussian_sigma_1_width', 1)
-                self.two_gaussian_sigma_2_width = reader.read_param(config_dict, 'two_gaussian_sigma_2_width', 1)
-                self.two_gaussian_wide_fraction = reader.read_param(config_dict, 'two_gaussian_wide_fraction', 1.)
-                self.two_gaussian_sigma_1 = deepcopy(self.two_gaussian_sigma_1_mean)
-                self.two_gaussian_sigma_2 = deepcopy(self.two_gaussian_sigma_2_mean)
+                if 'two_gaussian_mu_1' in self.model_parameter_names:
+                        self.two_gaussian_mu_1_index = self.model_parameter_names.index('two_gaussian_mu_1')
+                if 'two_gaussian_mu_2' in self.model_parameter_names:
+                        self.two_gaussian_mu_2_index = self.model_parameter_names.index('two_gaussian_mu_2')
+
+                if self.derived_two_gaussian_model:
+                    self.two_gaussian_p0 = reader.read_param(config_dict, 'two_gaussian_p0', 1.)
+                    self.two_gaussian_p1 = reader.read_param(config_dict, 'two_gaussian_p1', 1.)
+                else:
+                    if 'two_gaussian_sigma_1' in self.model_parameter_names:
+                        self.two_gaussian_sigma_1_index = self.model_parameter_names.index('two_gaussian_sigma_1')
+                    if 'two_gaussian_sigma_2' in self.model_parameter_names:
+                        self.two_gaussian_sigma_2_index = self.model_parameter_names.index('two_gaussian_sigma_2')
+
+
+                    self.two_gaussian_sigma_1_mean = reader.read_param(config_dict, 'two_gaussian_sigma_1_mean', 15)
+                    self.two_gaussian_sigma_2_mean = reader.read_param(config_dict, 'two_gaussian_sigma_2_mean', 5)
+                    self.two_gaussian_sigma_1_width = reader.read_param(config_dict, 'two_gaussian_sigma_1_width', 1)
+                    self.two_gaussian_sigma_2_width = reader.read_param(config_dict, 'two_gaussian_sigma_2_width', 1)
+                    # initial setting
+                    self.two_gaussian_sigma_1 = deepcopy(self.two_gaussian_sigma_1_mean)
+                    self.two_gaussian_sigma_2 = deepcopy(self.two_gaussian_sigma_2_mean)
+
+
 
 
         # scatter peak ratio
@@ -915,6 +929,13 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         f = A*(1/(sigma*np.sqrt(2*np.pi)))*np.exp(-(((energy_array-mu)/sigma)**2.)/2.)
         return f
 
+    def derived_two_gaussian_resolution(self, energy_array, sigma_s, mu_1, mu_2, A=1):
+        sigma_1 = (sigma_s-self.two_gaussian_p0 + self.two_gaussian_fraction * self.two_gaussian_p0)/(self.two_gaussian_fraction + self.two_gaussian_p1 - self.two_gaussian_fraction* self.two_gaussian_p1)
+        sigma_2 = self.two_gaussian_p0 + self.two_gaussian_p1 * sigma_1
+
+        lineshape = self.two_gaussian_fraction * self.gauss_resolution_f(energy_array, 1, sigma_1*self.width_scaling, mu_1) + (1 - self.two_gaussian_fraction) * self.gauss_resolution_f(energy_array, 1, sigma_2*self.width_scaling, mu_2)
+        return lineshape
+
 
     def beta_rates(self, K, Q, m_nu_squared):#, index):
         spectrum = np.zeros(len(K))
@@ -1249,17 +1270,23 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 res = args[self.res_index]
 
             if self.resolution_model != 'gaussian':
+                if self.derived_two_gaussian_model:
+                    if 'two_gaussian_mean_1' not in self.model_parameter_names or 'two_gaussian_mean_1' in self.parameter_samples.keys():
+                        two_gaussian_mu_1 = self.two_gaussian_mu_1
+                        two_gaussian_mu_2 = self.two_gaussian_mu_2
+                    else:
+                        two_gaussian_mu_1 = args[self.two_gaussian_mu_1_index]
+                        two_gaussian_mu_2 = args[self.two_gaussian_mu_2_index]
 
-                if 'two_gaussian_sigma_1' not in self.model_parameter_names or 'two_gaussian_sigma_1' in self.parameter_samples.keys():
-                    sig1 = self.two_gaussian_sigma_1
-                    #logger.info('Using self.two_gaussian_sigma_1')
                 else:
-                    sig1 = args[self.two_gaussian_sigma_1_index]
-                if 'two_gaussian_sigma_2' not in self.model_parameter_names or 'two_gaussian_sigma_2' in self.parameter_samples.keys():
-                    sig2 = self.two_gaussian_sigma_2
-                    #logger.info('Using self.two_gaussian_sigma_2')
-                else:
-                    sig2 = args[self.two_gaussian_sigma_2_index]
+
+                    if 'two_gaussian_sigma_1' not in self.model_parameter_names or 'two_gaussian_sigma_1' in self.parameter_samples.keys():
+                        sig1 = self.two_gaussian_sigma_1
+                        sig2 = self.two_gaussian_sigma_2
+                        #logger.info('Using self.two_gaussian_sigma_1')
+                    else:
+                        sig1 = args[self.two_gaussian_sigma_1_index]
+                        sig2 = args[self.two_gaussian_sigma_2_index]
 
 
             max_energy = self.max_energy
@@ -1275,6 +1302,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             # energy resolution
             if self.resolution_model != 'two_gaussian':
                 lineshape = self.gauss_resolution_f(e_lineshape, 1, res*self.width_scaling, 0)
+            elif self.derived_two_gaussian_model:
+                lineshape = self.derived_two_gaussian_resolution(e_lineshape, res, two_gaussian_mu_1, two_gaussian_mu_2)
             else:
                 lineshape = self.two_gaussian_wide_fraction * self.gauss_resolution_f(e_lineshape, 1, sig1*self.width_scaling, self.two_gaussian_mu_1) + (1 - self.two_gaussian_wide_fraction) * self.gauss_resolution_f(e_lineshape, 1, sig2*self.width_scaling, self.two_gaussian_mu_2)
 
