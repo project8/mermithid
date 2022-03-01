@@ -37,6 +37,24 @@ class SensitivityTest(unittest.TestCase):
         sens_curve.Configure(sens_config_dict)
         sens_curve.Run()
 
+    def test_SensitivityProcessor(self):
+        from mermithid.processors.Sensitivity import AnalyticSensitivityEstimation
+
+
+        sens_config_dict = {
+            # required
+            "config_file_path": "/host_termite/sensitivity_config_files/Config_PhaseIII_FSCD_molecular_V_eff_2cm3.cfg"
+            }
+        sens = AnalyticSensitivityEstimation("sensitivity_processor")
+        sens.Configure(sens_config_dict)
+        sens.Run()
+
+        sens.print_statistics()
+        sens.print_systematics()
+
+        results = sens.results
+        logger.info(results)
+
 
 
 if __name__ == '__main__':
