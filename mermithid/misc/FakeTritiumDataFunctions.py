@@ -278,7 +278,7 @@ def convolved_bkgd_rate(K, Kmin, Kmax, lineshape, ls_params, min_energy, max_ene
 #Convolution of signal and lineshape using scipy.signal.convolve
 def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
                                    lineshape, ls_params, scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, min_energy, max_energy,
-                                   complexLineShape, final_state_array, resolution_function, ins_res_width_bounds, ins_res_width_factors):
+                                   complexLineShape, final_state_array, resolution_function, ins_res_width_bounds, ins_res_width_factors, p_factors, q_factors):
     """K is an array-like object
     """
     logger.info('Using scipy convolve')
@@ -309,32 +309,39 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
         if resolution_function == 'simulated_resolution' or resolution_function == 'simulated':
             lineshape_rates = []
             scale_factors = [ls_params[0]*f for f in ins_res_width_factors]
-            for scale in scale_factors:
-                lineshape_rates.append(np.flipud(complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(scale, ls_params[1], scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, emitted_peak='dirac')))
+            for i in range(len(scale_factors)):
+                lineshape_rates.append(np.flipud(complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(scale_factors[i], ls_params[1], scatter_peak_ratio_p*p_factors[i], scatter_peak_ratio_q*q_factors[i], scatter_fraction, emitted_peak='dirac')))
         elif resolution_function == 'gaussian_resolution' or resolution_function == 'gaussian':
             logger.warn("Scatter peak ratio function for lineshape with Gaussian resolution may not be up-to-date!")
             lineshape_rates = complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, emitted_peak='dirac')
         else:
             logger.warn('{} is not a resolution function that has been implemented in the FakeDataGenerator'.format(resolution_function))
 
+    below_Kmin = np.where(K < Kmin)
+
     #Convolving
     if (lineshape=='detailed_scattering' or lineshape=='detailed') and (resolution_function == 'simulated_resolution' or resolution_function == 'simulated'):
-        convolved_list = []
+        convolved_segments = []
+        beta_rates = spectral_rate(K, Q, mnu, final_state_array)
         for j in range(len(lineshape_rates)):
-            beta_rates = spectral_rate(K_segments[j], Q, mnu, final_state_array)
-            convolved_list.append(convolve(beta_rates, lineshape_rates[j], mode='same'))
-        convolved = np.concatenate(convolved_list, axis=None)
+            #beta_rates = spectral_rate(K_segments[j], Q, mnu, final_state_array)
+            convolved_j = convolve(beta_rates, lineshape_rates[j], mode='same')
+            np.put(convolved_j, below_Kmin, np.zeros(len(below_Kmin)))
+            #Only including the part of convolved_j that corresponds to the right values of K
+            convolved_segments.append(convolved_j[np.logical_and(Kbounds[j]<=K, K<=Kbounds[j+1])])
+            #convolved.append(convolved_j)
+        convolved = np.concatenate(convolved_segments, axis=None)
     elif resolution_function=='gaussian':
         lineshape_rates = np.flipud(lineshape_rates)
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
         convolved = convolve(beta_rates, lineshape_rates, mode='same')
+        np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
 
     if (lineshape=='gaussian' or lineshape=='simplified_scattering' or lineshape=='simplified'):
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
         convolved = convolve(beta_rates, lineshape_rates, mode='same')
-
-    below_Kmin = np.where(K < Kmin)
-    np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
+        np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
+    
     return convolved
 
 
