@@ -297,7 +297,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.tritium_model_indices = reader.read_param(config_dict, 'tritium_model_parameters', [0, 2])
         self.m_beta_index = self.model_parameter_names.index('m_beta_squared')
         self.endpoint_index = self.model_parameter_names.index('endpoint')
-        if self.model_parameter_names:
+        if 'B' in self.model_parameter_names:
             self.B_index = self.model_parameter_names.index('B')
         self.fixed_parameters[self.m_beta_index] = not self.fit_nu_mass
         self.endpoint=reader.read_param(config_dict, 'true_endpoint', 18.573e3)
@@ -1374,12 +1374,13 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 #plt.plot(e_lineshape, self.simplified_ls(e_lineshape, 0, FWHM, ratio), color='red', label='FDG')
                 if self.resolution_model != 'two_gaussian':
                     resolution = self.gauss_resolution_f(e_lineshape, 1, res, 0)
-                    if self.plot_lineshape:
-                        logger.info('Using Gaussian resolution model')
+                    logger.info('Using Gaussian resolution model')
+                elif self.derived_two_gaussian_model:
+                    resolution = self.derived_two_gaussian_resolution(e_lineshape, res, two_gaussian_mu_1, two_gaussian_mu_2)
+                    logger.info('Using derived two Gaussian resolution model')
                 else:
-                    resolution = self.two_gaussian_wide_fraction * self.gauss_resolution_f(e_lineshape, 1, sig1*self.width_scaling, self.two_gaussian_mu_1) + (1 - self.two_gaussian_wide_fraction) * self.gauss_resolution_f(e_lineshape, 1, sig2*self.width_scaling, self.two_gaussian_mu_2)
-                    if self.plot_lineshape:
-                        logger.info('Using two Gaussian resolution model')
+                    resolution = self.two_gaussian_fraction * self.gauss_resolution_f(e_lineshape, 1, sig1*self.width_scaling, self.two_gaussian_mu_1) + (1 - self.two_gaussian_fraction) * self.gauss_resolution_f(e_lineshape, 1, sig2*self.width_scaling, self.two_gaussian_mu_2)
+                    logger.info('Using two Gaussian resolution model')
 
 
                 plt.plot(e_lineshape, resolution/np.max(resolution), label = 'Resolution', color='orange')
