@@ -16,7 +16,7 @@ import numpy as np
 # Numericalunits is a package to handle units and some natural constants
 # natural constants
 
-from numericalunits import meV, eV
+from numericalunits import meV, eV, T
 
 
 # morpho imports

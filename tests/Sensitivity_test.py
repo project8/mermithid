@@ -19,19 +19,25 @@ class SensitivityTest(unittest.TestCase):
 
         sens_config_dict = {
             # required
-            "config_file_path": "/host_termite/sensitivity_config_files/Config_PhaseIII_FSCD_molecular_V_eff_2cm3.cfg",
+            #"config_file_path": "/host_termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg",
+            "config_file_path": "/home/chrischtel/repos/another_termite/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg",
             "plot_path": "./sensitivity_curve.pdf",
             # optional
             "track_length_axis": True,
-            "molecular_axis": True,
-            "atomic_axis": False,
-            "y_limits": [1e-2, 1e2],
-            "main_curve_upper_label": r"molecular"+"\n"+r"$V_\mathrm{eff} = 2\, \mathrm{cm}^3$"+"\n"+r"$\sigma_B = 7\,\mathrm{ppm}$",
-            "goals": {"Phase III (2 eV)": 2, "Phase IV (40 meV)": 0.04},
+            "molecular_axis": False,
+            "atomic_axis": True,
+            "y_limits": [1e-1, 1e2],
+            "density_range": [1e12,1e21],
+            "main_curve_upper_label": r"Atomic CRES at 0.04 T"+"\n"+r"$V_\mathrm{eff} = 0.01\, \mathrm{m}^3$"+"\n"+r"$\sigma_B = 2\,\mathrm{ppm}$",
+            "main_curve_lower_label": r"$\sigma_B = 0.15\,\mathrm{ppm}$",
+            "goals": {"Phase III (0.4 eV)": 0.4},# "Phase IV (40 meV)": 0.04},
             "comparison_curve": False,
             "comparison_config_file_path": "/host_scripts/rreimann/data/Sensitivity/Config_PhaseIV_atomic_V_eff_5m3.cfg",
-            "B": np.arange(1, 8)*1e-6
-
+            "B_inhomogeneity": np.arange(0.15, 2.05, 0.15)*1e-6,
+            "B_inhom_uncertainty": 0.05,
+            "lower_label_y_position": 0.5,
+            "upper_label_y_position": 5,
+            "label_x_position": 1e14
             }
         sens_curve = SensitivityCurveProcessor("sensitivity_curve_processor")
         sens_curve.Configure(sens_config_dict)
@@ -43,7 +49,8 @@ class SensitivityTest(unittest.TestCase):
 
         sens_config_dict = {
             # required
-            "config_file_path": "/host_termite/sensitivity_config_files/Config_PhaseIII_FSCD_molecular_V_eff_2cm3.cfg"
+            #"config_file_path": "/host_termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
+            "config_file_path": "/home/chrischtel/repos/another_termite/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
             }
         sens = AnalyticSensitivityEstimation("sensitivity_processor")
         sens.Configure(sens_config_dict)
@@ -54,6 +61,24 @@ class SensitivityTest(unittest.TestCase):
 
         results = sens.results
         logger.info(results)
+
+"""    def test_ConstantSensitivityCurvesProcessor(self):
+        from mermithid.processors.Sensitivity import ConstantSensitivityParameterPlots
+
+
+        sens_config_dict = {
+            # required
+            #"config_file_path": "/host_termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
+            "config_file_path": "/home/chrischtel/repos/another_termite/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
+            }
+        sens = ConstantSensitivityParameterPlots("sensitivity_processor")
+        sens.Configure(sens_config_dict)
+        sens.Run()
+
+        sens.print_statistics()
+        sens.print_systematics()"""
+
+
 
 
 
