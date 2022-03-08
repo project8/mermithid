@@ -29,11 +29,11 @@ class SensitivityTest(unittest.TestCase):
             "y_limits": [1e-1, 1e2],
             "density_range": [1e12,1e21],
             "main_curve_upper_label": r"Atomic CRES at 0.04 T"+"\n"+r"$V_\mathrm{eff} = 0.01\, \mathrm{m}^3$"+"\n"+r"$\sigma_B = 2\,\mathrm{ppm}$",
-            "main_curve_lower_label": r"$\sigma_B = 0.15\,\mathrm{ppm}$",
+            "main_curve_lower_label": r"$\sigma_B = 0.16\,\mathrm{ppm}$",
             "goals": {"Phase III (0.4 eV)": 0.4},# "Phase IV (40 meV)": 0.04},
             "comparison_curve": False,
             "comparison_config_file_path": "/host_scripts/rreimann/data/Sensitivity/Config_PhaseIV_atomic_V_eff_5m3.cfg",
-            "B_inhomogeneity": np.arange(0.15, 2.05, 0.15)*1e-6,
+            "B_inhomogeneity": np.linspace(0.16, 2.0, 10)*1e-6,
             "B_inhom_uncertainty": 0.05,
             "lower_label_y_position": 0.5,
             "upper_label_y_position": 5,
@@ -62,7 +62,7 @@ class SensitivityTest(unittest.TestCase):
         results = sens.results
         logger.info(results)
 
-"""    def test_ConstantSensitivityCurvesProcessor(self):
+    def test_ConstantSensitivityCurvesProcessor(self):
         from mermithid.processors.Sensitivity import ConstantSensitivityParameterPlots
 
 
@@ -76,7 +76,7 @@ class SensitivityTest(unittest.TestCase):
         sens.Run()
 
         sens.print_statistics()
-        sens.print_systematics()"""
+        sens.print_systematics()
 
 
 

@@ -277,7 +277,7 @@ class Sensitivity(object):
             sigmas.append(ground_state_width)
             deltas.append(ground_state_width_uncertainty)
 
-        return labels, np.array(sigmas), np.array(deltas)
+        return np.array(labels), np.array(sigmas), np.array(deltas)
 
     def print_statistics(self):
         print("Statistical", " "*18, "%.2f"%(np.sqrt(self.StatSens())/meV), "meV")

@@ -55,8 +55,6 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
         '''
         # file paths
         self.config_file_path = reader.read_param(params, 'config_file_path', "required")
-        #self.x_parameters = reader.read_param(params, 'x_parameters', ['v_eff'])
-        #self.y_parameters = reader.read_param(params, 'y_parameters', [''])
         self.sensitivity_target = reader.read_param(params, 'sensitivity_target', [0.4**2/np.sqrt(1.64), 0.7**2/np.sqrt(1.64), 1**2/np.sqrt(1.64)] )
         self.initialInhomogeneity = reader.read_param(params, 'initial_Inhomogeneity', 1e-8)
 
@@ -67,9 +65,9 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
         # Configuration is done in __init__ of SensitivityClass
         Sensitivity.__init__(self, self.config_file_path)
 
-        self.rhos = np.linspace(self.density_range[0], self.density_range[1], 5000)/(m**3)
+        self.rhos = np.linspace(self.density_range[0], self.density_range[1], 2000)/(m**3)
         self.veffs = np.logspace(np.log10(self.veff_range[0]), np.log10(self.veff_range[1]), 25)*m**3
-        self.Berrors = np.logspace(np.log10(self.BError_range[0]), np.log10(self.BError_range[1]), 2000)
+        self.Berrors = np.logspace(np.log10(self.BError_range[0]), np.log10(self.BError_range[1]), 1000)
 
         return True
 
@@ -84,6 +82,7 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
 
         self.needed_Bs = np.empty((len(self.sensitivity_target), len(self.veffs)))
         self.needed_res = np.empty((len(self.sensitivity_target), len(self.veffs)))
+        self.needed_res_sigma = np.empty((len(self.sensitivity_target), len(self.veffs)))
         self.rho_opts = np.empty((len(self.sensitivity_target), len(self.veffs)))
         self.CLs = np.empty((len(self.sensitivity_target), len(self.veffs)))
         index = []
@@ -100,11 +99,11 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
                 while np.abs(drho) > 1.5*np.diff(self.rhos)[0] and n<10:
                     print('Iteration: {}'.format(n))
                     n+=1
-                    self.needed_Bs[j, i], self.needed_res[j, i] = self.BHomogeneityAndResNeeded(self.sensitivity_target[j])
+                    self.BHomogeneityAndResNeeded(self.sensitivity_target[j])
                     new_rho = self.FindOptimumPressure()
                     drho = self.rho_opts[j, i]-new_rho
                     self.rho_opts[j, i] = new_rho
-                    self.needed_Bs[j, i], self.needed_res[j, i] = self.BHomogeneityAndResNeeded(self.sensitivity_target[j])
+                    self.needed_Bs[j, i], self.needed_res[j, i], self.needed_res_sigma[j, i] = self.BHomogeneityAndResNeeded(self.sensitivity_target[j])
 
                 self.CLs[j, i] = self.CL90()
 
@@ -115,7 +114,7 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
             time.sleep(2)
 
 
-        plt.figure(figsize=(15, 5))
+        plt.figure(figsize=(10, 5))
 
         # plt.subplot(221)
         # plt.plot(self.veffs[index]/(m**3), self.CLs[index]/eV)
@@ -127,7 +126,7 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
         # plt.tight_layout()
 
 
-        plt.subplot(131)
+        plt.subplot(121)
 
         for j in range(len(self.sensitivity_target)):
             plt.plot(self.veffs[index[j]]/(m**3), self.needed_Bs[j][index[j]], label='90% CL = {} eV'.format(np.round(np.sqrt(np.sqrt(1.64)*self.sensitivity_target[j]),1)))
@@ -141,18 +140,7 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
         plt.tight_layout()
         #plt.savefig('B_vs_veff.pdf')
 
-        plt.subplot(132)
-        for j in range(len(self.sensitivity_target)):
-            plt.plot(self.veffs[index[j]]/(m**3), self.needed_res[j][index[j]]/eV, label='90% CL = {} eV'.format(np.round(np.sqrt(np.sqrt(1.64)*self.sensitivity_target[j]),1)))
-        plt.xlabel('Effective Volume (m³)')
-        plt.ylabel('Total energy resolution (eV)')
-        plt.xscale('log')
-        #plt.yscale('log')
-        plt.legend()
-        plt.tight_layout()
-        #plt.savefig('res_vs_veff.pdf')
-
-        plt.subplot(133)
+        plt.subplot(122)
         for j in range(len(self.sensitivity_target)):
             plt.plot(self.veffs[index[j]]/(m**3), self.rho_opts[j][index[j]]*m**3, label='90% CL = {} eV'.format(np.round(np.sqrt(np.sqrt(1.64)*self.sensitivity_target[j]),1)))
         plt.xlabel('Effective Volume (m³)')
@@ -162,8 +150,34 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
         plt.legend()
         plt.tight_layout()
 
-        plt.savefig('B_res_rho_vs_veff.pdf')
-        plt.savefig('B_res_rho_vs_veff.png')
+        plt.savefig('B_rho_vs_veff.pdf')
+        plt.savefig('B_rho_vs_veff.png', dpi=300)
+
+        plt.figure(figsize=(10, 5))
+
+        plt.subplot(121)
+        for j in range(len(self.sensitivity_target)):
+            plt.plot(self.veffs[index[j]]/(m**3), self.needed_res[j][index[j]]/eV, label='90% CL = {} eV'.format(np.round(np.sqrt(np.sqrt(1.64)*self.sensitivity_target[j]),1)))
+        plt.xlabel('Effective Volume (m³)')
+        plt.ylabel('Total energy resolution (eV)')
+        plt.xscale('log')
+        #plt.yscale('log')
+        plt.legend()
+        plt.tight_layout()
+
+        plt.subplot(122)
+        for j in range(len(self.sensitivity_target)):
+            plt.plot(self.veffs[index[j]]/(m**3), self.needed_res_sigma[j][index[j]]/eV, label='90% CL = {} eV'.format(np.round(np.sqrt(np.sqrt(1.64)*self.sensitivity_target[j]),1)))
+        plt.xlabel('Effective Volume (m³)')
+        plt.ylabel('Uncertainty on total energy resolution (eV)')
+        plt.xscale('log')
+        #plt.yscale('log')
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig('res_vs_veff.pdf')
+        plt.savefig('res_vs_veff.png', dpi=300)
+
+
         plt.show()
         return True
 
@@ -189,7 +203,7 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
         if rho_opt == self.rhos[0] or rho_opt == self.rhos[-1]:
             raise ValueError('Optimum rho {} is on edge or range'.format(rho_opt*m**3))
 
-        result = minimize(self.SensVSrho, rho_opt)
+        result = minimize(self.SensVSrho, rho_opt, method='Nelder-Mead')
         if result.success:
             rho_opt = result.x[0]
 
@@ -204,9 +218,9 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
 
 
 
-        #result = minimize(self.DistanceToTargetVSBError, Berror_opt, args=(sensitivity_target))
-        #if result.success and result.x[0]>0:
-        #    Berror_opt = result.x[0]
+        result = minimize(self.DistanceToTargetVSBError, Berror_opt, args=(sensitivity_target), method='Nelder-Mead')
+        if result.success and result.x[0]>0:
+            Berror_opt = result.x[0]
 
         sig = self.BToKeErr(self.MagneticField.nominal_field*Berror_opt, self.MagneticField.nominal_field)
         self.MagneticField.usefixedvalue = True
@@ -224,21 +238,24 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
 
         neededBres = self.FindMaxAllowedBerror(sensitivity_target)
         labels, sigmas, deltas = self.get_systematics()
-        #b_sigma_tmp = (sigma_sys/4)**2
-        needed_total_sigma = 0
-        for i,l in enumerate(labels):
-            #print('\t', l, sigmas[i]/eV, deltas[i])
-            if l != 'Magnetic Field':
-                #b_sigma_tmp -= (sigmas[i]*deltas[i])**2
-                needed_total_sigma += sigmas[i]**2
-            else:
-                sigma_b_old = sigmas[i]
-                delta_b_old = deltas[i]
+        # #b_sigma_tmp = (sigma_sys/4)**2
+        # needed_total_sigma = 0
+        # for i,l in enumerate(labels):
+        #     #print('\t', l, sigmas[i]/eV, deltas[i])
+        #     if l != 'Magnetic Field':
+        #         #b_sigma_tmp -= (sigmas[i]*deltas[i])**2
+        #         needed_total_sigma += sigmas[i]**2
+        #     else:
+        #         sigma_b_old = sigmas[i]
+        #         delta_b_old = deltas[i]
 
-        needed_sigma_b = sigma_b_old #np.sqrt(b_sigma_tmp)/delta_b_old
-        needed_b = self.KeToBerr(needed_sigma_b, self.MagneticField.nominal_field)
-        needed_total_sigma = np.sqrt(needed_sigma_b**2 + needed_total_sigma)
-        return needed_b/self.MagneticField.nominal_field, needed_total_sigma
+        # needed_sigma_b = sigma_b_old #np.sqrt(b_sigma_tmp)/delta_b_old
+        needed_sigma_b = sigmas[np.where(labels=='Magnetic Field')]
+        needed_b_error = self.KeToBerr(needed_sigma_b, self.MagneticField.nominal_field)
+        # needed_total_sigma = np.sqrt(needed_sigma_b**2 + needed_total_sigma)
+        needed_total_sigma = np.sqrt(np.sum(sigmas**2))
+        needed_total_delta = np.sqrt(np.sum(deltas**2))
+        return needed_b_error/self.MagneticField.nominal_field, needed_total_sigma, needed_total_delta
 
 
 
