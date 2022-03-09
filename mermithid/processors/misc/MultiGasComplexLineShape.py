@@ -3455,6 +3455,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         bins_keV = ConversionFunctions.Energy(bins_Hz, B_field_fit)/1000
         bins_keV = ComplexLineShapeUtilities.flip_array(bins_keV)
         reduced_chi2 = m_binned.fval/(len(fit_Hz)-m_binned.nfit)
+        correlation_matrix = m_binned.covariance.correlation()
     
         if print_params == True:
             output_string = '\n'
@@ -3496,7 +3497,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
-        'reduced_chi2': reduced_chi2
+        'reduced_chi2': reduced_chi2,
+        'correlation_matrix': np.array(correlation_matrix)
         }
         
         return dictionary_of_fit_results
