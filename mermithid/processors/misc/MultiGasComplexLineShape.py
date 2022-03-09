@@ -3305,14 +3305,23 @@ class MultiGasComplexLineShape(BaseProcessor):
         'correlation_matrix': np.array(correlation_matrix)
         }
         return dictionary_of_fit_results
-
+        
+    def energy_loss_distribution_one_scatter(self, scatter_fraction):
+        p = np.zeros(len(self.gases))
+        p[0:-1] = scatter_fraction
+        p[-1] = 1 - sum(scatter_fraction)
+        en_array = self.std_eV_array()
+        energy_loss_one_scatter = en_array*0
+        for i in range(len(self.gases)):
+            energy_loss_one_scatter += p[i]*self.single_scatter_f(self.gases[i])
+        f_radiation_loss_one_scatter = self.radiation_loss_f()
+        energy_loss_one_scatter = self.normalize(signal.convolve(energy_loss_one_scatter, f_radiation_loss_one_scatter, mode = 'same'))
+        return energy_loss_one_scatter        
 
     def make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(self, gauss_FWHM_eV, survival_probability, scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='shake'):
         p = np.zeros(len(self.gases))
         p[0:-1] = scatter_fraction
         p[-1] = 1 - sum(scatter_fraction)
-        scatter_spectra_file_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy')
-        scatter_spectra = np.load(scatter_spectra_file_path, allow_pickle = True)
         en_array = self.std_eV_array()
         current_full_spectrum = np.zeros(len(en_array))
         if emitted_peak == 'lorentzian':
@@ -3321,26 +3330,53 @@ class MultiGasComplexLineShape(BaseProcessor):
             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
         elif emitted_peak == 'dirac':
             current_working_spectrum = self.std_dirac()
+        shake_spectrum = current_working_spectrum
         current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
         zeroth_order_peak = current_working_spectrum
         current_full_spectrum += zeroth_order_peak
+        energy_loss_distribution_one_scatter = self.energy_loss_distribution_one_scatter(scatter_fraction)
         N = len(self.gases)
         for M in range(1, self.max_scatters + 1):
-            scatter_peak_ratio = np.exp(-1.*scatter_peak_ratio_b*M**scatter_peak_ratio_c)
-            gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
-            for combination in gas_scatter_combinations:
-                #print(combination)
-                entry_str = ''
-                for component, gas_type in zip(combination, self.gases):
-                    entry_str += gas_type
-                    entry_str += str(component).zfill(2)
-                current_working_spectrum = scatter_spectra.item()[entry_str]
-                current_working_spectrum = self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
-                coefficient = factorial(sum(combination))
-                for component, i in zip(combination, range(N)):
-                    coefficient = coefficient/factorial(component)*p[i]**component
-                current_full_spectrum += coefficient*current_working_spectrum*scatter_peak_ratio*survival_probability**M
+            scatter_peak_ratio = np.exp(- scatter_peak_ratio_b*M**(-self.factor*scatter_peak_ratio_b + scatter_peak_ratio_c))
+            current_working_spectrum = self.normalize(signal.convolve(current_working_spectrum, energy_loss_distribution_one_scatter, mode = 'same'))
+            current_full_spectrum += current_working_spectrum*scatter_peak_ratio*survival_probability**M
         return current_full_spectrum
+
+
+#     def make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(self, gauss_FWHM_eV, survival_probability, scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='shake'):
+#         p = np.zeros(len(self.gases))
+#         p[0:-1] = scatter_fraction
+#         p[-1] = 1 - sum(scatter_fraction)
+#         scatter_spectra_file_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra.npy')
+#         scatter_spectra = np.load(scatter_spectra_file_path, allow_pickle = True)
+#         en_array = self.std_eV_array()
+#         current_full_spectrum = np.zeros(len(en_array))
+#         if emitted_peak == 'lorentzian':
+#             current_working_spectrum = self.std_lorenztian_17keV()
+#         elif emitted_peak == 'shake':
+#             current_working_spectrum = self.shakeSpectrumClassInstance.shake_spectrum()
+#         elif emitted_peak == 'dirac':
+#             current_working_spectrum = self.std_dirac()
+#         current_working_spectrum = self.convolve_gaussian(current_working_spectrum, gauss_FWHM_eV)
+#         zeroth_order_peak = current_working_spectrum
+#         current_full_spectrum += zeroth_order_peak
+#         N = len(self.gases)
+#         for M in range(1, self.max_scatters + 1):
+#             scatter_peak_ratio = np.exp(-1.*scatter_peak_ratio_b*M**scatter_peak_ratio_c)
+#             gas_scatter_combinations = np.array([np.array(i) for i in product(range(M+1), repeat=N) if sum(i)==M])
+#             for combination in gas_scatter_combinations:
+#                 #print(combination)
+#                 entry_str = ''
+#                 for component, gas_type in zip(combination, self.gases):
+#                     entry_str += gas_type
+#                     entry_str += str(component).zfill(2)
+#                 current_working_spectrum = scatter_spectra.item()[entry_str]
+#                 current_working_spectrum = self.normalize(signal.convolve(zeroth_order_peak, current_working_spectrum, mode='same'))
+#                 coefficient = factorial(sum(combination))
+#                 for component, i in zip(combination, range(N)):
+#                     coefficient = coefficient/factorial(component)*p[i]**component
+#                 current_full_spectrum += coefficient*current_working_spectrum*scatter_peak_ratio*survival_probability**M
+#         return current_full_spectrum
 
     def spectrum_func_gaussian_resolution_fit_scatter_peak_ratio(self, bins_Hz, eff_array, *p0):
     
@@ -3382,7 +3418,6 @@ class MultiGasComplexLineShape(BaseProcessor):
 
     def fit_data_gaussian_resolution_fit_scatter_peak_ratio(self, freq_bins, data_hist_freq, print_params=True):
         t = time.time()
-        self.check_existence_of_scatter_file()
         bins_Hz = freq_bins + self.RF_ROI_MIN
         bins_Hz = 0.5*(bins_Hz[1:] + bins_Hz[:-1])    
         quad_trap_interp = np.load(self.path_to_quad_trap_eff_interp, allow_pickle = True)
@@ -3503,17 +3538,17 @@ class MultiGasComplexLineShape(BaseProcessor):
         
         return dictionary_of_fit_results
     
-    def energy_loss_distribution_one_scatter(self, scatter_fraction):
-        p = np.zeros(len(self.gases))
-        p[0:-1] = scatter_fraction
-        p[-1] = 1 - sum(scatter_fraction)
-        en_array = self.std_eV_array()
-        energy_loss_one_scatter = en_array*0
-        for i in range(len(self.gases)):
-            energy_loss_one_scatter += p[i]*self.single_scatter_f(self.gases[i])
-        f_radiation_loss_one_scatter = self.radiation_loss_f()
-        energy_loss_one_scatter = self.normalize(signal.convolve(energy_loss_one_scatter, f_radiation_loss_one_scatter, mode = 'same'))
-        return energy_loss_one_scatter        
+#     def energy_loss_distribution_one_scatter(self, scatter_fraction):
+#         p = np.zeros(len(self.gases))
+#         p[0:-1] = scatter_fraction
+#         p[-1] = 1 - sum(scatter_fraction)
+#         en_array = self.std_eV_array()
+#         energy_loss_one_scatter = en_array*0
+#         for i in range(len(self.gases)):
+#             energy_loss_one_scatter += p[i]*self.single_scatter_f(self.gases[i])
+#         f_radiation_loss_one_scatter = self.radiation_loss_f()
+#         energy_loss_one_scatter = self.normalize(signal.convolve(energy_loss_one_scatter, f_radiation_loss_one_scatter, mode = 'same'))
+#         return energy_loss_one_scatter        
 
     def make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio2(self, scale_factor, survival_probability, scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, emitted_peak='shake'):
         p = np.zeros(len(self.gases))
