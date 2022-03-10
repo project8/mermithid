@@ -3704,9 +3704,9 @@ class MultiGasComplexLineShape(BaseProcessor):
             output_string += '-----------------\n'
             output_string += 'survival probability = {:.8e}'.format(survival_probability_fit) + ' +/- {:.8e}\n'.format(survival_probability_fit_err)
             output_string += '-----------------\n'
-            output_string += 'scatter_peak_ratio_b = {:.8e}'.format(scatter_peak_ratio_b_fit) + ' +/- {:.8e}\n'.format(scatter_peak_ratio_b_fit_err)
+            output_string += 'scatter_peak_ratio_p = {:.8e}'.format(scatter_peak_ratio_b_fit) + ' +/- {:.8e}\n'.format(scatter_peak_ratio_b_fit_err)
             output_string += '-----------------\n'
-            output_string += 'scatter_peak_ratio_c = {:.8e}'.format(scatter_peak_ratio_c_fit) + ' +/- {:.8e}\n'.format(scatter_peak_ratio_c_fit_err)
+            output_string += 'scatter_peak_ratio_q = {:.8e}'.format(scatter_peak_ratio_c_fit) + ' +/- {:.8e}\n'.format(scatter_peak_ratio_c_fit_err)
             output_string += '-----------------\n'
             # output_string += 'scale_factor1= {:.8e}'.format(scale_factor1_fit) + ' +/- {:.8e}\n'.format(scale_factor1_fit_err)
 #             output_string += '-----------------\n'
@@ -3727,10 +3727,10 @@ class MultiGasComplexLineShape(BaseProcessor):
         'B_field_fit_err': B_field_fit_err,
         'scale_factor_fit': scale_factor_fit,
         'scale_factor_fit_err': scale_factor_fit_err,
-        'scatter_peak_ratio_b_fit': scatter_peak_ratio_b_fit,
-        'scatter_peak_ratio_b_fit_err': scatter_peak_ratio_b_fit_err,
-        'scatter_peak_ratio_c_fit': scatter_peak_ratio_c_fit,
-        'scatter_peak_ratio_c_fit_err': scatter_peak_ratio_c_fit_err,
+        'scatter_peak_ratio_p_fit': scatter_peak_ratio_b_fit,
+        'scatter_peak_ratio_p_fit_err': scatter_peak_ratio_b_fit_err,
+        'scatter_peak_ratio_q_fit': scatter_peak_ratio_c_fit,
+        'scatter_peak_ratio_q_fit_err': scatter_peak_ratio_c_fit_err,
         'amplitude_fit': amplitude_fit,
         'amplitude_fit_err': amplitude_fit_err,
         'data_hist_freq': data_hist_freq,
