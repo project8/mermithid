@@ -266,6 +266,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 self.scatter_peak_ratio_p_index = self.model_parameter_names.index('scatter_peak_ratio_p')
             if 'scatter_peak_ratio_q' in self.model_parameter_names:
                 self.scatter_peak_ratio_q_index = self.model_parameter_names.index('scatter_peak_ratio_q')
+            if 'h2_fraction' in self.model_parameter_names:
+                self.h2_fraction_index = self.model_parameter_names.index('h2_fraction')
 
             self.spr_factor = reader.read_param(config_dict, 'SPR_factor', 0)
             self.scatter_peak_ratio_p_mean = reader.read_param(config_dict, 'scatter_peak_ratio_p_mean', 0.7)
@@ -1156,7 +1158,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         return lineshape, norm
 
-    def simplified_multi_gas_lineshape(self, K, Kcenter, FWHM, prob_b, prob_c=1):
+    def simplified_multi_gas_lineshape(self, K, Kcenter, FWHM, prob_b, prob_c=1, h2_fraction=1):
         """
         This uses Gaussians of different mu and sigma for different gases
         """
@@ -1208,7 +1210,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         #plt.plot(K, (shape + hydrogen_scattering)/np.max(shape + hydrogen_scattering), color='blue', label='hydrogen')
         #plt.plot(K, (shape + helium_scattering)/np.max(shape + helium_scattering), color='red', label='helium')
         # full lineshape
-        lineshape = self.hydrogen_proportion*hydrogen_scattering + (1-self.hydrogen_proportion)*helium_scattering
+        #lineshape = self.hydrogen_proportion*hydrogen_scattering + (1-self.hydrogen_proportion)*helium_scattering
+        lineshape = h2_fraction*hydrogen_scattering + (1-h2_fraction)*helium_scattering
 
         #plt.plot(K, lineshape/np.max(lineshape), color='black', label='full')
         #plt.xlim(-200, 200)
@@ -1334,6 +1337,11 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                     if self.fixed_parameters[self.scatter_peak_ratio_q_index]:
                         prob_c = self.scatter_peak_ratio_q
 
+                if 'h2_fraction' in self.model_parameter_names:
+                    h2_fraction = args[self.h2_fraction_index]
+                else:
+                    h2_fraction = self.hydrogen_proportion
+
                 # simplified lineshape
                 FWHM = 2.*np.sqrt(2.*np.log(2.))*res *self.width_scaling
 
@@ -1343,7 +1351,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                     if self.plot_lineshape:
                         logger.info('Using simplified lineshape model')
                 else:
-                    tail, norm = self.multi_gas_lineshape(e_lineshape, 0, FWHM, prob_b, prob_c)
+                    tail, norm = self.multi_gas_lineshape(e_lineshape, 0, FWHM, prob_b, prob_c, h2_fraction)
                     if self.plot_lineshape:
                         logger.info('Using two gas simplified lineshape model')
 
