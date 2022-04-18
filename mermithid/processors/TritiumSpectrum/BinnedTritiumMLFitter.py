@@ -23,6 +23,8 @@ from scipy import constants
 from scipy.special import erfc
 import matplotlib.pyplot as plt
 
+from scipy.interpolate import interp1d
+
 
 from morpho.utilities import morphologging, reader
 logger = morphologging.getLogger(__name__)
@@ -161,6 +163,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.fit_nu_mass = reader.read_param(config_dict, 'fit_neutrino_mass', False)
         self.use_relative_livetime_correction = reader.read_param(config_dict, 'use_relative_livetime_correction', False)
 
+        # save plots in (processor can plot lineshape used in tritium model)
+        self.savepath = reader.read_param(config_dict, 'savepath', '.')
+
         # detector response options
         self.NScatters = reader.read_param(config_dict, 'NScatters', 20)
         self.resolution_model = reader.read_param(config_dict, 'resolution_model', 'gaussian')
@@ -169,6 +174,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.helium_lineshape_path = reader.read_param(config_dict, 'helium_lineshape_path', "optional")
         self.hydrogen_proportion = reader.read_param(config_dict, 'hydrogen_proportion', 1)
         self.use_helium_scattering = reader.read_param(config_dict, 'use_helium_scattering', False)
+        self.use_frequency_dependent_lineshape = reader.read_param(config_dict, 'use_frequency_dependent_lineshape', True)
         self.correlated_p_q_scale = reader.read_param(config_dict, 'correlated_p_q_scale', False)
         self.derived_two_gaussian_model = reader.read_param(config_dict, 'derived_two_gaussian_model', True)
 
@@ -310,9 +316,19 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.use_final_states = reader.read_param(config_dict, 'use_final_states', False)
         self.final_state_array = reader.read_param(config_dict, 'final_states_array', [[0], [1]])
 
+        #self.max_final_state_energy_loss = np.max(np.abs(self.final_state_array[0]))
+        #self.final_states_interp = interp1d(self.final_state_array[0]-np.max(self.final_state_array[0]), self.final_state_array[1], bounds_error=False, fill_value=0)
+        #max_energy = self.max_final_state_energy_loss
+        #dE = 1
+        #n_dE = round(max_energy/dE)
+        #e_lineshape = np.arange(-n_dE*dE, n_dE*dE, dE)
+        #plt.figure()
+        #plt.plot(e_lineshape, self.final_states_interp(e_lineshape))
+        #plt.yscale('log')
+        #plt.savefig(os.path.join(self.savepath,'final_states_interp.png'), dpi=300)
 
-        # save plots in (processor can plot lineshape used in tritium model)
-        self.savepath = reader.read_param(config_dict, 'savepath', '.')
+
+
 
 
         # individual model parameter configurations
@@ -327,7 +343,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         # frequency an energy range
         self.min_frequency = reader.read_param(config_dict, 'min_frequency', "required")
         self.max_frequency = reader.read_param(config_dict, 'max_frequency', None)
-        self.max_energy = reader.read_param(config_dict, 'resolution_energy_max', 1200)
+        self.max_energy = reader.read_param(config_dict, 'resolution_energy_max', 1000)
 
         # path to json with efficiency dictionary
         self.efficiency_file_path = reader.read_param(config_dict, 'efficiency_file_path', '')
@@ -339,6 +355,16 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.channel_livetimes = reader.read_param(config_dict, 'channel_livetimes', [7185228, 7129663, 7160533])
         self.channel_relative_livetimes = np.array(self.channel_livetimes)/ np.max(self.channel_livetimes)
 
+        # freqeuncy dependent detector response
+        self.ins_res_bounds_freq = reader.read_param(config_dict, 'ins_res_bounds_freq', [])
+        self.scatter_factor_bounds = self.Energy(self.ins_res_bounds_freq)
+        self.p_factors = np.array(reader.read_param(config_dict, 'p_factors', [1]))
+        self.q_factors = np.array(reader.read_param(config_dict, 'q_factors', [1]))
+        self.width_factors = np.array(reader.read_param(config_dict, 'res_width_factors', [1]))
+
+        #self.scatter_factor_bounds = np.sort(self.Energy([25.90*10**9, 25.91*10**9, 25.92*10**9, 25.925*10**9, 25.93*10**9, 25.94*10**9, 25.96*10**9, 25.965*10**9, 25.9675*10**9, 25.968*10**9, 25.97*10**9, 25.98*10**9]))
+        #self.p_factors = np.flip([0.9983968696582269, 1.0241234738781622, 1.074069218435362, 1.1880615082443595, 0.7630526168402478, 0.9252229133675792, 1.0099495204807443, 1.0305682175456141, 1.754449151085981, 1.0427487909986666, 1.0074967873980396, 0.8585656489155274, 0.9830120037530994])
+        #self.q_factors = np.flip([0.9961848753897812, 0.9911348282030333, 1.003671359578592, 0.9575276167823439, 1.022755464502686, 1.0139235105836255, 0.9964227505579599, 0.9854455059345174, 0.9613799082228937, 1.0068195698448816, 0.9995181762199474, 1.0273166210271425, 1.0054718471162767])
 
 
 
@@ -761,7 +787,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         converts frequency in Hz to energy in eV
         """
         emass = constants.electron_mass/constants.e*constants.c**2
-        gamma = (constants.e*self.B)/(2.0*np.pi*constants.electron_mass) * 1./(f+mixfreq)
+        gamma = (constants.e*self.B)/(2.0*np.pi*constants.electron_mass) * 1./(np.array(f)+mixfreq)
 
         return (gamma -1.)*emass
 
@@ -1001,16 +1027,24 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         """
 
         if self.use_final_states:
-            N_states = len(self.final_state_array[0])
-            Q_states = Q+self.final_state_array[0]-np.max(self.final_state_array[0])
+             N_states = len(self.final_state_array[0])
+             Q_states = Q+self.final_state_array[0]-np.max(self.final_state_array[0])
 
-            #index = [np.where(((Q_states[i]-E)**2-m_nu_squared > 0) & (Q_states[i]-E > 0)) for i in range(N_states)]
-            #index = [np.where(E < Q_states[i] -mnu) for i in range(N_states)]
-            beta_rates_array = [self.beta_rates(E, Q_states[i], m_nu_squared)#, index[i])
-                                * self.final_state_array[1][i]
-                                 for i in range(N_states)]
+             #index = [np.where(((Q_states[i]-E)**2-m_nu_squared > 0) & (Q_states[i]-E > 0)) for i in range(N_states)]
+             #index = [np.where(E < Q_states[i] -mnu) for i in range(N_states)]
+             beta_rates_array = [self.beta_rates(E, Q_states[i], m_nu_squared)#, index[i])
+                                 * self.final_state_array[1][i]
+                                  for i in range(N_states)]
 
-            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])
+             spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])
+
+
+            # max_energy = self.max_final_state_energy_loss
+            # dE = self.energies[1]-self.energies[0]#E[1]-E[0]
+            # n_dE = round(max_energy/dE)
+            # e_lineshape = np.arange(-n_dE*dE, n_dE*dE, dE)
+            # spectrum_nomfs = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*self.beta_rates(E, Q, m_nu_squared)
+            # spectrum = convolve(spectrum_nomfs, self.final_states_interp(e_lineshape), mode='same')
 
         else:
 
@@ -1084,6 +1118,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         z = (mu+gamma*sigma**2+K)/(np.sqrt(2)*sigma)
         f = np.exp(gamma*(mu+K+gamma*sigma**2/2.))*erfc(z)
         return f/np.sum(f)
+
+
+
 
     def more_accurate_simplified_multi_gas_lineshape(self, K, Kcenter, FWHM, prob_b, prob_c=1):
         """
@@ -1162,8 +1199,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         """
         This uses Gaussians of different mu and sigma for different gases
         """
+
         if self.plot_lineshape:
-            logger.info('Using gaussian multi gas scattering')
+            logger.info('Using simplified lineshape. Hydrogen proportion is {}'.format(self.hydrogen_proportion))
 
         p0, p1, p2, p3 = self.lineshape_p[1], self.lineshape_p[3], self.lineshape_p[5], self.lineshape_p[7]
         q0, q1, q2, q3 = self.helium_lineshape_p[1], self.helium_lineshape_p[3], self.helium_lineshape_p[5], self.helium_lineshape_p[7]
@@ -1171,9 +1209,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
         sig0 = FWHM/float(2*np.sqrt(2*np.log(2)))
-        if sig0 < 6:
-            logger.warning('Scatter resolution < 6 eV. Setting to 6 eV')
-            sig0 = 6
+        #if sig0 < 6:
+        #    logger.warning('Scatter resolution {} < 6 eV. Setting to 6 eV'.format(sig0))
+        #    sig0 = 6
         #shape = self.gauss_resolution_f(K, 1, sig0, Kcenter)
         #shape = np.zeros(len(K))
         norm = 1.
@@ -1182,6 +1220,10 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         helium_scattering = np.zeros(len(K))
 
         #plt.figure(figsize=(10,10))
+
+        #scatter_peaks = np.array([[self.gauss_resolution_f(K, 1, p2[i]+p3[i]*sig0, -p0[i]+p1[i]*sig0+Kcenter)*self.mode_exp_scatter_peak_ratio(prob_b, prob_c, i+1),
+        #                    self.gauss_resolution_f(K, 1, q2[i]+q3[i]*sig0, -q0[i]+q1[i]*sig0+Kcenter)*self.mode_exp_scatter_peak_ratio(prob_b, prob_c, i+1)] for i in range(self.NScatters)])
+
 
         for i in range(self.NScatters):
 
@@ -1224,11 +1266,49 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         plt.plot(K, lineshape_rates/np.max(lineshape_rates), label='complex lineshape', color='purple', linestyle='--')
         return lineshape_rates"""
 
+    def scatter_peaks(self, K, Kcenter, FWHM):
+
+        if self.plot_lineshape:
+            logger.info('Using simplified scatter peaks.')
+
+        p0, p1, p2, p3 = self.lineshape_p[1], self.lineshape_p[3], self.lineshape_p[5], self.lineshape_p[7]
+        q0, q1, q2, q3 = self.helium_lineshape_p[1], self.helium_lineshape_p[3], self.helium_lineshape_p[5], self.helium_lineshape_p[7]
+
+
+
+        sig0 = FWHM/float(2*np.sqrt(2*np.log(2)))
+        #if sig0 < 6:
+        #    logger.warning('Scatter resolution {} < 6 eV. Setting to 6 eV'.format(sig0))
+        #    sig0 = 6
+        #shape = self.gauss_resolution_f(K, 1, sig0, Kcenter)
+        #shape = np.zeros(len(K))
+        norm = 1.
+        #hydrogen_scattering = np.array([self.gauss_resolution_f(K, 1, p2[i]+p3[i]*sig0, (-p0[i]+p1[i]*sig0)+Kcenter) for i in range(self.NScatters)])
+        #helium_scattering = np.array([self.gauss_resolution_f(K, 1, q2[i]+q3[i]*sig0, (-q0[i]+q1[i]*sig0)+Kcenter) for i in range(self.NScatters)])
+
+        hydrogen_scattering = np.zeros((self.NScatters, len(K)))
+        helium_scattering = np.zeros((self.NScatters, len(K)))
+
+
+        for i in range(self.NScatters):
+
+            # hydrogen scattering
+            mu = -p0[i]+p1[i]*sig0
+            sig = p2[i]+p3[i]*sig0
+            hydrogen_scattering[i] = self.gauss_resolution_f(K, 1, sig, mu+Kcenter)
+
+            # helium scattering
+            mu_he = -q0[i]+q1[i]*sig0
+            sig_he = q2[i]+q3[i]*sig0
+            helium_scattering[i] = self.gauss_resolution_f(K, 1, sig_he, mu_he+Kcenter)
+
+        return hydrogen_scattering, helium_scattering
 
     def running_mean(self, x, N):
         N_round = round(N)
         cumsum = np.cumsum(x)
         return (cumsum[int(N_round)::int(N_round)] - cumsum[:-int(N_round):int(N_round)]) / float(N_round)
+
 
 
     def TritiumSpectrum(self, E=[], *args, error=False):#endpoint=18.6e3, m_nu=0., prob_b=None, prob_c=None, res=None, sig1=None, sig2=None, tilt=0., error=False):
@@ -1323,6 +1403,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 #K_convolved = K_convolved[e_spec>=np.min(self.energies)]
 
 
+
             if self.is_scattered:
                 # scatter params
                 if 'scatter_peak_ratio_p' not in self.model_parameter_names:
@@ -1345,25 +1426,54 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 # simplified lineshape
                 FWHM = 2.*np.sqrt(2.*np.log(2.))*res *self.width_scaling
 
-                # get lineshape
+                # add tail
                 if not self.use_helium_scattering:
                     tail, norm =  self.simplified_ls(e_lineshape, 0, FWHM, prob_b, prob_c)
+                    lineshape += tail
+                    lineshape = lineshape/norm
+                    K_convolved = convolve(spec, lineshape, mode='same')
                     if self.plot_lineshape:
                         logger.info('Using simplified lineshape model')
+
+                elif self.use_frequency_dependent_lineshape:
+                    Kbounds = [e_spec[0]] + list(self.scatter_factor_bounds) + [e_spec[-1]]
+
+                    peaks = [self.scatter_peaks(e_lineshape, 0, FWHM*self.width_factors[i]) for i in range(len(self.p_factors))]
+                    #hydrogen_peaks, helium_peaks = self.scatter_peaks(e_lineshape, 0, FWHM)
+                    scatter_peak_ratios = [self.mode_exp_scatter_peak_ratio(prob_b*self.p_factors[j], prob_c*self.q_factors[j], np.arange(self.NScatters)+1) for j in range(len(self.p_factors))]
+                    norms = np.sum(scatter_peak_ratios, axis=1)
+
+                    lineshape = np.array([self.derived_two_gaussian_resolution(e_lineshape, res*self.width_factors[i], two_gaussian_mu_1, two_gaussian_mu_2) for i in range(len(self.p_factors))])
+                    hydrogen_tail = np.array([np.sum(np.multiply(peaks[i][0], scatter_peak_ratios[i][:, None]), axis=0)*h2_fraction for i in range(len(self.p_factors))])
+                    helium_tail = np.array([np.sum(peaks[i][1]*scatter_peak_ratios[i][:, None], axis=0)*(1-h2_fraction) for i in range(len(self.p_factors))])
+                    detector_response = (hydrogen_tail+helium_tail+lineshape)/norms[:,None]
+
+
+
+                    #tails_and_norms = [self.multi_gas_lineshape(e_lineshape, 0, FWHM, prob_b*self.p_factors[i], prob_c*self.q_factors[i], h2_fraction) for i in range(len(self.p_factors))]
+                    K_convolved_segments = [convolve(spec, detector_response[i], mode='same')[np.logical_and(Kbounds[i]<=e_spec, e_spec<=Kbounds[i+1])] for i in range(len(self.p_factors))]
+
+                    K_convolved = np.concatenate(K_convolved_segments, axis=None)
+
+                    if self.plot_lineshape:
+                        logger.info('Using two gas simplified lineshape model with frequency dependent p & q')
+                        lineshape = detector_response[0]
                 else:
                     tail, norm = self.multi_gas_lineshape(e_lineshape, 0, FWHM, prob_b, prob_c, h2_fraction)
+                    lineshape += tail
+                    lineshape = lineshape/norm
+                    K_convolved = convolve(spec, lineshape, mode='same')
                     if self.plot_lineshape:
                         logger.info('Using two gas simplified lineshape model')
 
-                lineshape += tail
-                lineshape = lineshape/norm
+                try:
+                    K_convolved = np.interp(self.energies, e_spec, K_convolved)
+                except Exception as e:
+                    print(np.shape(Kbounds))
+                    print(np.shape(self.p_factors))
+                    print(np.shape(e_spec), np.shape(K_convolved), np.shape(spec),np.shape(detector_response))
+                    raise e
 
-                # lineshape done now convolve
-                K_convolved = convolve(spec, lineshape, mode='same')
-                below_Kmin = np.where(e_spec < min(self.energies))
-                #np.put(K_convolved, below_Kmin, np.zeros(len(below_Kmin)))
-                K_convolved = np.interp(self.energies, e_spec, K_convolved)
-                #K_convolved = K_convolved[e_spec>=np.min(self.energies)]
 
 
             #logger.info('Plotting lineshape now: {}'.format(self.plot_lineshape))
