@@ -86,6 +86,8 @@ class BinnedDataFitter(BaseProcessor):
             logger.info('Data is unbinned. Will histogram before fitting.')
             self.hist, _ = np.histogram(self.data[self.namedata], self.bins)
 
+        logger.info('Total counts: {}'.format(np.sum(self.hist)))
+
         result_array, error_array = self.fit()
 
         # save results
@@ -108,6 +110,27 @@ class BinnedDataFitter(BaseProcessor):
         return f
 
 
+    def setup_minuit(self):
+
+        self.m_binned = Minuit(self.negPoissonLogLikelihood,
+                                      self.initial_values,
+                                      name=self.parameter_names,
+                                      )
+
+        self.m_binned.errordef = 0.5
+        self.m_binned.errors = self.parameter_errors
+        self.m_binned.throw_nan = True
+        self.m_binned.print_level = self.print_level
+
+        for i, name in enumerate(self.parameter_names):
+            if name in self.fixes_dict.keys():
+                self.m_binned.fixed[name]= self.fixes_dict[name]
+                #logger.info('Fixing {}'.format(name))
+            else:
+                self.m_binned.fixed[name] = self.fixes[i]
+            self.m_binned.limits[name] = self.limits[i]
+
+
 
     def fit(self):
         # Now minimize neg log likelihood using iMinuit
@@ -123,53 +146,37 @@ class BinnedDataFitter(BaseProcessor):
             logger.info('Constraint means: {}'.format(self.constrained_means))
             logger.info('Constraint widths: {}'.format(self.constrained_widths))
 
-        m_binned = Minuit(self.negPoissonLogLikelihood,
-                                      self.initial_values,
-                                      name=self.parameter_names,
-                                      )
 
-        m_binned.errordef = 0.5
-        m_binned.errors = self.parameter_errors
-        m_binned.throw_nan = True
-        m_binned.print_level = self.print_level
-
-        for i, name in enumerate(self.parameter_names):
-            if name in self.fixes_dict.keys():
-                m_binned.fixed[name]= self.fixes_dict[name]
-                #logger.info('Fixing {}'.format(name))
-            else:
-                m_binned.fixed[name] = self.fixes[i]
-            m_binned.limits[name] = self.limits[i]
-
+        self.setup_minuit()
         # minimze
-        m_binned.simplex().migrad()
+        self.m_binned.simplex().migrad()
         #m_binned.hesse()
         #m_binned.minos()
         #self.param_states = m_binned.get_param_states()
         #logger.info(self.param_states)
-        self.m_binned = m_binned
+
 
         # results
-        result_array = np.array(m_binned.values)
-        error_array = np.array(m_binned.errors)
+        result_array = np.array(self.m_binned.values)
+        error_array = np.array(self.m_binned.errors)
 
         if self.minos_intervals:
             self.minos_errors = {}
             for mcl in self.minos_cls:
                 logger.info('Getting minos errors for CL = {}'.format(mcl))
                 try:
-                    m_binned.minos(cl=mcl)
+                    self.m_binned.minos(cl=mcl)
                 except RuntimeError as e:
-                    print(m_binned.params)
+                    print(self.m_binned.params)
                     raise e
                 self.minos_errors[mcl] = {}
                 if self.print_level:
-                    logger.info(m_binned.merrors)
-                for k in m_binned.merrors.keys():
-                    self.minos_errors[mcl][k] = {'interval': [m_binned.merrors[k].lower, m_binned.merrors[k].upper],
-                                                 'number': m_binned.merrors[k].number,
-                                                 'name': m_binned.merrors[k].name,
-                                                 'is_valid': m_binned.merrors[k].is_valid}
+                    logger.info(self.m_binned.merrors)
+                for k in self.m_binned.merrors.keys():
+                    self.minos_errors[mcl][k] = {'interval': [self.m_binned.merrors[k].lower, self.m_binned.merrors[k].upper],
+                                                 'number': self.m_binned.merrors[k].number,
+                                                 'name': self.m_binned.merrors[k].name,
+                                                 'is_valid': self.m_binned.merrors[k].is_valid}
 
         if self.print_level == 1:
             logger.info('Fit results: {}'.format(result_array))
