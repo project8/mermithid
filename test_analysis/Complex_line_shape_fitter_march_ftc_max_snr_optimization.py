@@ -66,8 +66,8 @@ class ComplexLineShapeTests(unittest.TestCase):
             'fit_recon_eff': False,
             #parameters for simulated resolution scaled with scatter peak ratio fitted
             #choose the parameters you want to fix from ['B field','amplitude', 'width scale factor', 'survival probability','scatter peak ratio param b', 'scatter peak ratio param c'] plus the gas scatter fractions as ['H2 scatter fraction'],
-            'fixed_parameter_names': ['survival probability', 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'], #, 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'
-            'fixed_parameter_values': [1.0, 1.0, (0.411+0.992)/2, 0.579/2, (0.003+0.007)/2],   #[1.0, 1.0, 0.886, 0.02, 0.06]   
+            'fixed_parameter_names': ['survival probability', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'], #, 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'
+            'fixed_parameter_values': [1.0, (0.411+0.992)/2, 0.579/2, (0.003+0.007)/2],   #[1.0, 1.0, 0.886, 0.02, 0.06]   
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 4000,
@@ -76,7 +76,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             'shake_spectrum_parameters_json_path': '/home/ys633/lineshape_fitting/mermithid/mermithid/misc/shake_spectrum_parameters.json',
             'path_to_osc_strengths_files': '/home/ys633/lineshape_fitting/mermithid_share/',
             'path_to_scatter_spectra_file': '/home/ys633/lineshape_fitting/mermithid_share/',
-            'path_to_ins_resolution_data_txt': '/home/ys633/lineshape_fitting/mermithid_share/March_FTC_resolution/all_res_cf15.200.txt',
+            'path_to_ins_resolution_data_txt': '/home/ys633/lineshape_fitting/mermithid_share/March_FTC_resolution/all_res_cf15.300.txt',
             'rad_loss_path':'/home/ys633/lineshape_fitting/mermithid_share/',
             'path_to_quad_trap_eff_interp':'/home/ys633/lineshape_fitting/mermithid_share/quad_interps.npy'
         }
@@ -107,49 +107,47 @@ class ComplexLineShapeTests(unittest.TestCase):
 #                         '18.000']
 #        f_array = np.arange(0.4, 0.61, 0.01)
 #        for f in [0.4626]:
+        max_snr_array = np.arange(12.0, 18.0, 0.1)
         f = 0.4955
         output_dict = {}
-#            for i in range(10, 11):
+        for max_snr in max_snr_array:
+            complexLineShape_config['path_to_ins_resolution_data_txt'] = '/home/ys633/lineshape_fitting/mermithid_share/March_FTC_resolution/all_res_cf{:.3f}.txt'.format(max_snr)
 
-#                 complexLineShape_config['path_to_ins_resolution_data_txt'] = '/home/ys633/lineshape_fitting/res_stat_March_ftc/res_stat_{}.txt'.format(i)
-#                 if i == 10:
-        complexLineShape_config['path_to_ins_resolution_data_txt'] = '/home/ys633/lineshape_fitting/mermithid_share/averaged_resolutions/averaged_march_resolution.txt'
+    #        complexLineShape_config['fixed_parameter_values'] = fixed_para_values
+        
+            complexLineShape_config['factor'] = f
 
-#        complexLineShape_config['fixed_parameter_values'] = fixed_para_values
-    
-        complexLineShape_config['factor'] = f
+            complexLineShape.Configure(complexLineShape_config)       
 
-        complexLineShape.Configure(complexLineShape_config)       
+            complexLineShape.data = data
 
-        complexLineShape.data = data
+            complexLineShape.Run()
 
-        complexLineShape.Run()
+            results = complexLineShape.results
 
-        results = complexLineShape.results
+            logger.info(results['output_string'])
+            logger.info('\n'+str(results['correlation_matrix']))
 
-        logger.info(results['output_string'])
-        logger.info('\n'+str(results['correlation_matrix']))
-
-        # plot fit with shake spectrum
-        plt.rcParams.update({'font.size': 15})
-        plt.figure(figsize=(15,9))
-        plt.step(
-        results['bins_Hz']/1e9, results['data_hist_freq'],
-        label = 'data\n total counts = {}\n'.format(len(data['StartFrequency']))
-        )
-        plt.plot(results['bins_Hz']/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
-        plt.legend(loc = 'upper left', fontsize = 12)
-        plt.xlabel('frequency GHz')
-        if complexLineShape_config['resolution_function'] == 'simulated_resolution_scaled_fit_scatter_peak_ratio2':
-            plot_title = 'data file:{},\n gases: {},\n resolution function: {}({}),\n fixed parameters:\n {}'.format(os.path.basename(reader_config['filename']),complexLineShape_config['gases'], complexLineShape_config['resolution_function'], os.path.basename(complexLineShape_config['path_to_ins_resolution_data_txt']), complexLineShape_config['fixed_parameter_names'])
-        if complexLineShape_config['resolution_function'] == 'gaussian_resolution_fit_scatter_peak_ratio':
-            plot_title = 'data file:{},\n gases: {},\n resolution function: {},\n fixed parameters:\n {}'.format(os.path.basename(reader_config['filename']),complexLineShape_config['gases'], complexLineShape_config['resolution_function'], complexLineShape_config['fixed_parameter_names'])
-        plt.title(plot_title)
-        plt.tight_layout()
-        #plt.savefig('/host/plots/fit_FTC_march_with_simulated_resolution_cf{}_sp_1.0_width_factor_1.0.png'.format(file_cf))
-        plt.savefig('/home/ys633/lineshape_fitting/plots/fit_March_FTC_with_max_snr_15.200_factor_0.4955_new_gas_fraction.png')# March_FTC
-        output_dict['max snr 15.200'] = results
-        np.save('/home/ys633/lineshape_fitting/mermithid_share/fit_March_FTC_max_snr_15.200_factor_0.4955_new_gas_fraction.npy'.format(f), output_dict)
+            # plot fit with shake spectrum
+            plt.rcParams.update({'font.size': 15})
+            plt.figure(figsize=(15,9))
+            plt.step(
+            results['bins_Hz']/1e9, results['data_hist_freq'],
+            label = 'data\n total counts = {}\n'.format(len(data['StartFrequency']))
+            )
+            plt.plot(results['bins_Hz']/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
+            plt.legend(loc = 'upper left', fontsize = 12)
+            plt.xlabel('frequency GHz')
+            if complexLineShape_config['resolution_function'] == 'simulated_resolution_scaled_fit_scatter_peak_ratio2':
+                plot_title = 'data file:{},\n gases: {},\n resolution function: {}({}),\n fixed parameters:\n {}'.format(os.path.basename(reader_config['filename']),complexLineShape_config['gases'], complexLineShape_config['resolution_function'], os.path.basename(complexLineShape_config['path_to_ins_resolution_data_txt']), complexLineShape_config['fixed_parameter_names'])
+            if complexLineShape_config['resolution_function'] == 'gaussian_resolution_fit_scatter_peak_ratio':
+                plot_title = 'data file:{},\n gases: {},\n resolution function: {},\n fixed parameters:\n {}'.format(os.path.basename(reader_config['filename']),complexLineShape_config['gases'], complexLineShape_config['resolution_function'], complexLineShape_config['fixed_parameter_names'])
+            plt.title(plot_title)
+            plt.tight_layout()
+            #plt.savefig('/host/plots/fit_FTC_march_with_simulated_resolution_cf{}_sp_1.0_width_factor_1.0.png'.format(file_cf))
+            plt.savefig('/home/ys633/lineshape_fitting/plots/fit_March_FTC_with_max_snr_optimization_factor_0.4955_new_gas_fraction_{:.3f}.png'.format(max_snr))# March_FTC
+            output_dict['max snr {:.3f}'.format(max_snr)] = results
+        np.save('/home/ys633/lineshape_fitting/mermithid_share/fit_March_FTC_max_snr_optimization_factor_0.4955_new_gas_fraction.npy', output_dict)
 
 #             output_dict = np.load('/host/march_res_stat_upper_lower_bounds.npy', allow_pickle = True)
 #             output_dict = output_dict.item()
