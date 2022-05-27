@@ -313,24 +313,28 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
                 lineshape_rates.append(np.flipud(complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(scale_factors[i], ls_params[1], scatter_peak_ratio_p*p_factors[i], scatter_peak_ratio_q*q_factors[i], scatter_fraction, emitted_peak='dirac')))
         elif resolution_function == 'gaussian_resolution' or resolution_function == 'gaussian':
             logger.warn("Scatter peak ratio function for lineshape with Gaussian resolution may not be up-to-date!")
-            lineshape_rates = complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, emitted_peak='dirac')
+            gaussian_widths = [ls_params[0]*f for f in ins_res_width_factors]
+            lineshape_rates = [np.flipud(complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(gaussian_widths[i], ls_params[1], scatter_peak_ratio_p*p_factors[i], scatter_peak_ratio_q*q_factors[i], scatter_fraction, emitted_peak='dirac')) for i in range(len(gaussian_widths))]
         else:
             logger.warn('{} is not a resolution function that has been implemented in the FakeDataGenerator'.format(resolution_function))
 
     below_Kmin = np.where(K < Kmin)
 
     #Convolving
-    if (lineshape=='detailed_scattering' or lineshape=='detailed') and (resolution_function == 'simulated_resolution' or resolution_function == 'simulated'):
+    if (lineshape=='detailed_scattering' or lineshape=='detailed'):# and (resolution_function == 'simulated_resolution' or resolution_function == 'simulated'):
         convolved_segments = []
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
+        plt.figure(figsize=(7,5))
         for j in range(len(lineshape_rates)):
             #beta_rates = spectral_rate(K_segments[j], Q, mnu, final_state_array)
+            plt.plot(lineshape_rates[j])
             convolved_j = convolve(beta_rates, lineshape_rates[j], mode='same')
             np.put(convolved_j, below_Kmin, np.zeros(len(below_Kmin)))
             #Only including the part of convolved_j that corresponds to the right values of K
             convolved_segments.append(convolved_j[np.logical_and(Kbounds[j]<=K, K<=Kbounds[j+1])])
             #convolved.append(convolved_j)
         convolved = np.concatenate(convolved_segments, axis=None)
+        plt.savefig('varied_lineshapes.png', dpi=200)
     elif resolution_function=='gaussian':
         lineshape_rates = np.flipud(lineshape_rates)
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
@@ -341,7 +345,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
         convolved = convolve(beta_rates, lineshape_rates, mode='same')
         np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
-    
+
     return convolved
 
 

@@ -136,15 +136,15 @@ class BinnedDataFitter(BaseProcessor):
         # Now minimize neg log likelihood using iMinuit
         if self.print_level > 0:
             logger.info('This is the plan:')
-            logger.info('Fitting data consisting of {} elements'.format(np.sum(self.hist)))
-            logger.info('Fit parameters: {}'.format(self.parameter_names))
-            logger.info('Initial values: {}'.format(self.initial_values))
-            logger.info('Initial error: {}'.format(self.parameter_errors))
-            logger.info('Limits: {}'.format(self.limits))
-            logger.info('Fixed in fit: {}'.format(self.fixes))
-            logger.info('Constrained parameters: {}'.format([self.parameter_names[i] for i in self.constrained_parameters]))
-            logger.info('Constraint means: {}'.format(self.constrained_means))
-            logger.info('Constraint widths: {}'.format(self.constrained_widths))
+            logger.info('\tFitting data consisting of {} elements'.format(np.sum(self.hist)))
+            logger.info('\tFit parameters: {}'.format(self.parameter_names))
+            logger.info('\tInitial values: {}'.format(self.initial_values))
+            logger.info('\tInitial error: {}'.format(self.parameter_errors))
+            logger.info('\tLimits: {}'.format(self.limits))
+            logger.info('\tFixed in fit: {}'.format(self.fixes))
+            logger.info('\tConstrained parameters: {}'.format([self.parameter_names[i] for i in self.constrained_parameters]))
+            logger.info('\tConstraint means: {}'.format(self.constrained_means))
+            logger.info('\tConstraint widths: {}'.format(self.constrained_widths))
 
 
         self.setup_minuit()

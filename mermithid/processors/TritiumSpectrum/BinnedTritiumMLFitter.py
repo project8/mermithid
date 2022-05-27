@@ -97,7 +97,7 @@ def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
 
     T = BinnedTritiumMLFitter("TritiumFitter")
     T.InternalConfigure(fit_config_dict)
-    T.print_level=1
+    #T.print_level=1
     #T.error_scaling = error_scaling
     T.integrate_bins = True
     logger.info('Energy stepsize: {}'.format(T.denergy))
@@ -360,6 +360,10 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.scatter_factor_bounds = self.Energy(self.ins_res_bounds_freq)
         self.p_factors = np.array(reader.read_param(config_dict, 'p_factors', [1]))
         self.q_factors = np.array(reader.read_param(config_dict, 'q_factors', [1]))
+        self.p_factors_mean = np.array(reader.read_param(config_dict, 'p_factors_mean', [1]))
+        self.q_factors_mean = np.array(reader.read_param(config_dict, 'q_factors_mean', [1]))
+        self.p_factors_width = np.array(reader.read_param(config_dict, 'p_factors_width', [1]))
+        self.q_factors_width = np.array(reader.read_param(config_dict, 'q_factors_width', [1]))
         self.width_factors = np.array(reader.read_param(config_dict, 'res_width_factors', [1]))
 
         #self.scatter_factor_bounds = np.sort(self.Energy([25.90*10**9, 25.91*10**9, 25.92*10**9, 25.925*10**9, 25.93*10**9, 25.94*10**9, 25.96*10**9, 25.965*10**9, 25.9675*10**9, 25.968*10**9, 25.97*10**9, 25.98*10**9]))
@@ -680,7 +684,10 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
     # =========================================================================
     def Gaussian_sample(self, mean, width):
         np.random.seed()
-        return np.random.randn()*width+mean
+        if isinstance(width, list):
+            return np.random.randn(len(width))*width+mean
+        else:
+            return np.random.randn()*width+mean
 
     def Beta_sample(self, mean, width):
         np.random.seed()
@@ -769,6 +776,12 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.parameter_samples['endpoint'] = self.endpoint
             self.fix_endpoint = True
             sample_values.append(self.endpoint)
+        if 'frequency_dependent_response' in sampled_parameters.keys() and sampled_parameters['frequency_dependent_response']:
+            self.p_factors = self.Gaussian_sample(self.p_factors_mean, self.p_factors_width)
+            self.q_factors = self.Gaussian_sample(self.q_factors_mean, self.q_factors_width)
+            sample_values.extend([np.mean(self.p_factors), np.mean(self.q_factors)])
+            self.use_frequency_dependent_lineshape = True
+
 
         logger.info('Samples are: {}'.format(sample_values))
         #logger.info('Fit parameters: \n{}\nFixed: {}'.format(self.parameter_names, self.fixes))
