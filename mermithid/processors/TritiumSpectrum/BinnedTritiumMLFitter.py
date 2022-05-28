@@ -21,6 +21,7 @@ from copy import deepcopy
 import numpy as np
 from scipy import constants
 from scipy.special import erfc
+from scipy.signal import convolve
 import matplotlib.pyplot as plt
 
 from scipy.interpolate import interp1d
@@ -30,7 +31,7 @@ from morpho.utilities import morphologging, reader
 logger = morphologging.getLogger(__name__)
 
 from mermithid.processors.Fitters import BinnedDataFitter
-from mermithid.misc.FakeTritiumDataFunctions import *
+from mermithid.misc.FakeTritiumDataFunctions import fermi_func, pe, Ee, GF, Vud, Mnuc2
 from mermithid.processors.misc.KrComplexLineShape import KrComplexLineShape
 from mermithid.misc.DetectionEfficiencyUtilities import pseudo_integrated_efficiency, integrated_efficiency, power_efficiency
 
@@ -176,6 +177,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.use_helium_scattering = reader.read_param(config_dict, 'use_helium_scattering', False)
         self.use_frequency_dependent_lineshape = reader.read_param(config_dict, 'use_frequency_dependent_lineshape', True)
         self.correlated_p_q_scale = reader.read_param(config_dict, 'correlated_p_q_scale', False)
+        self.correlated_p_q = reader.read_param(config_dict, 'correlated_p_q', False)
         self.derived_two_gaussian_model = reader.read_param(config_dict, 'derived_two_gaussian_model', True)
 
 
@@ -288,15 +290,18 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.scatter_peak_ratio_q = self.scatter_peak_ratio_q_mean
 
             #Adding correlated parameters (will later incorporate into morpho processor)
-            self.b_c_corr = reader.read_param(config_dict, 'b_c_corr', 0)
-            self.b_scale_corr = reader.read_param(config_dict, 'b_scale_corr', 0)
-            self.c_scale_corr = reader.read_param(config_dict, 'c_scale_corr', 0)
+            self.p_q_corr = reader.read_param(config_dict, 'p_q_corr', 0)
+            self.p_scale_corr = reader.read_param(config_dict, 'p_scale_corr', 0)
+            self.q_scale_corr = reader.read_param(config_dict, 'q_scale_corr', 0)
 
 
             stds = [self.scatter_peak_ratio_p_width, self.scatter_peak_ratio_q_width, self.scale_width]
-            self.b_c_scale_cov_matrix =  [[stds[0]**2, self.b_c_corr*stds[0]*stds[1], self.b_scale_corr*stds[0]*stds[2]],
-                                          [self.b_c_corr*stds[1]*stds[0], stds[1]**2, self.c_scale_corr*stds[1]*stds[2]],
-                                          [self.b_scale_corr*stds[2]*stds[0], self.c_scale_corr*stds[2]*stds[1], stds[2]**2]]
+            self.p_q_scale_cov_matrix =  [[stds[0]**2, self.p_q_corr*stds[0]*stds[1], self.p_scale_corr*stds[0]*stds[2]],
+                                          [self.p_q_corr*stds[1]*stds[0], stds[1]**2, self.q_scale_corr*stds[1]*stds[2]],
+                                          [self.p_scale_corr*stds[2]*stds[0], self.q_scale_corr*stds[2]*stds[1], stds[2]**2]]
+
+            self.p_q_cov_matrix = [[stds[0]**2, self.p_q_corr*stds[0]*stds[1]],
+                                    [self.p_q_corr*stds[1]*stds[0], stds[1]**2]]
 
 
 
@@ -392,8 +397,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         # Parameters can be constrained manually or by inlcuding them in the nuisance parameter dictionary
         #self.constrained_parameter_names = reader.read_param(config_dict, 'constrained_parameter_names', [])
         self.constrained_parameters = reader.read_param(config_dict, 'constrained_parameters', [])
-        self.constrained_means = list(np.array(self.model_parameter_means)[self.constrained_parameters])#reader.read_param(config_dict, 'constrained_means', [])
-        self.constrained_widths = list(np.array(self.model_parameter_widths)[self.constrained_parameters])#reader.read_param(config_dict, 'constrained_widths', [])
+        self.constrained_means = np.array(self.model_parameter_means)[self.constrained_parameters]#reader.read_param(config_dict, 'constrained_means', [])
+        self.constrained_widths = np.array(self.model_parameter_widths)[self.constrained_parameters]#reader.read_param(config_dict, 'constrained_widths', [])
 
 
         self.nuisance_parameters = reader.read_param(config_dict, 'nuisance_parameters', {})
@@ -402,10 +407,17 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             if p in self.nuisance_parameters.keys():
                 if self.nuisance_parameters[p]:
                     self.constrained_parameters.append(i)
-                    self.constrained_means.append(self.model_parameter_means[i])
-                    self.constrained_widths.append(self.model_parameter_widths[i])
+                    self.constrained_means = np.append(self.constrained_means, self.model_parameter_means[i])
+                    self.constrained_widths = np.append(self.constrained_widths, self.model_parameter_widths[i])
             if i in self.constrained_parameters:
                 self.fixed_parameters[i] = False
+
+        if self.correlated_p_q:
+            self.correlated_parameters = [self.scatter_peak_ratio_p_index, self.scatter_peak_ratio_q_index]
+            self.cov_matrix = self.p_q_cov_matrix
+        else:
+            self.correlated_parameters = []
+
 
 
         # MC uncertainty propagation does not need the fit uncertainties returned by iminuit. uncertainties are instead obtained from the distribution of fit results.
@@ -614,6 +626,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.parameter_errors = [max([0.1, p]) for p in self.model_parameter_widths]
 
 
+
         # else:
         #     logger.warning('Efficiency tilt will be fitted')
         #     self.tilted_efficiency = True
@@ -733,39 +746,39 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         if 'scatter_peak_ratio' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio']:
             self.scatter_peak_ratio_p = self.Beta_sample(self.scatter_peak_ratio_mean, self.scatter_peak_ratio_width)
             self.scatter_peak_ratio_q = 1
-            self.fix_scatter_ratio_b = True
-            self.fix_scatter_ratio_c = True
+            #self.fix_scatter_ratio_b = True
+            #self.fix_scatter_ratio_c = True
             self.parameter_samples['scatter_peak_ratio'] = self.scatter_peak_ratio_p
             sample_values.append(self.scatter_peak_ratio_p)
 
-        if self.correlated_p_q_scale and 'scatter_peak_ratio_p' in sampled_parameters.keys() and 'scatter_peak_ratio_q' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_p'] and sampled_parameters['scatter_peak_ratio_q']:
-            logger.info('Correlated b, c, scale sampling')
-            correlated_vars = np.random.multivariate_normal([self.scatter_peak_ratio_p_mean, self.scatter_peak_ratio_q_mean, self.scale_mean], self.b_c_scale_cov_matrix)
+        if self.correlated_p_q and 'scatter_peak_ratio_p' in sampled_parameters.keys() and 'scatter_peak_ratio_q' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_p'] and sampled_parameters['scatter_peak_ratio_q']:
+            logger.info('Correlated p, q, scale sampling')
+            correlated_vars = np.random.multivariate_normal([self.scatter_peak_ratio_p_mean, self.scatter_peak_ratio_q_mean], self.p_q_cov_matrix)
             self.scatter_peak_ratio_p = correlated_vars[0]
             self.scatter_peak_ratio_q = correlated_vars[1]
-            self.width_scaling = correlated_vars[2]
+            #self.width_scaling = correlated_vars[2]
 
-            self.fix_scatter_ratio_b = True
+            #self.fix_scatter_ratio_b = True
             self.parameter_samples['scatter_peak_ratio_p'] = self.scatter_peak_ratio_p
             sample_values.append(self.scatter_peak_ratio_p)
 
             self.parameter_samples['scatter_peak_ratio_q'] = self.scatter_peak_ratio_q
             sample_values.append(self.scatter_peak_ratio_q)
-            self.fix_scatter_ratio_c = True
+            #self.fix_scatter_ratio_c = True
 
         else:
 
             if 'scatter_peak_ratio_p' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_p']:
                 logger.info('Uncorrelated b, c, scale sampling')
                 self.scatter_peak_ratio_p = self.Gamma_sample(self.scatter_peak_ratio_p_mean, self.scatter_peak_ratio_p_width)
-                self.fix_scatter_ratio_b = True
+                #self.fix_scatter_ratio_b = True
                 self.parameter_samples['scatter_peak_ratio_p'] = self.scatter_peak_ratio_p
                 sample_values.append(self.scatter_peak_ratio_p)
             if 'scatter_peak_ratio_q' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_q']:
                 self.scatter_peak_ratio_q = self.Gamma_sample(self.scatter_peak_ratio_q_mean, self.scatter_peak_ratio_q_width)
                 self.parameter_samples['scatter_peak_ratio_q'] = self.scatter_peak_ratio_q
                 sample_values.append(self.scatter_peak_ratio_q)
-                self.fix_scatter_ratio_c = True
+                #self.fix_scatter_ratio_c = True
 
         if 'B' in sampled_parameters.keys() and sampled_parameters['B']:
             self.B = self.Gaussian_sample(self.B_mean, self.B_width)
@@ -1002,34 +1015,6 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         return spectrum
 
-    # def chopped_approximate_spectrum(self, E, Q, m_nu_squared):
-
-    #     if self.use_final_states:
-    #         N_states = len(self.final_state_array[0])
-    #         Q_states = Q+self.final_state_array[0]-np.max(self.final_state_array[0])
-    #         approximate_e_phase_space = self.ephasespace(E, Q)
-
-    #         beta_rates_array = [self.beta_rates(E, Q_states[i], m_nu_squared)#, index[i])
-    #                             * self.final_state_array[1][i]
-    #                             * approximate_e_phase_space for i in range(N_states)]
-
-    #         spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])
-
-    #     else:
-    #         approximate_e_phase_space = self.ephasespace(E, Q)
-    #         beta_rates_array = self.beta_rates(E, Q, m_nu_squared) * approximate_e_phase_space
-    #         spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3) * beta_rates_array
-
-    #     channel_a_index = np.where((E<self.channel_energy_edges[0][0]) & (E>self.channel_energy_edges[0][1]))
-    #     channel_b_index = np.where((E<self.channel_energy_edges[1][0]) & (E>self.channel_energy_edges[1][1]))
-    #     channel_c_index = np.where((E<self.channel_energy_edges[2][0]) & (E>self.channel_energy_edges[2][1]))
-
-    #     spectrum[channel_a_index] = spectrum[channel_a_index]*self.channel_relative_livetimes[0]
-    #     spectrum[channel_b_index] = spectrum[channel_b_index]*self.channel_relative_livetimes[1]
-    #     spectrum[channel_c_index] = spectrum[channel_c_index]*self.channel_relative_livetimes[2]
-
-    #     return spectrum
-
 
     def approximate_spectrum(self, E, Q, m_nu_squared=0):
         """
@@ -1049,9 +1034,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                                  * self.final_state_array[1][i]
                                   for i in range(N_states)]
 
-             spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])
+             spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])#*self.ephasespace(E, Q)
 
-
+            # convolve final state spectrum
             # max_energy = self.max_final_state_energy_loss
             # dE = self.energies[1]-self.energies[0]#E[1]-E[0]
             # n_dE = round(max_energy/dE)
@@ -1060,9 +1045,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             # spectrum = convolve(spectrum_nomfs, self.final_states_interp(e_lineshape), mode='same')
 
         else:
-
-            #approximate_e_phase_space = self.ephasespace(E, Q)
-            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*self.beta_rates(E, Q, m_nu_squared)
+            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*self.beta_rates(E, Q, m_nu_squared)#*self.ephasespace(E, Q)
 
         if self.use_relative_livetime_correction:
             # scale spectrum in frequency ranges according to channel livetimes

@@ -62,8 +62,10 @@ class BinnedDataFitter(BaseProcessor):
         self.binned_data = reader.read_param(params, 'binned_data', False)
         self.print_level = reader.read_param(params, 'print_level', 1)
         self.constrained_parameters = reader.read_param(params, 'constrained_parameter_indices', [])
-        self.constrained_means = reader.read_param(params, 'constrained_parameter_means', [])
-        self.constrained_widths = reader.read_param(params, 'constrained_parameter_widths', [])
+        self.constrained_means = np.array(reader.read_param(params, 'constrained_parameter_means', []))
+        self.constrained_widths = np.array(reader.read_param(params, 'constrained_parameter_widths', []))
+        self.correlated_parameters = reader.read_param(params, 'correlated_parameter_indices', [])
+        self.cov_matrix = np.array(reader.read_param(params, 'covariance_matrix', []))
         self.minos_cls = reader.read_param(params, 'minos_confidence_level_list', [])
         self.minos_intervals = reader.read_param(params,'find_minos_intervals', False)
 
@@ -145,6 +147,8 @@ class BinnedDataFitter(BaseProcessor):
             logger.info('\tConstrained parameters: {}'.format([self.parameter_names[i] for i in self.constrained_parameters]))
             logger.info('\tConstraint means: {}'.format(self.constrained_means))
             logger.info('\tConstraint widths: {}'.format(self.constrained_widths))
+            logger.info('\tCorrelated parameters: {}'.format([self.parameter_names[i] for i in self.correlated_parameters]))
+
 
 
         self.setup_minuit()
@@ -220,6 +224,17 @@ class BinnedDataFitter(BaseProcessor):
         # constrained parameters
         if len(self.constrained_parameters) > 0:
             for i, param in enumerate(self.constrained_parameters):
-                neg_ll += 0.5 * ((params[param] - self.constrained_means[i])/ self.constrained_widths[i])**2
+                # only do uncorrelated parameters
+                if not param in self.correlated_parameters:
+                    neg_ll += 0.5 * ((params[param] - self.constrained_means[i])/ self.constrained_widths[i])**2 + 0.5*np.log(2*np.pi) + np.log(self.constrained_widths[i])
+
+        if len(self.correlated_parameters) > 0:
+            dim = len(self.correlated_parameters)
+            constrained_indices = np.in1d(self.constrained_parameters, self.correlated_parameters).nonzero()[0]
+            param_indices = self.correlated_parameters
+            neg_ll += 0.5*(np.log(np.linalg.det(self.cov_matrix)) + \
+                    np.dot(np.transpose(np.subtract(params[param_indices], self.constrained_means[constrained_indices])), \
+                        np.dot(np.linalg.inv(self.cov_matrix), np.subtract(params[param_indices], self.constrained_means[constrained_indices]))) + \
+                            dim*np.log(2*np.pi))
 
         return neg_ll
