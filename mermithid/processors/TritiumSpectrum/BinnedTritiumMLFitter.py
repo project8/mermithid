@@ -412,7 +412,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             if i in self.constrained_parameters:
                 self.fixed_parameters[i] = False
 
-        if self.correlated_p_q:
+        if self.is_scattered and self.correlated_p_q:
             self.correlated_parameters = [self.scatter_peak_ratio_p_index, self.scatter_peak_ratio_q_index]
             self.cov_matrix = self.p_q_cov_matrix
         else:
