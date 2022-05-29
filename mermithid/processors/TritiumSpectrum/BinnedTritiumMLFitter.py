@@ -659,12 +659,19 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
     def SampleConvertAndFit(self, sampled_parameters={}, params= []):
 
+
         # for systematic MC uncertainty propagation: Generate Asimov data to fit with random model
         if self.use_asimov:
             #temp = self.error_scaling
             #self.error_scaling = 0
             #self._bin_efficiency, self._bin_efficiency_error = self.Efficiency(self.bin_centers, pseudo=True)
-            self.hist = self.TritiumSpectrumBackground(self.bin_centers, *params)
+            if 'frequency_dependent_response_in_asimov' in sampled_parameters.keys() and sampled_parameters['frequency_dependent_response_in_asimov']:
+                self.use_frequency_dependent_lineshape = True
+                self.SampleFrequencyDependence()
+                self.hist = self.TritiumSpectrumBackground(self.bin_centers, *params)
+                self.use_frequency_dependent_lineshape = False
+            else:
+                self.hist = self.TritiumSpectrumBackground(self.bin_centers, *params)
             #self.error_scaling = temp
 
         # sample priors that are to be sampled
@@ -790,8 +797,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.fix_endpoint = True
             sample_values.append(self.endpoint)
         if 'frequency_dependent_response' in sampled_parameters.keys() and sampled_parameters['frequency_dependent_response']:
-            self.p_factors = self.Gaussian_sample(self.p_factors_mean, self.p_factors_width)
-            self.q_factors = self.Gaussian_sample(self.q_factors_mean, self.q_factors_width)
+            self.SampleFrequencyDependence()
             sample_values.extend([np.mean(self.p_factors), np.mean(self.q_factors)])
             self.use_frequency_dependent_lineshape = True
 
@@ -803,6 +809,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
         return self.parameter_samples
 
+    def SampleFrequencyDependence(self):
+        self.p_factors = self.Gaussian_sample(self.p_factors_mean, self.p_factors_width)
+        self.q_factors = self.Gaussian_sample(self.q_factors_mean, self.q_factors_width)
 
     # =========================================================================
     # Frequency - Energy conversion
@@ -1000,13 +1009,13 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             nu_mass_shape_squared = (Q - K)**2 -m_nu_squared
             index = np.where((nu_mass_shape_squared>0) & (Q_minus_K>0))
             nu_mass_shape = np.sqrt(nu_mass_shape_squared[index])
-            spectrum[index] = (Q_minus_K[index])*nu_mass_shape*self.ephasespace(K[index], Q)
+            spectrum[index] = (Q_minus_K[index])*nu_mass_shape#*self.ephasespace(K[index], Q)
         else:
             # mainz shape for negative mbeta**2
             k_squared = -m_nu_squared
             mu = 0.66*np.sqrt(k_squared)
             index = np.where(Q_minus_K+mu>0)
-            spectrum[index] = (Q_minus_K[index]+mu*np.exp(-1-Q_minus_K[index]/mu))*np.sqrt(Q_minus_K[index]**2+k_squared)*self.ephasespace(K[index], Q)
+            spectrum[index] = (Q_minus_K[index]+mu*np.exp(-1-Q_minus_K[index]/mu))*np.sqrt(Q_minus_K[index]**2+k_squared)#*self.ephasespace(K[index], Q)
         #else:
         #    # lanl shape for negative mbeta**2
         #    k_squared = -m_nu_squared
@@ -1034,7 +1043,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                                  * self.final_state_array[1][i]
                                   for i in range(N_states)]
 
-             spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])#*self.ephasespace(E, Q)
+             spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.nansum(beta_rates_array, axis=0)/np.nansum(self.final_state_array[1])*self.ephasespace(E, Q)
 
             # convolve final state spectrum
             # max_energy = self.max_final_state_energy_loss
@@ -1045,7 +1054,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             # spectrum = convolve(spectrum_nomfs, self.final_states_interp(e_lineshape), mode='same')
 
         else:
-            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*self.beta_rates(E, Q, m_nu_squared)#*self.ephasespace(E, Q)
+            spectrum = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*self.beta_rates(E, Q, m_nu_squared)*self.ephasespace(E, Q)
 
         if self.use_relative_livetime_correction:
             # scale spectrum in frequency ranges according to channel livetimes
