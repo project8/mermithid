@@ -314,7 +314,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.B_index = self.model_parameter_names.index('B')
         self.fixed_parameters[self.m_beta_index] = not self.fit_nu_mass
         self.endpoint=reader.read_param(config_dict, 'true_endpoint', 18.573e3)
-        logger.info('Tritium model parameters: {}'.format(np.array(self.model_parameter_names)[self.tritium_model_indices]))
+        #logger.info('Tritium model parameters: {}'.format(np.array(self.model_parameter_names)[self.tritium_model_indices]))
 
 
         # final state spectrum

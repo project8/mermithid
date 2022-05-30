@@ -233,8 +233,8 @@ class BinnedDataFitter(BaseProcessor):
             constrained_indices = np.in1d(self.constrained_parameters, self.correlated_parameters).nonzero()[0]
             param_indices = self.correlated_parameters
             neg_ll += 0.5*(np.log(np.linalg.det(self.cov_matrix)) + \
-                    np.dot(np.transpose(np.subtract(params[param_indices], self.constrained_means[constrained_indices])), \
-                        np.dot(np.linalg.inv(self.cov_matrix), np.subtract(params[param_indices], self.constrained_means[constrained_indices]))) + \
+                    np.dot(np.transpose(np.subtract(params[param_indices], np.array(self.constrained_means)[constrained_indices])), \
+                        np.dot(np.linalg.inv(self.cov_matrix), np.subtract(params[param_indices], np.array(self.constrained_means)[constrained_indices]))) + \
                             dim*np.log(2*np.pi))
 
         return neg_ll
