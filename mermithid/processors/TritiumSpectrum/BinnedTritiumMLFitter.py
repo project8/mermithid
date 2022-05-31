@@ -173,7 +173,6 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.lineshape_model = reader.read_param(config_dict, 'lineshape_model', 'simplified')
         self.simplified_lineshape_path = reader.read_param(config_dict, 'simplified_lineshape_path', "required")
         self.helium_lineshape_path = reader.read_param(config_dict, 'helium_lineshape_path', "optional")
-        self.hydrogen_proportion = reader.read_param(config_dict, 'hydrogen_proportion', 1)
         self.use_helium_scattering = reader.read_param(config_dict, 'use_helium_scattering', False)
         self.use_frequency_dependent_lineshape = reader.read_param(config_dict, 'use_frequency_dependent_lineshape', True)
         self.correlated_p_q_scale = reader.read_param(config_dict, 'correlated_p_q_scale', False)
@@ -282,12 +281,15 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.scatter_peak_ratio_p_width = reader.read_param(config_dict, 'scatter_peak_ratio_p_width', 0.1)
             self.scatter_peak_ratio_q_mean = reader.read_param(config_dict, 'scatter_peak_ratio_q_mean', 0.7)
             self.scatter_peak_ratio_q_width = reader.read_param(config_dict, 'scatter_peak_ratio_q_width', 0.1)
+            self.h2_fraction_mean = reader.read_param(config_dict, 'h2_fraction_mean', 1.0)
+            self.h2_fraction_width = reader.read_param(config_dict, 'h2_fraction_width', 0.0)
 
             self.scatter_peak_ratio_mean = reader.read_param(config_dict, 'scatter_peak_ratio_mean', 0.5)
             self.scatter_peak_ratio_width = reader.read_param(config_dict, 'scatter_peak_ratio_width', 0.1)
 
             self.scatter_peak_ratio_p = self.scatter_peak_ratio_p_mean
             self.scatter_peak_ratio_q = self.scatter_peak_ratio_q_mean
+            self.h2_fraction = self.h2_fraction_mean
 
             #Adding correlated parameters (will later incorporate into morpho processor)
             self.p_q_corr = reader.read_param(config_dict, 'p_q_corr', 0)
@@ -497,7 +499,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 'max_scatters': self.NScatters,
                 'fix_scatter_proportion': True,
                 # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
-                'gas1_scatter_proportion': self.hydrogen_proportion,
+                'gas1_scatter_proportion': self.h2_fraction,
                 # This is an important parameter which determines how finely resolved
                 # the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to
                 # be increased for larger datasets.
@@ -742,6 +744,12 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             #    self.res = 30.01/float(2*np.sqrt(2*np.log(2)))
             self.parameter_samples['resolution'] = self.res
             sample_values.append(self.res)
+        if 'h2_fraction' in sampled_parameters.keys() and sampled_parameters['h2_fraction']:
+            self.h2_fraction = self.Gaussian_sample(self.h2_fraction_mean, self.h2_fraction_width)
+            if self.h2_fraction > 1: self.h2_fraction=1
+            elif self.h2_fraction < 0: self.h2_fraction=0
+            self.parameter_samples['h2_fraction'] = self.h2_fraction
+            sample_values.append(self.h2_fraction)
         if 'two_gaussian_sigma_1' in sampled_parameters.keys() and sampled_parameters['two_gaussian_sigma_1']:
             self.two_gaussian_sigma_1 = self.Gaussian_sample(self.two_gaussian_sigma_1_mean, self.two_gaussian_sigma_1_width)
             self.parameter_samples['two_gaussian_sigma_1'] = self.two_gaussian_sigma_1
@@ -1127,12 +1135,12 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
 
-    def more_accurate_simplified_multi_gas_lineshape(self, K, Kcenter, FWHM, prob_b, prob_c=1):
+    def more_accurate_simplified_multi_gas_lineshape(self, K, Kcenter, FWHM, prob_b, prob_c=1, h2_fraction=1):
         """
         Still a simplified lineshape but helium is not just a gaussian
         """
         if self.plot_lineshape:
-            logger.info('Using more accurate multi gas scattering. Hydrogen proportion is {}'.format(self.hydrogen_proportion))
+            logger.info('Using more accurate multi gas scattering. Hydrogen proportion is {}'.format(self.h2_fraction))
 
 
         p0, p1, p2, p3 = self.lineshape_p[1], self.lineshape_p[3], self.lineshape_p[5], self.lineshape_p[7]
@@ -1191,8 +1199,8 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         #norm_h = np.sum(shape0 + hydrogen_scattering)
         #norm_he = np.sum(shape0 + helium_scattering)
 
-        lineshape = (self.hydrogen_proportion*(shape0 + hydrogen_scattering)/norm_h +
-                     (1-self.hydrogen_proportion)*(shape0 + helium_scattering)/norm_he)
+        lineshape = (h2_fraction*(shape0 + hydrogen_scattering)/norm_h +
+                     (1-h2_fraction)*(shape0 + helium_scattering)/norm_he)
 
         #plt.plot(K, lineshape/np.max(lineshape), color='darkgreen', label='full: {} hydrogen'.format(self.hydrogen_proportion))
         #plt.xlim(-200, 200)
@@ -1206,7 +1214,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         """
 
         if self.plot_lineshape:
-            logger.info('Using simplified lineshape. Hydrogen proportion is {}'.format(self.hydrogen_proportion))
+            logger.info('Using simplified lineshape. Hydrogen proportion is {}'.format(h2_fraction))
 
         p0, p1, p2, p3 = self.lineshape_p[1], self.lineshape_p[3], self.lineshape_p[5], self.lineshape_p[7]
         q0, q1, q2, q3 = self.helium_lineshape_p[1], self.helium_lineshape_p[3], self.helium_lineshape_p[5], self.helium_lineshape_p[7]
@@ -1426,7 +1434,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 if 'h2_fraction' in self.model_parameter_names:
                     h2_fraction = args[self.h2_fraction_index]
                 else:
-                    h2_fraction = self.hydrogen_proportion
+                    h2_fraction = self.h2_fraction
 
                 # simplified lineshape
                 FWHM = 2.*np.sqrt(2.*np.log(2.))*res *self.width_scaling
