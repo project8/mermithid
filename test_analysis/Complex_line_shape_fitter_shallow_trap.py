@@ -6,7 +6,10 @@ Date: 4/8/20
 
 import numpy as np
 import unittest
+import sys
+sys.path.remove('/home/ys633/.local/lib/python3.6/site-packages')
 import matplotlib.pyplot as plt
+sys.path.append('/home/ys633/.local/lib/python3.6/site-packages')
 import ROOT as r
 import os
 from scipy import integrate , signal, interpolate
@@ -136,9 +139,9 @@ class ComplexLineShapeTests(unittest.TestCase):
         plt.title(plot_title)
         plt.tight_layout()
         #plt.savefig('/host/plots/fit_FTC_march_with_simulated_resolution_cf{}_sp_1.0_width_factor_1.0.png'.format(file_cf))
-        plt.savefig('/home/ys633/lineshape_fitting/plots/fit_HSST_with_simulated_resolution_factor_0.4955_max_snr_{}_fit_H2_and_He_averaged_resolution.png'.format(max_snr))
+        plt.savefig('/home/ys633/lineshape_fitting/plots/fit_HSST_with_simulated_resolution_factor_0.4955_max_snr_{}_fit_H2_and_He_averaged_resolution_venso_peak_position.png'.format(max_snr))
         output_dict['max snr {}'.format(max_snr)] = results
-        np.save('/home/ys633/lineshape_fitting/mermithid_share/results_HSST_max_snr_{}_factor_0.4955_fit_H2_and_He_averaged_resolution.npy'.format(max_snr), output_dict)
+        np.save('/home/ys633/lineshape_fitting/mermithid_share/results_HSST_max_snr_{}_factor_0.4955_fit_H2_and_He_averaged_resolution_venso_peak_position.npy'.format(max_snr), output_dict)
             #output_file.write('H2 fraction: {}, He fraction: {}, b: {}, b_err: {}, c: {}, c_err: {}\n'.format(complexLineShape_config['fixed_parameter_values'][2], complexLineShape_config['fixed_parameter_values'][3], results['scatter_peak_ratio_b_fit'], results['scatter_peak_ratio_b_fit_err'], results['scatter_peak_ratio_c_fit'], results['scatter_peak_ratio_c_fit_err']))
         #output_file.close()
 

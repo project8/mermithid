@@ -6,7 +6,10 @@ Date: 4/8/20
 
 import numpy as np
 import unittest
+import sys
+sys.path.remove('/home/ys633/.local/lib/python3.6/site-packages')
 import matplotlib.pyplot as plt
+sys.path.append('/home/ys633/.local/lib/python3.6/site-packages')
 import ROOT as r
 import os
 from scipy import integrate , signal, interpolate
@@ -117,6 +120,14 @@ class ComplexLineShapeTests(unittest.TestCase):
         Ar_max = 0.104
         Kr_min = 0.022
         Kr_max = 0.045
+        # H2_min = 0
+        # H2_max = 1
+        # He_min = 0
+        # He_max = 1
+        # Ar_min = 0
+        # Ar_max = 1
+        # Kr_min = 0
+        # Kr_max = 1
 
         a = np.random.uniform(H2_min, H2_max, N)
         b = np.random.uniform(He_min, He_max, N)
@@ -135,7 +146,7 @@ class ComplexLineShapeTests(unittest.TestCase):
 
         for i, H2_fraction, He_fraction, Ar_fraction, Kr_fraction  in zip(range(301), a_list[0:301], b_list[0:301], c_list[0:301], d_list[0:301]):
 
-            complexLineShape_config['path_to_ins_resolution_data_txt'] = '/home/ys633/lineshape_fitting/mermithid_share/October_FTC_resolution/all_res_cf14.300.txt'
+            complexLineShape_config['path_to_ins_resolution_data_txt'] = '/home/ys633/lineshape_fitting/mermithid_share/averaged_resolutions/averaged_october_resolution.txt'
 
             logger.info('{} {} {} {} {}'.format(H2_fraction, He_fraction, Ar_fraction, Kr_fraction, H2_fraction+ He_fraction+ Ar_fraction + Kr_fraction))
 
@@ -171,9 +182,9 @@ class ComplexLineShapeTests(unittest.TestCase):
             plt.title(plot_title)
             plt.tight_layout()
             #plt.savefig('/host/plots/fit_FTC_march_with_simulated_resolution_cf{}_sp_1.0_width_factor_1.0.png'.format(file_cf))
-            plt.savefig('/home/ys633/lineshape_fitting/plots/fit_October_FTC_with_max_snr_14.300_factor_{}_gas_fraction_variation_{}.png'.format(f, i))# March_FTC
+            plt.savefig('/home/ys633/lineshape_fitting/plots/fit_October_FTC_with_max_snr_14.300_factor_{}_gas_fraction_variation_average_resolution_{}.png'.format(f, i))# March_FTC
             output_dict['max snr 14.300 factor {} gas fraction variation {} H2 fraction {} He fraction {} Ar fraction {}'.format(f, i, H2_fraction, He_fraction, Ar_fraction)] = results
-        np.save('/home/ys633/lineshape_fitting/mermithid_share/october_max_snr_14.300_factor_0.4955_gas_composition_variation.npy', output_dict)
+        np.save('/home/ys633/lineshape_fitting/mermithid_share/october_max_snr_14.300_factor_0.4955_gas_composition_variation_average_resolution.npy', output_dict)
 
 #             output_dict = np.load('/host/march_res_stat_upper_lower_bounds.npy', allow_pickle = True)
 #             output_dict = output_dict.item()
