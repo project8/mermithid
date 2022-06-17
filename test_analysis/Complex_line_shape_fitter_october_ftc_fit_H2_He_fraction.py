@@ -37,7 +37,7 @@ class ComplexLineShapeTests(unittest.TestCase):
 
         complexLineShape_config = {
             'bins_choice': np.linspace(0e6, 100e6, 1000),
-            'gases': ["H2", "He", "Ar", "Kr"], # "Ar", "Kr" # "Kr" for fss ["H2", "He", "Ar", "Kr"]
+            'gases': ["Ar", "Kr", "H2", "He"], # "Ar", "Kr" # "Kr" for fss ["H2", "He", "Ar", "Kr"]
             'fix_gas_composition': True,
             'fix_width_scale_factor': False,
             'scatter_fractions_for_gases': [0.817, 0.07, 0.08],
@@ -69,8 +69,8 @@ class ComplexLineShapeTests(unittest.TestCase):
             'fit_recon_eff': False,
             #parameters for simulated resolution scaled with scatter peak ratio fitted
             #choose the parameters you want to fix from ['B field','amplitude', 'width scale factor', 'survival probability','scatter peak ratio param b', 'scatter peak ratio param c'] plus the gas scatter fractions as ['H2 scatter fraction'],
-            'fixed_parameter_names': ['survival probability', 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'], #, 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'
-            'fixed_parameter_values': [1.0, 1.0, (0.233+0.913)/2, 0.674/2, (0.051+0.104)/2],   #[1.0, 1.0, 0.886, 0.02, 0.06]   
+            'fixed_parameter_names': ['survival probability', 'width scale factor', 'Ar scatter fraction', 'Kr scatter fraction'], #, 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'
+            'fixed_parameter_values': [1.0, 1.0, (0.051+0.104)/2, (0.004+0.009)/2],   #[1.0, 1.0, 0.886, 0.02, 0.06]   
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 4000,
@@ -148,9 +148,9 @@ class ComplexLineShapeTests(unittest.TestCase):
         plt.title(plot_title)
         plt.tight_layout()
         #plt.savefig('/host/plots/fit_FTC_march_with_simulated_resolution_cf{}_sp_1.0_width_factor_1.0.png'.format(file_cf))
-        plt.savefig('/home/ys633/lineshape_fitting/plots/fit_October_FTC_with_new_gas_fraction.png')# March_FTC
+        plt.savefig('/home/ys633/lineshape_fitting/plots/fit_October_FTC_with_new_gas_fraction_fit_H2_He_fraction.png')# March_FTC
         output_dict['october max snr 14.300'] = results
-        np.save('/home/ys633/lineshape_fitting/mermithid_share/october_max_snr_14.300_factor_0.4955_new_gas_fraction.npy', output_dict)
+        np.save('/home/ys633/lineshape_fitting/mermithid_share/october_max_snr_14.300_factor_0.4955_new_gas_fraction_fit_H2_He_fraction.npy', output_dict)
 #             time.sleep(600)
 #             output_file = open('/host/october_res_upper_and_lower_bounds_results.txt', 'a')
 #             output_file.write('{}\n\n {}\n\n\n'.format('lower bound', results['output_string']))

@@ -90,6 +90,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
         self.RF_ROI_MIN = reader.read_param(params, 'RF_ROI_MIN', 25850000000.0)
+        self.Kr_K_line_eV = reader.read_param(params, 'Kr_K_line_eV', Constants.kr_k_line_e())
         self.base_shape = reader.read_param(params, 'base_shape', 'shake')
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
         self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
@@ -321,7 +322,7 @@ class MultiGasComplexLineShape(BaseProcessor):
             else:
                 f[i] = ComplexLineShapeUtilities.aseev_func_tail(energy_loss_array[i], gas_type)
 
-        f_e_loss = ComplexLineShapeUtilities.get_eloss_spec(energy_loss_array, f, Constants.kr_k_line_e())
+        f_e_loss = ComplexLineShapeUtilities.get_eloss_spec(energy_loss_array, f, self.Kr_K_line_eV)
         f_normed = self.normalize(f_e_loss)
         return f_normed
 
@@ -722,7 +723,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -891,7 +892,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -1053,7 +1054,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0], np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -1200,7 +1201,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -1529,7 +1530,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -1689,7 +1690,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -1847,7 +1848,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -2009,7 +2010,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -2179,7 +2180,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -2345,7 +2346,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -2502,7 +2503,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -2662,7 +2663,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -2823,7 +2824,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -2983,7 +2984,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -3160,7 +3161,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -3396,7 +3397,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -3594,7 +3595,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 
@@ -3812,7 +3813,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f = np.zeros(len(x_eV))
         f_intermediate = np.zeros(len(x_eV))
 
-        x_eV_minus_line = Constants.kr_k_line_e() - x_eV
+        x_eV_minus_line = self.Kr_K_line_eV - x_eV
         zero_idx = np.r_[np.where(x_eV_minus_line< en_loss_array_min)[0],np.where(x_eV_minus_line>en_loss_array_max)[0]]
         nonzero_idx = [i for i in range(len(x_eV)) if i not in zero_idx]
 

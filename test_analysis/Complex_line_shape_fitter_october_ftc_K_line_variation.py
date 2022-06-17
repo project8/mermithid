@@ -6,10 +6,7 @@ Date: 4/8/20
 
 import numpy as np
 import unittest
-import sys
-sys.path.remove('/home/ys633/.local/lib/python3.6/site-packages')
 import matplotlib.pyplot as plt
-sys.path.append('/home/ys633/.local/lib/python3.6/site-packages')
 import ROOT as r
 import os
 from scipy import integrate , signal, interpolate
@@ -74,6 +71,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 4000,
+            'Kr_K_line_eV': Constants.kr_k_line_e(),
             'RF_ROI_MIN': 25859375000.0, #24.5e9 + 1.40812680e+09 - 50e6, #25859375000.0, #24.5e9 + 1.40812680e+09 - 50e6, #25850000000.0
             # shake_spectrum_parameters.json and oscillator strength data can be found at https://github.com/project8/scripts/tree/master/yuhao/line_shape_fitting/data
             'shake_spectrum_parameters_json_path': '../mermithid/misc/shake_spectrum_parameters.json',
