@@ -11,9 +11,10 @@ Description:
 from __future__ import absolute_import
 
 import numpy as np
-import scipy
-import sys
-import json
+#import scipy
+from scipy.optimize import NonlinearConstraint
+#import sys
+#import json
 from iminuit import Minuit
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
@@ -68,6 +69,7 @@ class BinnedDataFitter(BaseProcessor):
         self.cov_matrix = np.array(reader.read_param(params, 'covariance_matrix', []))
         self.minos_cls = reader.read_param(params, 'minos_confidence_level_list', [])
         self.minos_intervals = reader.read_param(params,'find_minos_intervals', False)
+        self.free_in_second_fit = reader.read_param(params, 'free_in_second_fit', [])
 
         # derived configurations
         self.bin_centers = self.bins[0:-1]+0.5*(self.bins[1]-self.bins[0])
@@ -121,8 +123,11 @@ class BinnedDataFitter(BaseProcessor):
 
         self.m_binned.errordef = 0.5
         self.m_binned.errors = self.parameter_errors
-        self.m_binned.throw_nan = True
+        self.m_binned.throw_nan = False
+        self.m_binned.strategy = 1
         self.m_binned.print_level = self.print_level
+
+        self.constraints = []
 
         for i, name in enumerate(self.parameter_names):
             if name in self.fixes_dict.keys():
@@ -131,7 +136,8 @@ class BinnedDataFitter(BaseProcessor):
             else:
                 self.m_binned.fixed[name] = self.fixes[i]
             self.m_binned.limits[name] = self.limits[i]
-
+            if not all(l is None for l in self.limits[i]):
+                self.constraints.append(NonlinearConstraint(lambda x: x, self.limits[i][0], self.limits[i][1]))
 
 
     def fit(self):
@@ -153,16 +159,25 @@ class BinnedDataFitter(BaseProcessor):
 
         self.setup_minuit()
         # minimze
-        self.m_binned.simplex().migrad()
-        #m_binned.hesse()
+        self.m_binned.simplex().migrad() #scipy(constraints=self.constraints)
+        if len(self.free_in_second_fit) > 0:
+            for p in self.free_in_second_fit:
+                self.m_binned.fixed[p] = False
+            logger.info('{} now free. Minimize again'.format(self.free_in_second_fit))
+            self.m_binned.migrad()
+        self.m_binned.hesse()
         #m_binned.minos()
         #self.param_states = m_binned.get_param_states()
-        #logger.info(self.param_states)
+        if self.print_level:
+            logger.info(self.m_binned.params)
+            logger.info(self.m_binned.values)
+            logger.info(self.m_binned.errors)
 
 
         # results
         result_array = np.array(self.m_binned.values)
         error_array = np.array(self.m_binned.errors)
+
 
         if self.minos_intervals:
             self.minos_errors = {}
@@ -170,21 +185,38 @@ class BinnedDataFitter(BaseProcessor):
                 logger.info('Getting minos errors for CL = {}'.format(mcl))
                 try:
                     self.m_binned.minos(cl=mcl)
+
+                    self.minos_errors[mcl] = {}
+                    if self.print_level:
+                        logger.info(self.m_binned.params)
+                        logger.info(self.m_binned.merrors)
+                    for k in self.m_binned.merrors.keys():
+                        self.minos_errors[mcl][k] = {'interval': [self.m_binned.merrors[k].lower, self.m_binned.merrors[k].upper],
+                                                    'number': self.m_binned.merrors[k].number,
+                                                    'name': self.m_binned.merrors[k].name,
+                                                    'is_valid': self.m_binned.merrors[k].is_valid and self.m_binned.valid}
+
                 except RuntimeError as e:
                     print(self.m_binned.params)
-                    raise e
-                self.minos_errors[mcl] = {}
-                if self.print_level:
-                    logger.info(self.m_binned.merrors)
-                for k in self.m_binned.merrors.keys():
-                    self.minos_errors[mcl][k] = {'interval': [self.m_binned.merrors[k].lower, self.m_binned.merrors[k].upper],
-                                                 'number': self.m_binned.merrors[k].number,
-                                                 'name': self.m_binned.merrors[k].name,
-                                                 'is_valid': self.m_binned.merrors[k].is_valid}
+                    print(self.m_binned.merrors)
+                    logger.error('Minos failed. Returning Hesse instead')
+                    for i in range(len(self.parameter_names)):
+                        self.minos_errors[mcl][k] = {'interval': [-self.m_binned.errors[k], self.m_binned.errors[k]],
+                                                    'number': self.m_binned.merrors[k].number,
+                                                    'name': self.m_binned.merrors[k].name,
+                                                    'is_valid': False}
+                    #raise e
+
+        else:
+            self.hesse_errors = {0.683: {}}
+            for i in range(len(self.parameter_names)):
+                self.hesse_errors[0.683][self.parameter_names[i]] = {'interval': [-error_array[i], error_array[i]],
+                                                                            'number': i,
+                                                                            'name': self.parameter_names[i],
+                                                                            'is_valid': self.m_binned.valid}
 
         if self.print_level == 1:
-            logger.info('Fit results: {}'.format(result_array))
-            logger.info('Errors: {}'.format(error_array))
+            logger.info(self.m_binned.fmin)
             #logger.info('Correlation matrix: {}'.format(self.m_binned.covariance.correlation()))
 
         return result_array, error_array
@@ -200,12 +232,29 @@ class BinnedDataFitter(BaseProcessor):
         else:
             expectation = model_return
 
-        if np.min(expectation) < 0:
-            logger.error('Expectation contains negative numbers: Minimum {} -> {}. They will be excluded but something could be horribly wrong.'.format(np.argmin(expectation), np.min(expectation)))
-            logger.error('FYI, the parameters are: {}'.format(params))
+        # if np.min(expectation) < 0:
+        #     logger.error('Expectation contains negative numbers: Minimum {} -> {}.'.format(np.argmin(expectation), np.min(expectation)))
+        #     logger.error('FYI, the parameters are: {}'.format(params))
+        #     logger.info('Expectation is: {}'.format(expectation))
+        #     import matplotlib.pyplot as plt
+        #     plt.figure()
+        #     plt.step(self.bin_centers, self.hist)
+        #     plt.plot(self.bin_centers, expectation)
+
+        #     #raise ValueError('Expecation below zero')
+
+        #     logger.error("try again")
+        #     # expectation
+        #     model_return = self.model(self.bin_centers, *params)
+        #     if np.shape(model_return)[0] == 2:
+        #         expectation, expectation_error = model_return
+        #     else:
+        #         expectation = model_return
+        #     plt.plot(self.bin_centers, expectation)
+        #     plt.savefig('negative_expectation.png', dpi=200)
 
         # exclude bins where expectation is <= zero or nan
-        index = np.where(expectation>0)#np.finfo(0.0).resolution)
+        index = np.where((expectation>np.min(expectation)))#np.where(expectation>0)#np.finfo(0.0).resolution)
 
         # poisson log likelihoood
         ll = (self.hist[index]*np.log(expectation[index]) - expectation[index]).sum()
@@ -228,7 +277,8 @@ class BinnedDataFitter(BaseProcessor):
                 if not param in self.correlated_parameters:
                     neg_ll += 0.5 * ((params[param] - self.constrained_means[i])/ self.constrained_widths[i])**2 + 0.5*np.log(2*np.pi) + np.log(self.constrained_widths[i])
 
-        if len(self.correlated_parameters) > 0:
+        constrained_indices = np.in1d(self.constrained_parameters, self.correlated_parameters).nonzero()[0]
+        if len(constrained_indices) > 0:
             dim = len(self.correlated_parameters)
             constrained_indices = np.in1d(self.constrained_parameters, self.correlated_parameters).nonzero()[0]
             param_indices = self.correlated_parameters

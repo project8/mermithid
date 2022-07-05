@@ -118,9 +118,10 @@ def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
     total_counts = results[1]+results[3]
 
     if fit_config_dict['minos_intervals']:
+        print(T.m_binned.covariance.correlation())
         return results, T.minos_errors, total_counts
     else:
-        return results, errors, total_counts
+        return results, T.hesse_errors, total_counts
 
 
 def GetPDF(fit_config_dict, params, plot=False):
@@ -191,6 +192,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.model_parameter_widths = reader.read_param(config_dict, 'model_parameter_widths', [100, 0.1, 0.1, 500, 0.1, 0, 3, 1, 1])
         self.fixed_parameters = reader.read_param(config_dict, 'fixed_parameters', [False, False, False, False, True, True, True, True, True])
         self.fixed_parameter_dict = reader.read_param(config_dict, 'fixed_parameter_dict', {})
+        self.free_in_second_fit = reader.read_param(config_dict, 'free_in_second_fit', [])
         self.limits = reader.read_param(config_dict, 'model_parameter_limits',
                                                     [[18e3, 20e3],
                                                      [0, None],
@@ -1008,7 +1010,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         return lineshape
 
 
-    def beta_rates(self, K, Q, m_nu_squared):#, index):
+    def beta_rates(self, K, Q, m_nu_squared, shape='mainz'):#, index):
         spectrum = np.zeros(len(K))
 
         Q_minus_K = Q-K
@@ -1018,17 +1020,22 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             index = np.where((nu_mass_shape_squared>0) & (Q_minus_K>0))
             nu_mass_shape = np.sqrt(nu_mass_shape_squared[index])
             spectrum[index] = (Q_minus_K[index])*nu_mass_shape#*self.ephasespace(K[index], Q)
-        else:
+        elif shape=='mainz':
             # mainz shape for negative mbeta**2
             k_squared = -m_nu_squared
             mu = 0.66*np.sqrt(k_squared)
             index = np.where(Q_minus_K+mu>0)
             spectrum[index] = (Q_minus_K[index]+mu*np.exp(-1-Q_minus_K[index]/mu))*np.sqrt(Q_minus_K[index]**2+k_squared)#*self.ephasespace(K[index], Q)
-        #else:
-        #    # lanl shape for negative mbeta**2
-        #    k_squared = -m_nu_squared
-        #    index = np.where(Q_minus_K > 0)
-        #    spectrum[index] = Q_minus_K[index]**2+k_squared/2
+        elif shape=='lanl':
+            # lanl shape for negative mbeta**2
+            k_squared = -m_nu_squared
+            index = np.where(Q_minus_K > 0)
+            spectrum[index] = Q_minus_K[index]**2+k_squared/2
+        elif shape=='llnl':
+            #print('llnl')
+            k_squared = -m_nu_squared
+            index = np.where(Q_minus_K+np.sqrt(k_squared)>0)
+            spectrum[index] = np.abs((Q_minus_K[index])**2+k_squared*Q_minus_K[index]/(2*np.abs(Q_minus_K[index])))
 
         return spectrum
 
