@@ -90,6 +90,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
         self.RF_ROI_MIN = reader.read_param(params, 'RF_ROI_MIN', 25850000000.0)
+        # setting the Minuit.errordef parameter
+        self.error_inflation_factor = reader.read_param(params, 'error_inflation_factor', 1)
         self.Kr_K_line_eV = reader.read_param(params, 'Kr_K_line_eV', Constants.kr_k_line_e())
         self.base_shape = reader.read_param(params, 'base_shape', 'shake')
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
@@ -473,7 +475,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         x_data = ins_resolution_data.T[0]
         y_data = ins_resolution_data.T[1]
         y_err_data = np.zeros(len(y_data))
-        #y_err_data = ins_resolution_data.T[2]
+        y_err_data = ins_resolution_data.T[2]
         x_data = ComplexLineShapeUtilities.flip_array(-1*x_data)
         y_data = ComplexLineShapeUtilities.flip_array(y_data)
         y_err_data = ComplexLineShapeUtilities.flip_array(y_err_data)
@@ -3659,6 +3661,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         # Actually do the fitting
         m_binned = Minuit(lambda p: self.chi_2_simulated_resolution_scaled_fit_scatter_peak_ratio2(bins_Hz, data_hist_freq, eff_array, p), p0_guess, name = parameter_names)
         m_binned.limits = p0_bounds
+        m_binned.errordef = self.error_inflation_factor
+        logger.info(m_binned.errordef)
         if len(self.fixed_parameter_names)>0:
             for fixed_parameter_name, fixed_parameter_value in zip(self.fixed_parameter_names, self.fixed_parameter_values):
                 m_binned.fixed[fixed_parameter_name] = True
@@ -3668,7 +3672,6 @@ class MultiGasComplexLineShape(BaseProcessor):
         m_binned.hesse()
         params = m_binned.values[0:]
         B_field_fit = params[0]
-        #starting at index 2, grabs every other entry. (which is how scattering probs are filled in for N gases)
         amplitude_fit = params[1]
         scale_factor_fit = params[2]
         survival_probability_fit = params[3]

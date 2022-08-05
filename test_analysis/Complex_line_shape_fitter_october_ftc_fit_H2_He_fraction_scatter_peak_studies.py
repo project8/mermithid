@@ -37,7 +37,7 @@ class ComplexLineShapeTests(unittest.TestCase):
 
         complexLineShape_config = {
             'bins_choice': np.linspace(0e6, 100e6, 1000),
-            'gases': ["H2", "He", "Ar", "Kr"], # "Ar", "Kr" # "Kr" for fss ["H2", "He", "Ar", "Kr"]
+            'gases': ["Ar", "Kr", "H2", "He"], # "Ar", "Kr" # "Kr" for fss ["H2", "He", "Ar", "Kr"]
             'fix_gas_composition': True,
             'fix_width_scale_factor': False,
             'scatter_fractions_for_gases': [0.817, 0.07, 0.08],
@@ -69,13 +69,12 @@ class ComplexLineShapeTests(unittest.TestCase):
             'fit_recon_eff': False,
             #parameters for simulated resolution scaled with scatter peak ratio fitted
             #choose the parameters you want to fix from ['B field','amplitude', 'width scale factor', 'survival probability','scatter peak ratio param b', 'scatter peak ratio param c'] plus the gas scatter fractions as ['H2 scatter fraction'],
-            'fixed_parameter_names': ['survival probability', 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'], #, 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'
-            'fixed_parameter_values': [1.0, 1.0, (0.233+0.913)/2, 0.674/2, (0.051+0.104)/2],   #[1.0, 1.0, 0.886, 0.02, 0.06]   
+            'fixed_parameter_names': ['survival probability', 'width scale factor', 'Ar scatter fraction', 'Kr scatter fraction'], #, 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'
+            'fixed_parameter_values': [1.0, 1.0, (0.051+0.104)/2, (0.004+0.009)/2],   #[1.0, 1.0, 0.886, 0.02, 0.06]   
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
             'num_points_in_std_array': 4000,
             'RF_ROI_MIN': 25859375000.0, #24.5e9 + 1.40812680e+09 - 50e6, #25859375000.0, #24.5e9 + 1.40812680e+09 - 50e6, #25850000000.0
-            'error_inflation_factor': 1.37,
             # shake_spectrum_parameters.json and oscillator strength data can be found at https://github.com/project8/scripts/tree/master/yuhao/line_shape_fitting/data
             'shake_spectrum_parameters_json_path': '../mermithid/misc/shake_spectrum_parameters.json',
             'path_to_osc_strengths_files': '/home/ys633/lineshape_fitting/mermithid_share/',
@@ -89,6 +88,14 @@ class ComplexLineShapeTests(unittest.TestCase):
         b.Configure(reader_config)
         b.Run()
         data = b.data
+        freq_data_dict = np.load('/home/ys633/lineshape_fitting/mermithid_share/study_scatter_peak_curve/start_freq_dict_for_scatter_peak_curve_study.npy', allow_pickle = True).item()
+        
+        data_single_track_events = {}
+        data_single_track_events['StartFrequency'] = np.array(freq_data_dict['october data']['single track event'])
+        data_multi_track_events = {}
+        data_multi_track_events['StartFrequency'] = np.array(freq_data_dict['october data']['multi track event'])
+        data_three_track_events = {}
+        data_three_track_events['StartFrequency'] = np.array(freq_data_dict['october data']['three track event'])
 
 #         fss_real_data_path = '/host/analysis_results_fine_q300.json'
 #         with open(fss_real_data_path, 'r') as infile:
@@ -103,13 +110,13 @@ class ComplexLineShapeTests(unittest.TestCase):
         
         complexLineShape = MultiGasComplexLineShape("complexLineShape")
         
-        complexLineShape.data = data
+        complexLineShape.data = data_single_track_events
 
         #fixed_para_values_array = [[1.0, 1.0, 0.817, 0.07, 0.08], [1.0, 1.0, 0.886, 0.02, 0.06], [1.0, 1.0, 0.748, 0.12, 0.1], [1.0, 1.0, 0.777, 0.138, 0.06], [1.0, 1.0, 0.857, 0.002, 0.1], [1.0, 1.0, 0.845, 0.086, 0.1]]# [1.0, 1.0, 0.817, 0.07, 0.08], [1.0, 1.0, 0.886, 0.02, 0.06], [1.0, 1.0, 0.748, 0.12, 0.1], [1.0, 1.0, 0.777, 0.138, 0.06], [1.0, 1.0, 0.857, 0.002, 0.1]
         f_array = np.arange(0.4, 0.61, 0.01)
         # gas_variation_array = [[0.817, 0.07, 0.08], [0.886, 0.02, 0.06], [0.748, 0.12, 0.1], [0.777, 0.138, 0.06], [0.857, 0.002, 0.1], [0.845, 0.046, 0.08]]# [1.0, 1.0, 0.817, 0.07, 0.08], [1.0, 1.0, 0.886, 0.02, 0.06], [1.0, 1.0, 0.748, 0.12, 0.1], [1.0, 1.0, 0.777, 0.138, 0.06], [1.0, 1.0, 0.857, 0.002, 0.1]]
         # max_snr_array = ['13.000', '13.500', '14.000', '14.500', '15.000', '15.500', '16.000', '16.500']
-        f = 0.4955
+        f = 0
         output_dict = {}
 #        directories = os.listdir('/home/ys633/lineshape_fitting/mermithid_share/20211119_max_snr_sampling_traps_combined')
 #        for directory in [directories[0]]:
@@ -149,9 +156,9 @@ class ComplexLineShapeTests(unittest.TestCase):
         plt.title(plot_title)
         plt.tight_layout()
         #plt.savefig('/host/plots/fit_FTC_march_with_simulated_resolution_cf{}_sp_1.0_width_factor_1.0.png'.format(file_cf))
-        plt.savefig('/home/ys633/lineshape_fitting/plots/fit_October_FTC_with_new_gas_fraction_inflated_error.png')# March_FTC
+        plt.savefig('/home/ys633/lineshape_fitting/plots/fit_October_FTC_with_new_gas_fraction_fit_H2_He_fraction_single_track_events.png')# March_FTC
         output_dict['october max snr 14.300'] = results
-        np.save('/home/ys633/lineshape_fitting/mermithid_share/october_max_snr_14.300_factor_0.4955_new_gas_fraction_inflated_error.npy', output_dict)
+        np.save('/home/ys633/lineshape_fitting/mermithid_share/october_max_snr_14.300_factor_0.4955_new_gas_fraction_fit_H2_He_fraction_single_track_events.npy', output_dict)
 #             time.sleep(600)
 #             output_file = open('/host/october_res_upper_and_lower_bounds_results.txt', 'a')
 #             output_file.write('{}\n\n {}\n\n\n'.format('lower bound', results['output_string']))

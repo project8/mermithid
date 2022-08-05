@@ -55,7 +55,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             # When option fixed_survival_probability is True, assign the survival probability below
             'survival_prob': 15/16., # assuming total cross section for elastic scattering is 1/10 of inelastic scattering
             # configure the resolution functions: simulated_resolution, gaussian_resolution, gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, composite_gaussian_scaled, simulated_resolution_scaled, 'simulated_resolution_scaled_fit_scatter_peak_ratio', 'gaussian_resolution_fit_scatter_peak_ratio'
-            'resolution_function': 'simulated_resolution_scaled_fit_scatter_peak_ratio2',
+            'resolution_function': 'gaussian_resolution_fit_scatter_peak_ratio',
             # specific choice of parameters in the gaussian lorentzian composite resolution function
             'recon_eff_param_a': 0.005569990343215976,
             'recon_eff_param_b': 0.351,
@@ -69,7 +69,7 @@ class ComplexLineShapeTests(unittest.TestCase):
             'fit_recon_eff': False,
             #parameters for simulated resolution scaled with scatter peak ratio fitted
             #choose the parameters you want to fix from ['B field','amplitude', 'width scale factor', 'survival probability','scatter peak ratio param b', 'scatter peak ratio param c'] plus the gas scatter fractions as ['H2 scatter fraction'],
-            'fixed_parameter_names': ['survival probability', 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'], #, 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'
+            'fixed_parameter_names': ['survival probability', 'scatter peak ratio param c', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'], #, 'width scale factor', 'H2 scatter fraction', 'He scatter fraction', 'Ar scatter fraction'
             'fixed_parameter_values': [1.0, 1.0, (0.233+0.913)/2, 0.674/2, (0.051+0.104)/2],   #[1.0, 1.0, 0.886, 0.02, 0.06]   
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
@@ -90,26 +90,28 @@ class ComplexLineShapeTests(unittest.TestCase):
         b.Run()
         data = b.data
 
-#         fss_real_data_path = '/host/analysis_results_fine_q300.json'
-#         with open(fss_real_data_path, 'r') as infile:
-#             data_selection = json.load(infile)['channel_a']['data_selection']
-#         
-#         start_freqs_vs_fss, run_durations_vs_fss, run_temps, track_lengths, event_lengths, slopes, nups, min_freqs = data_selection
-#         data = {}
-#         data['StartFrequency'] = np.array(start_freqs_vs_fss['0.0']) - 1.40812680e+09 + 50e6
+        freq_data_dict = np.load('/home/ys633/lineshape_fitting/mermithid_share/study_scatter_peak_curve/start_freq_dict_for_scatter_peak_curve_study.npy', allow_pickle = True).item()
+        
+        data_single_track_events = {}
+        data_single_track_events['StartFrequency'] = np.array(freq_data_dict['october data']['single track event'])
+        data_multi_track_events = {}
+        data_multi_track_events['StartFrequency'] = np.array(freq_data_dict['october data']['multi track event'])
+        data_three_track_events = {}
+        data_three_track_events['StartFrequency'] = np.array(freq_data_dict['october data']['three track event'])
+        
         logger.info("Data extracted = {}".format(data.keys()))
         for key in data.keys():
             logger.info("{} -> size = {}".format(key,len(data[key])))
         
         complexLineShape = MultiGasComplexLineShape("complexLineShape")
         
-        complexLineShape.data = data
+        complexLineShape.data = data_single_track_events
 
         #fixed_para_values_array = [[1.0, 1.0, 0.817, 0.07, 0.08], [1.0, 1.0, 0.886, 0.02, 0.06], [1.0, 1.0, 0.748, 0.12, 0.1], [1.0, 1.0, 0.777, 0.138, 0.06], [1.0, 1.0, 0.857, 0.002, 0.1], [1.0, 1.0, 0.845, 0.086, 0.1]]# [1.0, 1.0, 0.817, 0.07, 0.08], [1.0, 1.0, 0.886, 0.02, 0.06], [1.0, 1.0, 0.748, 0.12, 0.1], [1.0, 1.0, 0.777, 0.138, 0.06], [1.0, 1.0, 0.857, 0.002, 0.1]
         f_array = np.arange(0.4, 0.61, 0.01)
         # gas_variation_array = [[0.817, 0.07, 0.08], [0.886, 0.02, 0.06], [0.748, 0.12, 0.1], [0.777, 0.138, 0.06], [0.857, 0.002, 0.1], [0.845, 0.046, 0.08]]# [1.0, 1.0, 0.817, 0.07, 0.08], [1.0, 1.0, 0.886, 0.02, 0.06], [1.0, 1.0, 0.748, 0.12, 0.1], [1.0, 1.0, 0.777, 0.138, 0.06], [1.0, 1.0, 0.857, 0.002, 0.1]]
         # max_snr_array = ['13.000', '13.500', '14.000', '14.500', '15.000', '15.500', '16.000', '16.500']
-        f = 0.4955
+        f = 0 #0.4955
         output_dict = {}
 #        directories = os.listdir('/home/ys633/lineshape_fitting/mermithid_share/20211119_max_snr_sampling_traps_combined')
 #        for directory in [directories[0]]:
@@ -137,7 +139,7 @@ class ComplexLineShapeTests(unittest.TestCase):
         plt.figure(figsize=(15,9))
         plt.step(
         results['bins_Hz']/1e9, results['data_hist_freq'],
-        label = 'data\n total counts = {}\n'.format(len(data['StartFrequency']))
+        label = 'data\n total counts = {}\n'.format(len(complexLineShape.data['StartFrequency']))
         )
         plt.plot(results['bins_Hz']/1e9, results['fit_Hz'], label = results['output_string'], alpha = 0.7)
         plt.legend(loc = 'upper left', fontsize = 12)
@@ -149,9 +151,9 @@ class ComplexLineShapeTests(unittest.TestCase):
         plt.title(plot_title)
         plt.tight_layout()
         #plt.savefig('/host/plots/fit_FTC_march_with_simulated_resolution_cf{}_sp_1.0_width_factor_1.0.png'.format(file_cf))
-        plt.savefig('/home/ys633/lineshape_fitting/plots/fit_October_FTC_with_new_gas_fraction_inflated_error.png')# March_FTC
+        plt.savefig('/home/ys633/lineshape_fitting/plots/fit_October_FTC_max_snr_14.300_factor_0_with_new_gas_fraction_inflated_error_fix_c_to_one_single_tracks_gaussian_res.png')# March_FTC
         output_dict['october max snr 14.300'] = results
-        np.save('/home/ys633/lineshape_fitting/mermithid_share/october_max_snr_14.300_factor_0.4955_new_gas_fraction_inflated_error.npy', output_dict)
+        np.save('/home/ys633/lineshape_fitting/mermithid_share/october_max_snr_14.300_factor_0_with_new_gas_fraction_inflated_error_fix_c_one_single_tracks_gaussian_res.npy', output_dict)
 #             time.sleep(600)
 #             output_file = open('/host/october_res_upper_and_lower_bounds_results.txt', 'a')
 #             output_file.write('{}\n\n {}\n\n\n'.format('lower bound', results['output_string']))
