@@ -118,6 +118,10 @@ class MultiGasComplexLineShape(BaseProcessor):
         # Read shake parameters from JSON file
         if self.base_shape == 'shake':
             self.shakeSpectrumClassInstance = ComplexLineShapeUtilities.ShakeSpectrumClass(self.shake_spectrum_parameters_json_path, self.std_eV_array())
+
+        # read in resolution if simulated
+        if 'simulated' in self.resolution_function:
+            self.sample_and_interpolate_resolution()
         return True
 
     def InternalRun(self):
@@ -524,7 +528,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         return normalized_convolved_spectrum
 
     def convolve_simulated_resolution_scaled(self, working_spectrum, scale_factor):
-        if self.use_combined_four_trap_inst_reso:
+        """if self.use_combined_four_trap_inst_reso:
             x_data, y_data, y_err_data = self.combine_four_trap_resolution_from_txt(self.trap_weights)
             logger.info("Combined four instrumental resolution files")
         else:
@@ -534,14 +538,30 @@ class MultiGasComplexLineShape(BaseProcessor):
             y_data = np.random.normal(y_data, y_err_data)
             logger.info("Sampling instrumental resolution counts per bin")
         scaled_xdata = x_data*scale_factor
-        f = interpolate.interp1d(x_data*scale_factor, y_data)
+        f = interpolate.interp1d(x_data*scale_factor, y_data)"""
+
         x_array = self.std_eV_array()
         y_array = np.zeros(len(x_array))
-        index_within_range_of_xdata = np.where((x_array >= scaled_xdata[0]) & (x_array <= scaled_xdata[-1]))
-        y_array[index_within_range_of_xdata] = f(x_array[index_within_range_of_xdata])
+
+        #index_within_range_of_xdata = np.where((x_array >= scaled_xdata[0]) & (x_array <= scaled_xdata[-1]))
+        #y_array[index_within_range_of_xdata] = f(x_array[index_within_range_of_xdata]/scale_factor)
+        y_array = self.interpolated_resolution(x_array/scale_factor)
         convolved_spectrum = signal.convolve(working_spectrum, y_array, mode = 'same')
         normalized_convolved_spectrum = self.normalize(convolved_spectrum)
         return normalized_convolved_spectrum
+
+    # do resolution sampling
+    def sample_and_interpolate_resolution(self):
+        if self.use_combined_four_trap_inst_reso:
+            x_data, y_data, y_err_data = self.combine_four_trap_resolution_from_txt(self.trap_weights)
+            logger.info("Combined four instrumental resolution files")
+        else:
+            x_data, y_data, y_err_data = self.read_ins_resolution_data(self.path_to_ins_resolution_data_txt)
+            logger.info("Using ONE simulated instrumental resolution file (not combining four)")
+        if self.sample_ins_resolution_errors:
+            y_data = np.random.normal(y_data, y_err_data)
+            logger.info("Sampling instrumental resolution counts per bin")
+        self.interpolated_resolution = interpolate.interp1d(x_data, y_data, fill_value=(0,0), bounds_error=False)
 
     #might be untested
     def convolve_smeared_triangle(self, func_to_convolve, center, scale1, scale2, exponent, sigma):

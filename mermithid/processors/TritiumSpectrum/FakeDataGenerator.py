@@ -230,7 +230,7 @@ class FakeDataGenerator(BaseProcessor):
                     'sigma_array': self.sigma_array,
 
                     # This is an important parameter which determines how finely resolved the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to be increased for larger datasets.
-                    'num_points_in_std_array': 35846,
+                    'num_points_in_std_array': 10000,#35846,
                     'base_shape': 'dirac',
                     'path_to_osc_strengths_files': self.path_to_osc_strengths_files,
                     'path_to_scatter_spectra_file':self.path_to_scatter_spectra_file,
@@ -379,9 +379,11 @@ class FakeDataGenerator(BaseProcessor):
 
         if efficiency_dict is not None:
             logger.info('Evaluating efficiencies')
-            efficiency_mean, efficiency_error = efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
+            """efficiency_mean, efficiency_error = efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
             logger.info("Sampling efficiencies given means and uncertainties")
-            efficiency = np.random.normal(efficiency_mean, efficiency_error)
+            efficiency = np.random.normal(efficiency_mean, efficiency_error)"""
+
+            efficiency = random_efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
             eff_negative = (efficiency<0.)
             efficiency[eff_negative] = 0. #Whenever this occurs, efficiency_mean=0 and efficiency_error=1
         else:

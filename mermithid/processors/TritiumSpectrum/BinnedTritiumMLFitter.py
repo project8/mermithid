@@ -193,6 +193,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.fixed_parameters = reader.read_param(config_dict, 'fixed_parameters', [False, False, False, False, True, True, True, True, True])
         self.fixed_parameter_dict = reader.read_param(config_dict, 'fixed_parameter_dict', {})
         self.free_in_second_fit = reader.read_param(config_dict, 'free_in_second_fit', [])
+        self.fixed_in_second_fit = reader.read_param(config_dict, 'fixed_in_second_fit', [])
         self.limits = reader.read_param(config_dict, 'model_parameter_limits',
                                                     [[18e3, 20e3],
                                                      [0, None],
@@ -203,7 +204,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                                                      [12, 100],
                                                      [-100, 100],
                                                      [-100, 100]])
-
+        self.error_def = reader.read_param(config_dict,'error_def', 0.5)
 
         # check that configuration is consistent
         if (len(self.model_parameter_names) != len(self.model_parameter_means) or len(self.model_parameter_names) != len(self.model_parameter_widths) or len(self.model_parameter_names) != len(self.fixed_parameters)):
@@ -1036,6 +1037,15 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             k_squared = -m_nu_squared
             index = np.where(Q_minus_K+np.sqrt(k_squared)>0)
             spectrum[index] = np.abs((Q_minus_K[index])**2+k_squared*Q_minus_K[index]/(2*np.abs(Q_minus_K[index])))
+        elif shape=='katrin':
+            k_squared = -m_nu_squared
+            index = np.where(Q_minus_K>0)
+            spectrum[index] = Q_minus_K[index]*np.sqrt((Q_minus_K[index])**2+k_squared)
+        #print(Q_minus_K)
+        #print(len(K[self.index]))
+        #print(len(K))
+        #print(np.max(K[index]))
+        #print(np.max(K))
 
         return spectrum
 
@@ -1400,6 +1410,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
             e_spec = np.arange(min(self.energies)-max_energy, max(self.energies)+max_energy, dE)
+            #e_spec = self.energies
             #np.r_[e_add, self._energies]
 
             # energy resolution
@@ -1738,7 +1749,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 efficiency = pseudo_efficiency
 
                 if np.min(efficiency) < 0:
-                    index = np.where(E>=np.min(E[efficiency<0]))
+                    index = np.where(efficiency < 0)#E>=np.min(E[efficiency<0]))
                     efficiency[index] = 0.
 
 

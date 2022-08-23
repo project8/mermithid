@@ -16,8 +16,10 @@ from scipy.optimize import NonlinearConstraint
 #import sys
 #import json
 from iminuit import Minuit
+from iminuit.cost import LeastSquares
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
+from scipy.stats import chisquare
 
 logger = morphologging.getLogger(__name__)
 
@@ -70,6 +72,8 @@ class BinnedDataFitter(BaseProcessor):
         self.minos_cls = reader.read_param(params, 'minos_confidence_level_list', [])
         self.minos_intervals = reader.read_param(params,'find_minos_intervals', False)
         self.free_in_second_fit = reader.read_param(params, 'free_in_second_fit', [])
+        self.fixed_in_second_fit = reader.read_param(params, 'fixed_in_second_fit', [])
+        self.error_def = reader.read_param(params,'error_def', 1)
 
         # derived configurations
         self.bin_centers = self.bins[0:-1]+0.5*(self.bins[1]-self.bins[0])
@@ -100,7 +104,7 @@ class BinnedDataFitter(BaseProcessor):
         self.results['param_errors'] = error_array
         self.results['correlation_matrix'] = np.array(self.m_binned.covariance.correlation())
         for i, k in enumerate(self.parameter_names):
-            self.results[k] = {'value': result_array[i], 'error': error_array[i]}
+            self.results[k] = {'value': result_array[i], 'error': error_array[i], 'likelihood': self.likelihood}
 
         return True
 
@@ -116,12 +120,22 @@ class BinnedDataFitter(BaseProcessor):
 
     def setup_minuit(self):
 
-        self.m_binned = Minuit(self.negPoissonLogLikelihood,
-                                      self.initial_values,
-                                      name=self.parameter_names,
-                                      )
+        if self.error_def == 0.5:
+            self.m_binned = Minuit(self.negPoissonLogLikelihood,
+                                        self.initial_values,
+                                        name=self.parameter_names,
+                                        )
 
-        self.m_binned.errordef = 0.5
+            self.m_binned.errordef = 0.5
+            logger.info('Doing MLL analysis')
+        else:
+            #least_squares = LeastSquares(self.bin_centers, self.hist, np.sqrt(self.hist), self.model)
+            self.m_binned = Minuit(self.leastSquares,
+                                    self.initial_values,
+                                    name=self.parameter_names)
+            self.m_binned.errordef = 1.0
+            logger.info('Doing chi square analysis')
+
         self.m_binned.errors = self.parameter_errors
         self.m_binned.throw_nan = False
         self.m_binned.strategy = 1
@@ -136,12 +150,15 @@ class BinnedDataFitter(BaseProcessor):
             else:
                 self.m_binned.fixed[name] = self.fixes[i]
             self.m_binned.limits[name] = self.limits[i]
-            if not all(l is None for l in self.limits[i]):
-                self.constraints.append(NonlinearConstraint(lambda x: x, self.limits[i][0], self.limits[i][1]))
+            #if not all(l is None for l in self.limits[i]):
+            #    self.constraints.append(NonlinearConstraint(lambda x: x, self.limits[i][0], self.limits[i][1]))
 
 
     def fit(self):
         # Now minimize neg log likelihood using iMinuit
+        self.setup_minuit()
+
+
         if self.print_level > 0:
             logger.info('This is the plan:')
             logger.info('\tFitting data consisting of {} elements'.format(np.sum(self.hist)))
@@ -154,16 +171,23 @@ class BinnedDataFitter(BaseProcessor):
             logger.info('\tConstraint means: {}'.format(self.constrained_means))
             logger.info('\tConstraint widths: {}'.format(self.constrained_widths))
             logger.info('\tCorrelated parameters: {}'.format([self.parameter_names[i] for i in self.correlated_parameters]))
+            logger.info('\tError def : {}'.format(self.m_binned.errordef))
+            logger.info('\tMinos uncertainties: {}'.format(self.minos_cls))
 
 
-
-        self.setup_minuit()
         # minimze
         self.m_binned.simplex().migrad() #scipy(constraints=self.constraints)
         if len(self.free_in_second_fit) > 0:
             for p in self.free_in_second_fit:
                 self.m_binned.fixed[p] = False
-            logger.info('{} now free. Minimize again'.format(self.free_in_second_fit))
+            logger.info('{} now free.'.format(self.free_in_second_fit))
+        if len(self.fixed_in_second_fit) > 0:
+            for p in self.fixed_in_second_fit:
+                self.m_binned.fixed[p] = True
+                #self.m_binned.limits[p] = [None, None]
+            logger.info('{} now fixed'.format(self.fixed_in_second_fit))
+        if len(self.free_in_second_fit) > 0 or len(self.fixed_in_second_fit) > 0:
+            logger.info('Minimize again')
             self.m_binned.migrad()
         self.m_binned.hesse()
         #m_binned.minos()
@@ -177,6 +201,7 @@ class BinnedDataFitter(BaseProcessor):
         # results
         result_array = np.array(self.m_binned.values)
         error_array = np.array(self.m_binned.errors)
+        self.likelihood = self.PoissonLogLikelihood(result_array)
 
 
         if self.minos_intervals:
@@ -200,11 +225,12 @@ class BinnedDataFitter(BaseProcessor):
                     print(self.m_binned.params)
                     print(self.m_binned.merrors)
                     logger.error('Minos failed. Returning Hesse instead')
+                    self.minos_errors[mcl] = {}
                     for i in range(len(self.parameter_names)):
-                        self.minos_errors[mcl][k] = {'interval': [-self.m_binned.errors[k], self.m_binned.errors[k]],
-                                                    'number': self.m_binned.merrors[k].number,
-                                                    'name': self.m_binned.merrors[k].name,
-                                                    'is_valid': False}
+                        self.minos_errors[mcl][self.parameter_names[i]] = {'interval': [-error_array[i], error_array[i]],
+                                                                            'number': i,
+                                                                            'name': self.parameter_names[i],
+                                                                            'is_valid': self.m_binned.valid}
                     #raise e
 
         else:
@@ -232,29 +258,36 @@ class BinnedDataFitter(BaseProcessor):
         else:
             expectation = model_return
 
-        # if np.min(expectation) < 0:
-        #     logger.error('Expectation contains negative numbers: Minimum {} -> {}.'.format(np.argmin(expectation), np.min(expectation)))
-        #     logger.error('FYI, the parameters are: {}'.format(params))
-        #     logger.info('Expectation is: {}'.format(expectation))
-        #     import matplotlib.pyplot as plt
-        #     plt.figure()
-        #     plt.step(self.bin_centers, self.hist)
-        #     plt.plot(self.bin_centers, expectation)
+        if np.min(expectation) < 0:
+            logger.error('Expectation contains negative numbers: Minimum {} -> {}.'.format(np.argmin(expectation), np.min(expectation)))
+            logger.error('FYI, the parameters are: {}'.format(params))
+            logger.info('Expectation is: {}'.format(expectation))
+            import matplotlib.pyplot as plt
+            plt.figure()
+            plt.step(self.bin_centers, self.hist)
+            plt.plot(self.bin_centers, expectation)
 
-        #     #raise ValueError('Expecation below zero')
+            #raise ValueError('Expecation below zero')
 
-        #     logger.error("try again")
-        #     # expectation
-        #     model_return = self.model(self.bin_centers, *params)
-        #     if np.shape(model_return)[0] == 2:
-        #         expectation, expectation_error = model_return
-        #     else:
-        #         expectation = model_return
-        #     plt.plot(self.bin_centers, expectation)
-        #     plt.savefig('negative_expectation.png', dpi=200)
+            logger.error("try again")
+            # expectation
+            model_return = self.model(self.bin_centers, *params)
+            if np.shape(model_return)[0] == 2:
+                expectation, expectation_error = model_return
+            else:
+                expectation = model_return
+            plt.plot(self.bin_centers, expectation,linestyle='--')
+            plt.savefig('negative_expectation.png', dpi=200)
 
         # exclude bins where expectation is <= zero or nan
-        index = np.where((expectation>np.min(expectation)))#np.where(expectation>0)#np.finfo(0.0).resolution)
+        index = np.where(expectation>0)#np.where(expectation>0)#np.finfo(0.0).resolution)
+        if "background" in self.parameter_names and self.m_binned.fixed["background"]:
+            endpoint_parameter = self.parameter_names.index('endpoint')
+            index = np.where((self.bin_centers+0.5*(self.bin_centers[1]-self.bin_centers[0])<=params[endpoint_parameter]) &
+                            (self.hist>=5))
+            #index = np.arange(np.min(np.where(self.hist>1)[0]), np.max(np.where(self.hist>1)[0])+1)
+            #print(self.hist[index])
+            #print(self.bin_centers[index])
 
         # poisson log likelihoood
         ll = (self.hist[index]*np.log(expectation[index]) - expectation[index]).sum()
@@ -288,3 +321,26 @@ class BinnedDataFitter(BaseProcessor):
                             dim*np.log(2*np.pi))
 
         return neg_ll
+
+
+    def leastSquares(self, params):
+
+        # expectation
+        model_return = self.model(self.bin_centers, *params)
+        if np.shape(model_return)[0] == 2:
+            expectation, expectation_error = model_return
+        else:
+            expectation = model_return
+
+        nonzero_bins_index = np.where(self.hist>0)#np.where(expectation>0)#np.finfo(0.0).resolution)
+        zero_bins_index = np.where(self.hist==0)
+        index = np.where(expectation>0)
+        if "background" in self.parameter_names and self.m_binned.fixed["background"]:
+        #    endpoint_parameter = self.parameter_names.index('endpoint')
+            index = np.where((expectation>1) & (self.hist>1))
+        total_chisquare, _ = chisquare(self.hist[index], expectation[index])
+        #chi2 = np.nansum((self.hist[nonzero_bins_index]-expectation[nonzero_bins_index])**2/expectation[nonzero_bins_index])
+        #chi2+= np.nansum((self.hist[zero_bins_index]-expectation[zero_bins_index])**2)
+        #chi2 = 2*((expectation - self.hist + self.hist*np.log(self.hist/expectation))[nonzero_bins_index]).sum()
+        #chi2 += 2*(expectation - self.hist)[zero_bins_index].sum()
+        return total_chisquare #LeastSquares(self.bin_centers, self.hist, np.sqrt(self.hist), self.model)

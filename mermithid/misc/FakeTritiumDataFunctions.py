@@ -441,3 +441,17 @@ def efficiency_from_interpolation(x, efficiency_dict, B=0.9578186017836624):
 
 
 
+def random_efficiency_from_interpolation(x, efficiency_dict, B=0.9578186017836624):
+    """
+    Function to calculate efficiency
+    """
+    logger.info('Sampling efficiencies before interpolation')
+    f = Frequency(x, B)
+
+    efficiency_mean = efficiency_dict['eff interp with slope correction']
+    efficiency_error = np.mean(efficiency_dict['error interp with slope correction'], axis=0)
+    random_efficiencies = np.random.normal(efficiency_mean, efficiency_error)
+    random_efficiencies[random_efficiencies<0] = 0.
+    interp_efficiency = interp1d(efficiency_dict['frequencies'], random_efficiencies, fill_value='0', bounds_error=False)
+
+    return interp_efficiency(f)
