@@ -285,6 +285,10 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
     logger.info('Lineshape is {} with {}'.format(lineshape, resolution_function))
     energy_half_range = max(max_energy, abs(min_energy))
 
+    #logger.info('Using {} frequency regions. Mean and std of p are {} and {}. For q its {} and {}'.format(len(ins_res_width_bounds)-1,
+    #                                                                                                        np.mean(p_factors), np.std(p_factors),
+    #                                                                                                        np.mean(q_factors), np.std(q_factors)))
+
     if ins_res_width_bounds != None:
         Kbounds = [np.min(K)] + ins_res_width_bounds + [np.max(K)]
     else:
