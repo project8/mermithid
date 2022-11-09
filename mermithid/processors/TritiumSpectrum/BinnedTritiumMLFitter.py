@@ -120,6 +120,15 @@ def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
     if fit_config_dict['minos_intervals']:
         print(T.m_binned.covariance.correlation())
         return results, T.minos_errors, total_counts
+    elif fit_config_dict['return_ll']:
+        results_best_mass = deepcopy(results)
+        results_best_mass[2] = max(0, results[2])
+        # get likleihood from fit
+        fit_ll = T.PoissonLogLikelihood(results)
+        # get likleihood of asimov best mass
+        T.hist = T.TritiumSpectrumBackground(T.bin_centers, *results_best_mass)
+        best_ll = T.PoissonLogLikelihood(results)
+        return results, T.hesse_errors, [fit_ll, best_ll]
     else:
         return results, T.hesse_errors, total_counts
 
