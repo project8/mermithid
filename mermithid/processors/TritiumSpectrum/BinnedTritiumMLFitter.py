@@ -125,12 +125,14 @@ def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
         results_best_mass[2] = max(0, results[2])
         results_true_mass = deepcopy(results)
         results_true_mass[2] = fit_config_dict['model_parameter_means'][2]
+        print('True mass: ', fit_config_dict['model_parameter_means'][2])
+        print('True all: ', fit_config_dict['model_parameter_means'])
         # get likleihood from fit
-        T.hist = T.TritiumSpectrumBackground(T.bin_centers, *results_true_mass)
-        fit_ll = T.PoissonLogLikelihood(results)
+        T.hist = T.TritiumSpectrumBackground(T.bin_centers, *fit_config_dict['model_parameter_means'])
+        fit_ll = -T.negPoissonLogLikelihood(results)
         # get likleihood of asimov best mass
         T.hist = T.TritiumSpectrumBackground(T.bin_centers, *results_best_mass)
-        best_ll = T.PoissonLogLikelihood(results)
+        best_ll = -T.negPoissonLogLikelihood(results)
         return results, T.hesse_errors, [fit_ll, best_ll]
     else:
         return results, T.hesse_errors, total_counts
