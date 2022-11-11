@@ -20,6 +20,7 @@ from iminuit.cost import LeastSquares
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from scipy.stats import chisquare
+from scipy.special import factorial
 
 logger = morphologging.getLogger(__name__)
 
@@ -290,7 +291,8 @@ class BinnedDataFitter(BaseProcessor):
             #print(self.bin_centers[index])
 
         # poisson log likelihoood
-        ll = (self.hist[index]*np.log(expectation[index]) - expectation[index]).sum()
+        log_factorial = np.array([np.sum(np.log(np.arange(1, n+1))) for n in self.hist[index]])
+        ll = (self.hist[index]*np.log(expectation[index]) - expectation[index]-log_factorial).sum()
 
         # extended ll: poisson total number of events
         N = np.nansum(expectation)

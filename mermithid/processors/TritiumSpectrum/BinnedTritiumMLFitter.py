@@ -133,6 +133,7 @@ def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
         # get likleihood of asimov best mass
         T.hist = T.TritiumSpectrumBackground(T.bin_centers, *results_best_mass)
         best_ll = T.PoissonLogLikelihood(results)
+        print(fit_ll, best_ll)
         return results, T.hesse_errors, [fit_ll, best_ll]
     else:
         return results, T.hesse_errors, total_counts
