@@ -296,7 +296,8 @@ class BinnedDataFitter(BaseProcessor):
 
         # extended ll: poisson total number of events
         N = np.nansum(expectation)
-        extended_ll = -N+np.sum(self.hist)*np.log(N)+ll
+        log_factorial = np.sum(np.log(np.arange(1, np.sum(self.hist)+1)))
+        extended_ll = -N+np.sum(self.hist)*np.log(N)+ll-log_factorial
         return extended_ll
 
 
