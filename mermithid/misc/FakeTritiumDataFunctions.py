@@ -322,7 +322,9 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
     if (lineshape=='detailed_scattering' or lineshape=='detailed') and (resolution_function == 'simulated_resolution' or resolution_function == 'simulated'):
         convolved_segments = []
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
+        plt.figure(figsize=(7,5))
         for j in range(len(lineshape_rates)):
+            plt.plot(lineshape_rates[j])
             #beta_rates = spectral_rate(K_segments[j], Q, mnu, final_state_array)
             convolved_j = convolve(beta_rates, lineshape_rates[j], mode='same')
             np.put(convolved_j, below_Kmin, np.zeros(len(below_Kmin)))
@@ -330,6 +332,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
             convolved_segments.append(convolved_j[np.logical_and(Kbounds[j]<=K, K<=Kbounds[j+1])])
             #convolved.append(convolved_j)
         convolved = np.concatenate(convolved_segments, axis=None)
+        plt.savefig('varied_lineshapes_bayesian.png', dpi=200)
     elif resolution_function=='gaussian':
         lineshape_rates = np.flipud(lineshape_rates)
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
