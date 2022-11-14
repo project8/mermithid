@@ -122,6 +122,11 @@ class SensitivityCurveProcessor(BaseProcessor):
 
         self.create_plot()
 
+        if self.sens_main_is_atomic:
+            num_atoms_per_particle = 1
+        else:
+            num_atoms_per_particle = 2
+
         # add second and third x axis for track lengths
         if self.track_length_axis:
             self.add_track_length_axis()
@@ -165,15 +170,15 @@ class SensitivityCurveProcessor(BaseProcessor):
 
         rho_opt = self.rhos[self.opt_ref]
         logger.info('Main curve (veff = {} cm**3, rho = {} /m**3):'.format(self.sens_main.Experiment.v_eff/(cm**3), rho_opt*(m**3)))
-        logger.info('Sensitivity limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
-        logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.Experiment.v_eff))
-        logger.info('Total signal: {}'.format(rho_opt*self.sens_main.Experiment.v_eff*
+        logger.info('Neutrino mass 90% C.L. : {}eV'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
+        logger.info('Number of tritium particles in Veff at optimal density: {}'.format(rho_opt*self.sens_main.Experiment.v_eff))
+        logger.info('Total number of signal events: {}'.format(rho_opt*self.sens_main.Experiment.v_eff*
                                                    self.sens_main.Experiment.LiveTime/
-                                                   self.sens_main.tau_tritium*2))
-        logger.info('Signal in last eV: {}'.format(self.sens_main.last_1ev_fraction*eV**3*
+                                                   self.sens_main.tau_tritium*num_atoms_per_particle))
+        logger.info('Total number of signal events in last eV: {}'.format(self.sens_main.last_1ev_fraction*eV**3*
                                                    rho_opt*self.sens_main.Experiment.v_eff*
                                                    self.sens_main.Experiment.LiveTime/
-                                                   self.sens_main.tau_tritium*2))
+                                                   self.sens_main.tau_tritium*num_atoms_per_particle))
 
         return True
 

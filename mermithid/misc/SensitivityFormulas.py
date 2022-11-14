@@ -36,6 +36,17 @@ ground_state_width_uncertainty = 0.01*0.436*eV
 
 gyro_mag_ratio_proton = 42.577*MHz/T
 
+#Atomic tritium-related constant
+ideal_gas_molar_volume = 2.24e-02*m**3 #Volume of 1mol of ideal gas at 1atm. Higher pressure --> smaller volume; higher temp --> lower volume.
+#Cross sections are from Berlinsky
+H_He_cross_sec_high_temp = 2.00e-19*m**2 #"High temp" means >5K
+H_He_cross_sec_low_temp = 3.00e-20*m**2
+#H_H_cross_sec =
+#H-H2 (289 pm kinetic diameter: Wikipedia)
+#18.6-keV electrons on atomic T
+#18.6-keV electrons on molecular T23.00E-20
+
+
 # units that do not show up in numericalunits
 # missing pre-factors
 fW = W*1e-15
