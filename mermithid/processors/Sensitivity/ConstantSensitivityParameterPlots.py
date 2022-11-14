@@ -65,9 +65,35 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
         # Configuration is done in __init__ of SensitivityClass
         Sensitivity.__init__(self, self.config_file_path)
 
-        self.rhos = np.linspace(self.density_range[0], self.density_range[1], 2000)/(m**3)
+        self.rhos = np.linspace(self.density_range[0], self.density_range[1], 20)/(m**3)
         self.veffs = np.logspace(np.log10(self.veff_range[0]), np.log10(self.veff_range[1]), 25)*m**3
-        self.Berrors = np.logspace(np.log10(self.BError_range[0]), np.log10(self.BError_range[1]), 1000)
+        self.Berrors = np.logspace(np.log10(self.BError_range[0]), np.log10(self.BError_range[1]), 100)
+
+        freq_res = np.empty(np.shape(self.rhos))
+        freq_res_delta = np.empty(np.shape(self.rhos))
+
+        for i in range(len(self.rhos)):
+            self.Experiment.number_density = self.rhos[i]
+            freq_res[i], freq_res_delta[i] = self.syst_frequency_extraction()
+
+            print(freq_res_delta[i])
+
+        plt.figure()
+        plt.subplot(121)
+        plt.plot(self.rhos*m**3, freq_res/eV)
+        plt.xlabel('Density (/m³')
+        plt.ylabel('Energy width of frequency resolution (eV)')
+        plt.xscale('log')
+
+        plt.subplot(122)
+        plt.plot(self.rhos*m**3, freq_res_delta/eV)
+        plt.xlabel('Density (/m³)')
+        plt.ylabel('Uncertainty on energy width of frequency resolution (eV)')
+        plt.xscale('log')
+        plt.tight_layout()
+
+        plt.savefig('Frequency_resolution_vs_rho.pdf')
+        plt.show()
 
         return True
 
@@ -83,6 +109,8 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
         self.needed_Bs = np.empty((len(self.sensitivity_target), len(self.veffs)))
         self.needed_res = np.empty((len(self.sensitivity_target), len(self.veffs)))
         self.needed_res_sigma = np.empty((len(self.sensitivity_target), len(self.veffs)))
+        self.needed_freq_res = np.empty((len(self.sensitivity_target), len(self.veffs)))
+        self.needed_freq_res_sigma = np.empty((len(self.sensitivity_target), len(self.veffs)))
         self.rho_opts = np.empty((len(self.sensitivity_target), len(self.veffs)))
         self.CLs = np.empty((len(self.sensitivity_target), len(self.veffs)))
         index = []
@@ -93,24 +121,26 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
                 self.Experiment.v_eff = veff
                 self.MagneticField.inhomogenarity = self.initialInhomogeneity
                 self.rho_opts[j, i]=self.FindOptimumPressure()
+                self.BHomogeneityAndResNeeded(self.sensitivity_target[j])
                 n = 0
                 drho =  self.density_range[1]/(m**3)*1.5
 
-                while np.abs(drho) > 1.5*np.diff(self.rhos)[0] and n<10:
+                while np.abs(drho)> self.rho_opts[j, i] * 0.001 and n<10:
                     print('Iteration: {}'.format(n))
                     n+=1
-                    self.BHomogeneityAndResNeeded(self.sensitivity_target[j])
+
                     new_rho = self.FindOptimumPressure()
                     drho = self.rho_opts[j, i]-new_rho
                     self.rho_opts[j, i] = new_rho
-                    self.needed_Bs[j, i], self.needed_res[j, i], self.needed_res_sigma[j, i] = self.BHomogeneityAndResNeeded(self.sensitivity_target[j])
+                    self.needed_Bs[j, i], self.needed_res[j, i], self.needed_res_sigma[j, i], self.needed_freq_res[j, i], self.needed_freq_res_sigma[j, i] = self.BHomogeneityAndResNeeded(self.sensitivity_target[j])
 
                 self.CLs[j, i] = self.CL90()
 
 
 
             index.append(np.where((self.CLs[j]/eV<np.sqrt(1.1*self.sensitivity_target[j]*np.sqrt(1.64))) & (self.needed_Bs[j]>self.Berrors[1])))
-            print('Achieved 90CL limits: {}'.format(self.CLs[j][index[j]]/eV))
+            print('Achieved 90CL limits: {}'.format(self.CLs[j]/eV))
+            print(index[j])
             time.sleep(2)
 
 
@@ -176,6 +206,30 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
         plt.tight_layout()
         plt.savefig('res_vs_veff.pdf')
         plt.savefig('res_vs_veff.png', dpi=300)
+
+        # plt.figure(figsize=(10, 5))
+
+        # plt.subplot(121)
+        # for j in range(len(self.sensitivity_target)):
+        #     plt.plot(self.veffs[index[j]]/(m**3), self.needed_freq_res[j][index[j]]/eV, label='90% CL = {} eV'.format(np.round(np.sqrt(np.sqrt(1.64)*self.sensitivity_target[j]),1)))
+        # plt.xlabel('Effective Volume (m³)')
+        # plt.ylabel('Energy width of frequency resolution (eV)')
+        # plt.xscale('log')
+        # #plt.yscale('log')
+        # plt.legend()
+        # plt.tight_layout()
+
+        # plt.subplot(122)
+        # for j in range(len(self.sensitivity_target)):
+        #     plt.plot(self.veffs[index[j]]/(m**3), self.needed_freq_res_sigma[j][index[j]]/eV, label='90% CL = {} eV'.format(np.round(np.sqrt(np.sqrt(1.64)*self.sensitivity_target[j]),1)))
+        # plt.xlabel('Effective Volume (m³)')
+        # plt.ylabel('Uncertainty on energy width of frequency resolution (eV)')
+        # plt.xscale('log')
+        # #plt.yscale('log')
+        # plt.legend()
+        # plt.tight_layout()
+        # plt.savefig('res_vs_veff.pdf')
+        # plt.savefig('res_vs_veff.png', dpi=300)
 
 
         plt.show()
@@ -255,7 +309,10 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
         # needed_total_sigma = np.sqrt(needed_sigma_b**2 + needed_total_sigma)
         needed_total_sigma = np.sqrt(np.sum(sigmas**2))
         needed_total_delta = np.sqrt(np.sum(deltas**2))
-        return needed_b_error/self.MagneticField.nominal_field, needed_total_sigma, needed_total_delta
+
+        needed_freq_sigma = sigmas[np.where(labels=='Start Frequency Resolution')]
+        needed_freq_delta = deltas[np.where(labels=='Start Frequency Resolution')]
+        return needed_b_error/self.MagneticField.nominal_field, needed_total_sigma, needed_total_delta, needed_freq_sigma, needed_freq_delta
 
 
 

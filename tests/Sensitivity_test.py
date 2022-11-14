@@ -23,7 +23,7 @@ class SensitivityTest(unittest.TestCase):
             "config_file_path": "/home/chrischtel/repos/another_termite/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg",
             "plot_path": "./sensitivity_curve.pdf",
             # optional
-            "track_length_axis": True,
+            "track_length_axis": False,
             "molecular_axis": False,
             "atomic_axis": True,
             "y_limits": [1e-1, 1e2],
@@ -69,7 +69,8 @@ class SensitivityTest(unittest.TestCase):
         sens_config_dict = {
             # required
             #"config_file_path": "/host_termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
-            "config_file_path": "/home/chrischtel/repos/another_termite/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
+            "config_file_path": "/home/chrischtel/repos/another_termite/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg",
+            'sensitivity_target': [0.4**2/np.sqrt(1.64)]#, 0.7**2/np.sqrt(1.64), 1**2/np.sqrt(1.64)]
             }
         sens = ConstantSensitivityParameterPlots("sensitivity_processor")
         sens.Configure(sens_config_dict)
