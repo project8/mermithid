@@ -139,7 +139,6 @@ class SensitivityCurveProcessor(BaseProcessor):
             self.add_goal(value*eV, key)
 
         # if B is list plot line for each B
-        print(self.B_error)
         if isinstance(self.B_error, list) or isinstance(self.B_error, np.ndarray):
             N = len(self.B_error)
             for a, color in self.range(0, N):

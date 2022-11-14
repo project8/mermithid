@@ -25,6 +25,7 @@ from numericalunits import meV, eV, m, T
 # morpho imports
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
+from mermithid.processors.Sensitivity import AnalyticSensitivityEstimation
 from mermithid.misc.SensitivityFormulas import Sensitivity
 
 
@@ -35,7 +36,7 @@ logger = morphologging.getLogger(__name__)
 __all__ = []
 __all__.append(__name__)
 
-class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
+class ConstantSensitivityParameterPlots(AnalyticSensitivityEstimation):
     '''
     Description
     Args:
@@ -59,15 +60,15 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
         self.initialInhomogeneity = reader.read_param(params, 'initial_Inhomogeneity', 1e-8)
 
         self.veff_range = reader.read_param(params, 'veff_range', [0.001, 1])
-        self.density_range = reader.read_param(params, 'density_range', [1.e16,1.e19])
+        self.density_range = reader.read_param(params, 'density_range', [5.e15,1.e19])
         self.BError_range = reader.read_param(params, 'BError_range', [1e-8,1e-3])
 
         # Configuration is done in __init__ of SensitivityClass
         Sensitivity.__init__(self, self.config_file_path)
 
-        self.rhos = np.linspace(self.density_range[0], self.density_range[1], 20)/(m**3)
+        self.rhos = np.linspace(self.density_range[0], self.density_range[1], 1000)/(m**3)
         self.veffs = np.logspace(np.log10(self.veff_range[0]), np.log10(self.veff_range[1]), 25)*m**3
-        self.Berrors = np.logspace(np.log10(self.BError_range[0]), np.log10(self.BError_range[1]), 100)
+        self.Berrors = np.logspace(np.log10(self.BError_range[0]), np.log10(self.BError_range[1]), 2000)
 
         freq_res = np.empty(np.shape(self.rhos))
         freq_res_delta = np.empty(np.shape(self.rhos))
@@ -76,24 +77,23 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
             self.Experiment.number_density = self.rhos[i]
             freq_res[i], freq_res_delta[i] = self.syst_frequency_extraction()
 
-            print(freq_res_delta[i])
 
-        plt.figure()
+        """plt.figure()
         plt.subplot(121)
         plt.plot(self.rhos*m**3, freq_res/eV)
         plt.xlabel('Density (/m³')
-        plt.ylabel('Energy width of frequency resolution (eV)')
+        plt.ylabel('Energy resolution from frequency uncertainty (eV)')
         plt.xscale('log')
 
         plt.subplot(122)
         plt.plot(self.rhos*m**3, freq_res_delta/eV)
         plt.xlabel('Density (/m³)')
-        plt.ylabel('Uncertainty on energy width of frequency resolution (eV)')
+        plt.ylabel('Uncertainty on energy resolution from frequency uncertainty (eV)')
         plt.xscale('log')
         plt.tight_layout()
 
         plt.savefig('Frequency_resolution_vs_rho.pdf')
-        plt.show()
+        plt.show()"""
 
         return True
 
@@ -117,7 +117,7 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
 
         for j in range(len(self.sensitivity_target)):
             for i, veff in enumerate(self.veffs):
-                print('\nVeff = {} m³'.format(veff/(m**3)))
+                logger.info('\nVeff = {} m³'.format(veff/(m**3)))
                 self.Experiment.v_eff = veff
                 self.MagneticField.inhomogenarity = self.initialInhomogeneity
                 self.rho_opts[j, i]=self.FindOptimumPressure()
@@ -126,7 +126,7 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
                 drho =  self.density_range[1]/(m**3)*1.5
 
                 while np.abs(drho)> self.rho_opts[j, i] * 0.001 and n<10:
-                    print('Iteration: {}'.format(n))
+                    logger.info('Iteration: {}'.format(n))
                     n+=1
 
                     new_rho = self.FindOptimumPressure()
@@ -139,22 +139,11 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
 
 
             index.append(np.where((self.CLs[j]/eV<np.sqrt(1.1*self.sensitivity_target[j]*np.sqrt(1.64))) & (self.needed_Bs[j]>self.Berrors[1])))
-            print('Achieved 90CL limits: {}'.format(self.CLs[j]/eV))
-            print(index[j])
-            time.sleep(2)
+            logger.info('Achieved 90CL limits: {}'.format(self.CLs[j]/eV))
+            time.sleep(1)
 
 
         plt.figure(figsize=(10, 5))
-
-        # plt.subplot(221)
-        # plt.plot(self.veffs[index]/(m**3), self.CLs[index]/eV)
-        # #plt.colorbar()
-        # plt.xlabel('Effective Volume (m³)')
-        # plt.ylabel('90% CL (eV)')
-        # plt.xscale('log')
-        # plt.yscale('log')
-        # plt.tight_layout()
-
 
         plt.subplot(121)
 
@@ -207,31 +196,6 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
         plt.savefig('res_vs_veff.pdf')
         plt.savefig('res_vs_veff.png', dpi=300)
 
-        # plt.figure(figsize=(10, 5))
-
-        # plt.subplot(121)
-        # for j in range(len(self.sensitivity_target)):
-        #     plt.plot(self.veffs[index[j]]/(m**3), self.needed_freq_res[j][index[j]]/eV, label='90% CL = {} eV'.format(np.round(np.sqrt(np.sqrt(1.64)*self.sensitivity_target[j]),1)))
-        # plt.xlabel('Effective Volume (m³)')
-        # plt.ylabel('Energy width of frequency resolution (eV)')
-        # plt.xscale('log')
-        # #plt.yscale('log')
-        # plt.legend()
-        # plt.tight_layout()
-
-        # plt.subplot(122)
-        # for j in range(len(self.sensitivity_target)):
-        #     plt.plot(self.veffs[index[j]]/(m**3), self.needed_freq_res_sigma[j][index[j]]/eV, label='90% CL = {} eV'.format(np.round(np.sqrt(np.sqrt(1.64)*self.sensitivity_target[j]),1)))
-        # plt.xlabel('Effective Volume (m³)')
-        # plt.ylabel('Uncertainty on energy width of frequency resolution (eV)')
-        # plt.xscale('log')
-        # #plt.yscale('log')
-        # plt.legend()
-        # plt.tight_layout()
-        # plt.savefig('res_vs_veff.pdf')
-        # plt.savefig('res_vs_veff.png', dpi=300)
-
-
         plt.show()
         return True
 
@@ -248,8 +212,6 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
         return np.abs(self.sensitivity()/(eV**2)-sensitivity_target)
 
     def FindOptimumPressure(self):
-
-
         limit = [self.SensVSrho(rho)/eV for rho in self.rhos]
         opt_rho_index = np.argmin(limit)
 
@@ -259,10 +221,11 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
 
         result = minimize(self.SensVSrho, rho_opt, method='Nelder-Mead')
         if result.success:
+            logger.info('\tReplacing numerical value by actual optimiuation result.')
             rho_opt = result.x[0]
 
         limit = self.CL90(Experiment={"number_density": rho_opt})/eV
-        print('\tOptimum density: {}'.format(rho_opt*m**3))
+        logger.info('\tOptimum density: {}'.format(rho_opt*m**3))
         return rho_opt
 
     def FindMaxAllowedBerror(self, sensitivity_target):
@@ -281,15 +244,10 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
         self.MagneticField.default_systematic_smearing = sig
         self.MagneticField.default_systematic_uncertainty = 0.05*sig
 
-        print('\tAllowed B relative error: {}'.format(Berror_opt))
         return Berror_opt
 
 
     def BHomogeneityAndResNeeded(self, sensitivity_target):
-
-        #sigma_sys = np.sqrt((self.sensitivity_target*eV**2)**2 - self.StatSens()**2)
-        #print('Stat sens: {}'.format(self.StatSens()/eV**2))
-
         neededBres = self.FindMaxAllowedBerror(sensitivity_target)
         labels, sigmas, deltas = self.get_systematics()
         # #b_sigma_tmp = (sigma_sys/4)**2
@@ -316,57 +274,57 @@ class ConstantSensitivityParameterPlots(BaseProcessor, Sensitivity):
 
 
 
-    # Sensitivity formulas:
-    # These are the functions that have so far been in the SensitivityClass but would not be used by a fake data experiment
-    # I did not include DeltaEWidth here becuase I consider it more general information about an experiment that could be used by the fake data studies too
+    # # Sensitivity formulas:
+    # # These are the functions that have so far been in the SensitivityClass but would not be used by a fake data experiment
+    # # I did not include DeltaEWidth here becuase I consider it more general information about an experiment that could be used by the fake data studies too
 
-    def StatSens(self):
-        """Pure statistic sensitivity assuming Poisson count experiment in a single bin"""
-        sig_rate = self.SignalRate()
-        DeltaE = self.DeltaEWidth()
-        sens = 2/(3*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*DeltaE
-                                                                  +self.BackgroundRate()*self.Experiment.LiveTime/DeltaE)
-        return sens
+    # def StatSens(self):
+    #     """Pure statistic sensitivity assuming Poisson count experiment in a single bin"""
+    #     sig_rate = self.SignalRate()
+    #     DeltaE = self.DeltaEWidth()
+    #     sens = 2/(3*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*DeltaE
+    #                                                               +self.BackgroundRate()*self.Experiment.LiveTime/DeltaE)
+    #     return sens
 
-    def SystSens(self):
-        """Pure systematic componenet to sensitivity"""
-        labels, sigmas, deltas = self.get_systematics()
-        sens = 4*np.sqrt(np.sum((sigmas*deltas)**2))
-        return sens
+    # def SystSens(self):
+    #     """Pure systematic componenet to sensitivity"""
+    #     labels, sigmas, deltas = self.get_systematics()
+    #     sens = 4*np.sqrt(np.sum((sigmas*deltas)**2))
+    #     return sens
 
-    def sensitivity(self, **kwargs):
-        """Combined statisical and systematic uncertainty.
-        Using kwargs settings in namespaces can be changed.
-        Example how to change number density which lives in namespace Experiment:
-            self.sensitivity(Experiment={"number_density": rho})
-        """
-        for sect, options in kwargs.items():
-            for opt, val in options.items():
-                self.__dict__[sect].__dict__[opt] = val
+    # def sensitivity(self, **kwargs):
+    #     """Combined statisical and systematic uncertainty.
+    #     Using kwargs settings in namespaces can be changed.
+    #     Example how to change number density which lives in namespace Experiment:
+    #         self.sensitivity(Experiment={"number_density": rho})
+    #     """
+    #     for sect, options in kwargs.items():
+    #         for opt, val in options.items():
+    #             self.__dict__[sect].__dict__[opt] = val
 
-        StatSens = self.StatSens()
-        SystSens = self.SystSens()
+    #     StatSens = self.StatSens()
+    #     SystSens = self.SystSens()
 
-        # Standard deviation on a measurement of m_beta**2
-        sigma_m_beta_2 =  np.sqrt(StatSens**2 + SystSens**2)
-        return sigma_m_beta_2
+    #     # Standard deviation on a measurement of m_beta**2
+    #     sigma_m_beta_2 =  np.sqrt(StatSens**2 + SystSens**2)
+    #     return sigma_m_beta_2
 
-    def CL90(self, **kwargs):
-        """ Gives 90% CL upper limit on neutrino mass."""
-        # 90% of gaussian are contained in +-1.64 sigma region
-        return np.sqrt(np.sqrt(1.64)*self.sensitivity(**kwargs))
+    # def CL90(self, **kwargs):
+    #     """ Gives 90% CL upper limit on neutrino mass."""
+    #     # 90% of gaussian are contained in +-1.64 sigma region
+    #     return np.sqrt(np.sqrt(1.64)*self.sensitivity(**kwargs))
 
-    def sterial_m2_limit(self, Ue4_sq):
-        return np.sqrt(np.sqrt(1.64)*np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens()**2))
+    # def sterial_m2_limit(self, Ue4_sq):
+    #     return np.sqrt(np.sqrt(1.64)*np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens()**2))
 
 
-    # print functions
-    def print_statistics(self):
-        print("Statistic", " "*18, "%.2f"%(np.sqrt(self.StatSens())/meV), "meV")
+    # # print functions
+    # def print_statistics(self):
+    #     print("Statistic", " "*18, "%.2f"%(np.sqrt(self.StatSens())/meV), "meV")
 
-    def print_systematics(self):
-        labels, sigmas, deltas = self.get_systematics()
+    # def print_systematics(self):
+    #     labels, sigmas, deltas = self.get_systematics()
 
-        print()
-        for label, sigma, delta in zip(labels, sigmas, deltas):
-            print(label, " "*(np.max([len(l) for l in labels])-len(label)),  "%8.2f"%(sigma/meV), "+/-", "%8.2f"%(delta/meV), "meV")
+    #     print()
+    #     for label, sigma, delta in zip(labels, sigmas, deltas):
+    #         print(label, " "*(np.max([len(l) for l in labels])-len(label)),  "%8.2f"%(sigma/meV), "+/-", "%8.2f"%(delta/meV), "meV")
