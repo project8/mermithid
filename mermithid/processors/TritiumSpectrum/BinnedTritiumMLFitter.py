@@ -128,11 +128,11 @@ def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
         print('True mass: ', fit_config_dict['model_parameter_means'][2])
         print('True all: ', fit_config_dict['model_parameter_means'])
         # get likleihood from fit
-        #T.hist = T.TritiumSpectrumBackground(T.bin_centers, *results_true_mass)
-        fit_ll = T.PoissonLogLikelihood(results)
+        T.hist = T.TritiumSpectrumBackground(T.bin_centers, *results)
+        fit_ll = T.PoissonLogLikelihood(results_true_mass)
         # get likleihood of asimov best mass
-        T.hist = T.TritiumSpectrumBackground(T.bin_centers, *results_best_mass)
-        best_ll = T.PoissonLogLikelihood(results)
+        #T.hist = T.TritiumSpectrumBackground(T.bin_centers, *results_best_mass)
+        best_ll = T.PoissonLogLikelihood(results_best_mass)
 
         return results, T.hesse_errors, [fit_ll, best_ll]
     else:
@@ -1032,7 +1032,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         Q_minus_K = Q-K
 
         if m_nu_squared >= 0:
-            nu_mass_shape_squared = (Q - K)**2 -m_nu_squared
+            nu_mass_shape_squared = (Q_minus_K)**2 -m_nu_squared
             index = np.where((nu_mass_shape_squared>0) & (Q_minus_K>0))
             nu_mass_shape = np.sqrt(nu_mass_shape_squared[index])
             spectrum[index] = (Q_minus_K[index])*nu_mass_shape#*self.ephasespace(K[index], Q)
