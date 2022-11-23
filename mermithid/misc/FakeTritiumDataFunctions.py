@@ -339,11 +339,11 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
             #convolved.append(convolved_j)
         convolved = np.concatenate(convolved_segments, axis=None)
         plt.savefig('varied_lineshapes.png', dpi=200)
-    elif resolution_function=='gaussian':
+    """elif resolution_function=='gaussian':
         lineshape_rates = np.flipud(lineshape_rates)
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
         convolved = convolve(beta_rates, lineshape_rates, mode='same')
-        np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
+        np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))"""
 
     if (lineshape=='gaussian' or lineshape=='simplified_scattering' or lineshape=='simplified'):
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
