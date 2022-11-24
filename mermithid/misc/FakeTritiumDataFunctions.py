@@ -282,7 +282,12 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
     """K is an array-like object
     """
     logger.info('Using scipy convolve')
+    logger.info('Lineshape is {} with {}'.format(lineshape, resolution_function))
     energy_half_range = max(max_energy, abs(min_energy))
+
+    #logger.info('Using {} frequency regions. Mean and std of p are {} and {}. For q its {} and {}'.format(len(ins_res_width_bounds)-1,
+    #                                                                                                        np.mean(p_factors), np.std(p_factors),
+    #                                                                                                        np.mean(q_factors), np.std(q_factors)))
 
     if ins_res_width_bounds != None:
         Kbounds = [np.min(K)] + ins_res_width_bounds + [np.max(K)]
@@ -312,35 +317,39 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
                 lineshape_rates.append(np.flipud(complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(scale_factors[i], ls_params[1], scatter_peak_ratio_p*p_factors[i], scatter_peak_ratio_q*q_factors[i], scatter_fraction, emitted_peak='dirac')))
         elif resolution_function == 'gaussian_resolution' or resolution_function == 'gaussian':
             logger.warn("Scatter peak ratio function for lineshape with Gaussian resolution may not be up-to-date!")
-            lineshape_rates = complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, emitted_peak='dirac')
+            gaussian_widths = [ls_params[0]*f for f in ins_res_width_factors]
+            lineshape_rates = [np.flipud(complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(gaussian_widths[i], ls_params[1], scatter_peak_ratio_p*p_factors[i], scatter_peak_ratio_q*q_factors[i], scatter_fraction, emitted_peak='dirac')) for i in range(len(gaussian_widths))]
         else:
             logger.warn('{} is not a resolution function that has been implemented in the FakeDataGenerator'.format(resolution_function))
 
     below_Kmin = np.where(K < Kmin)
 
     #Convolving
-    if (lineshape=='detailed_scattering' or lineshape=='detailed') and (resolution_function == 'simulated_resolution' or resolution_function == 'simulated'):
+    if (lineshape=='detailed_scattering' or lineshape=='detailed'):# and (resolution_function == 'simulated_resolution' or resolution_function == 'simulated'):
         convolved_segments = []
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
+        plt.figure(figsize=(7,5))
         for j in range(len(lineshape_rates)):
             #beta_rates = spectral_rate(K_segments[j], Q, mnu, final_state_array)
+            plt.plot(lineshape_rates[j])
             convolved_j = convolve(beta_rates, lineshape_rates[j], mode='same')
             np.put(convolved_j, below_Kmin, np.zeros(len(below_Kmin)))
             #Only including the part of convolved_j that corresponds to the right values of K
             convolved_segments.append(convolved_j[np.logical_and(Kbounds[j]<=K, K<=Kbounds[j+1])])
             #convolved.append(convolved_j)
         convolved = np.concatenate(convolved_segments, axis=None)
-    elif resolution_function=='gaussian':
+        plt.savefig('varied_lineshapes.png', dpi=200)
+    """elif resolution_function=='gaussian':
         lineshape_rates = np.flipud(lineshape_rates)
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
         convolved = convolve(beta_rates, lineshape_rates, mode='same')
-        np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
+        np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))"""
 
     if (lineshape=='gaussian' or lineshape=='simplified_scattering' or lineshape=='simplified'):
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
         convolved = convolve(beta_rates, lineshape_rates, mode='same')
         np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
-    
+
     return convolved
 
 
@@ -436,3 +445,17 @@ def efficiency_from_interpolation(x, efficiency_dict, B=0.9578186017836624):
 
 
 
+def random_efficiency_from_interpolation(x, efficiency_dict, B=0.9578186017836624):
+    """
+    Function to calculate efficiency
+    """
+    logger.info('Sampling efficiencies before interpolation')
+    f = Frequency(x, B)
+
+    efficiency_mean = efficiency_dict['eff interp with slope correction']
+    efficiency_error = np.mean(efficiency_dict['error interp with slope correction'], axis=0)
+    random_efficiencies = np.random.normal(efficiency_mean, efficiency_error)
+    random_efficiencies[random_efficiencies<0] = 0.
+    interp_efficiency = interp1d(efficiency_dict['frequencies'], random_efficiencies, fill_value='0', bounds_error=False)
+
+    return interp_efficiency(f)
