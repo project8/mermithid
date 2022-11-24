@@ -230,7 +230,7 @@ class FakeDataGenerator(BaseProcessor):
                     'sigma_array': self.sigma_array,
 
                     # This is an important parameter which determines how finely resolved the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to be increased for larger datasets.
-                    'num_points_in_std_array':35846,
+                    'num_points_in_std_array': 35846,
                     'base_shape': 'dirac',
                     'path_to_osc_strengths_files': self.path_to_osc_strengths_files,
                     'path_to_scatter_spectra_file':self.path_to_scatter_spectra_file,
@@ -246,6 +246,8 @@ class FakeDataGenerator(BaseProcessor):
                 self.complexLineShape.Configure(complexLineShape_config)
                 logger.info('Checking existence of scatter spectra files')
                 self.complexLineShape.check_existence_of_scatter_file()
+                lineshape_array = self.complexLineShape.std_eV_array()
+                self.lineshape_stepize = lineshape_array[1]-lineshape_array[0]
             else:
                 logger.error("'detailed_or_simplified' is neither 'detailed' nor 'simplified'")
                 return False
@@ -373,13 +375,15 @@ class FakeDataGenerator(BaseProcessor):
         logger.info('Stepsize is {} eV'.format(step_size))
 
         #Options of kinetic energies to be sampled
-        self.Koptions = np.arange(Kmin_eff, Kmax_eff, step_size)
+        self.Koptions = np.arange(Kmin_eff, Kmax_eff, self.lineshape_stepize)
 
         if efficiency_dict is not None:
             logger.info('Evaluating efficiencies')
-            efficiency_mean, efficiency_error = efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
+            """efficiency_mean, efficiency_error = efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
             logger.info("Sampling efficiencies given means and uncertainties")
-            efficiency = np.random.normal(efficiency_mean, efficiency_error)
+            efficiency = np.random.normal(efficiency_mean, efficiency_error)"""
+
+            efficiency = random_efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
             eff_negative = (efficiency<0.)
             efficiency[eff_negative] = 0. #Whenever this occurs, efficiency_mean=0 and efficiency_error=1
         else:
@@ -431,7 +435,7 @@ class FakeDataGenerator(BaseProcessor):
             ratesB = convolve(ratesB, gaussian_rates, mode='same')
             #if self.ins_res_width_bounds==None:
             ratesS = convolve(ratesS, gaussian_rates, mode='same')
-        
+
         ratesS[ratesS<0.] = 0.
         rate_sumS = np.sum(ratesS)
         probsS = np.array(ratesS)/rate_sumS
@@ -443,7 +447,7 @@ class FakeDataGenerator(BaseProcessor):
                 rate_sumS.append(np.sum(ratesS[i]))
                 probsS.append(np.array(ratesS[i])/rate_sumS[i])
         """
-            
+
         ratesB[ratesB<0.] = 0.
         rate_sumB = np.sum(ratesB)
         probsB = np.array(ratesB)/rate_sumB
@@ -460,6 +464,7 @@ class FakeDataGenerator(BaseProcessor):
         #if self.ins_res_width_bounds==None:
         temp_Koptions, temp_probsS, temp_probsB = self.Koptions, probsS, probsB
         split_Koptions, split_probsS, split_probsB = [], [], []
+        print(len(temp_Koptions), len(temp_probsS))
         for i in range(len(self.channel_bounds)):
             split_Koptions.append(temp_Koptions[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
             split_probsS.append(temp_probsS[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
@@ -474,7 +479,7 @@ class FakeDataGenerator(BaseProcessor):
 
         rates = []
         for i in range(len(self.channel_runtimes)):
-            rates.append((S*runtime_ratios[i]*split_probsS[i] + B*split_probsB[i])/(S*runtime_ratios[i]+B)) 
+            rates.append((S*runtime_ratios[i]*split_probsS[i] + B*split_probsB[i])/(S*runtime_ratios[i]+B))
 
         self.Koptions = np.concatenate(split_Koptions)
         rates = np.concatenate(rates)
