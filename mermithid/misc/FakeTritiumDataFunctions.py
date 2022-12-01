@@ -330,6 +330,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
         beta_rates = spectral_rate(K, Q, mnu, final_state_array)
         plt.figure(figsize=(7,5))
         for j in range(len(lineshape_rates)):
+            plt.plot(lineshape_rates[j])
             #beta_rates = spectral_rate(K_segments[j], Q, mnu, final_state_array)
             plt.plot(lineshape_rates[j])
             convolved_j = convolve(beta_rates, lineshape_rates[j], mode='same')
