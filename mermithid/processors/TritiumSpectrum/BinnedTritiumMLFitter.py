@@ -253,6 +253,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
             self.res_mean = reader.read_param(config_dict, 'gaussian_resolution_mean', 15.0)
             self.res_width = reader.read_param(config_dict, 'gaussian_resolution_width', 1.0)
+            self.res_width_from_maxSNR = reader.read_param(config_dict, 'sigma_std_maxSNR', 0)
             self.res = self.res_mean
 
             if self.resolution_model != 'gaussian':
@@ -317,10 +318,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
             stds = [self.scatter_peak_ratio_p_width, self.scatter_peak_ratio_q_width, self.res_width]
-            self.p_q_res_cov_matrix =  [[stds[0]**2, self.p_q_corr*stds[0]*stds[1], self.p_scale_corr*self.p_q_max_snr_stds[0]*self.scale_width*self.res_mean],
-                                        [self.p_q_corr*stds[0]*stds[1], stds[1]**2, self.q_scale_corr*self.p_q_max_snr_stds[1]*self.scale_width*self.res_mean],
-                                        [self.p_scale_corr*self.p_q_max_snr_stds[0]*self.scale_width*self.res_mean, self.q_scale_corr*self.p_q_max_snr_stds[1]*self.scale_width*self.res_mean, stds[2]**2]]
-            print(self.p_q_max_snr_stds, self.p_scale_corr, self.scale_width*self.res_mean )
+            self.p_q_res_cov_matrix =  [[stds[0]**2, self.p_q_corr*stds[0]*stds[1], self.p_scale_corr*self.p_q_max_snr_stds[0]*self.res_width_from_maxSNR],
+                                        [self.p_q_corr*stds[0]*stds[1], stds[1]**2, self.q_scale_corr*self.p_q_max_snr_stds[1]*self.res_width_from_maxSNR],
+                                        [self.p_scale_corr*self.p_q_max_snr_stds[0]*self.res_width_from_maxSNR, self.q_scale_corr*self.p_q_max_snr_stds[1]*self.res_width_from_maxSNR, stds[2]**2]]
 
             self.p_q_cov_matrix = [[stds[0]**2, self.p_q_corr*stds[0]*stds[1]],
                                     [self.p_q_corr*stds[1]*stds[0], stds[1]**2]]
@@ -434,15 +434,15 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             if i in self.constrained_parameters:
                 self.fixed_parameters[i] = False
 
-        print('\tHere comes the covariance matrix')
+        logger.info('Here comes the covariance matrix')
         if self.is_scattered and self.correlated_p_q_res:
             self.correlated_parameters = [self.scatter_peak_ratio_p_index, self.scatter_peak_ratio_q_index, self.res_index]
             self.cov_matrix = self.p_q_res_cov_matrix
-            print(self.cov_matrix)
+            logger.info(self.cov_matrix)
         elif self.is_scattered and self.correlated_p_q:
             self.correlated_parameters = [self.scatter_peak_ratio_p_index, self.scatter_peak_ratio_q_index]
             self.cov_matrix = self.p_q_cov_matrix
-            print(self.cov_matrix)
+            logger.info(self.cov_matrix)
         else:
             self.correlated_parameters = []
 
