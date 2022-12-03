@@ -191,7 +191,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.helium_lineshape_path = reader.read_param(config_dict, 'helium_lineshape_path', "optional")
         self.use_helium_scattering = reader.read_param(config_dict, 'use_helium_scattering', False)
         self.use_frequency_dependent_lineshape = reader.read_param(config_dict, 'use_frequency_dependent_lineshape', True)
-        self.correlated_p_q_scale = reader.read_param(config_dict, 'correlated_p_q_scale', False)
+        self.correlated_p_q_res = reader.read_param(config_dict, 'correlated_p_q_res', False)
         self.correlated_p_q = reader.read_param(config_dict, 'correlated_p_q', False)
         self.derived_two_gaussian_model = reader.read_param(config_dict, 'derived_two_gaussian_model', True)
 
@@ -313,12 +313,14 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.p_q_corr = reader.read_param(config_dict, 'p_q_corr', 0)
             self.p_scale_corr = reader.read_param(config_dict, 'p_scale_corr', 0)
             self.q_scale_corr = reader.read_param(config_dict, 'q_scale_corr', 0)
+            self.p_q_max_snr_stds = reader.read_param(config_dict, 'p_q_max_snr_stds', [0, 0])
 
 
-            stds = [self.scatter_peak_ratio_p_width, self.scatter_peak_ratio_q_width, self.scale_width]
-            self.p_q_scale_cov_matrix =  [[stds[0]**2, self.p_q_corr*stds[0]*stds[1], self.p_scale_corr*stds[0]*stds[2]],
-                                          [self.p_q_corr*stds[1]*stds[0], stds[1]**2, self.q_scale_corr*stds[1]*stds[2]],
-                                          [self.p_scale_corr*stds[2]*stds[0], self.q_scale_corr*stds[2]*stds[1], stds[2]**2]]
+            stds = [self.scatter_peak_ratio_p_width, self.scatter_peak_ratio_q_width, self.res_width]
+            self.p_q_res_cov_matrix =  [[stds[0]**2, self.p_q_corr*stds[0]*stds[1], self.p_scale_corr*self.p_q_max_snr_stds[0]*self.scale_width*self.res_mean],
+                                        [self.p_q_corr*stds[0]*stds[1], stds[1]**2, self.q_scale_corr*self.p_q_max_snr_stds[1]*self.scale_width*self.res_mean],
+                                        [self.p_scale_corr*self.p_q_max_snr_stds[0]*self.scale_width*self.res_mean, self.q_scale_corr*self.p_q_max_snr_stds[1]*self.scale_width*self.res_mean, stds[2]**2]]
+            print(self.p_q_max_snr_stds, self.p_scale_corr, self.scale_width*self.res_mean )
 
             self.p_q_cov_matrix = [[stds[0]**2, self.p_q_corr*stds[0]*stds[1]],
                                     [self.p_q_corr*stds[1]*stds[0], stds[1]**2]]
@@ -432,9 +434,15 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             if i in self.constrained_parameters:
                 self.fixed_parameters[i] = False
 
-        if self.is_scattered and self.correlated_p_q:
+        print('\tHere comes the covariance matrix')
+        if self.is_scattered and self.correlated_p_q_res:
+            self.correlated_parameters = [self.scatter_peak_ratio_p_index, self.scatter_peak_ratio_q_index, self.res_index]
+            self.cov_matrix = self.p_q_res_cov_matrix
+            print(self.cov_matrix)
+        elif self.is_scattered and self.correlated_p_q:
             self.correlated_parameters = [self.scatter_peak_ratio_p_index, self.scatter_peak_ratio_q_index]
             self.cov_matrix = self.p_q_cov_matrix
+            print(self.cov_matrix)
         else:
             self.correlated_parameters = []
 
