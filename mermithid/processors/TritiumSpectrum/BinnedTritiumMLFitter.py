@@ -120,7 +120,7 @@ def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
     if fit_config_dict['minos_intervals']:
         print(T.m_binned.covariance.correlation())
         return results, T.minos_errors, total_counts
-    elif fit_config_dict['return_ll']:
+    elif 'return_ll' in fit_config_dict and fit_config_dict['return_ll']:
         results_best_mass = deepcopy(results)
         results_best_mass[2] = max(0, results[2])
         results_true_mass = deepcopy(results)
