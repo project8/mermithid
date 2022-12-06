@@ -434,15 +434,15 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             if i in self.constrained_parameters:
                 self.fixed_parameters[i] = False
 
-        logger.info('Here comes the covariance matrix')
+        #logger.info('Here comes the covariance matrix')
         if self.is_scattered and self.correlated_p_q_res:
             self.correlated_parameters = [self.scatter_peak_ratio_p_index, self.scatter_peak_ratio_q_index, self.res_index]
             self.cov_matrix = self.p_q_res_cov_matrix
-            logger.info(self.cov_matrix)
+            #logger.info(self.cov_matrix)
         elif self.is_scattered and self.correlated_p_q:
             self.correlated_parameters = [self.scatter_peak_ratio_p_index, self.scatter_peak_ratio_q_index]
             self.cov_matrix = self.p_q_cov_matrix
-            logger.info(self.cov_matrix)
+            #logger.info(self.cov_matrix)
         else:
             self.correlated_parameters = []
 
@@ -1034,7 +1034,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         return lineshape
 
 
-    def beta_rates(self, K, Q, m_nu_squared, shape='mainz'):#, index):
+    def beta_rates(self, K, Q, m_nu_squared, shape='llnl'):#, index):
         spectrum = np.zeros(len(K))
 
         Q_minus_K = Q-K
