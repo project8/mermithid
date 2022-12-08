@@ -179,6 +179,10 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.fit_efficiency_tilt = reader.read_param(config_dict, 'fit_efficiency_tilt', False) # efficiency slope is free parameter
         self.fit_nu_mass = reader.read_param(config_dict, 'fit_neutrino_mass', False)
         self.use_relative_livetime_correction = reader.read_param(config_dict, 'use_relative_livetime_correction', False)
+        self.neg_mbeta_squared_model = reader.read_param(config_dict, 'neg_mbeta_squared_model', 'katrin')
+
+        if self.fit_nu_mass:
+            logger.info('Using {} model'.format(self.neg_mbeta_squared_model))
 
         # save plots in (processor can plot lineshape used in tritium model)
         self.savepath = reader.read_param(config_dict, 'savepath', '.')
@@ -825,6 +829,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             self.B = self.Gaussian_sample(self.B_mean, self.B_width)
             self.parameter_samples['B'] = self.B
             sample_values.append(self.B)
+            logger.info('B field prior: {} +/- {}'.format(self.B_mean, self.B_width))
         if 'endpoint' in sampled_parameters.keys() and sampled_parameters['endpoint']:
             self.model_parameter_means[self.endpoint_index] = self.Gaussian_sample(self.endpoint_mean, self.endpoint_width)
             self.parameter_samples['endpoint'] = self.endpoint
@@ -1034,8 +1039,9 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         return lineshape
 
 
-    def beta_rates(self, K, Q, m_nu_squared, shape='llnl'):#, index):
+    def beta_rates(self, K, Q, m_nu_squared, shape='mainz'):#, index):
         spectrum = np.zeros(len(K))
+        shape = self.neg_mbeta_squared_model
 
         Q_minus_K = Q-K
 
