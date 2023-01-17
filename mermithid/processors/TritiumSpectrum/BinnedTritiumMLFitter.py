@@ -121,9 +121,13 @@ def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
         print(T.m_binned.covariance.correlation())
         return results, T.minos_errors, total_counts
     elif 'return_ll' in fit_config_dict and fit_config_dict['return_ll']:
-        results_best_mass = deepcopy(results)
+
+        #all_params = results
+        all_params = fit_config_dict['model_parameter_means']
+
+        results_best_mass = deepcopy(all_params)
         results_best_mass[2] = max(0, results[2])
-        results_true_mass = deepcopy(results)
+        results_true_mass = deepcopy(all_params)
         results_true_mass[2] = fit_config_dict['model_parameter_means'][2]
         print('True mass: ', fit_config_dict['model_parameter_means'][2])
         print('True all: ', fit_config_dict['model_parameter_means'])
@@ -179,7 +183,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
         self.fit_efficiency_tilt = reader.read_param(config_dict, 'fit_efficiency_tilt', False) # efficiency slope is free parameter
         self.fit_nu_mass = reader.read_param(config_dict, 'fit_neutrino_mass', False)
         self.use_relative_livetime_correction = reader.read_param(config_dict, 'use_relative_livetime_correction', False)
-        self.neg_mbeta_squared_model = reader.read_param(config_dict, 'neg_mbeta_squared_model', 'katrin')
+        self.neg_mbeta_squared_model = reader.read_param(config_dict, 'neg_mbeta_squared_model', 'mainz')
 
         if self.fit_nu_mass:
             logger.info('Using {} model'.format(self.neg_mbeta_squared_model))
