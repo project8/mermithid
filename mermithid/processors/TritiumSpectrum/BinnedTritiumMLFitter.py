@@ -122,8 +122,8 @@ def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
         return results, T.minos_errors, total_counts
     elif 'return_ll' in fit_config_dict and fit_config_dict['return_ll']:
 
-        #all_params = results
-        all_params = fit_config_dict['model_parameter_means']
+        all_params = results
+        #all_params = fit_config_dict['model_parameter_means']
 
         results_best_mass = deepcopy(all_params)
         results_best_mass[2] = max(0, results[2])
