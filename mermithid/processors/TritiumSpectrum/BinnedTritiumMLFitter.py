@@ -122,12 +122,12 @@ def DoOneFit(data, fit_config_dict, sampled_parameters={}, error_scaling=0,
         return results, T.minos_errors, total_counts
     elif 'return_ll' in fit_config_dict and fit_config_dict['return_ll']:
 
-        modified_results = deepcopy(fit_config_dict['model_parameter_means'])
-        modified_results[2] = results[2]
+        #modified_results = deepcopy(fit_config_dict['model_parameter_means'])
+        #modified_results[2] = results[2]
 
         # this works
-        #modified_results = deepcopy(results)
-        #modified_results[1] = 0
+        modified_results = deepcopy(results)
+        modified_results[1] = 0
 
         all_params = modified_results
         #all_params = fit_config_dict['model_parameter_means']
