@@ -101,3 +101,6 @@ ENV/
 .mypy_cache/
 *.root
 *.png
+
+# CMake build directory
+build*/
