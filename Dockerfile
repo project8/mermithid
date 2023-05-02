@@ -41,7 +41,7 @@ COPY tests $MERMITHID_BUILD_PREFIX/tests
 
 # repeat the cmake command to get the change of install prefix to set correctly (a package_builder known issue)
 RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
-    pip3 install --upgrade pip &&\
+#    pip3 install --upgrade pip &&\
     cd /tmp_source &&\
     mkdir -p build &&\
     cd build &&\
