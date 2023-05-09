@@ -25,9 +25,9 @@ logger = morphologging.getLogger(__name__)
 
 from mermithid.processors.Fitters import BinnedDataFitter
 from mermithid.misc.FakeTritiumDataFunctions import fermi_func, pe, Ee, GF, Vud, Mnuc2
-from mermithid.misc import ComplexLineShapeUtilities
+from mermithid.misc import ComplexLineShapeUtilities, Constants
 from mermithid.processors.misc.KrComplexLineShape import KrComplexLineShape
-from mermithid.misc.DetectionEfficiencyUtilities import pseudo_integrated_efficiency, integrated_efficiency, power_efficiency
+#from mermithid.misc.DetectionEfficiencyUtilities import pseudo_integrated_efficiency, integrated_efficiency, power_efficiency
 
 
 
@@ -50,7 +50,10 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         self.integrate_bins = reader.read_param(config_dict, 'integrate_bins', True) # integrate spectrum over bin widths
         self.base_shape = reader.read_param(config_dict, 'base_shape', 'shake')
         self.shake_spectrum_parameters_json_path = reader.read_param(config_dict, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
-        
+        self.path_to_osc_strengths_files = reader.read_param(config_dict, 'path_to_osc_strengths_files', '/host/')
+
+        logger.info("Base shape is: {}".format(self.base_shape))
+
         if not os.path.exists(self.shake_spectrum_parameters_json_path) and self.base_shape=='shake':
             raise IOError('Shake spectrum path does not exist')
         if not os.path.exists(self.path_to_osc_strengths_files):
@@ -71,20 +74,21 @@ class KrSimplifiedLineshape(BinnedDataFitter):
 
         # configure model parameter names
         self.model_parameter_names = reader.read_param(config_dict, 'model_parameter_names',
-                                                       ['mu', 'resolution', 
+                                                       ['B', 'mu', 'resolution', 
                                                         'scatter_peak_ratio_p', 'scatter_peak_ratio_q', 
                                                         'h2_fraction',
                                                         'background', 'amplitude'] )
         # initial values and mean of constaints (if constraint) or mean of distribution (if sampled)
-        self.model_parameter_means = reader.read_param(config_dict, 'model_parameter_means', [17.8e3, 10, 1, 1, 0.5, 1, 1e3])
+        self.model_parameter_means = reader.read_param(config_dict, 'model_parameter_means', [0.9591, 17.8e3, 10, 1, 1, 0.5, 1, 1e3])
         # width for constraints or sample distributions
-        self.model_parameter_widths = reader.read_param(config_dict, 'model_parameter_widths', [1, 1, 0.1, 0.1, 0.1, 0.1, 10])
-        self.fixed_parameters = reader.read_param(config_dict, 'fixed_parameters', [False, False, False, False, False, False, False])
+        self.model_parameter_widths = reader.read_param(config_dict, 'model_parameter_widths', [0.0001, 1, 1, 0.1, 0.1, 0.1, 0.1, 10])
+        self.fixed_parameters = reader.read_param(config_dict, 'fixed_parameters', [False, False, False, False, False, False, False, False])
         self.fixed_parameter_dict = reader.read_param(config_dict, 'fixed_parameter_dict', {})
         self.free_in_second_fit = reader.read_param(config_dict, 'free_in_second_fit', [])
         self.fixed_in_second_fit = reader.read_param(config_dict, 'fixed_in_second_fit', [])
         self.limits = reader.read_param(config_dict, 'model_parameter_limits',
-                                                    [[16e3, 19e3],
+                                                    [[None, None],
+                                                     [16e3, 19e3],
                                                      [0, None],
                                                      [None, None],
                                                      [None, None],
@@ -186,15 +190,11 @@ class KrSimplifiedLineshape(BinnedDataFitter):
 
 
         # identify tritium parameters
-        self.tritium_model_indices = reader.read_param(config_dict, 'tritium_model_parameters', [0, 2])
-        self.m_beta_index = self.model_parameter_names.index('m_beta_squared')
-        self.endpoint_index = self.model_parameter_names.index('endpoint')
+        #self.kr_model_indices = reader.read_param(config_dict, 'tritium_model_parameters', [0, 2])
+        
         if 'B' in self.model_parameter_names:
             self.B_index = self.model_parameter_names.index('B')
-        self.fixed_parameters[self.m_beta_index] = not self.fit_nu_mass
-        self.endpoint=reader.read_param(config_dict, 'true_endpoint', 18.573e3)
-        #logger.info('Tritium model parameters: {}'.format(np.array(self.model_parameter_names)[self.tritium_model_indices]))
-
+        
 
         # individual model parameter configurations
         # overwrites model_parameter_means and widths
@@ -206,6 +206,7 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         self.min_frequency = reader.read_param(config_dict, 'min_frequency', "required")
         self.max_frequency = reader.read_param(config_dict, 'max_frequency', None)
         self.max_energy = reader.read_param(config_dict, 'resolution_energy_max', 1000)
+        
 
         # path to json with efficiency dictionary
         self.efficiency_file_path = reader.read_param(config_dict, 'efficiency_file_path', '')
@@ -217,6 +218,7 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         # =================
 
         self.print_level = reader.read_param(config_dict, 'print_level', 0)
+        self.use_asimov = False
 
 
 
@@ -266,15 +268,9 @@ class KrSimplifiedLineshape(BinnedDataFitter):
             self.helium_lineshape_p = np.loadtxt(self.helium_lineshape_path, unpack=True)
 
         # which lineshape should be used?
-        if self.lineshape_model == 'simplified':
-            self.multi_gas_lineshape = self.simplified_multi_gas_lineshape
-        elif self.lineshape_model == 'accurate_simplified':
-            self.multi_gas_lineshape = self.more_accurate_simplified_multi_gas_lineshape
-
+        self.multi_gas_lineshape = self.simplified_multi_gas_lineshape
         
-        else:
-            logger.error('Unknown configure lineshape')
-            return False
+
 
         # scatter peak ratio
         self.scatter_peak_ratio = reader.read_param(config_dict, 'scatter_peak_ratio', 'modified_exponential')
@@ -310,33 +306,41 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         self.denergy = self.dbins/np.round(self.dbins/self.denergy)
 
 
-        self._energies = np.arange(self.Energy(self.max_frequency), self.Energy(self.max_frequency)+(self.N_energy_bins)*self.denergy, self.denergy)
-        self._bins = np.arange(np.min(self.energies), self.Energy(self.max_frequency)+(self.N_bins)*self.dbins, self.dbins)
+        self.energies = np.arange(self.Energy(self.max_frequency), self.Energy(self.max_frequency)+(self.N_energy_bins)*self.denergy, self.denergy)
+        self.bins = np.arange(np.min(self.energies), self.Energy(self.max_frequency)+(self.N_bins)*self.dbins, self.dbins)
 
-        if len(self._energies) > self.N_energy_bins:
-            self._energies = self._energies[:-1]
-        if len(self._bins) > self.N_bins:
-            self._bins = self._bins[:-1]
+        if len(self.energies) > self.N_energy_bins:
+            self.energies = self.energies[:-1]
+        if len(self.bins) > self.N_bins:
+            self.bins = self.bins[:-1]
 
-
-        self.bin_centers = self._bins[0:-1]+0.5*(self._bins[1]-self._bins[0])
-        self.freq_bins = self.Frequency(self._bins)
+        self.bin_centers = self.bins[0:-1]+0.5*(self.bins[1]-self.bins[0])
+        
+        self.frequencies = self.Frequency(self.energies)
+        self.freq_bins = self.Frequency(self.bins)
         self.freq_bin_centers = self.Frequency(self.bin_centers)
-
-        # arrays for internal usage
-        self._bin_efficiency, self._bin_efficiency_errors = [], []
-        self._full_efficiency, self._full_efficiency_errors = [], []
-        self._bin_efficiency, self._bin_efficiency_errors = self.Efficiency(self.bin_centers)
-        self._full_efficiency, self._full_efficiency_errors = self.Efficiency(self.energies)
+        
+        self.freq_bins = np.sort(self.freq_bins)
+        self.freq_bin_centers = np.sort(self.freq_bin_centers)
+        self.frequencies = np.sort(self.frequencies)
 
         self.ReSetBins()
+        
+        # ==================================
+        # Read shake parameters from JSON file
+        # ==================================
+        
+        if self.base_shape == 'shake':
+            x_array = self.flip_array(self.std_eV_array())
+            self.shakeSpectrumClassInstance = ComplexLineShapeUtilities.ShakeSpectrumClass(self.shake_spectrum_parameters_json_path, x_array)
+
         # ==================================
         # configure parent BinnedDataFitter
         # ==================================
 
         # This processor inherits from the BinnedDataFitter that does binned max likelihood fitting
         # overwrite parent model with tritium model used here
-        self.model = self.SpectrumWithBackground()
+        self.model = self.SpectrumWithBackground
 
         # now configure fit
         self.ConfigureFit()
@@ -361,23 +365,32 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         self.fixes = self.fixed_parameters 
         self.fixes_dict = self.fixed_parameter_dict
 
-        self.parameter_errors = [max([0.1, p]) for p in self.model_parameter_widths]
+        self.parameter_errors = self.model_parameter_widths
 
         return True
 
     # =========================================================================
     # Main fit function
     # =========================================================================
+    def std_eV_array(self):
+        emin = -1000
+        emax = 2000
+        array = np.arange(emin,emax,self.denergy)
+        return array
     
     def InternalRun(self, sampled_parameters={}, params=[]):
-        # Read shake parameters from JSON file
-        if self.base_shape == 'shake':
-            self.shakeSpectrumClassInstance = ComplexLineShapeUtilities.ShakeSpectrumClass(self.shake_spectrum_parameters_json_path, self.std_eV_array())
-
+        print("Running")
+        
+        """plt.figure()
+        plt.plot(self.std_eV_array(), self.shakeSpectrumClassInstance.shake_spectrum())
+        plt.xlabel("Energy (eV)")
+        plt.ylabel("Amplitude (arb. units")
+        plt.tight_layout()
+        plt.savefig(os.path.join(self.savepath, "shake_spectrum.png"))"""
 
         # for systematic MC uncertainty propagation: Generate Asimov data to fit with random model
         if self.use_asimov:
-            self.hist = self.TritiumSpectrumBackground(self.bin_centers, *params)
+            self.hist = self.SpectrumWithBackground(self.bin_centers, *params)
           
         # sample priors that are to be sampled
         if len(sampled_parameters.keys()) > 0:
@@ -389,11 +402,12 @@ class KrSimplifiedLineshape(BinnedDataFitter):
 
             
         # now convert frequency data to energy data and histogram it
-        if not self.use_asimov:
-            self.ConvertAndHistogram()
+        self.ConvertAndHistogram()
 
         # Call parent fit method using data and model from this instance
-        return self.fit()
+        self.results, self.errors = self.fit()
+
+        return True
 
 
     # =========================================================================
@@ -419,90 +433,90 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         return np.random.gamma(a, 1/b)
 
 
-    def SamplePriors(self, sampled_parameters):
+    # def SamplePriors(self, sampled_parameters):
 
-        for k in sampled_parameters.keys():
-            if k in self.nuisance_parameters and self.nuisance_parameters[k] and sampled_parameters[k]:
-                raise ValueError('{} is nuisance parameter.'.format(k))
+    #     for k in sampled_parameters.keys():
+    #         if k in self.nuisance_parameters and self.nuisance_parameters[k] and sampled_parameters[k]:
+    #             raise ValueError('{} is nuisance parameter.'.format(k))
 
-        for i, p in enumerate(self.model_parameter_names):
-            if p in sampled_parameters.keys() and sampled_parameters[p] and not self.fixed_parameters[i]:
-                raise ValueError('{} is a free parameter'.format(p))
+    #     for i, p in enumerate(self.model_parameter_names):
+    #         if p in sampled_parameters.keys() and sampled_parameters[p] and not self.fixed_parameters[i]:
+    #             raise ValueError('{} is a free parameter'.format(p))
 
-        logger.info('Sampling: {}'.format([k for k in sampled_parameters.keys() if sampled_parameters[k]]))
-        self.parameter_samples = {}
-        sample_values = []
-        if 'resolution' in sampled_parameters.keys() and sampled_parameters['resolution']:
-            self.res = self.Gaussian_sample(self.res_mean, self.res_width)
-            #if self.res <= 30.01/float(2*np.sqrt(2*np.log(2))):
-            #    logger.warning('Sampled resolution small. Setting to {}'.format(30.01/float(2*np.sqrt(2*np.log(2)))))
-            #    self.res = 30.01/float(2*np.sqrt(2*np.log(2)))
-            self.parameter_samples['resolution'] = self.res
-            sample_values.append(self.res)
-        if 'h2_fraction' in sampled_parameters.keys() and sampled_parameters['h2_fraction']:
-            self.h2_fraction = self.Gaussian_sample(self.h2_fraction_mean, self.h2_fraction_width)
-            if self.h2_fraction > 1: self.h2_fraction=1
-            elif self.h2_fraction < 0: self.h2_fraction=0
-            self.parameter_samples['h2_fraction'] = self.h2_fraction
-            sample_values.append(self.h2_fraction)
-        if 'two_gaussian_sigma_1' in sampled_parameters.keys() and sampled_parameters['two_gaussian_sigma_1']:
-            self.two_gaussian_sigma_1 = self.Gaussian_sample(self.two_gaussian_sigma_1_mean, self.two_gaussian_sigma_1_width)
-            self.parameter_samples['two_gaussian_sigma_1'] = self.two_gaussian_sigma_1
-            sample_values.append(self.two_gaussian_sigma_1)
-        if 'two_gaussian_sigma_2' in sampled_parameters.keys() and sampled_parameters['two_gaussian_sigma_2']:
-            self.two_gaussian_sigma_2 = self.Gaussian_sample(self.two_gaussian_sigma_2_mean, self.two_gaussian_sigma_2_width)
-            self.parameter_samples['two_gaussian_sigma_2'] = self.two_gaussian_sigma_2
-            sample_values.append(self.two_gaussian_sigma_2)
-        if 'scatter_peak_ratio' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio']:
-            self.scatter_peak_ratio_p = self.Beta_sample(self.scatter_peak_ratio_mean, self.scatter_peak_ratio_width)
-            self.scatter_peak_ratio_q = 1
-            #self.fix_scatter_ratio_b = True
-            #self.fix_scatter_ratio_c = True
-            self.parameter_samples['scatter_peak_ratio'] = self.scatter_peak_ratio_p
-            sample_values.append(self.scatter_peak_ratio_p)
+    #     logger.info('Sampling: {}'.format([k for k in sampled_parameters.keys() if sampled_parameters[k]]))
+    #     self.parameter_samples = {}
+    #     sample_values = []
+    #     if 'resolution' in sampled_parameters.keys() and sampled_parameters['resolution']:
+    #         self.res = self.Gaussian_sample(self.res_mean, self.res_width)
+    #         #if self.res <= 30.01/float(2*np.sqrt(2*np.log(2))):
+    #         #    logger.warning('Sampled resolution small. Setting to {}'.format(30.01/float(2*np.sqrt(2*np.log(2)))))
+    #         #    self.res = 30.01/float(2*np.sqrt(2*np.log(2)))
+    #         self.parameter_samples['resolution'] = self.res
+    #         sample_values.append(self.res)
+    #     if 'h2_fraction' in sampled_parameters.keys() and sampled_parameters['h2_fraction']:
+    #         self.h2_fraction = self.Gaussian_sample(self.h2_fraction_mean, self.h2_fraction_width)
+    #         if self.h2_fraction > 1: self.h2_fraction=1
+    #         elif self.h2_fraction < 0: self.h2_fraction=0
+    #         self.parameter_samples['h2_fraction'] = self.h2_fraction
+    #         sample_values.append(self.h2_fraction)
+    #     if 'two_gaussian_sigma_1' in sampled_parameters.keys() and sampled_parameters['two_gaussian_sigma_1']:
+    #         self.two_gaussian_sigma_1 = self.Gaussian_sample(self.two_gaussian_sigma_1_mean, self.two_gaussian_sigma_1_width)
+    #         self.parameter_samples['two_gaussian_sigma_1'] = self.two_gaussian_sigma_1
+    #         sample_values.append(self.two_gaussian_sigma_1)
+    #     if 'two_gaussian_sigma_2' in sampled_parameters.keys() and sampled_parameters['two_gaussian_sigma_2']:
+    #         self.two_gaussian_sigma_2 = self.Gaussian_sample(self.two_gaussian_sigma_2_mean, self.two_gaussian_sigma_2_width)
+    #         self.parameter_samples['two_gaussian_sigma_2'] = self.two_gaussian_sigma_2
+    #         sample_values.append(self.two_gaussian_sigma_2)
+    #     if 'scatter_peak_ratio' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio']:
+    #         self.scatter_peak_ratio_p = self.Beta_sample(self.scatter_peak_ratio_mean, self.scatter_peak_ratio_width)
+    #         self.scatter_peak_ratio_q = 1
+    #         #self.fix_scatter_ratio_b = True
+    #         #self.fix_scatter_ratio_c = True
+    #         self.parameter_samples['scatter_peak_ratio'] = self.scatter_peak_ratio_p
+    #         sample_values.append(self.scatter_peak_ratio_p)
 
-        if self.correlated_p_q and 'scatter_peak_ratio_p' in sampled_parameters.keys() and 'scatter_peak_ratio_q' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_p'] and sampled_parameters['scatter_peak_ratio_q']:
-            logger.info('Correlated p, q, scale sampling')
-            correlated_vars = np.random.multivariate_normal([self.scatter_peak_ratio_p_mean, self.scatter_peak_ratio_q_mean], self.p_q_cov_matrix)
-            self.scatter_peak_ratio_p = correlated_vars[0]
-            self.scatter_peak_ratio_q = correlated_vars[1]
-            #self.width_scaling = correlated_vars[2]
+    #     if self.correlated_p_q and 'scatter_peak_ratio_p' in sampled_parameters.keys() and 'scatter_peak_ratio_q' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_p'] and sampled_parameters['scatter_peak_ratio_q']:
+    #         logger.info('Correlated p, q, scale sampling')
+    #         correlated_vars = np.random.multivariate_normal([self.scatter_peak_ratio_p_mean, self.scatter_peak_ratio_q_mean], self.p_q_cov_matrix)
+    #         self.scatter_peak_ratio_p = correlated_vars[0]
+    #         self.scatter_peak_ratio_q = correlated_vars[1]
+    #         #self.width_scaling = correlated_vars[2]
 
-            #self.fix_scatter_ratio_b = True
-            self.parameter_samples['scatter_peak_ratio_p'] = self.scatter_peak_ratio_p
-            sample_values.append(self.scatter_peak_ratio_p)
+    #         #self.fix_scatter_ratio_b = True
+    #         self.parameter_samples['scatter_peak_ratio_p'] = self.scatter_peak_ratio_p
+    #         sample_values.append(self.scatter_peak_ratio_p)
 
-            self.parameter_samples['scatter_peak_ratio_q'] = self.scatter_peak_ratio_q
-            sample_values.append(self.scatter_peak_ratio_q)
-            #self.fix_scatter_ratio_c = True
+    #         self.parameter_samples['scatter_peak_ratio_q'] = self.scatter_peak_ratio_q
+    #         sample_values.append(self.scatter_peak_ratio_q)
+    #         #self.fix_scatter_ratio_c = True
 
-        else:
+    #     else:
 
-            if 'scatter_peak_ratio_p' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_p']:
-                logger.info('Uncorrelated b, c, scale sampling')
-                self.scatter_peak_ratio_p = self.Gamma_sample(self.scatter_peak_ratio_p_mean, self.scatter_peak_ratio_p_width)
-                #self.fix_scatter_ratio_b = True
-                self.parameter_samples['scatter_peak_ratio_p'] = self.scatter_peak_ratio_p
-                sample_values.append(self.scatter_peak_ratio_p)
-            if 'scatter_peak_ratio_q' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_q']:
-                self.scatter_peak_ratio_q = self.Gamma_sample(self.scatter_peak_ratio_q_mean, self.scatter_peak_ratio_q_width)
-                self.parameter_samples['scatter_peak_ratio_q'] = self.scatter_peak_ratio_q
-                sample_values.append(self.scatter_peak_ratio_q)
-                #self.fix_scatter_ratio_c = True
+    #         if 'scatter_peak_ratio_p' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_p']:
+    #             logger.info('Uncorrelated b, c, scale sampling')
+    #             self.scatter_peak_ratio_p = self.Gamma_sample(self.scatter_peak_ratio_p_mean, self.scatter_peak_ratio_p_width)
+    #             #self.fix_scatter_ratio_b = True
+    #             self.parameter_samples['scatter_peak_ratio_p'] = self.scatter_peak_ratio_p
+    #             sample_values.append(self.scatter_peak_ratio_p)
+    #         if 'scatter_peak_ratio_q' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_q']:
+    #             self.scatter_peak_ratio_q = self.Gamma_sample(self.scatter_peak_ratio_q_mean, self.scatter_peak_ratio_q_width)
+    #             self.parameter_samples['scatter_peak_ratio_q'] = self.scatter_peak_ratio_q
+    #             sample_values.append(self.scatter_peak_ratio_q)
+    #             #self.fix_scatter_ratio_c = True
 
-        if 'B' in sampled_parameters.keys() and sampled_parameters['B']:
-            self.B = self.Gaussian_sample(self.B_mean, self.B_width)
-            self.parameter_samples['B'] = self.B
-            sample_values.append(self.B)
-            logger.info('B field prior: {} +/- {}'.format(self.B_mean, self.B_width))
+    #     if 'B' in sampled_parameters.keys() and sampled_parameters['B']:
+    #         self.B = self.Gaussian_sample(self.B_mean, self.B_width)
+    #         self.parameter_samples['B'] = self.B
+    #         sample_values.append(self.B)
+    #         logger.info('B field prior: {} +/- {}'.format(self.B_mean, self.B_width))
 
 
-        logger.info('Samples are: {}'.format(sample_values))
-        #logger.info('Fit parameters: \n{}\nFixed: {}'.format(self.parameter_names, self.fixes))
-        # set new values in model
-        self.ConfigureFit()
+    #     logger.info('Samples are: {}'.format(sample_values))
+    #     #logger.info('Fit parameters: \n{}\nFixed: {}'.format(self.parameter_names, self.fixes))
+    #     # set new values in model
+    #     self.ConfigureFit()
 
-        return self.parameter_samples
+    #     return self.parameter_samples
 
     # =========================================================================
     # Frequency - Energy conversion
@@ -536,75 +550,25 @@ class KrSimplifiedLineshape(BinnedDataFitter):
     # Bin and energy array set&get
     # =========================================================================
 
-    @property
-    def energies(self):
-        return self._energies
-
-    @energies.setter
-    def energies(self, some_energies):
-        """
-        fine grained array.
-        delete pre-existing efficiencies when resetting energies.
-        """
-        self._energies =  some_energies
-
-        self._full_efficiency, self._full_efficiency_errors = [], []
-        efficiency = self.Efficiency(self._energies)
-        self._full_efficiency = efficiency[0]
-        self._full_efficiency_errors = efficiency[1]
-
-        """super(Tritium, self).__init__(a=np.min(self._energies),
-                                        b=np.max(self._energies),
-                                        xtol=self.xtol, seed=self.seed)"""
-
-
-    @property
-    def bins(self):
-        return self._bins#, self._freq_bin_centers
-
-    @bins.setter
-    def bins(self, some_bins):
-        """
-        energy bins.
-        delete pre-existing efficiencies when resetting bins.
-        """
-
-        # energy bins
-        self._bins = some_bins
-        if len(self._energies) > self.N_energy_bins:
-            self._energies = self._energies[:-1]
-        if len(self._bins) > self.N_bins:
-            self._bins = self._bins[:-1]
-
-        self.bin_centers = self._bins[0:-1] +0.5*(self._bins[1]-self._bins[0])
-
-        # frequency bins
-        self.freq_bins = self.Frequency(self._bins)
-        self.freq_bin_centers = self.Frequency(self.bin_centers)
-
-        # bin efficiencies
-        self._bin_efficiency, self._bin_efficiency_errors = [], []
-        self._bin_efficiency, self._bin_efficiency_errors = self.Efficiency(self.freq_bin_centers, freq=True)
-
-
+ 
     def ReSetBins(self):
         #self.energies = np.arange(self.Energy(self.max_frequency), self.Energy(self.min_frequency), self.denergy)
         #self.bins = np.arange(np.min(self.energies), np.max(self.energies), self.dbins)
 
         #self._bin_efficiency, self._bin_efficiency_error = [], []
-        self.energies = np.arange(self.Energy(self.max_frequency), self.Energy(self.max_frequency)+(self.N_energy_bins)*self.denergy, self.denergy)
-        self.bins = np.arange(np.min(self.energies), np.min(self.energies)+(self.N_bins)*self.dbins, self.dbins)
-        self._bin_efficiency, self._bin_efficiency_error = [], []
+        # self.energies = np.arange(self.Energy(self.max_frequency), self.Energy(self.max_frequency)+(self.N_energy_bins)*self.denergy, self.denergy)
+        # self.bins = np.arange(np.min(self.energies), np.min(self.energies)+(self.N_bins)*self.dbins, self.dbins)
+        
+        # if len(self._energies) > self.N_energy_bins:
+        #     self._energies = self._energies[:-1]
+        # if len(self._bins) > self.N_bins:
+        #     self._bins = self._bins[:-1]
+        
+        self.energies = self.Energy(self.frequencies)[::-1]
+        self.bins = self.Energy(self.freq_bins)[::-1]
+        self.bin_centers = self.Energy(self.freq_bin_centers)[::-1]
 
-        if len(self._energies) > self.N_energy_bins:
-            self._energies = self._energies[:-1]
-        if len(self._bins) > self.N_bins:
-            self._bins = self._bins[:-1]
-
-        if self.use_relative_livetime_correction:
-            self.channel_energy_edges = self.Energy(self.channel_transition_freqs)
-            #logger.info('Channel energy edges: {}'.format(self.channel_energy_edges))
-
+        
 
 
     # =========================================================================
@@ -649,22 +613,33 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         return self.data
 
 
-    def Histogram(self, weights=None):
-        """
-        histogram data using bins
-        """
-        h, b = np.histogram(self.data, bins=self.bins, weights=weights)
-        self.hist = h#float2double(h)
-        return h
+    # def Histogram(self, weights=None):
+    #     """
+    #     histogram data using bins
+    #     """
+    #     h, b = np.histogram(self.data, bins=self.bins, weights=weights)
+    #     self.hist = h#float2double(h)
+    #     return h
 
 
     def ConvertAndHistogram(self, weights=None):
         """
         histogram data using bins
         """
-        self.data = self.ConvertFreqData2EnergyData()
-        self.hist, b = np.histogram(self.data, bins=self.bins, weights=weights)
+        self.freq_hist, f = np.histogram(self.freq_data, self.freq_bins)
+        #self.data = self.ConvertFreqData2EnergyData()
+        #self.hist, b = np.histogram(self.data, bins=self.bins, weights=weights)
+        self.hist, b = self.freq_hist[::-1], self.Energy(f)[::-1]
+        print("Re-converted data")
+
+        # plt.figure()
+        # plt.step(self.bin_centers, self.hist)
+        # plt.xlabel("Energy (eV)")
+        # plt.ylabel("Counts")
+        # plt.tight_layout()
+        # plt.savefig(os.path.join(self.savepath, "data_histogram.png"))
         #self.hist = float2double(h)
+
         return self.hist
 
 
@@ -678,8 +653,19 @@ class KrSimplifiedLineshape(BinnedDataFitter):
     # Model functions
     # =========================================================================
 
-    def which_model(self, *pars):
-        return self.shakeSpectrumClassInstance.shake_spectrum()
+    def flip_array(self, array):
+        flipped = np.fliplr([array]).flatten()
+        return flipped
+
+    def which_model(self, e_spec, *pars):
+        if self.base_shape=="shake":
+            x_array = self.flip_array(e_spec-Constants.kr_k_line_e())
+            self.shakeSpectrumClassInstance.input_std_eV_array = x_array
+            return self.shakeSpectrumClassInstance.shake_spectrum()
+        else:
+            spec = np.zeros(len(e_spec))
+            spec[np.where(np.abs(e_spec-Constants.kr_k_line_e())==np.min(np.abs(e_spec-Constants.kr_k_line_e())))] = 1
+            return spec
         
 
     def gauss_resolution_f(self, energy_array, A, sigma, mu):
@@ -852,16 +838,16 @@ class KrSimplifiedLineshape(BinnedDataFitter):
 
 
         # tritium args
-        kr_args = np.array(args)[self.kr_model_indices]
+        #kr_args = np.array(args)[self.kr_model_indices]
         if 'B' in self.model_parameter_names:
-            if 'B' in self.parameter_samples.keys() and not self.parameter_samples['B']:
-                self.B = args[self.B_index]
-                #self.ReSetBins()
-                self.ConvertAndHistogram()
+            
+            self.B = args[self.B_index]
+            self.ReSetBins()
+            #self.ConvertAndHistogram()
 
 
         if len(E)==0:
-            E = self._bin_centers
+            E = self.bin_centers
 
 
         ################## E is list or array #################
@@ -898,11 +884,10 @@ class KrSimplifiedLineshape(BinnedDataFitter):
 
 
             max_energy = self.max_energy
-            dE = self.energies[1]-self.energies[0]#E[1]-E[0]
+            dE = np.abs(np.mean(np.diff(self.energies))) #self.energies[1]-self.energies[0]#E[1]-E[0]
             n_dE = round(max_energy/dE)
             #e_add = np.arange(np.min(self.energies)-round(max_energy/dE)*dE, np.min(self.energies), dE)
             e_lineshape = np.arange(-n_dE*dE, n_dE*dE, dE)
-
 
             e_spec = np.arange(min(self.energies)-max_energy, max(self.energies)+max_energy, dE)
             #e_spec = self.energies
@@ -911,13 +896,25 @@ class KrSimplifiedLineshape(BinnedDataFitter):
             # energy resolution
             if self.resolution_model != 'two_gaussian':
                 lineshape = self.gauss_resolution_f(e_lineshape, 1, res*self.width_scaling, 0)
+                #print('not two gaussian')
             elif self.derived_two_gaussian_model:
                 lineshape = self.derived_two_gaussian_resolution(e_lineshape, res, two_gaussian_mu_1, two_gaussian_mu_2)
+                #print("derived two gaussian")
             else:
+                #print("two gaussian")
                 lineshape = self.two_gaussian_wide_fraction * self.gauss_resolution_f(e_lineshape, 1, sig1*self.width_scaling, self.two_gaussian_mu_1) + (1 - self.two_gaussian_wide_fraction) * self.gauss_resolution_f(e_lineshape, 1, sig2*self.width_scaling, self.two_gaussian_mu_2)
 
             # spectrum shape
-            spec = self.which_model(e_spec, *kr_args)#endpoint, m_nu)
+            spec = self.which_model(e_spec)#endpoint, m_nu)
+            
+            if self.plot_lineshape:
+                plt.figure()
+                plt.plot(e_spec, spec, color='red')
+                plt.plot(e_lineshape+Constants.kr_k_line_e(), lineshape/np.max(lineshape), color='green')
+                plt.xlabel("Energy (eV)")
+                plt.ylabel("Amplitude")
+                plt.tight_layout()
+                #plt.savefig(os.path.join(self.savepath, "shake_spectrum_absolute_energy.png"))
             #spec[np.where(e_spec>args[self.endpoint_index]-np.abs(m_nu)**0.5)]=0.
 
             if not self.is_scattered:
@@ -968,11 +965,13 @@ class KrSimplifiedLineshape(BinnedDataFitter):
                     K_convolved = convolve(spec, lineshape, mode='same')
                     if self.plot_lineshape:
                         logger.info('Using two gas simplified lineshape model')
+                        plt.plot(e_spec, K_convolved/np.max(K_convolved), color='black')
 
                 try:
                     K_convolved = np.interp(self.energies, e_spec, K_convolved)
+                    if self.plot_lineshape:
+                        plt.plot(self.energies, K_convolved/np.max(K_convolved), color="cyan")
                 except Exception as e:
-                    print(np.shape(self.p_factors))
                     print(np.shape(e_spec), np.shape(K_convolved), np.shape(spec))
                     raise e
 
@@ -1025,7 +1024,7 @@ class KrSimplifiedLineshape(BinnedDataFitter):
 
         else:
             # base shape
-            spec = self.which_model(e_spec, *kr_args)
+            spec = self.which_model(e_spec)
             K_convolved = spec
 
         # Fake integration
@@ -1035,54 +1034,39 @@ class KrSimplifiedLineshape(BinnedDataFitter):
             dE_bins = E[1]-E[0]
             N = np.round(dE_bins/dE,4)
 
-            if not (np.abs(N%1) < 1e-6 or np.abs(N%1 - 1)<1e-6):
+            if not (np.abs(N%1) < 1e-5 or np.abs(N%1 - 1)<1e-5):
                 logger.error('N', N)
-                logger.error('modulo', N%1, N%1-1)
+                logger.error('modulo: {}, {}'.format(N%1, N%1-1))
+                print('hi')
                 raise ValueError('bin sizes have to divide')
 
 
             if N > 1:
                 #print('Integrate spectrum', len(K_convolved))
-                if E[0] -0.5*dE_bins >= self._energies[1]:
+                if E[0] -0.5*dE_bins >= self.energies[1]:
                     K_convolved_cut = K_convolved[self.energies>=min(E[0] -0.5*dE_bins)]
                     K_convolved = self.running_mean(K_convolved_cut, N)
-                    logger.warning('Cutting spectrum below Kmin:{} > {}'.format(E[0]-0.5*dE_bins, self._energies[0]))
+                    logger.warning('Cutting spectrum below Kmin:{} > {}'.format(E[0]-0.5*dE_bins, self.energies[0]))
                 else:
                     K_convolved = self.running_mean(K_convolved, N)
 
             else:
                 # till here K_convolved was defiend on self._energies
                 # now we need it on E
-                K_convolved = np.interp(E, self.energies, K_convolved)*(len(E)*1./len(self._energies))
+                K_convolved = np.interp(E, self.energies, K_convolved)*(len(E)*1./len(self.energies))
 
 
         else:
             #logger.warning('WARNING: tritium spectrum is not integrated over bin widths')
-            K_convolved = np.interp(E, self._energies, K_convolved)*(len(E)*1./len(self._energies))
+            K_convolved = np.interp(E, self.energies, K_convolved)*(len(E)*1./len(self.energies))
 
 
-
-        if self.is_distorted == True:
-            #if self.fit_efficiency_tilt:
-            #    self.tilt = tilt
-            efficiency, efficiency_errors =  self.Efficiency(E)
-        else:
-            # multiply efficiency
-            efficiency = np.ones(len(E))
-            efficiency_errors = [np.zeros(len(E)), np.zeros(len(E))]
-
-        K_eff=K_convolved*efficiency
+        K_eff=K_convolved
         # finally
         K = K_eff/np.nansum(K_eff)*np.nansum(K_convolved)
 
         # if error from efficiency on spectrum shape should be returned
-        if error:
-            K_error=np.zeros((2, len(E)))
-            K_error = K_convolved*(efficiency_errors)/np.nansum(K_eff)*np.nansum(K_convolved)
-
-            return K, K_error
-        else:
-            return K
+        return K
 
 
 
@@ -1091,13 +1075,8 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         if len(E)==0:
             E = self.bin_centers
 
-        if self.pass_efficiency_error:
-            K, K_error = self.TritiumSpectrum(E, *args, error=True)#endpoint, m_nu, prob_b, prob_c, res, sig1, sig2, tilt)
-            K_norm = np.sum(self.TritiumSpectrum(self._energies, *args))#endpoint, m_nu, prob_b, prob_c, res, sig1, sig2, tilt)*(self._energies[1]-self._energies[0]))
-        else:
-
-            K = self.TritiumSpectrum(E, *args)#endpoint, m_nu, prob_b, prob_c, res, sig1, sig2, tilt)
-            K_norm = np.sum(self.TritiumSpectrum(self._energies, *args))#endpoint, m_nu, prob_b, prob_c, res, sig1, sig2, tilt)*(self._energies[1]-self._energies[0]))
+        K = self.Spectrum(E, *args)#endpoint, m_nu, prob_b, prob_c, res, sig1, sig2, tilt)
+        K_norm = np.sum(self.Spectrum(self.energies, *args))#endpoint, m_nu, prob_b, prob_c, res, sig1, sig2, tilt)*(self._energies[1]-self._energies[0]))
 
 
 
@@ -1107,38 +1086,29 @@ class KrSimplifiedLineshape(BinnedDataFitter):
             return K*(E[1]-E[0])/K_norm
         else:
 
-            b = args[self.background_index]/(max(self._energies)-min(self._energies))
+            b = args[self.background_index]/(max(self.energies)-min(self.energies))
             a = args[self.amplitude_index]#-b
 
             B = np.ones(np.shape(E))
-            B = B*b*(E[1]-E[0])#/(self._energies[1]-self._energies[0])
+            B = B*b#/(self._energies[1]-self._energies[0])
             #B= B/np.sum(B)*background
 
 
-            K = (K/K_norm*(E[1]-E[0]))*a
+            K = K/K_norm*a
             #K[E>endpoint-np.abs(m_nu**0.5)+de] = np.zeros(len(K[E>endpoint-np.abs(m_nu**2)+de]))
             #K= K/np.sum(K)*a
             #K = K+B
 
 
 
-        if self.pass_efficiency_error:
-            K_error = K_error*(E[1]-E[0])/K_norm*a
-            #K_error = K_error/np.sum(K)*a
-            return K+B, K_error
-        else: return K+B
+        return K+B
 
 
     def normalized_SpectrumWithBackground(self, E=[], *args):#endpoint=18.6e3, background=0, m_nu=0., amplitude=1., prob_b=None, prob_c=None, res=None, sig1=None, sig2=None, tilt=0., error=False):
 
-        if self.pass_efficiency_error:
-            t, t_error = self.TritiumSpectrumBackground(E, *args)#endpoint, background, m_nu, amplitude, prob_b, prob_c, res, sig1, sig2, tilt)
-            t_norm = np.sum(t)
-            return t/t_norm, t_error/t_norm
-        else:
-            t = self.TritiumSpectrumBackground(E, *args)#endpoint, background, m_nu, amplitude, prob_b, prob_c, res, sig1, sig2, tilt)
-            t_norm = np.sum(t)
-            return t/t_norm
+        t = self.SpectrumWithBackground(E, *args)#endpoint, background, m_nu, amplitude, prob_b, prob_c, res, sig1, sig2, tilt)
+        t_norm = np.sum(t)
+        return t/t_norm
 
 
 
