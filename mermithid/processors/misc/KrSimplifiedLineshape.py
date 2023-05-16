@@ -113,16 +113,12 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         # need to know which parameter is background
         self.background_index = self.model_parameter_names.index('background')
         # and which one is B
-        # self.B_index = self.model_parameter_names.index('B')
+        self.B_index = self.model_parameter_names.index('B')
         # signal counts
         self.amplitude_index = self.model_parameter_names.index('amplitude')
 
 
         # resolutions
-
-        self.scale_mean = reader.read_param(config_dict, 'scale_mean', 1)
-        self.scale_width = reader.read_param(config_dict, 'scale_width', 0)
-        self.width_scaling = self.scale_mean
 
         if self.is_smeared:
             if 'resolution' in self.model_parameter_names:
@@ -134,6 +130,7 @@ class KrSimplifiedLineshape(BinnedDataFitter):
             self.res = self.res_mean
 
             if self.resolution_model != 'gaussian':
+                logger.info("Resolution is not gaussian")
                 self.two_gaussian_fraction = reader.read_param(config_dict, 'two_gaussian_fraction', 1.)
                 self.two_gaussian_mu_1 = reader.read_param(config_dict, 'two_gaussian_mu1', 0)
                 self.two_gaussian_mu_2 = reader.read_param(config_dict, 'two_gaussian_mu2', 0)
@@ -143,9 +140,11 @@ class KrSimplifiedLineshape(BinnedDataFitter):
                         self.two_gaussian_mu_2_index = self.model_parameter_names.index('two_gaussian_mu_2')
 
                 if self.derived_two_gaussian_model:
+                    logger.info("resolution is derived two gaussian")
                     self.two_gaussian_p0 = reader.read_param(config_dict, 'two_gaussian_p0', 1.)
                     self.two_gaussian_p1 = reader.read_param(config_dict, 'two_gaussian_p1', 1.)
                 else:
+                    logger.info("resolution has two free sigmas")
                     if 'two_gaussian_sigma_1' in self.model_parameter_names:
                         self.two_gaussian_sigma_1_index = self.model_parameter_names.index('two_gaussian_sigma_1')
                     if 'two_gaussian_sigma_2' in self.model_parameter_names:
@@ -186,18 +185,9 @@ class KrSimplifiedLineshape(BinnedDataFitter):
             self.scatter_peak_ratio_p = self.scatter_peak_ratio_p_mean
             self.scatter_peak_ratio_q = self.scatter_peak_ratio_q_mean
             self.h2_fraction = self.h2_fraction_mean
-
-
-
-        # identify tritium parameters
-        #self.kr_model_indices = reader.read_param(config_dict, 'tritium_model_parameters', [0, 2])
-        
-        if 'B' in self.model_parameter_names:
-            self.B_index = self.model_parameter_names.index('B')
         
 
-        # individual model parameter configurations
-        # overwrites model_parameter_means and widths
+        # in case B is not a fit parameter
         self.B_mean = reader.read_param(config_dict, 'B_mean', 1)
         self.B_width = reader.read_param(config_dict, 'B_width', 1e-6)
         self.B = self.B_mean
@@ -206,12 +196,6 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         self.min_frequency = reader.read_param(config_dict, 'min_frequency', "required")
         self.max_frequency = reader.read_param(config_dict, 'max_frequency', None)
         self.max_energy = reader.read_param(config_dict, 'resolution_energy_max', 1000)
-        
-
-        # path to json with efficiency dictionary
-        self.efficiency_file_path = reader.read_param(config_dict, 'efficiency_file_path', '')
-
-
 
         # =================
         # Fit configuration
@@ -316,14 +300,11 @@ class KrSimplifiedLineshape(BinnedDataFitter):
 
         self.bin_centers = self.bins[0:-1]+0.5*(self.bins[1]-self.bins[0])
         
-        self.frequencies = self.Frequency(self.energies)
-        self.freq_bins = self.Frequency(self.bins)
-        self.freq_bin_centers = self.Frequency(self.bin_centers)
-        
-        self.freq_bins = np.sort(self.freq_bins)
-        self.freq_bin_centers = np.sort(self.freq_bin_centers)
-        self.frequencies = np.sort(self.frequencies)
+        self.frequencies = np.sort(self.Frequency(self.energies))
+        self.freq_bins = np.sort(self.Frequency(self.bins))
+        self.freq_bin_centers = np.sort(self.Frequency(self.bin_centers))
 
+        # this function calculates enery bins based on current B value
         self.ReSetBins()
         
         # ==================================
@@ -370,23 +351,20 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         return True
 
     # =========================================================================
-    # Main fit function
-    # =========================================================================
-    def std_eV_array(self):
-        emin = -1000
-        emax = 2000
-        array = np.arange(emin,emax,self.denergy)
-        return array
-    
+    # Internal run function
+    # =========================================================================   
     def InternalRun(self, sampled_parameters={}, params=[]):
         print("Running")
         
-        """plt.figure()
-        plt.plot(self.std_eV_array(), self.shakeSpectrumClassInstance.shake_spectrum())
-        plt.xlabel("Energy (eV)")
-        plt.ylabel("Amplitude (arb. units")
-        plt.tight_layout()
-        plt.savefig(os.path.join(self.savepath, "shake_spectrum.png"))"""
+        if self.plot_lineshape:
+        
+            plt.figure()
+            plt.plot(self.std_eV_array(), self.shakeSpectrumClassInstance.shake_spectrum())
+            plt.xlabel("Energy (eV)")
+            plt.ylabel("Amplitude (arb. units)")
+            plt.xlim(-150, 50)
+            plt.tight_layout()
+            plt.savefig(os.path.join(self.savepath, "shake_spectrum.png"))
 
         # for systematic MC uncertainty propagation: Generate Asimov data to fit with random model
         if self.use_asimov:
@@ -409,114 +387,6 @@ class KrSimplifiedLineshape(BinnedDataFitter):
 
         return True
 
-
-    # =========================================================================
-    # Get random sample from normal, beta, or gamma distribution
-    # =========================================================================
-    def Gaussian_sample(self, mean, width):
-        np.random.seed()
-        if isinstance(width, list):
-            return np.random.randn(len(width))*width+mean
-        else:
-            return np.random.randn()*width+mean
-
-    def Beta_sample(self, mean, width):
-        np.random.seed()
-        a = ((1-mean)/(width**2)-1/mean)*mean**2
-        b = (1/mean-1)*a
-        return np.random.beta(a, b)
-
-    def Gamma_sample(self, mean, width):
-        np.random.seed()
-        a = (mean/width)**2
-        b = mean/(width**2)
-        return np.random.gamma(a, 1/b)
-
-
-    # def SamplePriors(self, sampled_parameters):
-
-    #     for k in sampled_parameters.keys():
-    #         if k in self.nuisance_parameters and self.nuisance_parameters[k] and sampled_parameters[k]:
-    #             raise ValueError('{} is nuisance parameter.'.format(k))
-
-    #     for i, p in enumerate(self.model_parameter_names):
-    #         if p in sampled_parameters.keys() and sampled_parameters[p] and not self.fixed_parameters[i]:
-    #             raise ValueError('{} is a free parameter'.format(p))
-
-    #     logger.info('Sampling: {}'.format([k for k in sampled_parameters.keys() if sampled_parameters[k]]))
-    #     self.parameter_samples = {}
-    #     sample_values = []
-    #     if 'resolution' in sampled_parameters.keys() and sampled_parameters['resolution']:
-    #         self.res = self.Gaussian_sample(self.res_mean, self.res_width)
-    #         #if self.res <= 30.01/float(2*np.sqrt(2*np.log(2))):
-    #         #    logger.warning('Sampled resolution small. Setting to {}'.format(30.01/float(2*np.sqrt(2*np.log(2)))))
-    #         #    self.res = 30.01/float(2*np.sqrt(2*np.log(2)))
-    #         self.parameter_samples['resolution'] = self.res
-    #         sample_values.append(self.res)
-    #     if 'h2_fraction' in sampled_parameters.keys() and sampled_parameters['h2_fraction']:
-    #         self.h2_fraction = self.Gaussian_sample(self.h2_fraction_mean, self.h2_fraction_width)
-    #         if self.h2_fraction > 1: self.h2_fraction=1
-    #         elif self.h2_fraction < 0: self.h2_fraction=0
-    #         self.parameter_samples['h2_fraction'] = self.h2_fraction
-    #         sample_values.append(self.h2_fraction)
-    #     if 'two_gaussian_sigma_1' in sampled_parameters.keys() and sampled_parameters['two_gaussian_sigma_1']:
-    #         self.two_gaussian_sigma_1 = self.Gaussian_sample(self.two_gaussian_sigma_1_mean, self.two_gaussian_sigma_1_width)
-    #         self.parameter_samples['two_gaussian_sigma_1'] = self.two_gaussian_sigma_1
-    #         sample_values.append(self.two_gaussian_sigma_1)
-    #     if 'two_gaussian_sigma_2' in sampled_parameters.keys() and sampled_parameters['two_gaussian_sigma_2']:
-    #         self.two_gaussian_sigma_2 = self.Gaussian_sample(self.two_gaussian_sigma_2_mean, self.two_gaussian_sigma_2_width)
-    #         self.parameter_samples['two_gaussian_sigma_2'] = self.two_gaussian_sigma_2
-    #         sample_values.append(self.two_gaussian_sigma_2)
-    #     if 'scatter_peak_ratio' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio']:
-    #         self.scatter_peak_ratio_p = self.Beta_sample(self.scatter_peak_ratio_mean, self.scatter_peak_ratio_width)
-    #         self.scatter_peak_ratio_q = 1
-    #         #self.fix_scatter_ratio_b = True
-    #         #self.fix_scatter_ratio_c = True
-    #         self.parameter_samples['scatter_peak_ratio'] = self.scatter_peak_ratio_p
-    #         sample_values.append(self.scatter_peak_ratio_p)
-
-    #     if self.correlated_p_q and 'scatter_peak_ratio_p' in sampled_parameters.keys() and 'scatter_peak_ratio_q' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_p'] and sampled_parameters['scatter_peak_ratio_q']:
-    #         logger.info('Correlated p, q, scale sampling')
-    #         correlated_vars = np.random.multivariate_normal([self.scatter_peak_ratio_p_mean, self.scatter_peak_ratio_q_mean], self.p_q_cov_matrix)
-    #         self.scatter_peak_ratio_p = correlated_vars[0]
-    #         self.scatter_peak_ratio_q = correlated_vars[1]
-    #         #self.width_scaling = correlated_vars[2]
-
-    #         #self.fix_scatter_ratio_b = True
-    #         self.parameter_samples['scatter_peak_ratio_p'] = self.scatter_peak_ratio_p
-    #         sample_values.append(self.scatter_peak_ratio_p)
-
-    #         self.parameter_samples['scatter_peak_ratio_q'] = self.scatter_peak_ratio_q
-    #         sample_values.append(self.scatter_peak_ratio_q)
-    #         #self.fix_scatter_ratio_c = True
-
-    #     else:
-
-    #         if 'scatter_peak_ratio_p' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_p']:
-    #             logger.info('Uncorrelated b, c, scale sampling')
-    #             self.scatter_peak_ratio_p = self.Gamma_sample(self.scatter_peak_ratio_p_mean, self.scatter_peak_ratio_p_width)
-    #             #self.fix_scatter_ratio_b = True
-    #             self.parameter_samples['scatter_peak_ratio_p'] = self.scatter_peak_ratio_p
-    #             sample_values.append(self.scatter_peak_ratio_p)
-    #         if 'scatter_peak_ratio_q' in sampled_parameters.keys() and sampled_parameters['scatter_peak_ratio_q']:
-    #             self.scatter_peak_ratio_q = self.Gamma_sample(self.scatter_peak_ratio_q_mean, self.scatter_peak_ratio_q_width)
-    #             self.parameter_samples['scatter_peak_ratio_q'] = self.scatter_peak_ratio_q
-    #             sample_values.append(self.scatter_peak_ratio_q)
-    #             #self.fix_scatter_ratio_c = True
-
-    #     if 'B' in sampled_parameters.keys() and sampled_parameters['B']:
-    #         self.B = self.Gaussian_sample(self.B_mean, self.B_width)
-    #         self.parameter_samples['B'] = self.B
-    #         sample_values.append(self.B)
-    #         logger.info('B field prior: {} +/- {}'.format(self.B_mean, self.B_width))
-
-
-    #     logger.info('Samples are: {}'.format(sample_values))
-    #     #logger.info('Fit parameters: \n{}\nFixed: {}'.format(self.parameter_names, self.fixes))
-    #     # set new values in model
-    #     self.ConfigureFit()
-
-    #     return self.parameter_samples
 
     # =========================================================================
     # Frequency - Energy conversion
@@ -567,6 +437,13 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         self.energies = self.Energy(self.frequencies)[::-1]
         self.bins = self.Energy(self.freq_bins)[::-1]
         self.bin_centers = self.Energy(self.freq_bin_centers)[::-1]
+        
+        
+    def std_eV_array(self):
+        emin = -1000
+        emax = 2000
+        array = np.arange(emin,emax,self.denergy)
+        return array
 
         
 
@@ -590,36 +467,12 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         return self.data, self.freq_data
 
 
-    def GenerateAsimovData(self, params):
-
-        asimov_data = []
-        #x = self.bins #np.arange(min(self.energies), max(self.energies), 25)
-        #xc = x[0:-1]+0.5*(x[1]-x[0])
-        #pdf = np.round(self.TritiumSpectrumBackground(xc, *params))
-
-        self.use_asimov = True
-        #for i, p in enumerate(pdf):
-        #    asimov_data.extend(list(itertools.repeat(xc[i], int(p))))
-
-        return np.array(asimov_data), self.Frequency(np.array(asimov_data))
-
-
-
     def ConvertFreqData2EnergyData(self):
         """
         Convert frequencies to energyies with set B
         """
         self.data = self.Energy(self.freq_data)
         return self.data
-
-
-    # def Histogram(self, weights=None):
-    #     """
-    #     histogram data using bins
-    #     """
-    #     h, b = np.histogram(self.data, bins=self.bins, weights=weights)
-    #     self.hist = h#float2double(h)
-    #     return h
 
 
     def ConvertAndHistogram(self, weights=None):
@@ -676,7 +529,7 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         sigma_1 = (sigma_s-self.two_gaussian_p0 + self.two_gaussian_fraction * self.two_gaussian_p0)/(self.two_gaussian_fraction + self.two_gaussian_p1 - self.two_gaussian_fraction* self.two_gaussian_p1)
         sigma_2 = self.two_gaussian_p0 + self.two_gaussian_p1 * sigma_1
 
-        lineshape = self.two_gaussian_fraction * self.gauss_resolution_f(energy_array, 1, sigma_1*self.width_scaling, mu_1) + (1 - self.two_gaussian_fraction) * self.gauss_resolution_f(energy_array, 1, sigma_2*self.width_scaling, mu_2)
+        lineshape = self.two_gaussian_fraction * self.gauss_resolution_f(energy_array, 1, sigma_1, mu_1) + (1 - self.two_gaussian_fraction) * self.gauss_resolution_f(energy_array, 1, sigma_2, mu_2)
         return lineshape
 
 
@@ -693,7 +546,7 @@ class KrSimplifiedLineshape(BinnedDataFitter):
 
     def simplified_ls(self, K, Kcenter, FWHM, prob_b, prob_c=1):
         """
-        Simplified lineshape. sum of Gaussians imitating hydrogen only lineshape
+        Outdated simplified lineshape. sum of Gaussians imitating hydrogen only lineshape
         """
 
         p0, p1, p2, p3 = self.lineshape_p[1], self.lineshape_p[3], self.lineshape_p[5], self.lineshape_p[7]
@@ -731,20 +584,10 @@ class KrSimplifiedLineshape(BinnedDataFitter):
 
 
         sig0 = FWHM/float(2*np.sqrt(2*np.log(2)))
-        #if sig0 < 6:
-        #    logger.warning('Scatter resolution {} < 6 eV. Setting to 6 eV'.format(sig0))
-        #    sig0 = 6
-        #shape = self.gauss_resolution_f(K, 1, sig0, Kcenter)
-        #shape = np.zeros(len(K))
         norm = 1.
 
         hydrogen_scattering = np.zeros(len(K))
         helium_scattering = np.zeros(len(K))
-
-        #plt.figure(figsize=(10,10))
-
-        #scatter_peaks = np.array([[self.gauss_resolution_f(K, 1, p2[i]+p3[i]*sig0, -p0[i]+p1[i]*sig0+Kcenter)*self.mode_exp_scatter_peak_ratio(prob_b, prob_c, i+1),
-        #                    self.gauss_resolution_f(K, 1, q2[i]+q3[i]*sig0, -q0[i]+q1[i]*sig0+Kcenter)*self.mode_exp_scatter_peak_ratio(prob_b, prob_c, i+1)] for i in range(self.NScatters)])
 
 
         for i in range(self.NScatters):
@@ -761,32 +604,19 @@ class KrSimplifiedLineshape(BinnedDataFitter):
             h_scatter_i = probi*self.gauss_resolution_f(K, 1, sig, mu+Kcenter)
             hydrogen_scattering += h_scatter_i
             norm += probi
-            #plt.plot(K, h_scatter_i, color='blue', label='hydrogen')
-
+      
             # helium scattering
             mu_he = -q0[i]+q1[i]*sig0
             sig_he = q2[i]+q3[i]*sig0
             he_scatter_i = probi*self.gauss_resolution_f(K, 1, sig_he, mu_he+Kcenter)
             helium_scattering += he_scatter_i
 
-            #plt.plot(K, he_scatter_i, color='red', label='helium')
-
-        #plt.plot(K, (shape + hydrogen_scattering)/np.max(shape + hydrogen_scattering), color='blue', label='hydrogen')
-        #plt.plot(K, (shape + helium_scattering)/np.max(shape + helium_scattering), color='red', label='helium')
-        # full lineshape
+       
         #lineshape = self.hydrogen_proportion*hydrogen_scattering + (1-self.hydrogen_proportion)*helium_scattering
         lineshape = h2_fraction*hydrogen_scattering + (1-h2_fraction)*helium_scattering
 
-        #plt.plot(K, lineshape/np.max(lineshape), color='black', label='full')
-        #plt.xlim(-200, 200)
-        #plt.legend()
-
         return lineshape, norm
 
-    """def complex_lineshape(self, K, Kcenter, FWHM, prob_b, prob_c=1):
-        lineshape_rates = self.complexLineShape.spectrum_func_1(K/1000., FWHM, 0, 1, prob_b)
-        plt.plot(K, lineshape_rates/np.max(lineshape_rates), label='complex lineshape', color='purple', linestyle='--')
-        return lineshape_rates"""
 
     def scatter_peaks(self, K, Kcenter, FWHM):
 
@@ -799,15 +629,8 @@ class KrSimplifiedLineshape(BinnedDataFitter):
 
 
         sig0 = FWHM/float(2*np.sqrt(2*np.log(2)))
-        #if sig0 < 6:
-        #    logger.warning('Scatter resolution {} < 6 eV. Setting to 6 eV'.format(sig0))
-        #    sig0 = 6
-        #shape = self.gauss_resolution_f(K, 1, sig0, Kcenter)
-        #shape = np.zeros(len(K))
         norm = 1.
-        #hydrogen_scattering = np.array([self.gauss_resolution_f(K, 1, p2[i]+p3[i]*sig0, (-p0[i]+p1[i]*sig0)+Kcenter) for i in range(self.NScatters)])
-        #helium_scattering = np.array([self.gauss_resolution_f(K, 1, q2[i]+q3[i]*sig0, (-q0[i]+q1[i]*sig0)+Kcenter) for i in range(self.NScatters)])
-
+ 
         hydrogen_scattering = np.zeros((self.NScatters, len(K)))
         helium_scattering = np.zeros((self.NScatters, len(K)))
 
@@ -837,7 +660,6 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         E = np.array(E)
 
 
-        # tritium args
         #kr_args = np.array(args)[self.kr_model_indices]
         if 'B' in self.model_parameter_names:
             
@@ -895,14 +717,14 @@ class KrSimplifiedLineshape(BinnedDataFitter):
 
             # energy resolution
             if self.resolution_model != 'two_gaussian':
-                lineshape = self.gauss_resolution_f(e_lineshape, 1, res*self.width_scaling, 0)
+                lineshape = self.gauss_resolution_f(e_lineshape, 1, res, 0)
                 #print('not two gaussian')
             elif self.derived_two_gaussian_model:
                 lineshape = self.derived_two_gaussian_resolution(e_lineshape, res, two_gaussian_mu_1, two_gaussian_mu_2)
                 #print("derived two gaussian")
             else:
                 #print("two gaussian")
-                lineshape = self.two_gaussian_wide_fraction * self.gauss_resolution_f(e_lineshape, 1, sig1*self.width_scaling, self.two_gaussian_mu_1) + (1 - self.two_gaussian_wide_fraction) * self.gauss_resolution_f(e_lineshape, 1, sig2*self.width_scaling, self.two_gaussian_mu_2)
+                lineshape = self.two_gaussian_wide_fraction * self.gauss_resolution_f(e_lineshape, 1, sig1, self.two_gaussian_mu_1) + (1 - self.two_gaussian_wide_fraction) * self.gauss_resolution_f(e_lineshape, 1, sig2, self.two_gaussian_mu_2)
 
             # spectrum shape
             spec = self.which_model(e_spec)#endpoint, m_nu)
@@ -947,7 +769,7 @@ class KrSimplifiedLineshape(BinnedDataFitter):
                     h2_fraction = self.h2_fraction
 
                 # simplified lineshape
-                FWHM = 2.*np.sqrt(2.*np.log(2.))*res *self.width_scaling
+                FWHM = 2.*np.sqrt(2.*np.log(2.))*res
 
                 # add tail
                 if not self.use_helium_scattering:
@@ -991,14 +813,14 @@ class KrSimplifiedLineshape(BinnedDataFitter):
 
                 plt.figure(figsize=(7,5))
                 #plt.plot(e_lineshape, self.simplified_ls(e_lineshape, 0, FWHM, ratio), color='red', label='FDG')
-                if self.resolution_model != 'two_gaussian':
+                if self.resolution_model == 'gaussian':
                     resolution = self.gauss_resolution_f(e_lineshape, 1, res, 0)
                     logger.info('Using Gaussian resolution model')
                 elif self.derived_two_gaussian_model:
                     resolution = self.derived_two_gaussian_resolution(e_lineshape, res, two_gaussian_mu_1, two_gaussian_mu_2)
                     logger.info('Using derived two Gaussian resolution model')
                 else:
-                    resolution = self.two_gaussian_fraction * self.gauss_resolution_f(e_lineshape, 1, sig1*self.width_scaling, self.two_gaussian_mu_1) + (1 - self.two_gaussian_fraction) * self.gauss_resolution_f(e_lineshape, 1, sig2*self.width_scaling, self.two_gaussian_mu_2)
+                    resolution = self.two_gaussian_fraction * self.gauss_resolution_f(e_lineshape, 1, sig1, self.two_gaussian_mu_1) + (1 - self.two_gaussian_fraction) * self.gauss_resolution_f(e_lineshape, 1, sig2, self.two_gaussian_mu_2)
                     logger.info('Using two Gaussian resolution model')
 
 
@@ -1006,7 +828,7 @@ class KrSimplifiedLineshape(BinnedDataFitter):
                 plt.plot(e_lineshape, lineshape/np.max(lineshape), label = 'Full lineshape', color='Darkblue')
 
 
-                FWHM = 2.*np.sqrt(2.*np.log(2.))*res*self.width_scaling
+                FWHM = 2.*np.sqrt(2.*np.log(2.))*res
 
                 #logger.info('Plotting lineshape for FWHM {} and hydrogen proportion {}.'.format(FWHM, self.hydrogen_proportion))
                 #simple_ls, simple_norm = self.simplified_ls(e_lineshape, 0, FWHM, prob_b, prob_c)
@@ -1027,7 +849,7 @@ class KrSimplifiedLineshape(BinnedDataFitter):
             spec = self.which_model(e_spec)
             K_convolved = spec
 
-        # Fake integration
+        # Fake integration: not working in this processor
         if self.integrate_bins:
 
             dE = self.denergy
@@ -1076,7 +898,7 @@ class KrSimplifiedLineshape(BinnedDataFitter):
             E = self.bin_centers
 
         K = self.Spectrum(E, *args)#endpoint, m_nu, prob_b, prob_c, res, sig1, sig2, tilt)
-        K_norm = np.sum(self.Spectrum(self.energies, *args))#endpoint, m_nu, prob_b, prob_c, res, sig1, sig2, tilt)*(self._energies[1]-self._energies[0]))
+        #K_norm = np.sum(self.Spectrum(self.energies, *args))#endpoint, m_nu, prob_b, prob_c, res, sig1, sig2, tilt)*(self._energies[1]-self._energies[0]))
 
 
 
@@ -1090,14 +912,10 @@ class KrSimplifiedLineshape(BinnedDataFitter):
             a = args[self.amplitude_index]#-b
 
             B = np.ones(np.shape(E))
-            B = B*b#/(self._energies[1]-self._energies[0])
-            #B= B/np.sum(B)*background
+            B = B/np.sum(B)*b
 
+            K = K/np.sum(K)*a
 
-            K = K/K_norm*a
-            #K[E>endpoint-np.abs(m_nu**0.5)+de] = np.zeros(len(K[E>endpoint-np.abs(m_nu**2)+de]))
-            #K= K/np.sum(K)*a
-            #K = K+B
 
 
 
@@ -1109,10 +927,4 @@ class KrSimplifiedLineshape(BinnedDataFitter):
         t = self.SpectrumWithBackground(E, *args)#endpoint, background, m_nu, amplitude, prob_b, prob_c, res, sig1, sig2, tilt)
         t_norm = np.sum(t)
         return t/t_norm
-
-
-
- 
-
-
 

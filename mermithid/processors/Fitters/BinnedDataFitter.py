@@ -63,6 +63,7 @@ class BinnedDataFitter(BaseProcessor):
         self.fixes = reader.read_param(params, 'fixed', [False]*len(self.parameter_names))
         self.fixes_dict = reader.read_param(params, 'fixed_parameter_dict', {})
         self.bins = reader.read_param(params, 'bins', np.linspace(-2, 2, 100))
+        self.bin_centers = reader.read_param(params, 'bin_centers', [])
         self.binned_data = reader.read_param(params, 'binned_data', False)
         self.print_level = reader.read_param(params, 'print_level', 1)
         self.constrained_parameters = reader.read_param(params, 'constrained_parameter_indices', [])
@@ -77,9 +78,9 @@ class BinnedDataFitter(BaseProcessor):
         self.error_def = reader.read_param(params,'error_def', 1)
 
         # derived configurations
-        self.bin_centers = self.bins[0:-1]+0.5*(self.bins[1]-self.bins[0])
+        if len(self.bin_centers) == 0:
+            self.bin_centers = self.bins[0:-1]+0.5*(self.bins[1]-self.bins[0])
         self.parameter_errors = [max([0.1, 0.1*p]) for p in self.initial_values]
-
         return True
 
     def InternalRun(self):
@@ -282,13 +283,6 @@ class BinnedDataFitter(BaseProcessor):
 
         # exclude bins where expectation is <= zero or nan
         index = np.where(expectation>0)#np.where(expectation>0)#np.finfo(0.0).resolution)
-        if "background" in self.parameter_names and self.m_binned.fixed["background"]:
-            endpoint_parameter = self.parameter_names.index('endpoint')
-            index = np.where((self.bin_centers+0.5*(self.bin_centers[1]-self.bin_centers[0])<=params[endpoint_parameter]) &
-                            (self.hist>=5))
-            #index = np.arange(np.min(np.where(self.hist>1)[0]), np.max(np.where(self.hist>1)[0])+1)
-            #print(self.hist[index])
-            #print(self.bin_centers[index])
 
         # poisson log likelihoood
         log_factorial = np.array([np.sum(np.log(np.arange(1, n+1))) for n in self.hist[index]])

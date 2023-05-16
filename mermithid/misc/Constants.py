@@ -42,5 +42,5 @@ def mu_diff_hel_trit(): return 5.107 #Difference between magnetic moments of hel
 
 # Kr specific constants
 # Based on Katrin recent paper https://iopscience.iop.org/article/10.1088/1361-6471/ab8480
-def kr_k_line_e(): return 17.8260*1e3
+def kr_k_line_e(): return 17824.2
 def kr_k_line_width(): return 2.774
