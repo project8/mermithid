@@ -4,6 +4,18 @@ Validation Log
 Log
 ---
 
+Version: v1.2.4
+~~~~~~~~~~~~~~~~
+
+Release Date: Wed May 17 2023
+''''''''''''''''''''''''''''''
+
+Fixes:
+'''''''''''''
+
+* Changed krypton K line energy to value in Venos et al. paper
+
+
 Version: v1.2.3
 ~~~~~~~~~~~~~~~~
 
