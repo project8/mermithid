@@ -14,31 +14,37 @@ import numpy as np
 class SensitivityTest(unittest.TestCase):
 
     def test_SensitivityCurveProcessor(self):
-        from mermithid.processors.Sensitivity import SensitivityCurveProcessor
+        from mermithid.processors.Sensitivity import CavitySensitivityCurveProcessor
 
 
         sens_config_dict = {
             # required
-            "config_file_path": "/host_termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg",
-            "plot_path": "./sensitivity_curve.pdf",
+            "config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_262MHz_Experiment.cfg",
+            "plot_path": "./sensitivity_vs_efficiency_curve.pdf",
             # optional
             "track_length_axis": False,
             "molecular_axis": False,
-            "atomic_axis": True,
-            "y_limits": [1e-1, 1e2],
-            "density_range": [1e12,1e21],
-            "main_curve_upper_label": r"Atomic CRES at 0.04 T"+"\n"+r"$V_\mathrm{eff} = 0.01\, \mathrm{m}^3$"+"\n"+r"$\sigma_B = 2\,\mathrm{ppm}$",
-            "main_curve_lower_label": r"$\sigma_B = 0.16\,\mathrm{ppm}$",
-            "goals": {"Phase III (0.4 eV)": 0.4},# "Phase IV (40 meV)": 0.04},
-            "comparison_curve": False,
-            "comparison_config_file_path": "/host_scripts/rreimann/data/Sensitivity/Config_PhaseIV_atomic_V_eff_5m3.cfg",
-            "B_inhomogeneity": np.linspace(0.16, 2.0, 10)*1e-6,
-            "B_inhom_uncertainty": 0.05,
-            "lower_label_y_position": 0.5,
-            "upper_label_y_position": 5,
-            "label_x_position": 1e14
+            "atomic_axis": False,
+            "density_axis": False,
+            "cavity": True,
+            "y_limits": [2e-2, 3],
+            "density_range": [1e12,1e18],
+            "efficiency_range": [0.0001, 1],
+            #"density_range": [1e8, 1e12],
+            "main_curve_upper_label": r"Molecular"+"\n"+"1 year"+"\n"+r"$\sigma_B = 2\,\mathrm{ppm}$",
+            "main_curve_lower_label": r"$\sigma_B = 0.1\,\mathrm{ppm}$",
+            "comparison_curve_label": r"Atomic"+"\n"+r"10 $\times$ 3 years"+"\n"+r"$\sigma_B = 0.1\,\mathrm{ppm}$",
+            "goals": {"Phase III (0.1 eV)": 0.1, "Phase IV (40 meV)": 0.04},
+            "comparison_curve": True,
+            "comparison_config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_atomic_262MHz_Experiment.cfg",
+            "B_inhomogeneity": np.linspace(0.1, 2.1, 10)*1e-6,
+            "B_inhom_uncertainty": 0.01,
+            "lower_label_y_position": 0.17,
+            "upper_label_y_position": 0.7,
+            "label_x_position": 0.015, #1.5e15, #0.02, #1e14,
+            "goals_x_position": 0.0002 #2e12 #0.0002
             }
-        sens_curve = SensitivityCurveProcessor("sensitivity_curve_processor")
+        sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
         sens_curve.Configure(sens_config_dict)
         sens_curve.Run()
 
@@ -48,17 +54,17 @@ class SensitivityTest(unittest.TestCase):
 
         sens_config_dict = {
             # required
-            "config_file_path": "/host_termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
+            "config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
             }
-        sens = AnalyticSensitivityEstimation("sensitivity_processor")
-        sens.Configure(sens_config_dict)
-        sens.Run()
+        # sens = AnalyticSensitivityEstimation("sensitivity_processor")
+        # sens.Configure(sens_config_dict)
+        # sens.Run()
 
-        sens.print_statistics()
-        sens.print_systematics()
+        # sens.print_statistics()
+        # sens.print_systematics()
 
-        results = sens.results
-        logger.info(results)
+        # results = sens.results
+        # logger.info(results)
 
     def test_ConstantSensitivityCurvesProcessor(self):
         from mermithid.processors.Sensitivity import ConstantSensitivityParameterPlots
@@ -66,15 +72,15 @@ class SensitivityTest(unittest.TestCase):
 
         sens_config_dict = {
             # required
-            "config_file_path": "/host_termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg",
+            "config_file_path": "//host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg",
             "sensitivity_target": [0.4**2/np.sqrt(1.64)]#, 0.7**2/np.sqrt(1.64), 1**2/np.sqrt(1.64)]
             }
-        sens = ConstantSensitivityParameterPlots("sensitivity_processor")
-        sens.Configure(sens_config_dict)
-        sens.Run()
+        #sens = ConstantSensitivityParameterPlots("sensitivity_processor")
+        #sens.Configure(sens_config_dict)
+        #sens.Run()
 
-        sens.print_statistics()
-        sens.print_systematics()
+        #sens.print_statistics()
+        #sens.print_systematics()
 
 
 
