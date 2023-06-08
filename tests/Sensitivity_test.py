@@ -47,6 +47,37 @@ class SensitivityTest(unittest.TestCase):
         sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
         sens_curve.Configure(sens_config_dict)
         sens_curve.Run()
+        
+        sens_config_dict = {
+            # required
+            "config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_262MHz_Experiment.cfg",
+            "plot_path": "./sensitivity_vs_density_curve.pdf",
+            # optional
+            "track_length_axis": True,
+            "molecular_axis": True,
+            "atomic_axis": True,
+            "density_axis": True,
+            "cavity": True,
+            "y_limits": [2e-2, 3],
+            "density_range": [1e12,1e18],
+            "efficiency_range": [0.0001, 1],
+            #"density_range": [1e8, 1e12],
+            "main_curve_upper_label": r"Molecular"+"\n"+"1 year"+"\n"+r"$\sigma_B = 2\,\mathrm{ppm}$",
+            "main_curve_lower_label": r"$\sigma_B = 0.1\,\mathrm{ppm}$",
+            "comparison_curve_label": r"Atomic"+"\n"+r"10 $\times$ 3 years"+"\n"+r"$\sigma_B = 0.1\,\mathrm{ppm}$",
+            "goals": {"Phase III (0.1 eV)": 0.1, "Phase IV (40 meV)": 0.04},
+            "comparison_curve": True,
+            "comparison_config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_atomic_262MHz_Experiment.cfg",
+            "B_inhomogeneity": np.linspace(0.1, 2.1, 10)*1e-6,
+            "B_inhom_uncertainty": 0.01,
+            "lower_label_y_position": 0.17,
+            "upper_label_y_position": 0.7,
+            "label_x_position": 1.5e15, #0.02, #1e14,
+            "goals_x_position": 2e12 #0.0002
+            }
+        sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        sens_curve.Configure(sens_config_dict)
+        sens_curve.Run()
 
     def test_SensitivityProcessor(self):
         from mermithid.processors.Sensitivity import AnalyticSensitivityEstimation

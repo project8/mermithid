@@ -32,7 +32,7 @@ tritium_endpoint_molecular = 18573.24*eV
 last_1ev_fraction_molecular = 1.67364e-13/eV**3
 
 ground_state_width = 0.436 * eV
-ground_state_width_uncertainty = 0.01*0.436*eV
+ground_state_width_uncertainty = 0.0*0.436*eV
 
 gyro_mag_ratio_proton = 42.577*MHz/T
 
