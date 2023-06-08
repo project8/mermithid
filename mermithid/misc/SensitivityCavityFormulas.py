@@ -86,11 +86,15 @@ def wavelength(kin_energy, magnetic_field):
 def kin_energy(freq, magnetic_field):
     return (e*c0**2/(2*np.pi*freq)*magnetic_field - me*c0**2)
 
-def rad_power(kin_energy, pitch, magnetic_field):
+"""def rad_power(kin_energy, pitch, magnetic_field):
     # electron radiation power
     f = frequency(kin_energy, magnetic_field)
     b = beta(kin_energy)
     Pe = 2*np.pi*(e*f*b*np.sin(pitch/rad))**2/(3*eps0*c0*(1-b**2))
+    return Pe"""
+
+def rad_power(kin_energy, pitch, magnetic_field):
+    Pe = 2*(e**2*magnetic_field*np.sin(pitch))**2*(gamma(kin_energy)**2-1)/(12*eps0*c0*np.pi*me**2)
     return Pe
 
 def track_length(rho, kin_energy=None, molecular=True):
@@ -104,6 +108,71 @@ def sin2theta_sq_to_Ue4_sq(sin2theta_sq):
 
 def Ue4_sq_to_sin2theta_sq(Ue4_sq):
     return 4*Ue4_sq*(1-Ue4_sq)
+
+# Wouters functinos
+def db_to_pwr_ratio(q_db):
+    return 10**(q_db/10)
+
+def axial_frequency(length, kin_energy, max_pitch_angle=86):
+    pitch_max = max_pitch_angle/180*np.pi
+    return (beta(kin_energy)*c0*np.cos(pitch_max)) / (2*length)
+
+def mean_field_frequency_variation(cyclotron_frequency, length_diameter_ratio, max_pitch_angle=86):
+    # Because of the differenct electron trajectories in the trap,
+    # An electron will see a slightly different magnetic field
+    # depending on its position in the trap, especially the pitch angle.
+    # This is a rough estimate of the mean field variation, inspired by calcualtion performed by Rene.
+    y = (90-max_pitch_angle)/5
+    return 0.002*y**2*cyclotron_frequency*(10/length_diameter_ratio)
+
+# Noise power entering the amplifier, inclding the transmitted noise from the cavity and the reflected noise from the circulator.
+# Insertion loss is included.
+def Pn_dut_entrance(t_cavity,
+                    t_amplifier,
+                    att_line_db,
+                    att_cir_db,
+                    coupling,
+                    freq,
+                    bandwidth,
+                    loaded_Q):
+    att_cir = db_to_pwr_ratio(att_cir_db)
+    att_line = db_to_pwr_ratio(att_line_db)
+    assert( (np.all(att_cir<=1)) & (np.all(att_line<=1)) )
+
+    # Calculate the noise at the cavity
+    Pn_cav = Pn_cavity(t_cavity, coupling, loaded_Q, bandwidth, freq)
+    Pn_circulator = t_effective(t_amplifier, freq)*kB*bandwidth
+    Pn_circulator_after_reflection = Pn_reflected(Pn_f(Pn_circulator,t_amplifier, t_cavity,att_line, bandwidth), coupling, loaded_Q, bandwidth, freq)
+    # Propagate the noise over the line towards the circulator
+    Pn_entrance = Pn_f(Pn_circulator_after_reflection+Pn_cav,t_cavity,t_amplifier,att_line,bandwidth)
+    # Apply the effect of the circulator
+    return Pn_f(Pn_entrance,t_amplifier,t_amplifier,att_cir,bandwidth)
+
+# Noise power genrated in the cavity integrated over the bandwidth that couples into the readout line.
+def Pn_cavity(t_cavity, coupling, loaded_Q, bandwidth, freq):
+    return kB*t_effective(t_cavity, freq)*4*coupling/(1+coupling)**2*freq/loaded_Q*np.arctan(loaded_Q*bandwidth/freq)
+
+# Noise power reflecting of the cavity
+def Pn_reflected(Pn_incident, coupling, loaded_Q, bandwidth, freq):
+    
+    reflection_coefficient = 1-freq/loaded_Q/bandwidth*np.arctan(loaded_Q*bandwidth/freq)*4*coupling/(1+coupling)**2
+    return Pn_incident*reflection_coefficient
+
+# Power at the end of a lossy line with temperature gradient
+def Pn_f(Pn_i,t_i,t_f,a,bandwidth): # eq 10
+    if hasattr(a, "__len__") or a!=1:
+        return Pn_i+ kB*bandwidth*(t_f-t_i)*(1+ (1-a)/np.log(a))+ (t_i*kB*bandwidth-Pn_i)*(1-a)
+    else:
+        return Pn_i*np.ones_like(t_f)
+    
+# Effective temperature taking the quantum photon population into account.
+def t_effective(t_physical, cyclotron_frequency):
+    quantum = 2*np.pi*hbar*cyclotron_frequency/kB
+    #for numerical stability
+    if np.all(quantum/t_physical < 1e-2):
+        return t_physical
+    else:
+       return quantum*(1/2+1/(np.exp(quantum/t_physical)-1))
 
 ###############################################################################
 class CavitySensitivity(object):
@@ -154,12 +223,19 @@ class CavitySensitivity(object):
         
 
     # CAVITY
+    def CavityRadius(self):
+        axial_mode_index = 1
+        return c0/(2*np.pi*frequency(self.T_endpoint, self.MagneticField.nominal_field))*np.sqrt(3.8317**2+axial_mode_index**2*np.pi**2/(4*self.Experiment.L_over_D**2))
+        
     def CavityVolume(self):
-        self.TotalVolume = self.Experiment.length*np.pi*(0.5*wavelength(self.T_endpoint, self.MagneticField.nominal_field))**2
+        #radius = 0.5*wavelength(self.T_endpoint, self.MagneticField.nominal_field)
+        radius = self.CavityRadius()
+        self.TotalVolume = 2*radius*self.Experiment.L_over_D*np.pi*(radius)**2
         self.EffectiveVolume = self.TotalVolume*self.Experiment.efficiency
         
         logger.info("Frequency: {} MHz".format(round(frequency(self.T_endpoint, self.MagneticField.nominal_field)/MHz, 3)))
         logger.info("Wavelength: {} cm".format(round(wavelength(self.T_endpoint, self.MagneticField.nominal_field)/cm, 3)))
+        logger.info("Radius: {} cm".format(round(radius/cm, 3)))
         logger.info("Effective Volume: {} m^3".format(round(self.EffectiveVolume/m**3, 3)))
 
     # SENSITIVITY
@@ -342,15 +418,13 @@ class CavitySensitivity(object):
     def syst_frequency_extraction(self):
         # cite{https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398} (Section 1.2, p 7-9)
         # Are we double counting the antenna collection efficiency? We use it here. Does it also impact the effective volume, v_eff ?
-        # Are we double counting the effect of magnetic field uncertainty here?
-        # Is 'sigma_f_Bfield' the same as 'rRecoErr', 'delta_rRecoErr', 'rRecoPhiErr', 'delta_rRecoPhiErr'?
-
+        
         if self.FrequencyExtraction.UseFixedValue:
             sigma = self.FrequencyExtraction.Default_Systematic_Smearing
             delta = self.FrequencyExtraction.Default_Systematic_Uncertainty
             return sigma, delta
 
-        # Cramer-Rao lower bound / how much worse are we than the lower bound
+        """ # Cramer-Rao lower bound / how much worse are we than the lower bound
         ScalingFactorCRLB = self.FrequencyExtraction.CRLB_scaling_factor
         ts = self.FrequencyExtraction.track_timestep
         # "This is apparent in the case of resonant patch antennas and cavities, in which the time scale of the signal onset is set by the Q-factor of the resonant structure."
@@ -368,31 +442,67 @@ class CavitySensitivity(object):
 
         # sigma_f from Cramer-Rao lower bound in Hz
         sigma_f_CRLB = (ScalingFactorCRLB /(2*np.pi) * sigNoise/Amplitude * np.sqrt(alpha_approx**2/(2*Gdot)
-                    + 96.*Nsteps/(ts**2*(Nsteps**4-5*Nsteps**2+4))))
-        # uncertainty in alpha
+                    + 96.*Nsteps/(ts**2*(Nsteps**4-5*Nsteps**2+4))))"""
+        
+       
+        endpoint_frequency = frequency(self.T_endpoint, self.MagneticField.nominal_field)
+        # using Pe and alpha (aka slope) from above
+        Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
+        alpha_approx = endpoint_frequency * 2 * np.pi * Pe/me/c0**2 # track slope
+       
+        # Using Wouter's calculation:
+        
+        # Total required bandwidth is the sum of the endpoint region and the axial frequency. 
+        # I will assume the bandwidth is dominated by the sidebands and not by the energy ROI
+        required_bw_axialfrequency = axial_frequency(self.Experiment.L_over_D*self.CavityRadius()*2, self.T_endpoint)
+        required_bw_meanfield = mean_field_frequency_variation(endpoint_frequency, length_diameter_ratio=self.Experiment.L_over_D)
+        required_bw = np.add(required_bw_axialfrequency,required_bw_meanfield) # Broadcasting
+    
+        # Cavity coupling
+        loaded_Q = endpoint_frequency/required_bw # FWHM
+        coupling = self.FrequencyExtraction.unloaded_q/loaded_Q-1
+    
+        # Attenuation frequency dependence at hoc method
+        att_cir_db = -0.3
+        att_line_db = -0.05
+        att_cir_db_freq = att_cir_db*(1+endpoint_frequency/(10*GHz))
+        att_line_db_freq = att_line_db*(1+endpoint_frequency/(10*GHz))
+        
+        # Noise power for bandwidth set by density/track length
+        time_window = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
+        fft_bandwidth = 3/time_window #(delta f) is the frequency bandwidth of interest. We have a main carrier and 2 axial side bands, so 3*(FFT bin width)
+        tn_fft = Pn_dut_entrance(self.FrequencyExtraction.cavity_temperature,
+                                 self.FrequencyExtraction.amplifier_temperature,
+                                 att_line_db_freq,att_cir_db_freq,
+                                 coupling,
+                                 endpoint_frequency,
+                                 fft_bandwidth,loaded_Q)/kB/fft_bandwidth
+    
+        # Noise temperature of amplifier
+        tn_amplifier = endpoint_frequency*hbar*2*np.pi/kB/self.FrequencyExtraction.quantum_amp_efficiency
+        tn_system_fft = tn_amplifier+tn_fft
+        
+        P_signal_received = Pe*self.FrequencyExtraction.epsilon_collection*db_to_pwr_ratio(att_cir_db_freq+att_line_db_freq)
+        tau_snr = kB*tn_system_fft/P_signal_received
+        
+        sigma_f_CRLB = np.sqrt((20*(alpha_approx*tau_snr)**2 + 180*tau_snr/time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
+        
+        # end of Wouter's calculation
+        
+        """# uncertainty in alpha
         delta_alpha = 6*sigNoise/(Amplitude*ts**2) * np.sqrt(10/(Nsteps*(Nsteps**4-5*Nsteps**2+4)))
         # uncetainty in sigma_f in Hz due to uncertainty in alpha
-        delta_sigma_f_CRLB = delta_alpha * alpha_approx *sigNoise**2/(8*np.pi**2*Amplitude**2*Gdot*sigma_f_CRLB*ScalingFactorCRLB**2)
+        delta_sigma_f_CRLB = delta_alpha * alpha_approx *sigNoise**2/(8*np.pi**2*Amplitude**2*Gdot*sigma_f_CRLB*ScalingFactorCRLB**2)"""
 
         # sigma_f from Cramer-Rao lower bound in eV
-        sigma_K_f_CRLB =  e*self.MagneticField.nominal_field/(2*np.pi*fEndpoint**2)*sigma_f_CRLB*c0**2
-        delta_sigma_K_f_CRLB = e*self.MagneticField.nominal_field/(2*np.pi*fEndpoint**2)*delta_sigma_f_CRLB*c0**2
+        sigma_K_f_CRLB =  e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*sigma_f_CRLB*c0**2
+        # delta_sigma_K_f_CRLB = e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*delta_sigma_f_CRLB*c0**2
 
         # combined sigma_f in eV
         sigma_f = np.sqrt(sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_smearing**2)
-        delta_sigma_f = np.sqrt((delta_sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_uncertainty**2)/2)
-
-        # the magnetic_field_smearing and uncertainty added here consider the following effect:
-        # thinking in terms of a phase II track, there is some smearing of the track / width of the track which influences the frequency extraction
-        # this does not account for any effect comming from converting frequency to energy
-        # the reason behind the track width / smearing is the change in B field that the electron sees within one axial oscillation.
-        # Depending on the trap shape this smearing may be different.
+        # delta_sigma_f = np.sqrt((delta_sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_uncertainty**2)/2)
         
-        if self.FrequencyExtraction.UseFixedUncertainty:
-            return sigma_f, self.FrequencyExtraction.fixed_relativ_uncertainty*sigma_f
-        else:
-
-            return sigma_f, delta_sigma_f
+        return sigma_f, self.FrequencyExtraction.fixed_relativ_uncertainty*sigma_f
 
     def syst_magnetic_field(self):
 
