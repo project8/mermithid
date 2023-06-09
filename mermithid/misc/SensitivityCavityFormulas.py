@@ -15,7 +15,7 @@ from numpy import pi
 from numericalunits import e, me, c0, eps0, kB, hbar
 from numericalunits import meV, eV, keV, MeV, cm, m, ns, s, Hz, kHz, MHz, GHz, amu
 from numericalunits import nT, uT, mT, T, mK, K,  C, F, g, W
-from numericalunits import hour, year, day
+from numericalunits import hour, year, day, s, ms
 from numericalunits import mu0, NA, kB, hbar, me, c0, e, eps0, hPlanck
 
 T0 = -273.15*K
@@ -414,6 +414,47 @@ class CavitySensitivity(object):
         delta_trans = np.sqrt(p_rec**2/(2*mass_T)*kB/gasTemp*self.DopplerBroadening.gas_temperature_uncertainty**2)
         return sigma_trans, delta_trans
 
+    def calculate_tau_snr(self, time_window):
+        
+        endpoint_frequency = frequency(self.T_endpoint, self.MagneticField.nominal_field)
+        Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
+        
+        # Using Wouter's calculation:
+        # Total required bandwidth is the sum of the endpoint region and the axial frequency. 
+        # I will assume the bandwidth is dominated by the sidebands and not by the energy ROI
+        required_bw_axialfrequency = axial_frequency(self.Experiment.L_over_D*self.CavityRadius()*2, self.T_endpoint)
+        required_bw_meanfield = mean_field_frequency_variation(endpoint_frequency, length_diameter_ratio=self.Experiment.L_over_D)
+        required_bw = np.add(required_bw_axialfrequency,required_bw_meanfield) # Broadcasting
+    
+        # Cavity coupling
+        loaded_Q = endpoint_frequency/required_bw # FWHM
+        coupling = self.FrequencyExtraction.unloaded_q/loaded_Q-1
+    
+        # Attenuation frequency dependence at hoc method
+        att_cir_db = -0.3
+        att_line_db = -0.05
+        att_cir_db_freq = att_cir_db*(1+endpoint_frequency/(10*GHz))
+        att_line_db_freq = att_line_db*(1+endpoint_frequency/(10*GHz))
+        
+        # Noise power for bandwidth set by density/track length
+        fft_bandwidth = 3/time_window #(delta f) is the frequency bandwidth of interest. We have a main carrier and 2 axial side bands, so 3*(FFT bin width)
+        tn_fft = Pn_dut_entrance(self.FrequencyExtraction.cavity_temperature,
+                                 self.FrequencyExtraction.amplifier_temperature,
+                                 att_line_db_freq,att_cir_db_freq,
+                                 coupling,
+                                 endpoint_frequency,
+                                 fft_bandwidth,loaded_Q)/kB/fft_bandwidth
+    
+        # Noise temperature of amplifier
+        tn_amplifier = endpoint_frequency*hbar*2*np.pi/kB/self.FrequencyExtraction.quantum_amp_efficiency
+        tn_system_fft = tn_amplifier+tn_fft
+        
+        P_signal_received = Pe*self.FrequencyExtraction.epsilon_collection*db_to_pwr_ratio(att_cir_db_freq+att_line_db_freq)
+        tau_snr = kB*tn_system_fft/P_signal_received
+        
+        # end of Wouter's calculation
+        return tau_snr
+        
 
     def syst_frequency_extraction(self):
         # cite{https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398} (Section 1.2, p 7-9)
@@ -449,45 +490,32 @@ class CavitySensitivity(object):
         # using Pe and alpha (aka slope) from above
         Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
         alpha_approx = endpoint_frequency * 2 * np.pi * Pe/me/c0**2 # track slope
-       
-        # Using Wouter's calculation:
-        
-        # Total required bandwidth is the sum of the endpoint region and the axial frequency. 
-        # I will assume the bandwidth is dominated by the sidebands and not by the energy ROI
-        required_bw_axialfrequency = axial_frequency(self.Experiment.L_over_D*self.CavityRadius()*2, self.T_endpoint)
-        required_bw_meanfield = mean_field_frequency_variation(endpoint_frequency, length_diameter_ratio=self.Experiment.L_over_D)
-        required_bw = np.add(required_bw_axialfrequency,required_bw_meanfield) # Broadcasting
-    
-        # Cavity coupling
-        loaded_Q = endpoint_frequency/required_bw # FWHM
-        coupling = self.FrequencyExtraction.unloaded_q/loaded_Q-1
-    
-        # Attenuation frequency dependence at hoc method
-        att_cir_db = -0.3
-        att_line_db = -0.05
-        att_cir_db_freq = att_cir_db*(1+endpoint_frequency/(10*GHz))
-        att_line_db_freq = att_line_db*(1+endpoint_frequency/(10*GHz))
-        
-        # Noise power for bandwidth set by density/track length
         time_window = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
-        fft_bandwidth = 3/time_window #(delta f) is the frequency bandwidth of interest. We have a main carrier and 2 axial side bands, so 3*(FFT bin width)
-        tn_fft = Pn_dut_entrance(self.FrequencyExtraction.cavity_temperature,
-                                 self.FrequencyExtraction.amplifier_temperature,
-                                 att_line_db_freq,att_cir_db_freq,
-                                 coupling,
-                                 endpoint_frequency,
-                                 fft_bandwidth,loaded_Q)/kB/fft_bandwidth
-    
-        # Noise temperature of amplifier
-        tn_amplifier = endpoint_frequency*hbar*2*np.pi/kB/self.FrequencyExtraction.quantum_amp_efficiency
-        tn_system_fft = tn_amplifier+tn_fft
         
-        P_signal_received = Pe*self.FrequencyExtraction.epsilon_collection*db_to_pwr_ratio(att_cir_db_freq+att_line_db_freq)
-        tau_snr = kB*tn_system_fft/P_signal_received
+        time_window_slope_zero = abs(frequency(self.T_endpoint, self.MagneticField.nominal_field)-frequency(self.T_endpoint+20*meV, self.MagneticField.nominal_field))/alpha_approx
         
-        sigma_f_CRLB = np.sqrt((20*(alpha_approx*tau_snr)**2 + 180*tau_snr/time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
+        tau_snr_full_length = self.calculate_tau_snr(time_window)
+        tau_snr_part_length = self.calculate_tau_snr(time_window_slope_zero)
+       
         
-        # end of Wouter's calculation
+        
+        # use different crlb based on slope
+        delta_E_slope = abs(kin_energy(endpoint_frequency, self.MagneticField.nominal_field)-kin_energy(endpoint_frequency+alpha_approx*time_window, self.MagneticField.nominal_field))
+        #logger.info("slope is {} Hz/ms".format(alpha_approx/Hz*ms))
+        #logger.info("slope corresponds to {} meV / ms".format(delta_E_slope/meV))
+        if time_window_slope_zero >= time_window:
+            #logger.info("slope is approximately 0".format(alpha_approx/meV*ms))
+            CRLB_constant = np.sqrt(12)
+            ratio_window_to_length = 1
+            #sigma_f_CRLB = gamma(self.T_endpoint)*self.T_endpoint/((gamma(self.T_endpoint)-1)*2*np.pi*endpoint_frequency)*np.sqrt(CRLB_constant*tau_snr*0.3/(time_window**3*ratio_window_to_length**2.3))
+            sigma_f_CRLB = np.sqrt((CRLB_constant*tau_snr_full_length/time_window**3))/(2*np.pi)*self.FrequencyExtraction.CRLB_scaling_factor
+        else:
+            CRLB_constant = np.sqrt(12)
+            sigma_CRLB_slope_zero = np.sqrt((CRLB_constant*tau_snr_part_length/time_window_slope_zero**3))/(2*np.pi)*self.FrequencyExtraction.CRLB_scaling_factor
+            
+            sigma_f_CRLB_slope_fitted = np.sqrt((20*(alpha_approx*tau_snr_full_length)**2 + 180*tau_snr_full_length/time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
+        
+            sigma_f_CRLB = np.min([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])
         
         """# uncertainty in alpha
         delta_alpha = 6*sigNoise/(Amplitude*ts**2) * np.sqrt(10/(Nsteps*(Nsteps**4-5*Nsteps**2+4)))
