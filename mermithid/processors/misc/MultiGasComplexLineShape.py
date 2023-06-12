@@ -118,7 +118,6 @@ class MultiGasComplexLineShape(BaseProcessor):
         # Read shake parameters from JSON file
         if self.base_shape == 'shake':
             self.shakeSpectrumClassInstance = ComplexLineShapeUtilities.ShakeSpectrumClass(self.shake_spectrum_parameters_json_path, self.std_eV_array())
-
         # read in resolution if simulated
         if 'simulated' in self.resolution_function:
             self.sample_and_interpolate_resolution()
