@@ -27,7 +27,7 @@ class SensitivityTest(unittest.TestCase):
             "atomic_axis": False,
             "density_axis": False,
             "cavity": True,
-            "y_limits": [2e-2, 3],
+            "y_limits": [2e-2, 4],
             "density_range": [1e12,1e18],
             "efficiency_range": [0.0001, 1],
             #"density_range": [1e8, 1e12],
@@ -44,9 +44,9 @@ class SensitivityTest(unittest.TestCase):
             "label_x_position": 0.015, #1.5e15, #0.02, #1e14,
             "goals_x_position": 0.0002 #2e12 #0.0002
             }
-        sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-        sens_curve.Configure(sens_config_dict)
-        sens_curve.Run()
+        #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        #sens_curve.Configure(sens_config_dict)
+        #sens_curve.Run()
         
         sens_config_dict = {
             # required
@@ -58,8 +58,8 @@ class SensitivityTest(unittest.TestCase):
             "atomic_axis": True,
             "density_axis": True,
             "cavity": True,
-            "y_limits": [2e-2, 3],
-            "density_range": [1e12,1e18],
+            "y_limits": [2e-2, 4],
+            "density_range": [1e12,1e19],
             "efficiency_range": [0.0001, 1],
             #"density_range": [1e8, 1e12],
             "main_curve_upper_label": r"Molecular"+"\n"+"1 year"+"\n"+r"$\sigma_B = 2\,\mathrm{ppm}$",
@@ -73,7 +73,8 @@ class SensitivityTest(unittest.TestCase):
             "lower_label_y_position": 0.17,
             "upper_label_y_position": 0.7,
             "label_x_position": 1.5e15, #0.02, #1e14,
-            "goals_x_position": 2e12 #0.0002
+            "goals_x_position": 2e12, #0.0002
+            "plot_key_parameters": True
             }
         sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
         sens_curve.Configure(sens_config_dict)

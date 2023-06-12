@@ -13,7 +13,7 @@ from numpy import pi
 # Numericalunits is a package to handle units and some natural constants
 # natural constants
 from numericalunits import e, me, c0, eps0, kB, hbar
-from numericalunits import meV, eV, keV, MeV, cm, m, ns, s, Hz, kHz, MHz, GHz, amu
+from numericalunits import meV, eV, keV, MeV, cm, m, ns, s, Hz, kHz, MHz, GHz, amu, nJ
 from numericalunits import nT, uT, mT, T, mK, K,  C, F, g, W
 from numericalunits import hour, year, day, s, ms
 from numericalunits import mu0, NA, kB, hbar, me, c0, e, eps0, hPlanck
@@ -122,7 +122,7 @@ def mean_field_frequency_variation(cyclotron_frequency, length_diameter_ratio, m
     # An electron will see a slightly different magnetic field
     # depending on its position in the trap, especially the pitch angle.
     # This is a rough estimate of the mean field variation, inspired by calcualtion performed by Rene.
-    y = (90-max_pitch_angle)/5
+    y = (90-max_pitch_angle)/4
     return 0.002*y**2*cyclotron_frequency*(10/length_diameter_ratio)
 
 # Noise power entering the amplifier, inclding the transmitted noise from the cavity and the reflected noise from the circulator.
@@ -218,31 +218,71 @@ class CavitySensitivity(object):
         self.MagneticField = NameSpace({opt: eval(self.cfg.get('MagneticField', opt)) for opt in self.cfg.options('MagneticField')})
         self.MissingTracks = NameSpace({opt: eval(self.cfg.get('MissingTracks', opt)) for opt in self.cfg.options('MissingTracks')})
         self.PlasmaEffects = NameSpace({opt: eval(self.cfg.get('PlasmaEffects', opt)) for opt in self.cfg.options('PlasmaEffects')})
+        self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
         
+        self.CavityRadius()
         self.CavityVolume()
-        
+        self.EffectiveVolume()
+        self.CavityPower()
 
     # CAVITY
     def CavityRadius(self):
         axial_mode_index = 1
-        return c0/(2*np.pi*frequency(self.T_endpoint, self.MagneticField.nominal_field))*np.sqrt(3.8317**2+axial_mode_index**2*np.pi**2/(4*self.Experiment.L_over_D**2))
-        
+        self.cavity_radius = c0/(2*np.pi*frequency(self.T_endpoint, self.MagneticField.nominal_field))*np.sqrt(3.8317**2+axial_mode_index**2*np.pi**2/(4*self.Experiment.L_over_D**2))
+        return self.cavity_radius
+    
     def CavityVolume(self):
         #radius = 0.5*wavelength(self.T_endpoint, self.MagneticField.nominal_field)
-        radius = self.CavityRadius()
-        self.TotalVolume = 2*radius*self.Experiment.L_over_D*np.pi*(radius)**2
-        self.EffectiveVolume = self.TotalVolume*self.Experiment.efficiency
+        self.total_volume = 2*self.cavity_radius*self.Experiment.L_over_D*np.pi*(self.cavity_radius)**2
         
         logger.info("Frequency: {} MHz".format(round(frequency(self.T_endpoint, self.MagneticField.nominal_field)/MHz, 3)))
         logger.info("Wavelength: {} cm".format(round(wavelength(self.T_endpoint, self.MagneticField.nominal_field)/cm, 3)))
-        logger.info("Radius: {} cm".format(round(radius/cm, 3)))
-        logger.info("Effective Volume: {} m^3".format(round(self.EffectiveVolume/m**3, 3)))
-
+        logger.info("Radius: {} cm".format(round(self.cavity_radius/cm, 3)))
+        
+        return self.total_volume
+    
+    def EffectiveVolume(self):
+        if self.Efficiency.usefixedvalue:
+            self.effective_volume = self.total_volume * self.Efficiency.total_efficiency
+        else:
+            # trapping efficiecny is currently configured. replace with box trap calculation
+            self.effective_volume = self.total_volume*self.Efficiency.radial_efficiency*self.Efficiency.trapping_efficiency
+            
+        return self.effective_volume
+        
+    def CavityPower(self):
+        # from Hamish's atomic calculator
+        Jprime_0 = 3.8317
+        
+        self.signal_power = self.FrequencyExtraction.mode_coupling_efficiency * self.CavityLoadedQ() * self.FrequencyExtraction.hanneke_factor * self.T_endpoint/eV * e/C * Jprime_0**2 / (self.total_volume/m**3 * frequency(self.T_endpoint, self.MagneticField.nominal_field)*s)*W
+        
+        return self.signal_power
+    
+    
+    def CavityLoadedQ(self):
+        # Using Wouter's calculation:
+        # Total required bandwidth is the sum of the endpoint region and the axial frequency. 
+        # I will assume the bandwidth is dominated by the sidebands and not by the energy ROI
+        endpoint_frequency = frequency(self.T_endpoint, self.MagneticField.nominal_field)
+        required_bw_axialfrequency = axial_frequency(self.Experiment.L_over_D*self.CavityRadius()*2, 
+                                                     self.T_endpoint, 
+                                                     self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
+        
+        required_bw_meanfield = mean_field_frequency_variation(endpoint_frequency, 
+                                                               self.Experiment.L_over_D,
+                                                               self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
+        
+        required_bw = np.add(required_bw_axialfrequency,required_bw_meanfield) # Broadcasting
+    
+        # Cavity coupling
+        self.loaded_q = endpoint_frequency/required_bw # FWHM
+        return self.loaded_q
+    
     # SENSITIVITY
     def SignalRate(self):
         """signal events in the energy interval before the endpoint, scale with DeltaE**3"""
-        
-        signal_rate = self.Experiment.number_density*self.TotalVolume*self.Experiment.efficiency*self.last_1ev_fraction/self.tau_tritium
+        self.EffectiveVolume()
+        signal_rate = self.Experiment.number_density*self.effective_volume*self.last_1ev_fraction/self.tau_tritium
         if not self.Experiment.atomic:
             if hasattr(self.Experiment, 'gas_fractions'):
                 avg_n_T_atoms = self.AvgNumTAtomsPerParticle_MolecularExperiment(self.Experiment.gas_fractions, self.Experiment.H2_type_gas_fractions)
@@ -417,24 +457,16 @@ class CavitySensitivity(object):
     def calculate_tau_snr(self, time_window):
         
         endpoint_frequency = frequency(self.T_endpoint, self.MagneticField.nominal_field)
-        Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
-        
-        # Using Wouter's calculation:
-        # Total required bandwidth is the sum of the endpoint region and the axial frequency. 
-        # I will assume the bandwidth is dominated by the sidebands and not by the energy ROI
-        required_bw_axialfrequency = axial_frequency(self.Experiment.L_over_D*self.CavityRadius()*2, self.T_endpoint)
-        required_bw_meanfield = mean_field_frequency_variation(endpoint_frequency, length_diameter_ratio=self.Experiment.L_over_D)
-        required_bw = np.add(required_bw_axialfrequency,required_bw_meanfield) # Broadcasting
     
         # Cavity coupling
-        loaded_Q = endpoint_frequency/required_bw # FWHM
-        coupling = self.FrequencyExtraction.unloaded_q/loaded_Q-1
+        self.CavityLoadedQ()
+        coupling = self.FrequencyExtraction.unloaded_q/self.loaded_q-1
     
         # Attenuation frequency dependence at hoc method
-        att_cir_db = -0.3
-        att_line_db = -0.05
-        att_cir_db_freq = att_cir_db*(1+endpoint_frequency/(10*GHz))
-        att_line_db_freq = att_line_db*(1+endpoint_frequency/(10*GHz))
+        #att_cir_db = -0.3
+        #att_line_db = -0.05
+        att_cir_db_freq = self.FrequencyExtraction.att_cir_db*(1+endpoint_frequency/(10*GHz))
+        att_line_db_freq = self.FrequencyExtraction.att_line_db*(1+endpoint_frequency/(10*GHz))
         
         # Noise power for bandwidth set by density/track length
         fft_bandwidth = 3/time_window #(delta f) is the frequency bandwidth of interest. We have a main carrier and 2 axial side bands, so 3*(FFT bin width)
@@ -443,13 +475,17 @@ class CavitySensitivity(object):
                                  att_line_db_freq,att_cir_db_freq,
                                  coupling,
                                  endpoint_frequency,
-                                 fft_bandwidth,loaded_Q)/kB/fft_bandwidth
+                                 fft_bandwidth,self.loaded_q)/kB/fft_bandwidth
     
         # Noise temperature of amplifier
         tn_amplifier = endpoint_frequency*hbar*2*np.pi/kB/self.FrequencyExtraction.quantum_amp_efficiency
         tn_system_fft = tn_amplifier+tn_fft
         
-        P_signal_received = Pe*self.FrequencyExtraction.epsilon_collection*db_to_pwr_ratio(att_cir_db_freq+att_line_db_freq)
+        # Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
+        # logger.info("Power: {}".format(Pe/W))
+        Pe = self.signal_power
+        
+        P_signal_received = Pe*db_to_pwr_ratio(att_cir_db_freq+att_line_db_freq)
         tau_snr = kB*tn_system_fft/P_signal_received
         
         # end of Wouter's calculation
@@ -488,11 +524,13 @@ class CavitySensitivity(object):
        
         endpoint_frequency = frequency(self.T_endpoint, self.MagneticField.nominal_field)
         # using Pe and alpha (aka slope) from above
-        Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
-        alpha_approx = endpoint_frequency * 2 * np.pi * Pe/me/c0**2 # track slope
+        Pe = self.CavityPower()/self.FrequencyExtraction.mode_coupling_efficiency 
+        self.larmor_power = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field) # currently not used
+        
+        self.slope = endpoint_frequency * 2 * np.pi * Pe/me/c0**2 # track slope
         time_window = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
         
-        time_window_slope_zero = abs(frequency(self.T_endpoint, self.MagneticField.nominal_field)-frequency(self.T_endpoint+20*meV, self.MagneticField.nominal_field))/alpha_approx
+        time_window_slope_zero = abs(frequency(self.T_endpoint, self.MagneticField.nominal_field)-frequency(self.T_endpoint+10*meV, self.MagneticField.nominal_field))/self.slope
         
         tau_snr_full_length = self.calculate_tau_snr(time_window)
         tau_snr_part_length = self.calculate_tau_snr(time_window_slope_zero)
@@ -500,22 +538,27 @@ class CavitySensitivity(object):
         
         
         # use different crlb based on slope
-        delta_E_slope = abs(kin_energy(endpoint_frequency, self.MagneticField.nominal_field)-kin_energy(endpoint_frequency+alpha_approx*time_window, self.MagneticField.nominal_field))
-        #logger.info("slope is {} Hz/ms".format(alpha_approx/Hz*ms))
-        #logger.info("slope corresponds to {} meV / ms".format(delta_E_slope/meV))
+        delta_E_slope = abs(kin_energy(endpoint_frequency, self.MagneticField.nominal_field)-kin_energy(endpoint_frequency+self.slope*time_window, self.MagneticField.nominal_field))
+        logger.info("slope is {} Hz/ms".format(self.slope/Hz*ms))
+        # logger.info("slope corresponds to {} meV / ms".format(delta_E_slope/meV))
         if time_window_slope_zero >= time_window:
-            #logger.info("slope is approximately 0".format(alpha_approx/meV*ms))
+            #logger.info("slope is approximately 0".format(self.slope/meV*ms))
             CRLB_constant = np.sqrt(12)
             ratio_window_to_length = 1
             #sigma_f_CRLB = gamma(self.T_endpoint)*self.T_endpoint/((gamma(self.T_endpoint)-1)*2*np.pi*endpoint_frequency)*np.sqrt(CRLB_constant*tau_snr*0.3/(time_window**3*ratio_window_to_length**2.3))
             sigma_f_CRLB = np.sqrt((CRLB_constant*tau_snr_full_length/time_window**3))/(2*np.pi)*self.FrequencyExtraction.CRLB_scaling_factor
+            self.slope_is_zero=True
         else:
             CRLB_constant = np.sqrt(12)
             sigma_CRLB_slope_zero = np.sqrt((CRLB_constant*tau_snr_part_length/time_window_slope_zero**3))/(2*np.pi)*self.FrequencyExtraction.CRLB_scaling_factor
             
-            sigma_f_CRLB_slope_fitted = np.sqrt((20*(alpha_approx*tau_snr_full_length)**2 + 180*tau_snr_full_length/time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
+            sigma_f_CRLB_slope_fitted = np.sqrt((20*(self.slope*tau_snr_full_length)**2 + 180*tau_snr_full_length/time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
         
             sigma_f_CRLB = np.min([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])
+            
+            # logger.info("CRLB options are: {} , {}".format(sigma_CRLB_slope_zero/Hz, sigma_f_CRLB_slope_fitted/Hz))
+            self.slope_is_zero = False
+            self.crlb_decision=np.argmin([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])
         
         """# uncertainty in alpha
         delta_alpha = 6*sigNoise/(Amplitude*ts**2) * np.sqrt(10/(Nsteps*(Nsteps**4-5*Nsteps**2+4)))
@@ -529,8 +572,10 @@ class CavitySensitivity(object):
         # combined sigma_f in eV
         sigma_f = np.sqrt(sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_smearing**2)
         # delta_sigma_f = np.sqrt((delta_sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_uncertainty**2)/2)
-        
-        return sigma_f, self.FrequencyExtraction.fixed_relativ_uncertainty*sigma_f
+        if self.FrequencyExtraction.usefixeduncertainty:
+            return sigma_f, self.FrequencyExtraction.fixed_relativ_uncertainty*sigma_f
+        else:
+            raise NotImplementedError("Unvertainty on CRLB for cavity noise calculation is not implemented.")
 
     def syst_magnetic_field(self):
 

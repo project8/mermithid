@@ -98,7 +98,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
 
         # setup sensitivities
-        self.cavity = reader.read_param(params, 'cavity', False)
+        self.cavity = reader.read_param(params, 'cavity', True)
         
         if self.cavity:
             self.sens_main = CavitySensitivity(self.config_file_path)
@@ -137,7 +137,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         # densities
         self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 100)/m**3
         self.effs = np.logspace(np.log10(self.efficiency_range[0]), np.log10(self.efficiency_range[1]), 10)
-        self.years = np.logspace(np.log10(self.year_range[0]), np.log10(self.year_range[1]), 10)/year
+        self.years = np.logspace(np.log10(self.year_range[0]), np.log10(self.year_range[1]), 10)*year
         
         return True
 
@@ -202,14 +202,16 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
 
 
-        logger.info('Main curve (veff = {} m**3, rho = {} /m**3):'.format(self.sens_main.EffectiveVolume/(m**3), rho_opt*(m**3)))
+        logger.info('Main curve:')
+        logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_main.effective_volume/(m**3), rho_opt*(m**3)))
+        logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_main.larmor_power/W, self.sens_main.signal_power/W))
         logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
-        logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.EffectiveVolume))
-        logger.info('Total signal: {}'.format(rho_opt*self.sens_main.EffectiveVolume*
+        logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.effective_volume))
+        logger.info('Total signal: {}'.format(rho_opt*self.sens_main.effective_volume*
                                                    self.sens_main.Experiment.LiveTime/
                                                    self.sens_main.tau_tritium*2))
         logger.info('Signal in last eV: {}'.format(self.sens_main.last_1ev_fraction*eV**3*
-                                                   rho_opt*self.sens_main.EffectiveVolume*
+                                                   rho_opt*self.sens_main.effective_volume*
                                                    self.sens_main.Experiment.LiveTime/
                                                    self.sens_main.tau_tritium*2))
 
@@ -303,12 +305,12 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         rho_opt = self.rhos[opt_ref]
         
         logger.info('Ref. optimum density: {} /m**3'.format(rho_opt*m**3))
-        logger.info('Ref. curve (veff = {} m**3):'.format(self.sens_ref.EffectiveVolume/(m**3)))
-        logger.info('T in Veff: {}'.format(rho_opt*self.sens_ref.EffectiveVolume))
-        logger.info('Ref. total signal: {}'.format(rho_opt*self.sens_ref.EffectiveVolume*
+        logger.info('Ref. curve (veff = {} m**3):'.format(self.sens_ref.effective_volume/(m**3)))
+        logger.info('Ref. T in Veff: {}'.format(rho_opt*self.sens_ref.effective_volume))
+        logger.info('Ref. total signal: {}'.format(rho_opt*self.sens_ref.effective_volume*
                                                    self.sens_ref.Experiment.LiveTime/
                                                    self.sens_ref.tau_tritium))
-        logger.info('CL90 limit: {}'.format(self.sens_ref.CL90(Experiment={"number_density": rho_opt})/eV))
+        logger.info('Ref. CL90 limit: {}'.format(self.sens_ref.CL90(Experiment={"number_density": rho_opt})/eV))
         
         limits = self.add_sens_line(self.sens_ref, color=color)
 
