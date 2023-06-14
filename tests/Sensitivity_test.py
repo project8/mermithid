@@ -19,7 +19,8 @@ class SensitivityTest(unittest.TestCase):
 
         sens_config_dict = {
             # required
-            "config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
+            "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
+            #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
             "plot_path": "./sensitivity_vs_efficiency_curve.pdf",
             # optional
             "track_length_axis": False,
@@ -36,7 +37,8 @@ class SensitivityTest(unittest.TestCase):
             "comparison_curve_label": r"Atomic"+"\n"+r"10 $\times$ 3 years"+"\n"+r"$\sigma_B = 0.1\,\mathrm{ppm}$",
             "goals": {"Phase III (0.1 eV)": 0.1, "Phase IV (40 meV)": 0.04},
             "comparison_curve": True,
-            "comparison_config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
+            "comparison_config_file_path": "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
+            #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
             "B_inhomogeneity": np.linspace(0.1, 2.1, 10)*1e-6,
             "B_inhom_uncertainty": 0.01,
             "lower_label_y_position": 0.17,
@@ -50,7 +52,8 @@ class SensitivityTest(unittest.TestCase):
         
         sens_config_dict = {
             # required
-            "config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
+            "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
+            #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
             "plot_path": "./sensitivity_vs_density_curve.pdf",
             # optional
             "track_length_axis": True,
@@ -67,7 +70,8 @@ class SensitivityTest(unittest.TestCase):
             "comparison_curve_label": r"Atomic"+"\n"+r"10 $\times$ 3 years"+"\n"+r"$\sigma_B = 0.1\,\mathrm{ppm}$",
             "goals": {"Phase III (0.1 eV)": 0.1, "Phase IV (40 meV)": 0.04},
             "comparison_curve": True,
-            "comparison_config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
+            "comparison_config_file_path": "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
+            #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
             "B_inhomogeneity": np.linspace(0.1, 2.1, 10)*1e-6,
             "B_inhom_uncertainty": 0.01,
             "lower_label_y_position": 0.17,
@@ -86,7 +90,8 @@ class SensitivityTest(unittest.TestCase):
 
         sens_config_dict = {
             # required
-            "config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
+            "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
+            #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
             }
         # sens = AnalyticSensitivityEstimation("sensitivity_processor")
         # sens.Configure(sens_config_dict)
@@ -104,7 +109,8 @@ class SensitivityTest(unittest.TestCase):
 
         sens_config_dict = {
             # required
-            "config_file_path": "//host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg",
+            "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg",
+            #"config_file_path": "//host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg",
             "sensitivity_target": [0.4**2/np.sqrt(1.64)]#, 0.7**2/np.sqrt(1.64), 1**2/np.sqrt(1.64)]
             }
         #sens = ConstantSensitivityParameterPlots("sensitivity_processor")
