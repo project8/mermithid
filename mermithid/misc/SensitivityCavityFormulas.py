@@ -418,8 +418,12 @@ class CavitySensitivity(object):
         labels, sigmas, deltas = self.get_systematics()
 
         print()
+        sigma_squared = 0
         for label, sigma, delta in zip(labels, sigmas, deltas):
             print(label, " "*(np.max([len(l) for l in labels])-len(label)),  "%8.2f"%(sigma/meV), "+/-", "%8.2f"%(delta/meV), "meV")
+            sigma_squared += sigma**2
+        sigma_total = np.sqrt(sigma_squared)
+        print("Total sigma", " "*(np.max([len(l) for l in labels])-len("Total sigma")), "%8.2f"%(sigma_total/meV),)
 
     def syst_doppler_broadening(self):
         # estimated standard deviation of Doppler broadening distribution from
@@ -451,7 +455,10 @@ class CavitySensitivity(object):
         p_rec = np.sqrt( Emax**2-me**2*c0**4 + (Emax - Ee - E_rec)**2 - mbeta**2 + 2*Ee*(Emax - Ee - E_rec)*betae*betanu*cosThetaenu )
         sigma_trans = np.sqrt(p_rec**2/(2*mass_T)*2*kB*gasTemp)
 
-        delta_trans = np.sqrt(p_rec**2/(2*mass_T)*kB/gasTemp*self.DopplerBroadening.gas_temperature_uncertainty**2)
+        if self.Experiment.atomic == True:
+            delta_trans = np.sqrt(p_rec**2/(2*mass_T)*kB/gasTemp*self.DopplerBroadening.gas_temperature_uncertainty**2)
+        else:
+            delta_trans = sigma_trans*self.DopplerBroadening.fraction_uncertainty_on_doppler_broadening
         return sigma_trans, delta_trans
 
     def calculate_tau_snr(self, time_window):

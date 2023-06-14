@@ -205,13 +205,17 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
         # print number of events
         # for minimum field smearing
-        sig = self.sens_main.BToKeErr(self.sens_main.MagneticField.nominal_field*np.min(self.B_error), self.sens_main.MagneticField.nominal_field)
-        self.sens_main.MagneticField.usefixedvalue = True
-        self.sens_main.MagneticField.default_systematic_smearing = sig
-        self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
+        #sig = self.sens_main.BToKeErr(self.sens_main.MagneticField.nominal_field*np.min(self.B_error), self.sens_main.MagneticField.nominal_field)
+        #self.sens_main.MagneticField.usefixedvalue = True
+        #self.sens_main.MagneticField.default_systematic_smearing = sig
+        #self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
                 
-        
-
+        if isinstance(self.sigmae_theta_r, list) or isinstance(self.sigmae_theta_r, np.ndarray):
+            self.sens_main.MagneticField.sigmae_r = self.sigmae_theta_r[0] * eV
+            self.sens_main.MagneticField.sigmae_theta = 0 * eV
+        else:
+            self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
+            self.sens_main.MagneticField.sigmae_theta = 0 * eV
 
         logger.info('Main curve:')
         logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_main.effective_volume/(m**3), rho_opt*(m**3)))

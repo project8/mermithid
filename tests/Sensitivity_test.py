@@ -19,8 +19,8 @@ class SensitivityTest(unittest.TestCase):
 
         sens_config_dict = {
             # required
-            #"config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
-            "config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
+            "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
+            #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
             "plot_path": "./sensitivity_vs_efficiency_curve.pdf",
             # optional
             "track_length_axis": False,
@@ -32,13 +32,13 @@ class SensitivityTest(unittest.TestCase):
             "density_range": [1e12,1e18],
             "efficiency_range": [0.0001, 1],
             #"density_range": [1e8, 1e12],
-            "main_curve_upper_label": r"Molecular"+"\n"+"2 years"+"\n"+r"$\sigma^\bar{B}_\mathrm{reco} = 70\,\mathrm{meV}$",
+            "main_curve_upper_label": r"Molecular"+"\n"+"2 years"+"\n"+r"$\sigma^\bar{B}_\mathrm{reco} = 0.07\,\mathrm{eV}$",
             "main_curve_lower_label": r"$\sigma^\bar{B}_\mathrm{reco} = 1\,\mathrm{eV}$",
-            "comparison_curve_label": r"Atomic"+"\n"+r"10 $\times$ 3 years"+"\n"+r"$\sigma^\bar{B}_\mathrm{reco} = 70\,\mathrm{meV}$",
-            "goals": {"Phase III (0.1 eV)": 0.1, "Phase IV (40 meV)": 0.04},
+            "comparison_curve_label": r"Atomic"+"\n"+r"10 $\times$ 3 years"+"\n"+r"$\sigma^\bar{B}_\mathrm{reco} = 0.07\,\mathrm{eV}$",
+            "goals": {"Phase III (0.1 eV)": 0.1, "Phase IV (0.04 eV)": 0.04},
             "comparison_curve": True,
-            #"comparison_config_file_path": "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
-            "config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
+            "comparison_config_file_path": "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
+            #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
             #"B_inhomogeneity": np.linspace(0.1, 2.1, 10)*1e-6,
             #"B_inhom_uncertainty": 0.01,
             "sigmaE_theta_r": np.linspace(0.07, 0.15, 10), #in eV, energy broadening from theta and r reconstruction
@@ -47,14 +47,14 @@ class SensitivityTest(unittest.TestCase):
             "label_x_position": 0.015, #1.5e15, #0.02, #1e14,
             "goals_x_position": 0.0002 #2e12 #0.0002
             }
-        sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-        sens_curve.Configure(sens_config_dict)
-        sens_curve.Run()
+        #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        #sens_curve.Configure(sens_config_dict)
+        #sens_curve.Run()
         
         sens_config_dict = {
             # required
-            #"config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
-            "config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
+            "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
+            #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
             "plot_path": "./sensitivity_vs_density_curve.pdf",
             # optional
             "track_length_axis": True,
@@ -66,13 +66,13 @@ class SensitivityTest(unittest.TestCase):
             "density_range": [1e12,1e19],
             "efficiency_range": [0.0001, 1],
             #"density_range": [1e8, 1e12],
-            "main_curve_upper_label": r"Molecular"+"\n"+"2 years"+"\n"+r"$\sigma^\bar{B}_\mathrm{reco} = 70\,\mathrm{meV}$",
+            "main_curve_upper_label": r"Molecular"+"\n"+"2 years"+"\n"+r"$\sigma^\bar{B}_\mathrm{reco} = 0.07\,\mathrm{eV}$",
             "main_curve_lower_label": r"$\sigma^\bar{B}_\mathrm{reco} = 1\,\mathrm{eV}$",
-            "comparison_curve_label": r"Atomic"+"\n"+r"10 $\times$ 3 years"+"\n"+r"$\sigma^\bar{B}_\mathrm{reco} = 70\,\mathrm{meV}$",
-            "goals": {"Phase III (0.1 eV)": 0.1, "Phase IV (40 meV)": 0.04},
+            "comparison_curve_label": r"Atomic"+"\n"+r"10 $\times$ 3 years"+"\n"+r"$\sigma^\bar{B}_\mathrm{reco} = 0.07\,\mathrm{eV}$",
+            "goals": {"Phase III (0.2 eV)": 0.2, "Phase IV (0.04 eV)": 0.04},
             "comparison_curve": True,
-            #"comparison_file_path": "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
-            "config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
+            "comparison_config_file_path": "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
+            #"comparison_config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
             #"B_inhomogeneity": np.linspace(0.1, 2.1, 10)*1e-6,
             #"B_inhom_uncertainty": 0.01,
             "sigmae_theta_r": np.linspace(0.07, 1., 10), #in eV, energy broadening from theta and r reconstruction
@@ -92,8 +92,8 @@ class SensitivityTest(unittest.TestCase):
 
         sens_config_dict = {
             # required
-            #"config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
-            "config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
+            "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
+            #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
             }
         # sens = AnalyticSensitivityEstimation("sensitivity_processor")
         # sens.Configure(sens_config_dict)
