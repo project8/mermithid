@@ -18,9 +18,9 @@ import numpy as np
 # Numericalunits is a package to handle units and some natural constants
 # natural constants
 from numericalunits import e, me, c0, eps0, kB, hbar
-from numericalunits import meV, eV, keV, MeV, cm, m, ns, s, Hz, kHz, MHz, GHz
+from numericalunits import meV, eV, keV, MeV, cm, m
 from numericalunits import nT, uT, mT, T, mK, K,  C, F, g, W
-from numericalunits import hour, year, day
+from numericalunits import hour, year, day, ms, ns, s, Hz, kHz, MHz, GHz
 ppm = 1e-6
 ppb = 1e-9
 
@@ -70,7 +70,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.B_error_uncertainty = reader.read_param(params, 'B_inhom_uncertainty', 0.05)
 
 
-        # plot configurations
+        # main plot configurations
         self.figsize = reader.read_param(params, 'figsize', (6,6))
         self.density_range = reader.read_param(params, 'density_range', [1e14,1e21])
         self.efficiency_range = reader.read_param(params, 'efficiency_range', [0.001,0.1])
@@ -84,6 +84,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.upper_label_y_position = reader.read_param(params, 'upper_label_y_position', 5)
         self.lower_label_y_position = reader.read_param(params, 'lower_label_y_position', 2.3)
         self.goal_x_pos = reader.read_param(params, "goals_x_position", 1e14)
+        
+        # other plot
+        self.make_key_parameter_plots = reader.read_param(params, 'plot_key_parameters', False)
         
         if self.density_axis:
             self.add_sens_line = self.add_density_sens_line
@@ -190,6 +193,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         # save plot
         self.save(self.plot_path)
         
+        
         # PRINT OPTIMUM RESULTS
 
         # print number of events
@@ -205,6 +209,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         logger.info('Main curve:')
         logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_main.effective_volume/(m**3), rho_opt*(m**3)))
         logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_main.larmor_power/W, self.sens_main.signal_power/W))
+        logger.info('Hanneke / Larmor power = {}'.format(self.sens_main.signal_power/self.sens_main.larmor_power))
         logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
         logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.effective_volume))
         logger.info('Total signal: {}'.format(rho_opt*self.sens_main.effective_volume*
@@ -250,6 +255,21 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         ax.set_xlabel(axis_label)
         ax.set_ylim(self.ylim)
         ax.set_ylabel(r"90% CL $m_\beta$ (eV)")
+        
+        if self.make_key_parameter_plots:
+            self.kp_fig, self.kp_ax = plt.subplots(1,2, figsize=(10,5))
+            self.kp_ax[0].set_ylabel('Resolution (meV)')
+            self.kp_ax[1].set_ylabel('Track analysis length (ms)')
+            
+            if self.density_axis:
+            
+                for ax in self.kp_ax:
+                    ax.set_xlim(self.rhos[0]*m**3, self.rhos[-1]*m**3)
+                    ax.set_xscale("log")
+                    ax.set_yscale("log")
+                    axis_label = r"Number density $\rho\, \, (\mathrm{m}^{-3})$"
+                    ax.set_xlabel(axis_label)
+                    
 
     def add_track_length_axis(self):
         if self.atomic_axis:
@@ -306,13 +326,14 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
         logger.info('Ref. optimum density: {} /m**3'.format(rho_opt*m**3))
         logger.info('Ref. curve (veff = {} m**3):'.format(self.sens_ref.effective_volume/(m**3)))
+        logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_ref.larmor_power/W, self.sens_ref.signal_power/W))
         logger.info('Ref. T in Veff: {}'.format(rho_opt*self.sens_ref.effective_volume))
         logger.info('Ref. total signal: {}'.format(rho_opt*self.sens_ref.effective_volume*
                                                    self.sens_ref.Experiment.LiveTime/
                                                    self.sens_ref.tau_tritium))
         logger.info('Ref. CL90 limit: {}'.format(self.sens_ref.CL90(Experiment={"number_density": rho_opt})/eV))
         
-        limits = self.add_sens_line(self.sens_ref, color=color)
+        limits = self.add_sens_line(self.sens_ref, plot_key_params=True, color=color)
 
         #self.ax.axhline(0.04, color="gray", ls="--")
         #self.ax.text(3e14, 0.044, "Phase IV (40 meV)")
@@ -349,10 +370,30 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.ax.axhline(value/eV, color="gray", ls="--")
         self.ax.text(self.goal_x_pos, 0.75*value/eV, label)
 
-    def add_density_sens_line(self, sens, **kwargs):
-        limits = [sens.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
+    def add_density_sens_line(self, sens, plot_key_params=False, **kwargs):
+        limits = []
+        resolutions = []
+        crlb_window = []
+        crlb_max_window = []
+        crlb_slope_zero_window = []
+        
+        for rho in self.rhos:
+            limits.append(sens.CL90(Experiment={"number_density": rho})/eV)
+            resolutions.append(sens.sigma_K_f_CRLB/meV)
+            crlb_window.append(sens.best_time_window/ms)
+            crlb_max_window.append(sens.time_window/ms)
+            crlb_slope_zero_window.append(sens.time_window_slope_zero/ms)
+            
+        
         self.ax.plot(self.rhos*m**3, limits, **kwargs)
         logger.info('Minimum limit at {}: {}'.format(self.rhos[np.argmin(limits)]*m**3, np.min(limits)))
+        
+        if self.make_key_parameter_plots and plot_key_params:
+            self.kp_ax[0].plot(self.rhos*m**3, resolutions, **kwargs)
+            
+            self.kp_ax[1].plot(self.rhos*m**3, crlb_max_window, color='red', marker='.')
+            self.kp_ax[1].plot(self.rhos*m**3, crlb_slope_zero_window, color='green', marker='.')
+            self.kp_ax[1].plot(self.rhos*m**3, crlb_window, linestyle="--", marker='.', **kwargs)
         return limits
         
     def add_exposure_sens_line(self, sens, **kwargs):
@@ -387,5 +428,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if savepath is not None:
             self.fig.savefig(savepath.replace(".pdf", ".png"), dpi=300, metadata=metadata)
             self.fig.savefig(savepath.replace(".png", ".pdf"), bbox_inches="tight", metadata=metadata)
+            
+        if self.make_key_parameter_plots:
+            self.kp_fig.savefig('key_parameters.pdf')
 
 
