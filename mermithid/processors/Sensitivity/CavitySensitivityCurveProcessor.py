@@ -68,6 +68,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.comparison_curve = reader.read_param(params, 'comparison_curve', False)
         self.B_error = reader.read_param(params, 'B_inhomogeneity', 7e-6)
         self.B_error_uncertainty = reader.read_param(params, 'B_inhom_uncertainty', 0.05)
+        self.sigmae_theta_r = reader.read_param(params, 'sigmae_theta_r', np.array([0.03])) #eV
 
 
         # plot configurations
@@ -167,22 +168,28 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.sens_main.Experiment.number_density = rho_opt
 
         # if B is list plot line for each B
-        if isinstance(self.B_error, list) or isinstance(self.B_error, np.ndarray):
-            N = len(self.B_error)
+        if isinstance(self.sigmae_theta_r, list) or isinstance(self.sigmae_theta_r, np.ndarray):
+            N = len(self.sigmae_theta_r)
             for a, color in self.range(0, N):
-                sig = self.sens_main.BToKeErr(self.sens_main.MagneticField.nominal_field*self.B_error[a], self.sens_main.MagneticField.nominal_field)
-                self.sens_main.MagneticField.usefixedvalue = True
-                self.sens_main.MagneticField.default_systematic_smearing = sig
-                self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
+                #sig = self.sens_main.BToKeErr(self.sens_main.MagneticField.nominal_field*self.B_error[a], self.sens_main.MagneticField.nominal_field)
+                #self.sens_main.MagneticField.usefixedvalue = True
+                #self.sens_main.MagneticField.default_systematic_smearing = sig
+                #self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
+                self.sens_main.MagneticField.sigmae_r = self.sigmae_theta_r[a] * eV
+                self.sens_main.MagneticField.sigmae_theta = 0 * eV
                 self.add_sens_line(self.sens_main, color=color)
+                #print("sigmae_theta_r:", self.sens_main.MagneticField.sigmae_r/eV)
+                self.sens_main.print_systematics()
             self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label, color="darkblue")
             self.add_text(self.label_x_position, self.lower_label_y_position, self.main_curve_lower_label, color="darkred")
 
         else:
-            sig = self.sens_main.BToKeErr(self.sens_main.MagneticField.nominal_field*self.B_error[a], self.sens_main.MagneticField.nominal_field)
-            self.sens_main.MagneticField.usefixedvalue = True
-            self.sens_main.MagneticField.default_systematic_smearing = sig
-            self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
+            #sig = self.sens_main.BToKeErr(self.sens_main.MagneticField.nominal_field*self.B_error[a], self.sens_main.MagneticField.nominal_field)
+            #self.sens_main.MagneticField.usefixedvalue = True
+            #self.sens_main.MagneticField.default_systematic_smearing = sig
+            #self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
+            self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
+            self.sens_main.MagneticField.sigmae_theta = 0 * eV
             self.add_sens_line(self.sens_main, color='blue')
             self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label)
 
@@ -305,6 +312,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         rho_opt = self.rhos[opt_ref]
         
         logger.info('Ref. optimum density: {} /m**3'.format(rho_opt*m**3))
+        logger.info('Ref. sigmaE_r: {} eV'.format(self.sens_ref.MagneticField.sigmae_r/eV))
         logger.info('Ref. curve (veff = {} m**3):'.format(self.sens_ref.effective_volume/(m**3)))
         logger.info('Ref. T in Veff: {}'.format(rho_opt*self.sens_ref.effective_volume))
         logger.info('Ref. total signal: {}'.format(rho_opt*self.sens_ref.effective_volume*

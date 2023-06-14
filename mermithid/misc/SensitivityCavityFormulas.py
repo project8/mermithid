@@ -22,7 +22,7 @@ T0 = -273.15*K
 
 tritium_livetime = 5.605e8*s
 tritium_mass_atomic = 3.016* amu *c0**2
-tritium_electron_crosssection_atomic = 9.e-23*m**2 #From Shah et al. (1987): https://iopscience.iop.org/article/10.1088/0022-3700/20/14/022
+tritium_electron_crosssection_atomic = 9.e-23*m**2 #Hamish extrapolated to 18.6keV using Shah et al. (1987): https://iopscience.iop.org/article/10.1088/0022-3700/20/14/022
 tritium_endpoint_atomic = 18563.251*eV
 last_1ev_fraction_atomic = 2.067914e-13/eV**3
 
@@ -595,10 +595,15 @@ class CavitySensitivity(object):
 
         B = self.MagneticField.nominal_field
         if self.MagneticField.useinhomogenarity:
-            inhomogenarity = self.MagneticField.inhomogenarity
-            sigma = self.BToKeErr(inhomogenarity*B, B)
-            return sigma, 0.05*sigma
-
+            frac_uncertainty = self.MagneticField.fraction_uncertainty_on_field_broadening
+            sigma_meanB = self.MagneticField.sigma_meanb
+            sigmaE_meanB = self.BToKeErr(sigma_meanB*B, B)
+            sigmaE_r = self.MagneticField.sigmae_r
+            sigmaE_theta = self.MagneticField.sigmae_theta
+            sigmaE_phi = self.MagneticField.sigmae_theta
+            sigma = np.sqrt(sigmaE_meanB**2 + sigmaE_r**2 + sigmaE_theta**2 + sigmaE_phi**2)
+            return sigma, frac_uncertainty*sigma
+        """
         BMapErr = self.MagneticField.probe_repeatability  # Probe Repeatability
         delta_BMapErr = self.MagneticField.probe_resolution # Probe resolution
 
@@ -645,6 +650,7 @@ class CavitySensitivity(object):
                                       rProbePhiErr**2 * delta_rProbePhiErr**2)
 
         return self.BToKeErr(Berr, B), self.BToKeErr(delta_Berr, B)
+        """
 
     def syst_missing_tracks(self):
         # this systematic should describe the energy broadening due to the line shape.
