@@ -1,6 +1,6 @@
 '''
 Class calculating neutrino mass sensitivities based on analytic formulas from CDR.
-Author: R. Reimann, C. Claessens
+Author: R. Reimann, C. Claessens, T. Weiss
 Date:11/17/2020
 
 The statistical method and formulars are described in
@@ -282,7 +282,7 @@ class CavitySensitivity(object):
     def SignalRate(self):
         """signal events in the energy interval before the endpoint, scale with DeltaE**3"""
         self.EffectiveVolume()
-        signal_rate = self.Experiment.number_density*self.effective_volume*self.last_1ev_fraction/self.tau_tritium
+        signal_rate = self.Experiment.number_density*self.effective_volume*self.Experiment.sri_factor*self.last_1ev_fraction/self.tau_tritium
         if not self.Experiment.atomic:
             if hasattr(self.Experiment, 'gas_fractions'):
                 avg_n_T_atoms = self.AvgNumTAtomsPerParticle_MolecularExperiment(self.Experiment.gas_fractions, self.Experiment.H2_type_gas_fractions)

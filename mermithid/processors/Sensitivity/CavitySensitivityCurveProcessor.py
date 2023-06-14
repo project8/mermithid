@@ -1,7 +1,7 @@
 '''
 Calculate sensitivity curve and plot vs. pressure
 function.
-Author: R. Reimann, C. Claessens
+Author: R. Reimann, C. Claessens, T. Weiss
 Date:11/17/2020
 
 More description
@@ -68,7 +68,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.comparison_curve = reader.read_param(params, 'comparison_curve', False)
         self.B_error = reader.read_param(params, 'B_inhomogeneity', 7e-6)
         self.B_error_uncertainty = reader.read_param(params, 'B_inhom_uncertainty', 0.05)
-        self.sigmae_theta_r = reader.read_param(params, 'sigmae_theta_r', np.array([0.03])) #eV
+        self.sigmae_theta_r = reader.read_param(params, 'sigmae_theta_r', 0.159) #eV
 
 
         # main plot configurations
@@ -166,8 +166,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             
         # first optimize density
         limit = [self.sens_main.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
-        opt_ref = np.argmin(limit)
-        rho_opt = self.rhos[opt_ref]
+        opt = np.argmin(limit)
+        rho_opt = self.rhos[opt]
         self.sens_main.Experiment.number_density = rho_opt
 
         # if B is list plot line for each B
@@ -217,7 +217,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
             self.sens_main.MagneticField.sigmae_theta = 0 * eV
 
-        logger.info('Main curve:')
+        logger.info('Main curve (molecular):')
         logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_main.effective_volume/(m**3), rho_opt*(m**3)))
         logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_main.larmor_power/W, self.sens_main.signal_power/W))
         logger.info('Hanneke / Larmor power = {}'.format(self.sens_main.signal_power/self.sens_main.larmor_power))
@@ -233,6 +233,29 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
         self.sens_main.print_statistics()
         self.sens_main.print_systematics()
+
+        # Optimize atomic density
+        limit_ref = [self.sens_ref.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
+        opt_ref = np.argmin(limit_ref)
+        rho_opt_ref = self.rhos[opt_ref]
+        self.sens_ref.Experiment.number_density = rho_opt_ref
+
+        logger.info('Comparison curve (atomic):')
+        logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_ref.effective_volume/(m**3), rho_opt_ref*(m**3)))
+        logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_ref.larmor_power/W, self.sens_ref.signal_power/W))
+        logger.info('Hanneke / Larmor power = {}'.format(self.sens_ref.signal_power/self.sens_ref.larmor_power))
+        logger.info('CL90 limit: {}'.format(self.sens_ref.CL90(Experiment={"number_density": rho_opt_ref})/eV))
+        logger.info('T2 in Veff: {}'.format(rho_opt_ref*self.sens_ref.effective_volume))
+        logger.info('Total signal: {}'.format(rho_opt_ref*self.sens_ref.effective_volume*
+                                                   self.sens_ref.Experiment.LiveTime/
+                                                   self.sens_ref.tau_tritium*2))
+        logger.info('Signal in last eV: {}'.format(self.sens_ref.last_1ev_fraction*eV**3*
+                                                   rho_opt_ref*self.sens_ref.effective_volume*
+                                                   self.sens_ref.Experiment.LiveTime/
+                                                   self.sens_ref.tau_tritium*2))
+
+        self.sens_ref.print_statistics()
+        self.sens_ref.print_systematics()
 
         return True
 
@@ -349,7 +372,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
         #self.ax.axhline(0.04, color="gray", ls="--")
         #self.ax.text(3e14, 0.044, "Phase IV (40 meV)")
-        self.ax.text(self.label_x_position, 0.042, label)
+        self.ax.text(self.label_x_position, 0.044, label)
 
     def add_arrow(self, sens):
         if not hasattr(self, "opt_ref"):
