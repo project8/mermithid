@@ -492,6 +492,9 @@ class CavitySensitivity(object):
         # logger.info("Power: {}".format(Pe/W))
         Pe = self.signal_power
         
+        if self.FrequencyExtraction.crlb_on_sidebands:
+            Pe*=self.FrequencyExtraction.sideband_power_fraction
+        
         P_signal_received = Pe*db_to_pwr_ratio(att_cir_db_freq+att_line_db_freq)
         tau_snr = kB*tn_system_fft/P_signal_received
         
