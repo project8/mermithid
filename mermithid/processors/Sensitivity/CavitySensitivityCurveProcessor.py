@@ -457,7 +457,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             #exposures.append(sens.EffectiveVolume()/m**3*sens.Experiment.livetime/year)
             
         unit = r"m$^3$"
-        self.ax.plot(self.exposures/m**3/year, limits, label="Density = {:.2e} / {}".format(rho_opt*m**3, unit), color=kwargs["color"])
+        self.ax.plot(self.exposures/m**3/year, limits, label="Density = {:.1e} / {}".format(rho_opt*m**3, unit), color=kwargs["color"])
         
     def add_text(self, x, y, text, color="k"): #, fontsize=9.5
         self.ax.text(x, y, text, color=color)

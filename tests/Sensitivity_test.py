@@ -125,9 +125,9 @@ class SensitivityTest(unittest.TestCase):
             "goals_x_position": 2e12, #0.0002
             "plot_key_parameters": True
             }
-        #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-        #sens_curve.Configure(sens_config_dict)
-        #sens_curve.Run()
+        sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        sens_curve.Configure(sens_config_dict)
+        sens_curve.Run()
 
     def test_SensitivityProcessor(self):
         from mermithid.processors.Sensitivity import AnalyticSensitivityEstimation
