@@ -83,6 +83,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.molecular_axis = reader.read_param(params, 'molecular_axis', False)
         self.label_x_position = reader.read_param(params, 'label_x_position', 5e19)
         self.comparison_label_y_position = reader.read_param(params, 'comparison_label_y_position', 0.044)
+        self.comparison_label_x_position = reader.read_param(params, 'comparison_label_x_position', 5e16)
+        if self.comparison_label_x_position == None:
+            self.comparison_label_x_position = reader.read_param(params, 'label_x_position', 5e16)
         self.upper_label_y_position = reader.read_param(params, 'upper_label_y_position', 5)
         self.lower_label_y_position = reader.read_param(params, 'lower_label_y_position', 2.3)
         self.goal_x_pos = reader.read_param(params, "goals_x_position", 1e14)
@@ -380,7 +383,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         """
         for a, color in self.range(0, len(self.sens_ref)):
             limits = self.add_sens_line(self.sens_ref[a], plot_key_params=True, color=color)
-            self.ax.text(self.label_x_position, self.comparison_label_y_position[a], label[a])
+            self.ax.text(self.comparison_label_x_position[a], self.comparison_label_y_position[a], label[a])
 
 
         #self.ax.axhline(0.04, color="gray", ls="--")
@@ -414,7 +417,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                       head_length=0.03,
                       )
         """
-        
+
     def add_goal(self, value, label):
         self.ax.axhline(value/eV, color="gray", ls="--")
         self.ax.text(self.goal_x_pos, 0.75*value/eV, label)

@@ -84,9 +84,9 @@ class SensitivityTest(unittest.TestCase):
             "goals_x_position": 2e12, #0.0002
             "plot_key_parameters": True
             }
-        sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-        sens_curve.Configure(sens_config_dict)
-        sens_curve.Run()
+        #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        #sens_curve.Configure(sens_config_dict)
+        #sens_curve.Run()
 
 
         sens_config_dict = {
@@ -104,16 +104,17 @@ class SensitivityTest(unittest.TestCase):
             "density_range": [1e12,1e19],
             "efficiency_range": [0.0001, 1],
             #"density_range": [1e8, 1e12],
-            "main_curve_upper_label": r"Molecular"+"\n"+"2 years"+"\n"+r"$\sigma^B_\mathrm{corr} = 0.16\,\mathrm{eV}$",
-            "comparison_curve_label": [r"Atomic"+"\n"+r"10 $\times$ 3 years"+"\n"+r"$\sigma^B_\mathrm{corr} = 0.16\,\mathrm{eV}$"],
+            "main_curve_upper_label": r"Molecular, 2 years",
+            "comparison_curve_label": ["Atomic"+"\n"+r"10 $\times$ 3 years"+"\n"+"Conservative", r"Atomic"+"\n"+"Reaching target"],
             "goals": {"Phase III (0.2 eV)": 0.2, "Phase IV (0.04 eV)": 0.04},
             "comparison_curve": True,
-            "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"],
-            "comparison_label_y_position": [0.044],
+            "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"],
+            "comparison_label_y_position": [0.15, 0.044],
+            "comparison_label_x_position": [3e16, 1e15],
             "sigmae_theta_r": 0.159,
             "lower_label_y_position": 0.17,
             "upper_label_y_position": 0.7,
-            "label_x_position": 1.5e15, #0.02, #1e14,
+            "label_x_position": 6e14, #0.02, #1e14,
             "goals_x_position": 2e12, #0.0002
             "plot_key_parameters": True
             }
