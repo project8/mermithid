@@ -205,7 +205,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
             self.sens_main.MagneticField.sigmae_theta = 0 * eV
             self.add_sens_line(self.sens_main, color='blue')
-            self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label)
+            self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label, color='blue')
 
 
         # save plot
@@ -381,9 +381,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                                                    self.sens_ref.tau_tritium))
         logger.info('Ref. CL90 limit: {}'.format(self.sens_ref.CL90(Experiment={"number_density": rho_opt})/eV))
         """
-        for a, color in self.range(0, len(self.sens_ref)):
-            limits = self.add_sens_line(self.sens_ref[a], plot_key_params=True, color=color)
-            self.ax.text(self.comparison_label_x_position[a], self.comparison_label_y_position[a], label[a])
+        colors = ["darkblue", "darkred", "red"]
+        for a in range(len(self.sens_ref)):
+            limits = self.add_sens_line(self.sens_ref[a], plot_key_params=True, color=colors[a])
+            self.ax.text(self.comparison_label_x_position[a], self.comparison_label_y_position[a], label[a], color=colors[a], fontsize=9.5)
 
 
         #self.ax.axhline(0.04, color="gray", ls="--")
@@ -420,7 +421,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
     def add_goal(self, value, label):
         self.ax.axhline(value/eV, color="gray", ls="--")
-        self.ax.text(self.goal_x_pos, 0.75*value/eV, label)
+        self.ax.text(self.goal_x_pos, 0.8*value/eV, label)
 
     def add_density_sens_line(self, sens, plot_key_params=False, **kwargs):
         limits = []
@@ -461,12 +462,12 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         print(limits)
         self.ax.plot(self.effs, limits, **kwargs)
         
-    def add_text(self, x, y, text, color="k"):
-        self.ax.text(x, y, text, color=color)
+    def add_text(self, x, y, text, color="k", fontsize=9.5):
+        self.ax.text(x, y, text, color=color, fontsize=9.5)
 
     def range(self, start, stop):
         cmap = matplotlib.cm.get_cmap('Spectral')
-        norm = matplotlib.colors.Normalize(vmin=start, vmax=stop-1)
+        norm = matplotlib.colors.Normalize(vmin=start, vmax=stop)
         return [(idx, cmap(norm(idx))) for idx in range(start, stop)]
 
     def save(self, savepath, **kwargs):
