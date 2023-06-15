@@ -166,11 +166,6 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.track_length_axis:
             self.add_track_length_axis()
 
-        # add line for comparison using second config
-        if self.comparison_curve:
-            self.add_comparison_curve(label=self.comparison_curve_label)
-            #self.add_arrow(self.sens_main)
-
         for key, value in self.goals.items():
             logger.info('Adding goal: {}'.format(key))
             self.add_goal(value*eV, key)
@@ -204,9 +199,13 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             #self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
             self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
             self.sens_main.MagneticField.sigmae_theta = 0 * eV
-            self.add_sens_line(self.sens_main, color='blue')
-            self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label)
+            self.add_sens_line(self.sens_main, color='darkblue', label=self.main_curve_upper_label)
+            #self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label, color='blue')
 
+        # add line for comparison using second config
+        if self.comparison_curve:
+            self.add_comparison_curve(label=self.comparison_curve_label)
+            #self.add_arrow(self.sens_main)
 
         # save plot
         self.save(self.plot_path)
@@ -381,9 +380,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                                                    self.sens_ref.tau_tritium))
         logger.info('Ref. CL90 limit: {}'.format(self.sens_ref.CL90(Experiment={"number_density": rho_opt})/eV))
         """
-        for a, color in self.range(0, len(self.sens_ref)):
-            limits = self.add_sens_line(self.sens_ref[a], plot_key_params=True, color=color)
-            self.ax.text(self.comparison_label_x_position[a], self.comparison_label_y_position[a], label[a])
+        colors = ["blue", "darkred", "red"]
+        for a in range(len(self.sens_ref)):
+            limits = self.add_sens_line(self.sens_ref[a], plot_key_params=True, color=colors[a], label=label[a])
+            #self.ax.text(self.comparison_label_x_position[a], self.comparison_label_y_position[a], label[a], color=colors[a], fontsize=9.5)
 
 
         #self.ax.axhline(0.04, color="gray", ls="--")
@@ -420,7 +420,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
     def add_goal(self, value, label):
         self.ax.axhline(value/eV, color="gray", ls="--")
-        self.ax.text(self.goal_x_pos, 0.75*value/eV, label)
+        self.ax.text(self.goal_x_pos, 0.8*value/eV, label)
 
     def add_density_sens_line(self, sens, plot_key_params=False, **kwargs):
         limits = []
@@ -461,15 +461,16 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         print(limits)
         self.ax.plot(self.effs, limits, **kwargs)
         
-    def add_text(self, x, y, text, color="k"):
+    def add_text(self, x, y, text, color="k"): #, fontsize=9.5
         self.ax.text(x, y, text, color=color)
 
     def range(self, start, stop):
         cmap = matplotlib.cm.get_cmap('Spectral')
-        norm = matplotlib.colors.Normalize(vmin=start, vmax=stop-1)
+        norm = matplotlib.colors.Normalize(vmin=start, vmax=stop)
         return [(idx, cmap(norm(idx))) for idx in range(start, stop)]
 
     def save(self, savepath, **kwargs):
+        legend=self.fig.legend(loc='upper left', bbox_to_anchor=(0.15,0,1,0.765), framealpha=0.9)
         self.fig.tight_layout()
         #keywords = ", ".join(["%s=%s"%(key, value) for key, value in kwargs.items()])
         metadata = {"Author": "p8/mermithid",

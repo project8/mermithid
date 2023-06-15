@@ -91,7 +91,7 @@ class SensitivityTest(unittest.TestCase):
 
         sens_config_dict = {
             # required
-            "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
+            "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment_conservative.cfg",
             #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
             "plot_path": "./sensitivity_vs_density_curve.pdf",
             # optional
@@ -104,17 +104,17 @@ class SensitivityTest(unittest.TestCase):
             "density_range": [1e12,1e19],
             "efficiency_range": [0.0001, 1],
             #"density_range": [1e8, 1e12],
-            "main_curve_upper_label": r"Molecular, 2 years",
-            "comparison_curve_label": ["Atomic"+"\n"+r"10 $\times$ 3 years"+"\n"+"Conservative", r"Atomic"+"\n"+"Reaching target"],
+            "main_curve_upper_label": r"Molecular, conservative", #r"Molecular"+"\n"+"Reaching target",
+            "comparison_curve_label": ["Molecular, reaching target", "Atomic, conservative", r"Atomic, reaching target"], #["Molecular"+"\n"+"Conservative", "Atomic"+"\n"+"Conservative", r"Atomic"+"\n"+"Reaching target"],
             "goals": {"Phase III (0.2 eV)": 0.2, "Phase IV (0.04 eV)": 0.04},
             "comparison_curve": True,
-            "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"],
-            "comparison_label_y_position": [0.09, 0.044],
-            "comparison_label_x_position": [3e16, 1e15],
+            "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg", "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"],
+            "comparison_label_y_position": [2, 0.105, 0.046], #[2, 0.105, 0.046],
+            "comparison_label_x_position": [4.5e15, 7e14, 7e14], #[4.5e15, 2.2e16, 1e15],
             "sigmae_theta_r": 0.159,
             "lower_label_y_position": 0.17,
             "upper_label_y_position": 0.7,
-            "label_x_position": 6e14, #0.02, #1e14,
+            "label_x_position": 4e14, #4e14, #0.02, #1e14,
             "goals_x_position": 2e12, #0.0002
             "plot_key_parameters": True
             }
