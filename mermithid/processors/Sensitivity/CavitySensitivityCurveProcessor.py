@@ -82,6 +82,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.atomic_axis = reader.read_param(params, 'atomic_axis', False)
         self.molecular_axis = reader.read_param(params, 'molecular_axis', False)
         self.label_x_position = reader.read_param(params, 'label_x_position', 5e19)
+        self.comparison_label_y_position = reader.read_param(params, 'comparison_label_y_position', 0.044)
         self.upper_label_y_position = reader.read_param(params, 'upper_label_y_position', 5)
         self.lower_label_y_position = reader.read_param(params, 'lower_label_y_position', 2.3)
         self.goal_x_pos = reader.read_param(params, "goals_x_position", 1e14)
@@ -111,30 +112,37 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.sens_main_is_atomic = self.sens_main.Experiment.atomic
 
         if self.comparison_curve:
+            ref = []
             if self.cavity:
-                self.sens_ref = CavitySensitivity(self.comparison_config_file_path)
+                for file in self.comparison_config_file_path:
+                    ref.append(CavitySensitivity(file))
             else:
-                self.sens_ref = Sensitivity(self.comparison_config_file_path)
-            self.sens_ref_is_atomic = self.sens_ref.Experiment.atomic
+                for file in self.comparison_config_file_path:
+                    ref.append(CavitySensitivity(file))
+            self.sens_ref = ref
+            is_atomic = []
+            for i in range(len(self.sens_ref)):
+                is_atomic.append(self.sens_ref[i].Experiment.atomic)
+            self.sens_ref_is_atomic = is_atomic
 
         # check atomic and molecular
         if self.molecular_axis:
             if not self.sens_main_is_atomic:
-                self.molecular_sens = self.sens_main
+                #self.molecular_sens = self.sens_main
                 logger.info("Main curve is molecular")
-            elif not self.sens_ref_is_atomic:
-                self.molecular_sens = self.sens_ref
-                logger.info("Comparison curve is molecular")
-            else:
+            elif False not in self.sens_ref_is_atomic:
                 raise ValueError("No experiment is configured to be molecular")
+                #self.molecular_sens = self.sens_ref
+                #logger.info("Comparison curve is molecular")
+            #else:
 
         if self.atomic_axis:
             if self.sens_main_is_atomic:
-                self.atomic_sens = self.sens_main
+                #self.atomic_sens = self.sens_main
                 logger.info("Main curve is atomic")
-            elif self.sens_ref_is_atomic:
-                self.atomic_sens = self.sens_ref
-                logger.info("Comparison curve is atomic")
+            elif True in self.sens_ref_is_atomic:
+                #self.atomic_sens = self.sens_ref
+                logger.info("A comparison curve is atomic")
             else:
                 raise ValueError("No experiment is configured to be atomic")
 
@@ -235,27 +243,28 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.sens_main.print_systematics()
 
         # Optimize atomic density
-        limit_ref = [self.sens_ref.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
-        opt_ref = np.argmin(limit_ref)
-        rho_opt_ref = self.rhos[opt_ref]
-        self.sens_ref.Experiment.number_density = rho_opt_ref
+        for i in range(len(self.sens_ref)):
+            limit_ref = [self.sens_ref[i].CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
+            opt_ref = np.argmin(limit_ref)
+            rho_opt_ref = self.rhos[opt_ref]
+            self.sens_ref[i].Experiment.number_density = rho_opt_ref
 
-        logger.info('Comparison curve (atomic):')
-        logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_ref.effective_volume/(m**3), rho_opt_ref*(m**3)))
-        logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_ref.larmor_power/W, self.sens_ref.signal_power/W))
-        logger.info('Hanneke / Larmor power = {}'.format(self.sens_ref.signal_power/self.sens_ref.larmor_power))
-        logger.info('CL90 limit: {}'.format(self.sens_ref.CL90(Experiment={"number_density": rho_opt_ref})/eV))
-        logger.info('T2 in Veff: {}'.format(rho_opt_ref*self.sens_ref.effective_volume))
-        logger.info('Total signal: {}'.format(rho_opt_ref*self.sens_ref.effective_volume*
-                                                   self.sens_ref.Experiment.LiveTime/
-                                                   self.sens_ref.tau_tritium*2))
-        logger.info('Signal in last eV: {}'.format(self.sens_ref.last_1ev_fraction*eV**3*
-                                                   rho_opt_ref*self.sens_ref.effective_volume*
-                                                   self.sens_ref.Experiment.LiveTime/
-                                                   self.sens_ref.tau_tritium*2))
+            logger.info('Comparison curve:')
+            logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_ref[i].effective_volume/(m**3), rho_opt_ref*(m**3)))
+            logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_ref[i].larmor_power/W, self.sens_ref[i].signal_power/W))
+            logger.info('Hanneke / Larmor power = {}'.format(self.sens_ref[i].signal_power/self.sens_ref[i].larmor_power))
+            logger.info('CL90 limit: {}'.format(self.sens_ref[i].CL90(Experiment={"number_density": rho_opt_ref})/eV))
+            logger.info('T2 in Veff: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume))
+            logger.info('Total signal: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume*
+                                                   self.sens_ref[i].Experiment.LiveTime/
+                                                   self.sens_ref[i].tau_tritium*2))
+            logger.info('Signal in last eV: {}'.format(self.sens_ref[i].last_1ev_fraction*eV**3*
+                                                   rho_opt_ref*self.sens_ref[i].effective_volume*
+                                                   self.sens_ref[i].Experiment.LiveTime/
+                                                   self.sens_ref[i].tau_tritium*2))
 
-        self.sens_ref.print_statistics()
-        self.sens_ref.print_systematics()
+            self.sens_ref[i].print_statistics()
+            self.sens_ref[i].print_systematics()
 
         return True
 
@@ -306,12 +315,13 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                     
 
     def add_track_length_axis(self):
+        N_ref = len(self.sens_ref)
         if self.atomic_axis:
             ax2 = self.ax.twiny()
             ax2.set_xscale("log")
             ax2.set_xlabel("(Atomic) track length (s)")
-            ax2.set_xlim(self.atomic_sens.track_length(self.rhos[0])/s,
-                         self.atomic_sens.track_length(self.rhos[-1])/s)
+            ax2.set_xlim(self.sens_ref[N_ref - 1].track_length(self.rhos[0])/s,
+                         self.sens_ref[N_ref - 1].track_length(self.rhos[-1])/s)
 
         if self.molecular_axis:
             ax3 = self.ax.twiny()
@@ -326,8 +336,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
             ax3.set_xscale("log")
             ax3.set_xlabel("(Molecular) track length (s)")
-            ax3.set_xlim(self.molecular_sens.track_length(self.rhos[0])/s,
-                         self.molecular_sens.track_length(self.rhos[-1])/s)
+            ax3.set_xlim(self.sens_main.track_length(self.rhos[0])/s,
+                         self.sens_main.track_length(self.rhos[-1])/s)
 
         else:
             logger.warning("No track length axis added since neither atomic nor molecular was requested")
@@ -353,7 +363,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
     def add_comparison_curve(self, label, color='k'):
         
-            
+        """    
         limit = [self.sens_ref.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
         opt_ref = np.argmin(limit)
         rho_opt = self.rhos[opt_ref]
@@ -367,12 +377,14 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                                                    self.sens_ref.Experiment.LiveTime/
                                                    self.sens_ref.tau_tritium))
         logger.info('Ref. CL90 limit: {}'.format(self.sens_ref.CL90(Experiment={"number_density": rho_opt})/eV))
-        
-        limits = self.add_sens_line(self.sens_ref, plot_key_params=True, color=color)
+        """
+        for a, color in self.range(0, len(self.sens_ref)):
+            limits = self.add_sens_line(self.sens_ref[a], plot_key_params=True, color=color)
+            self.ax.text(self.label_x_position, self.comparison_label_y_position[a], label[a])
+
 
         #self.ax.axhline(0.04, color="gray", ls="--")
         #self.ax.text(3e14, 0.044, "Phase IV (40 meV)")
-        self.ax.text(self.label_x_position, 0.044, label)
 
     def add_arrow(self, sens):
         if not hasattr(self, "opt_ref"):
@@ -381,7 +393,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         def get_relative(val, axis):
             xmin, xmax = self.ax.get_xlim() if axis == "x" else self.ax.get_ylim()
             return (np.log10(val)-np.log10(xmin))/(np.log10(xmax)-np.log10(xmin))
-
+        
+        """
         rho_IV = self.rhos[self.opt_ref]
         track_length_IV = self.sens_ref.track_length(rho_IV)
         track_length_III = self.sens_main.track_length(rho_IV)
@@ -400,7 +413,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                       head_width=0.02,
                       head_length=0.03,
                       )
-
+        """
+        
     def add_goal(self, value, label):
         self.ax.axhline(value/eV, color="gray", ls="--")
         self.ax.text(self.goal_x_pos, 0.75*value/eV, label)
