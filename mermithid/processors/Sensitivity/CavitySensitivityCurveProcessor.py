@@ -74,6 +74,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         # main plot configurations
         self.figsize = reader.read_param(params, 'figsize', (6,6))
         self.legend_location = reader.read_param(params, 'legend_location', 'upper left')
+        self.fontsize = reader.read_param(params, 'fontsize', 12)
         self.density_range = reader.read_param(params, 'density_range', [1e14,1e21])
         self.year_range = reader.read_param(params, "years_range", [0.1, 10])
         self.exposure_range = reader.read_param(params, "exposure_range", [1e-10, 1e3])
@@ -274,6 +275,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
     def create_plot(self):
         # setup axis
+        plt.rcParams.update({'font.size': self.fontsize})
         self.fig, self.ax = plt.subplots(figsize=self.figsize)
         ax = self.ax
         ax.set_xscale("log")
@@ -405,7 +407,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
     def add_goal(self, value, label):
         self.ax.axhline(value/eV, color="gray", ls="--")
-        self.ax.text(self.goal_x_pos, 0.8*value/eV, label)
+        self.ax.text(self.goal_x_pos, 0.75*value/eV, label)
 
     def add_density_sens_line(self, sens, plot_key_params=False, **kwargs):
         limits = []
@@ -456,8 +458,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             limits.append(sens.CL90()/eV)
             #exposures.append(sens.EffectiveVolume()/m**3*sens.Experiment.livetime/year)
             
-        unit = r"m$^3$"
-        self.ax.plot(self.exposures/m**3/year, limits, label="Density = {:.1e} / {}".format(rho_opt*m**3, unit), color=kwargs["color"])
+        unit = r"m$^{-3}$"
+        self.ax.plot(self.exposures/m**3/year, limits, label="Density = {:.1e} {}".format(rho_opt*m**3, unit), color=kwargs["color"])
         
     def add_text(self, x, y, text, color="k"): #, fontsize=9.5
         self.ax.text(x, y, text, color=color)
@@ -468,7 +470,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         return [(idx, cmap(norm(idx))) for idx in range(start, stop)]
 
     def save(self, savepath, **kwargs):
-        legend=self.fig.legend(loc=self.legend_location, bbox_to_anchor=(0.15,0,1,0.765), framealpha=0.9)
+        if self.density_axis:
+            legend=self.fig.legend(loc=self.legend_location, framealpha=0.9, bbox_to_anchor=(0.15,0,1,0.765))
+        else:
+            legend=self.fig.legend(loc=self.legend_location, framealpha=0.9, bbox_to_anchor=(-0.,0,0.95,0.95))
+            
         self.fig.tight_layout()
         #keywords = ", ".join(["%s=%s"%(key, value) for key, value in kwargs.items()])
         metadata = {"Author": "p8/mermithid",
