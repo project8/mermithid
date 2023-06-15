@@ -109,7 +109,7 @@ class SensitivityTest(unittest.TestCase):
             "goals": {"Phase III (0.2 eV)": 0.2, "Phase IV (0.04 eV)": 0.04},
             "comparison_curve": True,
             "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"],
-            "comparison_label_y_position": [0.15, 0.044],
+            "comparison_label_y_position": [0.09, 0.044],
             "comparison_label_x_position": [3e16, 1e15],
             "sigmae_theta_r": 0.159,
             "lower_label_y_position": 0.17,
