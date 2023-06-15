@@ -233,7 +233,7 @@ class CavitySensitivity(object):
     
     def CavityVolume(self):
         #radius = 0.5*wavelength(self.T_endpoint, self.MagneticField.nominal_field)
-        self.total_volume = 2*self.cavity_radius*self.Experiment.L_over_D*np.pi*(self.cavity_radius)**2
+        self.total_volume = 2*self.cavity_radius*self.Experiment.L_over_D*np.pi*(self.cavity_radius)**2*self.Experiment.n_cavities
         
         logger.info("Frequency: {} MHz".format(round(frequency(self.T_endpoint, self.MagneticField.nominal_field)/MHz, 3)))
         logger.info("Wavelength: {} cm".format(round(wavelength(self.T_endpoint, self.MagneticField.nominal_field)/cm, 3)))
