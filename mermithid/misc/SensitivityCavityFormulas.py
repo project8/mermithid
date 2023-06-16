@@ -221,6 +221,7 @@ class CavitySensitivity(object):
         self.PlasmaEffects = NameSpace({opt: eval(self.cfg.get('PlasmaEffects', opt)) for opt in self.cfg.options('PlasmaEffects')})
         self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
         
+        self.CRLB_constant = 12
         self.CavityRadius()
         self.CavityVolume()
         self.EffectiveVolume()
@@ -287,7 +288,7 @@ class CavitySensitivity(object):
     # SENSITIVITY
     def SignalRate(self):
         """signal events in the energy interval before the endpoint, scale with DeltaE**3"""
-        self.EffectiveVolume()
+        #self.EffectiveVolume()
         signal_rate = self.Experiment.number_density*self.effective_volume*self.last_1ev_fraction/self.tau_tritium
         if not self.Experiment.atomic:
             if hasattr(self.Experiment, 'gas_fractions'):
@@ -295,6 +296,8 @@ class CavitySensitivity(object):
                 signal_rate *= avg_n_T_atoms
             else:
                 signal_rate *= 2
+        if hasattr(self.Experiment, 'active_gas_fraction'):
+            signal_rate *= self.Experiment.active_gas_fraction
         return signal_rate
 
     def BackgroundRate(self):
@@ -373,6 +376,7 @@ class CavitySensitivity(object):
               H2_iso_avg_num += val
             elif key=='H2' or key=='HD' or key=='D2':
               pass
+        logger.info("Activive fraction: {}".format(gas_fractions['H2']*H2_iso_avg_num))
         return gas_fractions['H2']*H2_iso_avg_num
 
     def BToKeErr(self, BErr, B):
@@ -559,9 +563,7 @@ class CavitySensitivity(object):
         # logger.info("slope corresponds to {} meV / ms".format(delta_E_slope/meV))
         if True: #self.time_window_slope_zero >= self.time_window:
             # logger.info("slope is approximately 0: {} meV".format(delta_E_slope/meV))
-            CRLB_constant = 12
-            sigma_f_CRLB = np.sqrt((CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
-            self.slope_is_zero=True
+            sigma_f_CRLB = np.sqrt((self.CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
             self.best_time_window = self.time_window
         else:
             CRLB_constant = 12
@@ -572,7 +574,6 @@ class CavitySensitivity(object):
             sigma_f_CRLB = np.min([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])
             
             # logger.info("CRLB options are: {} , {}".format(sigma_CRLB_slope_zero/Hz, sigma_f_CRLB_slope_fitted/Hz))
-            self.slope_is_zero = False
             self.best_time_window=[self.time_window_slope_zero, self.time_window][np.argmin([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])]
         
         """# uncertainty in alpha

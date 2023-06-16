@@ -56,6 +56,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.config_file_path = reader.read_param(params, 'config_file_path', "required")
         self.comparison_config_file_path = reader.read_param(params, 'comparison_config_file_path', '')
         self.plot_path = reader.read_param(params, 'plot_path', "required")
+        self.PhaseII_path = reader.read_param(params, 'PhaseII_config_path', '')
 
 
         # labels
@@ -91,6 +92,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.upper_label_y_position = reader.read_param(params, 'upper_label_y_position', 5)
         self.lower_label_y_position = reader.read_param(params, 'lower_label_y_position', 2.3)
         self.goal_x_pos = reader.read_param(params, "goals_x_position", 1e14)
+        self.add_PhaseII = reader.read_param(params, "add_PhaseII", False)
         
         # other plot
         self.make_key_parameter_plots = reader.read_param(params, 'plot_key_parameters', False)
@@ -105,6 +107,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
         # goals
         self.goals = reader.read_param(params, "goals", {})
+        
+        if self.add_PhaseII:
+            self.sens_PhaseII = CavitySensitivity(self.PhaseII_path)
 
 
         # setup sensitivities
@@ -270,8 +275,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.sens_ref[i].print_systematics()
             
         # save plot
-        if self.density_axis == False:
-            self.add_Phase_II_exposure_sens_line(self.sens_main)
+        if self.density_axis == False and self.add_PhaseII:
+            self.add_Phase_II_exposure_sens_line(self.sens_PhaseII)
         self.save(self.plot_path)
 
         return True
@@ -475,18 +480,25 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.ax.plot(self.exposures/m**3/year, limits, label="Density = {:.1e} {}".format(rho_opt*m**3, unit), color=kwargs["color"])
         
     def add_Phase_II_exposure_sens_line(self, sens):
-        sens.Experiment.number_density = 13.4e16/m**3
+        sens.Experiment.number_density = 2.09e17/m**3
         sens.effective_volume = 1.2*mm**3
-        sens.Experiment.sri_factor = 7.45e16/13.4e16
+        sens.Experiment.sri_factor = 1 #0.389*0.918*0.32
         sens.Experiment.livetime = 7185228*s
+        sens.CRLB_constant = 180
         
         
         standard_exposure = sens.effective_volume*sens.Experiment.livetime/m**3/year
-        print(standard_exposure)
+        sens.print_systematics()
+        sens.print_statistics()
+        sens.sensitivity()
+        logger.info("Phase II sensitivity for exposure {} calculated: {}".format(standard_exposure, sens.sensitivity()/eV**2))
+        
         
         phaseIIsens = 9822
+        phaseIIsense_error = 1520
+        exposure_error = np.sqrt((standard_exposure*0.008)**2 + (standard_exposure*0.09)**2)
         
-        self.ax.scatter([standard_exposure], [phaseIIsens], marker="s", color='k', label="Phase II")
+        self.ax.errorbar([standard_exposure], [phaseIIsens], xerr=[exposure_error], yerr=[phaseIIsense_error], fmt='o', color='k', label="Phase II")
         
         limits = []
         years = []
@@ -498,7 +510,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             #exposures.append(sens.EffectiveVolume()/m**3*sens.Experiment.livetime/year)
             
         unit = r"m$^{-3}$"
-        self.ax.plot(self.exposures/m**3/year, limits, label="T2 Density = {:.1e} {}".format(7.5e16*m**3, unit), color='k')
+        self.ax.plot(self.exposures/m**3/year, limits, label="T2 Density = {:.1e} {}".format(7.5e16, unit), color='k')
+        print(years)
+        print(limits)
         
     def add_text(self, x, y, text, color="k"): #, fontsize=9.5
         self.ax.text(x, y, text, color=color)
