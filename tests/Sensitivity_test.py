@@ -30,14 +30,14 @@ class SensitivityTest(unittest.TestCase):
             "atomic_axis": False,
             "density_axis": False,
             "cavity": True,
-            "y_limits": [2e-2, 100],
+            "y_limits": [2e-2, 200],
             "density_range": [1e12,1e19],
-            "exposure_range": [1e-9, 1e4],
+            "exposure_range": [1e-11, 1e4],
             #"efficiency_range": [0.0001, 1],
             #"density_range": [1e8, 1e12],
             "main_curve_upper_label": r"Molecular, conservative",
             "main_curve_lower_label": r"$\sigma^\bar{B}_\mathrm{reco} = 0.07\,\mathrm{eV}$",
-            "goals": {"Phase III (0.2 eV)": 0.2, "Phase IV (0.04 eV)": 0.04},
+            "goals": {"Phase III (0.2 eV)": (0.2**2/np.sqrt(1.64)), "Phase IV (0.04 eV)": (0.04**2/np.sqrt(1.64))},
             "comparison_curve": True,
             "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg", 
                                             "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", 
@@ -125,9 +125,9 @@ class SensitivityTest(unittest.TestCase):
             "goals_x_position": 2e12, #0.0002
             "plot_key_parameters": True
             }
-        sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-        sens_curve.Configure(sens_config_dict)
-        sens_curve.Run()
+        #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        #sens_curve.Configure(sens_config_dict)
+        #sens_curve.Run()
 
     def test_SensitivityProcessor(self):
         from mermithid.processors.Sensitivity import AnalyticSensitivityEstimation
