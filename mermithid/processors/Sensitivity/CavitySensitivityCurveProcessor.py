@@ -524,9 +524,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
     def save(self, savepath, **kwargs):
         if self.density_axis:
-            legend=self.fig.legend(loc=self.legend_location, framealpha=0.9, bbox_to_anchor=(0.15,0,1,0.765))
+            legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1,0.765))
         else:
-            legend=self.fig.legend(loc=self.legend_location, framealpha=0.9, bbox_to_anchor=(-0.,0,0.95,0.95))
+            legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(-0.,0,0.95,0.95))
             
         self.fig.tight_layout()
         #keywords = ", ".join(["%s=%s"%(key, value) for key, value in kwargs.items()])

@@ -566,10 +566,10 @@ class CavitySensitivity(object):
             sigma_f_CRLB = np.sqrt((self.CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
             self.best_time_window = self.time_window
         else:
-            CRLB_constant = 12
+            CRLB_constant = 6
             sigma_CRLB_slope_zero = np.sqrt((CRLB_constant*tau_snr_part_length/self.time_window_slope_zero**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
             
-            sigma_f_CRLB_slope_fitted = np.sqrt((20*(self.slope*tau_snr_full_length)**2 + 180*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
+            sigma_f_CRLB_slope_fitted = np.sqrt((20*(self.slope*tau_snr_full_length)**2 + 90*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
         
             sigma_f_CRLB = np.min([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])
             

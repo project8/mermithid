@@ -102,13 +102,14 @@ class SensitivityTest(unittest.TestCase):
             #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
             "plot_path": "./sensitivity_vs_density_curve.pdf",
             # optional
+            "figsize": (6.7,6),
             "track_length_axis": True,
             "molecular_axis": True,
             "atomic_axis": True,
             "density_axis": True,
             "cavity": True,
             "y_limits": [2e-2, 4],
-            "density_range": [1e12,1e19],
+            "density_range": [1e12,3e18],
             "efficiency_range": [0.0001, 1],
             #"density_range": [1e8, 1e12],
             "main_curve_upper_label": r"Molecular, conservative", #r"Molecular"+"\n"+"Reaching target",
@@ -124,12 +125,12 @@ class SensitivityTest(unittest.TestCase):
             "lower_label_y_position": 0.17,
             "upper_label_y_position": 0.7,
             "label_x_position": 4e14, #4e14, #0.02, #1e14,
-            "goals_x_position": 2e12, #0.0002
+            "goals_x_position": 1.2e12, #0.0002
             "plot_key_parameters": True
             }
-        #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-        #sens_curve.Configure(sens_config_dict)
-        #sens_curve.Run()
+        sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        sens_curve.Configure(sens_config_dict)
+        sens_curve.Run()
 
     def test_SensitivityProcessor(self):
         from mermithid.processors.Sensitivity import AnalyticSensitivityEstimation
