@@ -63,7 +63,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.main_curve_upper_label = reader.read_param(params, 'main_curve_upper_label', r"molecular"+"\n"+r"$V_\mathrm{eff} = 2\, \mathrm{cm}^3$"+"\n"+r"$\sigma_B = 7\,\mathrm{ppm}$")
         self.main_curve_lower_label = reader.read_param(params, 'main_curve_lower_label', r"$\sigma_B = 1\,\mathrm{ppm}$")
         self.comparison_curve_label = reader.read_param(params, 'comparison_curve_label', r"atomic"+"\n"+r"$V_\mathrm{eff} = 5\, \mathrm{m}^3$"+"\n"+r"$\sigma_B = 0.13\,\mathrm{ppm}$")
-
+        self.comparison_curve_colors = reader.read_param(params,'comparison_curve_colors', ["blue", "darkred", "red"])
 
         # options
         self.comparison_curve = reader.read_param(params, 'comparison_curve', False)
@@ -93,6 +93,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.lower_label_y_position = reader.read_param(params, 'lower_label_y_position', 2.3)
         self.goal_x_pos = reader.read_param(params, "goals_x_position", 1e14)
         self.add_PhaseII = reader.read_param(params, "add_PhaseII", False)
+        self.goals_y_rel_position = reader.read_param(params, "goals_y_rel_position", 0.75)
         
         # other plot
         self.make_key_parameter_plots = reader.read_param(params, 'plot_key_parameters', False)
@@ -168,6 +169,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
     def InternalRun(self):
 
         self.create_plot()
+        
+        # optionally add Phase II curve and point to exposure plot
+        if self.density_axis == False and self.add_PhaseII:
+            self.add_Phase_II_exposure_sens_line(self.sens_PhaseII)
 
         # add second and third x axis for track lengths
         if self.track_length_axis:
@@ -275,8 +280,6 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.sens_ref[i].print_systematics()
             
         # save plot
-        if self.density_axis == False and self.add_PhaseII:
-            self.add_Phase_II_exposure_sens_line(self.sens_PhaseII)
         self.save(self.plot_path)
 
         return True
@@ -385,9 +388,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                                                    self.sens_ref.tau_tritium))
         logger.info('Ref. CL90 limit: {}'.format(self.sens_ref.CL90(Experiment={"number_density": rho_opt})/eV))
         """
-        colors = ["blue", "darkred", "red"]
+    
         for a in range(len(self.sens_ref)):
-            limits = self.add_sens_line(self.sens_ref[a], plot_key_params=True, color=colors[a], label=label[a])
+            limits = self.add_sens_line(self.sens_ref[a], plot_key_params=True, color=self.comparison_curve_colors[a], label=label[a])
             #self.ax.text(self.comparison_label_x_position[a], self.comparison_label_y_position[a], label[a], color=colors[a], fontsize=9.5)
 
 
@@ -425,7 +428,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
     def add_goal(self, value, label):
         self.ax.axhline(value, color="gray", ls="--")
-        self.ax.text(self.goal_x_pos, 0.75*value, label)
+        self.ax.text(self.goal_x_pos, self.goals_y_rel_position*value, label)
 
     def add_density_sens_line(self, sens, plot_key_params=False, **kwargs):
         limits = []
@@ -465,6 +468,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
         standard_exposure = sens.EffectiveVolume()*sens.Experiment.livetime/m**3/year
         
+        print(kwargs)
+        
         self.ax.scatter([standard_exposure], [np.min(limit)], marker="s", **kwargs)
         
         limits = []
@@ -476,8 +481,12 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             limits.append(sens.sensitivity()/eV**2)
             #exposures.append(sens.EffectiveVolume()/m**3*sens.Experiment.livetime/year)
             
+        if sens.Experiment.atomic:
+            gas = "T"
+        else:
+            gas = r"T$_2$"
         unit = r"m$^{-3}$"
-        self.ax.plot(self.exposures/m**3/year, limits, label="Density = {:.1e} {}".format(rho_opt*m**3, unit), color=kwargs["color"])
+        self.ax.plot(self.exposures/m**3/year, limits, label="{} density = {:.1e} {}".format(gas, rho_opt*m**3, unit), color=kwargs["color"])
         
     def add_Phase_II_exposure_sens_line(self, sens):
         sens.Experiment.number_density = 2.09e17/m**3
@@ -498,7 +507,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         phaseIIsense_error = 1520
         exposure_error = np.sqrt((standard_exposure*0.008)**2 + (standard_exposure*0.09)**2)
         
-        self.ax.errorbar([standard_exposure], [phaseIIsens], xerr=[exposure_error], yerr=[phaseIIsense_error], fmt='o', color='k', label="Phase II")
+        self.ax.errorbar([standard_exposure], [phaseIIsens], xerr=[exposure_error], yerr=[phaseIIsense_error], fmt='.', color='k', label="Phase II (measured)")
         
         limits = []
         years = []
@@ -510,9 +519,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             #exposures.append(sens.EffectiveVolume()/m**3*sens.Experiment.livetime/year)
             
         unit = r"m$^{-3}$"
-        self.ax.plot(self.exposures/m**3/year, limits, label="T2 Density = {:.1e} {}".format(7.5e16, unit), color='k')
-        print(years)
-        print(limits)
+        gas = r"T$_2$"
+        self.ax.plot(self.exposures/m**3/year, limits, label="{} density = {:.1e} {}".format(gas, 7.5e16, unit), color='k', linestyle=':')
+
         
     def add_text(self, x, y, text, color="k"): #, fontsize=9.5
         self.ax.text(x, y, text, color=color)
@@ -526,7 +535,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.density_axis:
             legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1,0.765))
         else:
-            legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(-0.,0,0.95,0.95))
+            legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(-0.,0,0.87,0.97))
             
         self.fig.tight_layout()
         #keywords = ", ".join(["%s=%s"%(key, value) for key, value in kwargs.items()])

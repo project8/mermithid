@@ -32,19 +32,20 @@ class SensitivityTest(unittest.TestCase):
             "cavity": True,
             "add_PhaseII": True,
             "PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg",
-            "y_limits": [20e-3, 400],
+            "y_limits": [10e-3, 500],
             "density_range": [1e12,1e19],
-            "exposure_range": [1e-11, 1e3],
+            "exposure_range": [1e-11, 1e4],
             #"efficiency_range": [0.0001, 1],
             #"density_range": [1e8, 1e12],
-            "main_curve_upper_label": r"Molecular, conservative",
+            "main_curve_upper_label": r"T$_2$ in TE011 cavity, conservative",
             "main_curve_lower_label": r"$\sigma^\bar{B}_\mathrm{reco} = 0.07\,\mathrm{eV}$",
             "goals": {"Phase III (0.2 eV)": (0.2**2/np.sqrt(1.64)), "Phase IV (0.04 eV)": (0.04**2/np.sqrt(1.64))},
             "comparison_curve": True,
-            "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg", 
+            "comparison_config_file_path": [#"/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg", 
                                             #"/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", 
                                             "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"],
-            "comparison_curve_label": ["Molecular, reaching target", "Atomic, conservative", r"Atomic, reaching target"],
+            "comparison_curve_label": ["T in TE011 cavity, reaching target"],
+            "comparison_curve_colors": ["red"],
             #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
             #"B_inhomogeneity": np.linspace(0.1, 2.1, 10)*1e-6,
             #"B_inhom_uncertainty": 0.01,
@@ -52,7 +53,8 @@ class SensitivityTest(unittest.TestCase):
             "lower_label_y_position": 0.17,
             "upper_label_y_position": 0.7,
             "label_x_position": 0.015, #1.5e15, #0.02, #1e14,
-            "goals_x_position": 0.5e-8 #2e12 #0.0002
+            "goals_x_position": 0.5e-10, #2e12 #0.0002
+            "goals_y_rel_position": 0.4
             }
         sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
         sens_curve.Configure(sens_config_dict)
