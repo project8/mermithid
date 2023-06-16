@@ -9,6 +9,7 @@ CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc
 import numpy as np
 import configparser
 from numpy import pi
+from mermithid.misc.HannekeFunctions import *
 
 # Numericalunits is a package to handle units and some natural constants
 # natural constants
@@ -86,16 +87,16 @@ def wavelength(kin_energy, magnetic_field):
 def kin_energy(freq, magnetic_field):
     return (e*c0**2/(2*np.pi*freq)*magnetic_field - me*c0**2)
 
-"""def rad_power(kin_energy, pitch, magnetic_field):
+def rad_power(kin_energy, pitch, magnetic_field):
     # electron radiation power
     f = frequency(kin_energy, magnetic_field)
     b = beta(kin_energy)
     Pe = 2*np.pi*(e*f*b*np.sin(pitch/rad))**2/(3*eps0*c0*(1-b**2))
-    return Pe"""
-
-def rad_power(kin_energy, pitch, magnetic_field):
-    Pe = 2*(e**2*magnetic_field*np.sin(pitch))**2*(gamma(kin_energy)**2-1)/(12*eps0*c0*np.pi*me**2)
     return Pe
+
+#def rad_power(kin_energy, pitch, magnetic_field):
+#    Pe = 2*(e**2*magnetic_field*np.sin(pitch))**2*(gamma(kin_energy)**2-1)/(12*eps0*c0*np.pi*me**2)
+#    return Pe
 
 def track_length(rho, kin_energy=None, molecular=True):
     if kin_energy is None:
@@ -233,7 +234,7 @@ class CavitySensitivity(object):
     
     def CavityVolume(self):
         #radius = 0.5*wavelength(self.T_endpoint, self.MagneticField.nominal_field)
-        self.total_volume = 2*self.cavity_radius*self.Experiment.L_over_D*np.pi*(self.cavity_radius)**2
+        self.total_volume = 2*self.cavity_radius*self.Experiment.L_over_D*np.pi*(self.cavity_radius)**2*self.Experiment.n_cavities
         
         logger.info("Frequency: {} MHz".format(round(frequency(self.T_endpoint, self.MagneticField.nominal_field)/MHz, 3)))
         logger.info("Wavelength: {} cm".format(round(wavelength(self.T_endpoint, self.MagneticField.nominal_field)/cm, 3)))
@@ -248,14 +249,19 @@ class CavitySensitivity(object):
             # trapping efficiecny is currently configured. replace with box trap calculation
             self.effective_volume = self.total_volume*self.Efficiency.radial_efficiency*self.Efficiency.trapping_efficiency
             
+        self.effective_volume*=self.Experiment.sri_factor
         return self.effective_volume
         
     def CavityPower(self):
         # from Hamish's atomic calculator
-        Jprime_0 = 3.8317
+        #Jprime_0 = 3.8317
         
-        self.signal_power = self.FrequencyExtraction.mode_coupling_efficiency * self.CavityLoadedQ() * self.FrequencyExtraction.hanneke_factor * self.T_endpoint/eV * e/C * Jprime_0**2 / (2*np.pi**2*self.Experiment.L_over_D*2*self.cavity_radius**3/m**3 * frequency(self.T_endpoint, self.MagneticField.nominal_field)*s)*W
-        
+        #self.signal_power = self.FrequencyExtraction.mode_coupling_efficiency * self.CavityLoadedQ() * self.FrequencyExtraction.hanneke_factor * self.T_endpoint/eV * e/C * Jprime_0**2 / (2*np.pi**2*self.Experiment.L_over_D*2*self.cavity_radius**3/m**3 * frequency(self.T_endpoint, self.MagneticField.nominal_field)*s)*W
+        self.signal_power = np.mean(larmor_orbit_averaged_hanneke_power_box(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=1000), 
+                                                                            self.CavityLoadedQ(), 
+                                                                            2*self.Experiment.L_over_D*self.cavity_radius, 
+                                                                            self.cavity_radius, 
+                                                                            frequency(self.T_endpoint, self.MagneticField.nominal_field)))
         return self.signal_power
     
     
@@ -282,7 +288,7 @@ class CavitySensitivity(object):
     def SignalRate(self):
         """signal events in the energy interval before the endpoint, scale with DeltaE**3"""
         self.EffectiveVolume()
-        signal_rate = self.Experiment.number_density*self.effective_volume*self.Experiment.sri_factor*self.last_1ev_fraction/self.tau_tritium
+        signal_rate = self.Experiment.number_density*self.effective_volume*self.last_1ev_fraction/self.tau_tritium
         if not self.Experiment.atomic:
             if hasattr(self.Experiment, 'gas_fractions'):
                 avg_n_T_atoms = self.AvgNumTAtomsPerParticle_MolecularExperiment(self.Experiment.gas_fractions, self.Experiment.H2_type_gas_fractions)
@@ -534,7 +540,7 @@ class CavitySensitivity(object):
        
         endpoint_frequency = frequency(self.T_endpoint, self.MagneticField.nominal_field)
         # using Pe and alpha (aka slope) from above
-        Pe = self.CavityPower() #/self.FrequencyExtraction.mode_coupling_efficiency 
+        Pe = self.signal_power #/self.FrequencyExtraction.mode_coupling_efficiency 
         self.larmor_power = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field) # currently not used
         
         self.slope = endpoint_frequency * 2 * np.pi * Pe/me/c0**2 # track slope

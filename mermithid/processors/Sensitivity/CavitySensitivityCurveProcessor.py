@@ -18,7 +18,7 @@ import numpy as np
 # Numericalunits is a package to handle units and some natural constants
 # natural constants
 from numericalunits import e, me, c0, eps0, kB, hbar
-from numericalunits import meV, eV, keV, MeV, cm, m
+from numericalunits import meV, eV, keV, MeV, cm, m, mm
 from numericalunits import nT, uT, mT, T, mK, K,  C, F, g, W
 from numericalunits import hour, year, day, ms, ns, s, Hz, kHz, MHz, GHz
 ppm = 1e-6
@@ -72,10 +72,12 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
 
         # main plot configurations
-        self.figsize = reader.read_param(params, 'figsize', (6,5))
+        self.figsize = reader.read_param(params, 'figsize', (6,6))
+        self.legend_location = reader.read_param(params, 'legend_location', 'upper left')
+        self.fontsize = reader.read_param(params, 'fontsize', 12)
         self.density_range = reader.read_param(params, 'density_range', [1e14,1e21])
-        self.efficiency_range = reader.read_param(params, 'efficiency_range', [0.001,0.1])
         self.year_range = reader.read_param(params, "years_range", [0.1, 10])
+        self.exposure_range = reader.read_param(params, "exposure_range", [1e-10, 1e3])
         self.density_axis = reader.read_param(params, "density_axis", True)
         self.ylim = reader.read_param(params, 'y_limits', [1e-2, 1e2])
         self.track_length_axis = reader.read_param(params, 'track_length_axis', True)
@@ -151,8 +153,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
         # densities
         self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 100)/m**3
-        self.effs = np.logspace(np.log10(self.efficiency_range[0]), np.log10(self.efficiency_range[1]), 10)
-        self.years = np.logspace(np.log10(self.year_range[0]), np.log10(self.year_range[1]), 10)*year
+        self.exposures = np.logspace(np.log10(self.exposure_range[0]), np.log10(self.exposure_range[1]), 100)*m**3*year
+        self.years = np.logspace(np.log10(self.year_range[0]), np.log10(self.year_range[1]), 100)*year
         
         return True
 
@@ -167,8 +169,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.add_track_length_axis()
 
         for key, value in self.goals.items():
-            logger.info('Adding goal: {}'.format(key))
-            self.add_goal(value*eV, key)
+            logger.info('Adding goal: {} = {}'.format(key, value))
+            self.add_goal(value, key)
             
         # first optimize density
         limit = [self.sens_main.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
@@ -207,8 +209,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.add_comparison_curve(label=self.comparison_curve_label)
             #self.add_arrow(self.sens_main)
 
-        # save plot
-        self.save(self.plot_path)
+        
         
         
         # PRINT OPTIMUM RESULTS
@@ -267,12 +268,18 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
             self.sens_ref[i].print_statistics()
             self.sens_ref[i].print_systematics()
+            
+        # save plot
+        if self.density_axis == False:
+            self.add_Phase_II_exposure_sens_line(self.sens_main)
+        self.save(self.plot_path)
 
         return True
 
 
     def create_plot(self):
         # setup axis
+        plt.rcParams.update({'font.size': self.fontsize})
         self.fig, self.ax = plt.subplots(figsize=self.figsize)
         ax = self.ax
         ax.set_xscale("log")
@@ -289,17 +296,27 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 axis_label = r"(Molecular) number density $\rho\, \, (\mathrm{m}^{-3})$"
             else:
                 axis_label = r"Number density $\rho\, \, (\mathrm{m}^{-3})$"
+                
+            ax.set_xlabel(axis_label)
+            ax.set_ylim(self.ylim)
+            ax.set_ylabel(r"90% CL $m_\beta$ (eV)")
 
             
             
         else:
-            logger.info("Adding efficiency axis")
-            ax.set_xlim(self.effs[0], self.effs[-1])
-            axis_label = r"Efficiency"
+            logger.info("Adding exposure axis")
+            ax.set_xlim(self.exposure_range[0], self.exposure_range[-1])
+            ax.tick_params(axis='x', which='minor', bottom=True)
+            axis_label = r"Efficiency $\times$ Volume $\times$ Time (m$^3$y)"
             
-        ax.set_xlabel(axis_label)
-        ax.set_ylim(self.ylim)
-        ax.set_ylabel(r"90% CL $m_\beta$ (eV)")
+            ax.set_xlabel(axis_label)
+            ax.set_ylim((np.array(self.ylim)**2/np.sqrt(1.64)))
+            ax.set_ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
+            
+            self.ax2 = ax.twinx()
+            self.ax2.set_ylabel(r"90% CL $m_\beta$ (eV)")
+            self.ax2.set_yscale("log")
+            self.ax2.set_ylim(self.ylim)
         
         if self.make_key_parameter_plots:
             self.kp_fig, self.kp_ax = plt.subplots(1,2, figsize=(10,5))
@@ -345,23 +362,6 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             logger.warning("No track length axis added since neither atomic nor molecular was requested")
         self.fig.tight_layout()
 
-    """def add_density_comparison_curve(self, label, color='k'):
-        limit = [self.sens_ref.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
-        self.opt_ref = np.argmin(limit)
-
-        rho_opt = self.rhos[self.opt_ref]
-        logger.info('Ref. curve (veff = {} m**3):'.format(self.sens_ref.Experiment.v_eff/(m**3)))
-        logger.info('T in Veff: {}'.format(rho_opt*self.sens_ref.Experiment.v_eff))
-        logger.info('Ref. total signal: {}'.format(rho_opt*self.sens_ref.Experiment.v_eff*
-                                                   self.sens_ref.Experiment.LiveTime/
-                                                   self.sens_ref.tau_tritium))
-
-        self.ax.plot(self.rhos*m**3, limit, color=color)
-        self.ax.axvline(self.rhos[self.opt_ref]*m**3, ls=":", color="gray", alpha=0.4)
-
-        #self.ax.axhline(0.04, color="gray", ls="--")
-        #self.ax.text(3e14, 0.044, "Phase IV (40 meV)")
-        self.ax.text(1.5e14, 0.11, label)"""
         
     def add_comparison_curve(self, label, color='k'):
         
@@ -419,8 +419,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         """
 
     def add_goal(self, value, label):
-        self.ax.axhline(value/eV, color="gray", ls="--")
-        self.ax.text(self.goal_x_pos, 0.75*value/eV, label)
+        self.ax.axhline(value, color="gray", ls="--")
+        self.ax.text(self.goal_x_pos, 0.75*value, label)
 
     def add_density_sens_line(self, sens, plot_key_params=False, **kwargs):
         limits = []
@@ -448,18 +448,57 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.kp_ax[1].plot(self.rhos*m**3, crlb_window, linestyle="--", marker='.', **kwargs)
         return limits
         
-    def add_exposure_sens_line(self, sens, **kwargs):
+    def add_exposure_sens_line(self, sens, plot_key_params=False, **kwargs):
+        
+        limit = [sens.sensitivity(Experiment={"number_density": rho})/eV**2 for rho in self.rhos]
+        opt = np.argmin(limit)
+        rho_opt = self.rhos[opt]
+        sens.Experiment.number_density = rho_opt
+        
+        logger.info("Optimum density: {} /m^3".format(rho_opt*m**3))
+        logger.info("Years: {}".format(sens.Experiment.livetime/year))
+        
+        standard_exposure = sens.EffectiveVolume()*sens.Experiment.livetime/m**3/year
+        
+        self.ax.scatter([standard_exposure], [np.min(limit)], marker="s", **kwargs)
+        
         limits = []
-        for eff in self.effs:
-            sens.Experiment.efficiency = eff
-            sens.CavityVolume()
-            limit = [self.sens_main.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
-            opt_ref = np.argmin(limit)
-            rho_opt = self.rhos[opt_ref]
-            sens.Experiment.number_density = rho_opt
-            limits.append(sens.CL90()/eV)
-        print(limits)
-        self.ax.plot(self.effs, limits, **kwargs)
+        years = []
+        for ex in self.exposures:
+            lt = ex/sens.EffectiveVolume()
+            years.append(lt/year)
+            sens.Experiment.livetime = lt
+            limits.append(sens.sensitivity()/eV**2)
+            #exposures.append(sens.EffectiveVolume()/m**3*sens.Experiment.livetime/year)
+            
+        unit = r"m$^{-3}$"
+        self.ax.plot(self.exposures/m**3/year, limits, label="Density = {:.1e} {}".format(rho_opt*m**3, unit), color=kwargs["color"])
+        
+    def add_Phase_II_exposure_sens_line(self, sens):
+        sens.Experiment.number_density = 13.4e16/m**3
+        sens.effective_volume = 1.2*mm**3
+        sens.Experiment.sri_factor = 7.45e16/13.4e16
+        sens.Experiment.livetime = 7185228*s
+        
+        
+        standard_exposure = sens.effective_volume*sens.Experiment.livetime/m**3/year
+        print(standard_exposure)
+        
+        phaseIIsens = 9822
+        
+        self.ax.scatter([standard_exposure], [phaseIIsens], marker="s", color='k', label="Phase II")
+        
+        limits = []
+        years = []
+        for ex in self.exposures:
+            lt = ex/sens.effective_volume
+            years.append(lt/year)
+            sens.Experiment.livetime = lt
+            limits.append(sens.sensitivity()/eV**2)
+            #exposures.append(sens.EffectiveVolume()/m**3*sens.Experiment.livetime/year)
+            
+        unit = r"m$^{-3}$"
+        self.ax.plot(self.exposures/m**3/year, limits, label="T2 Density = {:.1e} {}".format(7.5e16*m**3, unit), color='k')
         
     def add_text(self, x, y, text, color="k"): #, fontsize=9.5
         self.ax.text(x, y, text, color=color)
@@ -470,7 +509,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         return [(idx, cmap(norm(idx))) for idx in range(start, stop)]
 
     def save(self, savepath, **kwargs):
-        legend=self.fig.legend(loc='upper left', bbox_to_anchor=(0.15,0,1,0.758), framealpha=0.95)
+        if self.density_axis:
+            legend=self.fig.legend(loc=self.legend_location, framealpha=0.9, bbox_to_anchor=(0.15,0,1,0.765))
+        else:
+            legend=self.fig.legend(loc=self.legend_location, framealpha=0.9, bbox_to_anchor=(-0.,0,0.95,0.95))
+            
         self.fig.tight_layout()
         #keywords = ", ".join(["%s=%s"%(key, value) for key, value in kwargs.items()])
         metadata = {"Author": "p8/mermithid",
