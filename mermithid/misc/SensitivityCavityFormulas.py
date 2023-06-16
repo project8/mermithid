@@ -553,12 +553,12 @@ class CavitySensitivity(object):
         # logger.info("slope corresponds to {} meV / ms".format(delta_E_slope/meV))
         if True: #self.time_window_slope_zero >= self.time_window:
             # logger.info("slope is approximately 0: {} meV".format(delta_E_slope/meV))
-            CRLB_constant = np.sqrt(12)
+            CRLB_constant = 12
             sigma_f_CRLB = np.sqrt((CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
             self.slope_is_zero=True
             self.best_time_window = self.time_window
         else:
-            CRLB_constant = np.sqrt(12)
+            CRLB_constant = 12
             sigma_CRLB_slope_zero = np.sqrt((CRLB_constant*tau_snr_part_length/self.time_window_slope_zero**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
             
             sigma_f_CRLB_slope_fitted = np.sqrt((20*(self.slope*tau_snr_full_length)**2 + 180*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor

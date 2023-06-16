@@ -72,7 +72,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
 
         # main plot configurations
-        self.figsize = reader.read_param(params, 'figsize', (6,6))
+        self.figsize = reader.read_param(params, 'figsize', (6,5))
         self.density_range = reader.read_param(params, 'density_range', [1e14,1e21])
         self.efficiency_range = reader.read_param(params, 'efficiency_range', [0.001,0.1])
         self.year_range = reader.read_param(params, "years_range", [0.1, 10])
@@ -420,7 +420,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
     def add_goal(self, value, label):
         self.ax.axhline(value/eV, color="gray", ls="--")
-        self.ax.text(self.goal_x_pos, 0.8*value/eV, label)
+        self.ax.text(self.goal_x_pos, 0.75*value/eV, label)
 
     def add_density_sens_line(self, sens, plot_key_params=False, **kwargs):
         limits = []
@@ -470,7 +470,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         return [(idx, cmap(norm(idx))) for idx in range(start, stop)]
 
     def save(self, savepath, **kwargs):
-        legend=self.fig.legend(loc='upper left', bbox_to_anchor=(0.15,0,1,0.765), framealpha=0.9)
+        legend=self.fig.legend(loc='upper left', bbox_to_anchor=(0.15,0,1,0.758), framealpha=0.95)
         self.fig.tight_layout()
         #keywords = ", ".join(["%s=%s"%(key, value) for key, value in kwargs.items()])
         metadata = {"Author": "p8/mermithid",
