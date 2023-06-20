@@ -94,6 +94,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.goal_x_pos = reader.read_param(params, "goals_x_position", 1e14)
         self.add_PhaseII = reader.read_param(params, "add_PhaseII", False)
         self.goals_y_rel_position = reader.read_param(params, "goals_y_rel_position", 0.75)
+        self.add_1year_1cav_point_to_last_ref = reader.read_param(params, "add_1year_1cav_point_to_last_ref", False)
         
         # other plot
         self.make_key_parameter_plots = reader.read_param(params, 'plot_key_parameters', False)
@@ -404,7 +405,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             limits = self.add_sens_line(self.sens_ref[a], plot_key_params=True, color=self.comparison_curve_colors[a], label=label[a])
             #self.ax.text(self.comparison_label_x_position[a], self.comparison_label_y_position[a], label[a], color=colors[a], fontsize=9.5)
 
-
+        if not self.density_axis and self.add_1year_1cav_point_to_last_ref:
+            print("Going to add single exposure point")
+            self.add_single_exposure_point(self.sens_ref[-1], color=self.comparison_curve_colors[-1])
         #self.ax.axhline(0.04, color="gray", ls="--")
         #self.ax.text(3e14, 0.044, "Phase IV (40 meV)")
 
@@ -466,6 +469,39 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.kp_ax[1].plot(self.rhos*m**3, crlb_slope_zero_window, color='green', marker='.')
             self.kp_ax[1].plot(self.rhos*m**3, crlb_window, linestyle="--", marker='.', **kwargs)
         return limits
+    
+    def add_single_exposure_point(self, sens, livetime=1*year, n_cavities=1, color="red", label="Single cavity running 1 year"):
+        print("Adding exposure point")
+        
+        
+        
+        #exposure_fraction = n_cavities*livetime/(sens.Experiment.n_cavities*sens.Experiment.livetime)
+        
+        sens.Experiment.n_cavities = n_cavities
+        sens.Experiment.livetime = livetime
+        sens.CavityVolume()
+        sens.EffectiveVolume()
+        sens.CavityPower()
+        
+        limit = [sens.sensitivity(Experiment={"number_density": rho})/eV**2 for rho in self.rhos]
+        opt = np.argmin(limit)
+        rho_opt = self.rhos[opt]
+        sens.Experiment.number_density = rho_opt
+        
+        
+        limit = sens.sensitivity()/eV**2
+        
+        standard_exposure = sens.EffectiveVolume()*sens.Experiment.livetime/m**3/year #*exposure_fraction
+        #lt = standard_exposure/sens.EffectiveVolume()
+        #sens.Experiment.livetime = lt
+        limit = sens.sensitivity()/eV**2
+            
+        
+        self.ax.scatter([standard_exposure], [limit], marker="o", color=color, label=label, zorder=10)
+        
+        print(standard_exposure, limit)
+        
+        
         
     def add_exposure_sens_line(self, sens, plot_key_params=False, **kwargs):
         
@@ -478,8 +514,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         logger.info("Years: {}".format(sens.Experiment.livetime/year))
         
         standard_exposure = sens.EffectiveVolume()*sens.Experiment.livetime/m**3/year
-        
-        print(kwargs)
+    
         
         self.ax.scatter([standard_exposure], [np.min(limit)], s=15, marker="s", **kwargs)
         
@@ -543,10 +578,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         x_stop = get_relative(1e-4, "x")
         y_stop = get_relative(3e1, "y")"""
         
-        x_start = get_relative(4e-7, "x")
-        y_start = get_relative(6e3, "y")
-        x_stop = get_relative(5e-8, "x")
-        y_stop = get_relative(8e2, "y")
+        x_start = get_relative(3e-7, "x")
+        y_start = get_relative(7e3, "y")
+        x_stop = get_relative(4e-8, "x")
+        y_stop = get_relative(9.0e2, "y")
         self.ax.arrow(x_start, y_start, x_stop-x_start, y_stop-y_start,
                       transform = self.ax.transAxes,
                       facecolor = 'black',
@@ -556,7 +591,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                       head_length=0.01,
                       )
         print(x_start, y_start)
-        self.ax.annotate("Phase II T$_2$ density \nand resolution", xy=[x_start*1.01, y_start*1.01],textcoords="axes fraction", fontsize=13)
+        self.ax.annotate("Phase II T$_2$ density \nand resolution", xy=[x_start*0.9, y_start*1.01],textcoords="axes fraction", fontsize=13)
         
         
 

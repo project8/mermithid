@@ -32,6 +32,7 @@ class SensitivityTest(unittest.TestCase):
             "density_axis": False,
             "cavity": True,
             "add_PhaseII": True,
+            "add_1year_1cav_point_to_last_ref": True,
             "PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg",
             "y_limits": [10e-3, 500],
             "density_range": [1e12,1e19],
