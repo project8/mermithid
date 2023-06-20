@@ -123,8 +123,10 @@ def mean_field_frequency_variation(cyclotron_frequency, length_diameter_ratio, m
     # An electron will see a slightly different magnetic field
     # depending on its position in the trap, especially the pitch angle.
     # This is a rough estimate of the mean field variation, inspired by calcualtion performed by Rene.
-    y = (90-max_pitch_angle)/4
-    return 0.002*y**2*cyclotron_frequency*(10/length_diameter_ratio)
+    #y = (90-max_pitch_angle)/4
+    phi_rad = (90-max_pitch_angle)/180*pi
+    return 0.16*phi_rad**2*cyclotron_frequency*(10/length_diameter_ratio)
+    #return 0.002*y**2*cyclotron_frequency*(10/length_diameter_ratio)
 
 # Noise power entering the amplifier, inclding the transmitted noise from the cavity and the reflected noise from the circulator.
 # Insertion loss is included.
@@ -472,7 +474,7 @@ class CavitySensitivity(object):
             delta_trans = sigma_trans*self.DopplerBroadening.fraction_uncertainty_on_doppler_broadening
         return sigma_trans, delta_trans
 
-    def calculate_tau_snr(self, time_window):
+    def calculate_tau_snr(self, time_window, sideband_power_fraction=1):
         
         endpoint_frequency = frequency(self.T_endpoint, self.MagneticField.nominal_field)
     
@@ -501,10 +503,7 @@ class CavitySensitivity(object):
         
         # Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
         # logger.info("Power: {}".format(Pe/W))
-        Pe = self.signal_power
-        
-        if self.FrequencyExtraction.crlb_on_sidebands:
-            Pe*=self.FrequencyExtraction.sideband_power_fraction
+        Pe = self.signal_power * sideband_power_fraction
         
         P_signal_received = Pe*db_to_pwr_ratio(att_cir_db_freq+att_line_db_freq)
         tau_snr = kB*tn_system_fft/P_signal_received
@@ -555,27 +554,27 @@ class CavitySensitivity(object):
         
         tau_snr_full_length = self.calculate_tau_snr(self.time_window)
         tau_snr_part_length = self.calculate_tau_snr(self.time_window_slope_zero)
-       
         
         
         # use different crlb based on slope
         # delta_E_slope = abs(kin_energy(endpoint_frequency, self.MagneticField.nominal_field)-kin_energy(endpoint_frequency+self.slope*ms, self.MagneticField.nominal_field))
         # logger.info("slope is {} Hz/ms".format(self.slope/Hz*ms))
         # logger.info("slope corresponds to {} meV / ms".format(delta_E_slope/meV))
-        if True: #self.time_window_slope_zero >= self.time_window:
-            # logger.info("slope is approximately 0: {} meV".format(delta_E_slope/meV))
-            sigma_f_CRLB = np.sqrt((self.CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
-            self.best_time_window = self.time_window
-        else:
-            CRLB_constant = 6
-            sigma_CRLB_slope_zero = np.sqrt((CRLB_constant*tau_snr_part_length/self.time_window_slope_zero**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
-            
-            sigma_f_CRLB_slope_fitted = np.sqrt((20*(self.slope*tau_snr_full_length)**2 + 90*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
+        # if True: #self.time_window_slope_zero >= self.time_window:
+        # logger.info("slope is approximately 0: {} meV".format(delta_E_slope/meV))
+        sigma_f_CRLB = np.sqrt((self.CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
+        self.best_time_window = self.time_window
+
+        """ non constant slope
+        CRLB_constant = 6
+        sigma_CRLB_slope_zero = np.sqrt((CRLB_constant*tau_snr_part_length/self.time_window_slope_zero**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
         
-            sigma_f_CRLB = np.min([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])
-            
-            # logger.info("CRLB options are: {} , {}".format(sigma_CRLB_slope_zero/Hz, sigma_f_CRLB_slope_fitted/Hz))
-            self.best_time_window=[self.time_window_slope_zero, self.time_window][np.argmin([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])]
+        sigma_f_CRLB_slope_fitted = np.sqrt((20*(self.slope*tau_snr_full_length)**2 + 90*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
+    
+        sigma_f_CRLB = np.min([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])
+        
+        # logger.info("CRLB options are: {} , {}".format(sigma_CRLB_slope_zero/Hz, sigma_f_CRLB_slope_fitted/Hz))
+        self.best_time_window=[self.time_window_slope_zero, self.time_window][np.argmin([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])]"""
         
         """# uncertainty in alpha
         delta_alpha = 6*sigNoise/(Amplitude*ts**2) * np.sqrt(10/(Nsteps*(Nsteps**4-5*Nsteps**2+4)))
@@ -585,6 +584,24 @@ class CavitySensitivity(object):
         # sigma_f from Cramer-Rao lower bound in eV
         self.sigma_K_f_CRLB =  e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*sigma_f_CRLB*c0**2
         # delta_sigma_K_f_CRLB = e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*delta_sigma_f_CRLB*c0**2
+        
+        # sigma_f from pitch angle reconstruction
+        if self.FrequencyExtraction.crlb_on_sidebands:
+            tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.sideband_power_fraction)
+            sigma_f_sideband_crlb = np.sqrt((self.CRLB_constant*tau_snr_full_length_sideband/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
+            
+            # calculate uncertainty of energy correction for pitch angle
+            var_f0_reconstruction = (sigma_f_sideband_crlb**2+sigma_f_CRLB**2)/self.FrequencyExtraction.sideband_order**2 
+            max_ax_freq = axial_frequency(self.Experiment.L_over_D*self.CavityRadius()*2, 
+                                          self.T_endpoint, 
+                                          self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
+            # 0.16 is the trap quadratic term. 3.8317 is the first 0 in J'0
+            var_f0_reconstruction *= (8 * 0.16 * (3.8317*self.Experiment.L_over_D / (np.pi * beta(self.T_endpoint)))**2*max_ax_freq/endpoint_frequency)**2*(1/3.0)
+            sigma_f0_reconstruction = np.sqrt(var_f0_reconstruction)
+            self.sigma_K_reconstruction = e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*sigma_f0_reconstruction*c0**2
+            
+            self.sigma_K_f_CRLB = np.sqrt(self.sigma_K_f_CRLB**2 + self.sigma_K_reconstruction**2)
+
 
         # combined sigma_f in eV
         sigma_f = np.sqrt(self.sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_smearing**2)

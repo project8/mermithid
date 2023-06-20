@@ -239,9 +239,15 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.sens_main.MagneticField.sigmae_theta = 0 * eV
 
         logger.info('Main curve (molecular):')
+        # set optimum density back
+        self.sens_main.CL90(Experiment={"number_density": rho_opt})
         logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_main.effective_volume/(m**3), rho_opt*(m**3)))
         logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_main.larmor_power/W, self.sens_main.signal_power/W))
         logger.info('Hanneke / Larmor power = {}'.format(self.sens_main.signal_power/self.sens_main.larmor_power))
+        
+        if self.sens_main.FrequencyExtraction.crlb_on_sidebands:
+            logger.info("Uncertainty of frequency resolution and energy reconstruction (for pitch angle): {} eV, {} eV".format(self.sens_main.sigma_K_f_CRLB/eV, self.sens_main.sigma_K_reconstruction/eV))
+       
         logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
         logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.effective_volume))
         logger.info('Total signal: {}'.format(rho_opt*self.sens_main.effective_volume*
@@ -260,12 +266,17 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             limit_ref = [self.sens_ref[i].CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
             opt_ref = np.argmin(limit_ref)
             rho_opt_ref = self.rhos[opt_ref]
-            self.sens_ref[i].Experiment.number_density = rho_opt_ref
+            #self.sens_ref[i].Experiment.number_density = rho_opt_ref
+            self.sens_ref[i].CL90(Experiment={"number_density": rho_opt_ref})
 
             logger.info('Comparison curve:')
             logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_ref[i].effective_volume/(m**3), rho_opt_ref*(m**3)))
             logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_ref[i].larmor_power/W, self.sens_ref[i].signal_power/W))
             logger.info('Hanneke / Larmor power = {}'.format(self.sens_ref[i].signal_power/self.sens_ref[i].larmor_power))
+            
+            if self.sens_ref[i].FrequencyExtraction.crlb_on_sidebands:
+                logger.info("Uncertainty of frequency resolution and energy reconstruction (for pitch angle): {} eV, {} eV".format(self.sens_ref[i].sigma_K_f_CRLB/eV, self.sens_ref[i].sigma_K_reconstruction/eV))
+    
             logger.info('CL90 limit: {}'.format(self.sens_ref[i].CL90(Experiment={"number_density": rho_opt_ref})/eV))
             logger.info('T2 in Veff: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume))
             logger.info('Total signal: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume*
@@ -562,7 +573,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.density_axis:
             legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1,0.765))
         else:
-            legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(-0.,0,0.9,0.97))
+            legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(-0.,0,0.89,0.97))
             
         self.fig.tight_layout()
         #keywords = ", ".join(["%s=%s"%(key, value) for key, value in kwargs.items()])
