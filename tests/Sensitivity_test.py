@@ -32,6 +32,7 @@ class SensitivityTest(unittest.TestCase):
             "density_axis": False,
             "cavity": True,
             "add_PhaseII": True,
+            "add_1year_1cav_point_to_last_ref": True,
             "PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg",
             "y_limits": [10e-3, 500],
             "density_range": [1e12,1e19],
@@ -57,9 +58,9 @@ class SensitivityTest(unittest.TestCase):
             "goals_x_position": 0.3e-10, #2e12 #0.0002
             "goals_y_rel_position": 0.4
             }
-        #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-        #sens_curve.Configure(sens_config_dict)
-        #sens_curve.Run()
+        sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        sens_curve.Configure(sens_config_dict)
+        sens_curve.Run()
         
         
         sens_config_dict = {
