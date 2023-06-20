@@ -157,7 +157,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             else:
                 raise ValueError("No experiment is configured to be atomic")
 
-        # densities
+        # densities, exposures, runtimes
         self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 100)/m**3
         self.exposures = np.logspace(np.log10(self.exposure_range[0]), np.log10(self.exposure_range[1]), 100)*m**3*year
         self.years = np.logspace(np.log10(self.year_range[0]), np.log10(self.year_range[1]), 100)*year
@@ -481,7 +481,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
         print(kwargs)
         
-        self.ax.scatter([standard_exposure], [np.min(limit)], marker="s", **kwargs)
+        self.ax.scatter([standard_exposure], [np.min(limit)], s=15, marker="s", **kwargs)
         
         limits = []
         years = []
