@@ -486,7 +486,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         else:
             gas = r"T$_2$"
         unit = r"m$^{-3}$"
-        self.ax.plot(self.exposures/m**3/year, limits, label="{} density = {:.1e} {}".format(gas, rho_opt*m**3, unit), color=kwargs["color"])
+        self.ax.plot(self.exposures/m**3/year, limits, color=kwargs["color"]) #label="{} density = {:.1e} {}".format(gas, rho_opt*m**3, unit))
         
     def add_Phase_II_exposure_sens_line(self, sens):
         sens.Experiment.number_density = 2.09e17/m**3
@@ -494,7 +494,6 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         sens.Experiment.sri_factor = 1 #0.389*0.918*0.32
         sens.Experiment.livetime = 7185228*s
         sens.CRLB_constant = 180
-        
         
         standard_exposure = sens.effective_volume*sens.Experiment.livetime/m**3/year
         sens.print_systematics()
@@ -509,6 +508,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
         self.ax.errorbar([standard_exposure], [phaseIIsens], xerr=[exposure_error], yerr=[phaseIIsense_error], fmt='.', color='k', label="Phase II (measured)")
         
+        
         limits = []
         years = []
         for ex in self.exposures:
@@ -520,7 +520,34 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             
         unit = r"m$^{-3}$"
         gas = r"T$_2$"
-        self.ax.plot(self.exposures/m**3/year, limits, label="{} density = {:.1e} {}".format(gas, 7.5e16, unit), color='k', linestyle=':')
+        self.ax.plot(self.exposures/m**3/year, limits, color='k', linestyle=':')#, label="{} density = {:.1e} {}".format(gas, 7.5e16, unit))
+        
+        def get_relative(val, axis):
+            xmin, xmax = self.ax.get_xlim() if axis == "x" else self.ax.get_ylim()
+            return (np.log10(val)-np.log10(xmin))/(np.log10(xmax)-np.log10(xmin))
+        
+        
+        """x_start = get_relative(1e-3, "x")
+        y_start = get_relative(6e1, "y")
+        x_stop = get_relative(1e-4, "x")
+        y_stop = get_relative(3e1, "y")"""
+        
+        x_start = get_relative(4e-7, "x")
+        y_start = get_relative(6e3, "y")
+        x_stop = get_relative(5e-8, "x")
+        y_stop = get_relative(8e2, "y")
+        self.ax.arrow(x_start, y_start, x_stop-x_start, y_stop-y_start,
+                      transform = self.ax.transAxes,
+                      facecolor = 'black',
+                      edgecolor='k',
+                      length_includes_head=True,
+                      head_width=0.01,
+                      head_length=0.01,
+                      )
+        print(x_start, y_start)
+        self.ax.annotate("Phase II T$_2$ density \nand resolution", xy=[x_start*1.01, y_start*1.01],textcoords="axes fraction", fontsize=13)
+        
+        
 
         
     def add_text(self, x, y, text, color="k"): #, fontsize=9.5
@@ -535,7 +562,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.density_axis:
             legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1,0.765))
         else:
-            legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(-0.,0,0.87,0.97))
+            legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(-0.,0,0.9,0.97))
             
         self.fig.tight_layout()
         #keywords = ", ".join(["%s=%s"%(key, value) for key, value in kwargs.items()])

@@ -240,6 +240,7 @@ class CavitySensitivity(object):
         logger.info("Frequency: {} MHz".format(round(frequency(self.T_endpoint, self.MagneticField.nominal_field)/MHz, 3)))
         logger.info("Wavelength: {} cm".format(round(wavelength(self.T_endpoint, self.MagneticField.nominal_field)/cm, 3)))
         logger.info("Radius: {} cm".format(round(self.cavity_radius/cm, 3)))
+        logger.info("Total volume {} m^3".format(round(self.total_volume/m**3)))
         
         return self.total_volume
     
