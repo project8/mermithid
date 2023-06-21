@@ -55,12 +55,12 @@ class SensitivityTest(unittest.TestCase):
             "lower_label_y_position": 0.17,
             "upper_label_y_position": 0.7,
             "label_x_position": 0.015, #1.5e15, #0.02, #1e14,
-            "goals_x_position": 0.3e-10, #2e12 #0.0002
+            "goals_x_position": 0.2e-10, #2e12 #0.0002
             "goals_y_rel_position": 0.4
             }
-        #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-        #sens_curve.Configure(sens_config_dict)
-        #sens_curve.Run()
+        sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        sens_curve.Configure(sens_config_dict)
+        sens_curve.Run()
         
         
         sens_config_dict = {

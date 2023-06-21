@@ -473,10 +473,18 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.kp_ax[1].plot(self.rhos*m**3, crlb_window, linestyle="--", marker='.', **kwargs)
         return limits
     
-    def add_single_exposure_point(self, sens, livetime=1*year, n_cavities=1, color="red", label="Single cavity running 1 year"):
+    def add_single_exposure_point(self, sens, livetime=1*year, n_cavities=1, color="red"):
         logger.info("Adding exposure point")
         
-        
+        if livetime/year % 1 == 0:
+            livetime_for_label = int(round(livetime/year))
+        else:
+            livetime_for_label = round(livetime/year, 1)
+            
+        if sens.Experiment.atomic:
+            label="Atomic, {} cavity, {} year".format(n_cavities, livetime_for_label)
+        else:
+            label="Molecular, {} cavity, {} year".format(n_cavities, livetime_for_label)
         
         #exposure_fraction = n_cavities*livetime/(sens.Experiment.n_cavities*sens.Experiment.livetime)
         
