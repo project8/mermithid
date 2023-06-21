@@ -136,6 +136,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             for i in range(len(self.sens_ref)):
                 is_atomic.append(self.sens_ref[i].Experiment.atomic)
             self.sens_ref_is_atomic = is_atomic
+        else:
+            self.sens_ref_is_atomic = [False]
 
         # check atomic and molecular
         if self.molecular_axis:
@@ -143,7 +145,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 #self.molecular_sens = self.sens_main
                 logger.info("Main curve is molecular")
             elif False not in self.sens_ref_is_atomic:
-                raise ValueError("No experiment is configured to be molecular")
+                logger.warn("No experiment is configured to be molecular")
                 #self.molecular_sens = self.sens_ref
                 #logger.info("Comparison curve is molecular")
             #else:
@@ -156,7 +158,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 #self.atomic_sens = self.sens_ref
                 logger.info("A comparison curve is atomic")
             else:
-                raise ValueError("No experiment is configured to be atomic")
+                logger.warn("No experiment is configured to be atomic")
 
         # densities, exposures, runtimes
         self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 100)/m**3
@@ -263,27 +265,28 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.sens_main.print_systematics()
 
         # Optimize atomic density
-        for i in range(len(self.sens_ref)):
-            limit_ref = [self.sens_ref[i].CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
-            opt_ref = np.argmin(limit_ref)
-            rho_opt_ref = self.rhos[opt_ref]
-            #self.sens_ref[i].Experiment.number_density = rho_opt_ref
-            self.sens_ref[i].CL90(Experiment={"number_density": rho_opt_ref})
+        if self.comparison_curve:
+            for i in range(len(self.sens_ref)):
+                limit_ref = [self.sens_ref[i].CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
+                opt_ref = np.argmin(limit_ref)
+                rho_opt_ref = self.rhos[opt_ref]
+                #self.sens_ref[i].Experiment.number_density = rho_opt_ref
+                self.sens_ref[i].CL90(Experiment={"number_density": rho_opt_ref})
 
-            logger.info('Comparison curve:')
-            logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_ref[i].effective_volume/(m**3), rho_opt_ref*(m**3)))
-            logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_ref[i].larmor_power/W, self.sens_ref[i].signal_power/W))
-            logger.info('Hanneke / Larmor power = {}'.format(self.sens_ref[i].signal_power/self.sens_ref[i].larmor_power))
+                logger.info('Comparison curve:')
+                logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_ref[i].effective_volume/(m**3), rho_opt_ref*(m**3)))
+                logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_ref[i].larmor_power/W, self.sens_ref[i].signal_power/W))
+                logger.info('Hanneke / Larmor power = {}'.format(self.sens_ref[i].signal_power/self.sens_ref[i].larmor_power))
             
-            if self.sens_ref[i].FrequencyExtraction.crlb_on_sidebands:
-                logger.info("Uncertainty of frequency resolution and energy reconstruction (for pitch angle): {} eV, {} eV".format(self.sens_ref[i].sigma_K_f_CRLB/eV, self.sens_ref[i].sigma_K_reconstruction/eV))
+                if self.sens_ref[i].FrequencyExtraction.crlb_on_sidebands:
+                    logger.info("Uncertainty of frequency resolution and energy reconstruction (for pitch angle): {} eV, {} eV".format(self.sens_ref[i].sigma_K_f_CRLB/eV, self.sens_ref[i].sigma_K_reconstruction/eV))
     
-            logger.info('CL90 limit: {}'.format(self.sens_ref[i].CL90(Experiment={"number_density": rho_opt_ref})/eV))
-            logger.info('T2 in Veff: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume))
-            logger.info('Total signal: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume*
+                logger.info('CL90 limit: {}'.format(self.sens_ref[i].CL90(Experiment={"number_density": rho_opt_ref})/eV))
+                logger.info('T2 in Veff: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume))
+                logger.info('Total signal: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume*
                                                    self.sens_ref[i].Experiment.LiveTime/
                                                    self.sens_ref[i].tau_tritium*2))
-            logger.info('Signal in last eV: {}'.format(self.sens_ref[i].last_1ev_fraction*eV**3*
+                logger.info('Signal in last eV: {}'.format(self.sens_ref[i].last_1ev_fraction*eV**3*
                                                    rho_opt_ref*self.sens_ref[i].effective_volume*
                                                    self.sens_ref[i].Experiment.LiveTime/
                                                    self.sens_ref[i].tau_tritium*2))
