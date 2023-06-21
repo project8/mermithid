@@ -33,7 +33,7 @@ tritium_endpoint_molecular = 18573.24*eV
 last_1ev_fraction_molecular = 1.67364e-13/eV**3
 
 ground_state_width = 0.436 * eV
-ground_state_width_uncertainty = 0.001*0.436*eV
+#ground_state_width_uncertainty = 0.001*0.436*eV
 
 gyro_mag_ratio_proton = 42.577*MHz/T
 
@@ -219,10 +219,11 @@ class CavitySensitivity(object):
         self.DopplerBroadening = NameSpace({opt: eval(self.cfg.get('DopplerBroadening', opt)) for opt in self.cfg.options('DopplerBroadening')})
         self.FrequencyExtraction = NameSpace({opt: eval(self.cfg.get('FrequencyExtraction', opt)) for opt in self.cfg.options('FrequencyExtraction')})
         self.MagneticField = NameSpace({opt: eval(self.cfg.get('MagneticField', opt)) for opt in self.cfg.options('MagneticField')})
+        self.FinalStates = NameSpace({opt: eval(self.cfg.get('FinalStates', opt)) for opt in self.cfg.options('FinalStates')})
         self.MissingTracks = NameSpace({opt: eval(self.cfg.get('MissingTracks', opt)) for opt in self.cfg.options('MissingTracks')})
         self.PlasmaEffects = NameSpace({opt: eval(self.cfg.get('PlasmaEffects', opt)) for opt in self.cfg.options('PlasmaEffects')})
         self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
-        
+
         self.CRLB_constant = 12
         self.CavityRadius()
         self.CavityVolume()
@@ -420,7 +421,7 @@ class CavitySensitivity(object):
         if not self.Experiment.atomic:
             labels.append("Molecular final state")
             sigmas.append(ground_state_width)
-            deltas.append(ground_state_width_uncertainty)
+            deltas.append(self.FinalStates.ground_state_width_uncertainty_fraction*ground_state_width)
 
         return np.array(labels), np.array(sigmas), np.array(deltas)
 
