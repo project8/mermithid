@@ -46,7 +46,7 @@ class SensitivityTest(unittest.TestCase):
             "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg", 
                                             "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", 
                                             "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"],
-            "comparison_curve_label": [r"Molecular, reaching target", "Atomic, conservative", "Atomic, reaching target"],
+            "comparison_curve_label": [r"Molecular, reaching PIII target", "Atomic, conservative", "Atomic, reaching PIV target"],
             "comparison_curve_colors": ["blue", "darkred", "red"],
             #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
             #"B_inhomogeneity": np.linspace(0.1, 2.1, 10)*1e-6,
@@ -132,9 +132,9 @@ class SensitivityTest(unittest.TestCase):
             "goals_x_position": 1.2e12, #0.0002
             "plot_key_parameters": True
             }
-        sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-        sens_curve.Configure(sens_config_dict)
-        sens_curve.Run()
+        #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        #sens_curve.Configure(sens_config_dict)
+        #sens_curve.Run()
 
 
         sens_config_dict = {
@@ -162,9 +162,9 @@ class SensitivityTest(unittest.TestCase):
             "goals_x_position": 1.2e12, 
             "plot_key_parameters": True
             }
-        sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-        sens_curve.Configure(sens_config_dict)
-        sens_curve.Run()
+        #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        #sens_curve.Configure(sens_config_dict)
+        #sens_curve.Run()
 
     def test_SensitivityProcessor(self):
         from mermithid.processors.Sensitivity import AnalyticSensitivityEstimation

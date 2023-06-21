@@ -482,7 +482,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             livetime_for_label = round(livetime/year, 1)
             
         if sens.Experiment.atomic:
-            label="Atomic, {} cavity, {} year".format(n_cavities, livetime_for_label)
+            label="Atomic, reaching pilot-T target".format(n_cavities, livetime_for_label)
         else:
             label="Molecular, {} cavity, {} year".format(n_cavities, livetime_for_label)
         
@@ -508,7 +508,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         limit = sens.sensitivity()/eV**2
             
         
-        self.ax.scatter([standard_exposure], [limit], marker="o", s=15, color=color, label=label, zorder=10)
+        self.ax.scatter([standard_exposure], [limit], marker="s", s=25, color=color, label=label, zorder=10)
         
         logger.info("Exposure and mass limit for single point: {}, {}".format(standard_exposure, np.sqrt(1.28*limit)))
         sens.print_statistics()
@@ -529,7 +529,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         standard_exposure = sens.EffectiveVolume()*sens.Experiment.livetime/m**3/year
     
         
-        self.ax.scatter([standard_exposure], [np.min(limit)], s=17, marker="s", **kwargs)
+        self.ax.scatter([standard_exposure], [np.min(limit)], s=40, marker="d", zorder=20, **kwargs)
         
         limits = []
         years = []
@@ -565,7 +565,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         phaseIIsense_error = 1520
         exposure_error = np.sqrt((standard_exposure*0.008)**2 + (standard_exposure*0.09)**2)
         
-        self.ax.errorbar([standard_exposure], [phaseIIsens], xerr=[exposure_error], yerr=[phaseIIsense_error], fmt='.', color='k', label="Phase II (measured)")
+        self.ax.errorbar([standard_exposure], [phaseIIsens], yerr=[phaseIIsense_error], 
+                         marker="None", color='k', linestyle="None", elinewidth=3,
+                         label="Phase II (measured)")
         
         
         limits = []
@@ -591,10 +593,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         x_stop = get_relative(1e-4, "x")
         y_stop = get_relative(3e1, "y")"""
         
-        x_start = get_relative(3e-7, "x")
+        x_start = get_relative(1e-7, "x")
         y_start = get_relative(7e3, "y")
-        x_stop = get_relative(4e-8, "x")
-        y_stop = get_relative(9.0e2, "y")
+        x_stop = get_relative(2e-8, "x")
+        y_stop = get_relative(1.3e3, "y")
         self.ax.arrow(x_start, y_start, x_stop-x_start, y_stop-y_start,
                       transform = self.ax.transAxes,
                       facecolor = 'black',
