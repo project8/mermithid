@@ -406,7 +406,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             #self.ax.text(self.comparison_label_x_position[a], self.comparison_label_y_position[a], label[a], color=colors[a], fontsize=9.5)
 
         if not self.density_axis and self.add_1year_1cav_point_to_last_ref:
-            print("Going to add single exposure point")
+            logger.info("Going to add single exposure point")
             self.add_single_exposure_point(self.sens_ref[-1], color=self.comparison_curve_colors[-1])
         #self.ax.axhline(0.04, color="gray", ls="--")
         #self.ax.text(3e14, 0.044, "Phase IV (40 meV)")
@@ -471,7 +471,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         return limits
     
     def add_single_exposure_point(self, sens, livetime=1*year, n_cavities=1, color="red", label="Single cavity running 1 year"):
-        print("Adding exposure point")
+        logger.info("Adding exposure point")
         
         
         
@@ -497,9 +497,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         limit = sens.sensitivity()/eV**2
             
         
-        self.ax.scatter([standard_exposure], [limit], marker="o", color=color, label=label, zorder=10)
+        self.ax.scatter([standard_exposure], [limit], marker="o", s=15, color=color, label=label, zorder=10)
         
-        print(standard_exposure, limit)
+        logger.info("Exposure and mass limit for single point: {}, {}".format(standard_exposure, np.sqrt(1.28*limit)))
+        sens.print_statistics()
+        sens.print_systematics()
         
         
         
@@ -516,7 +518,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         standard_exposure = sens.EffectiveVolume()*sens.Experiment.livetime/m**3/year
     
         
-        self.ax.scatter([standard_exposure], [np.min(limit)], s=15, marker="s", **kwargs)
+        self.ax.scatter([standard_exposure], [np.min(limit)], s=17, marker="s", **kwargs)
         
         limits = []
         years = []
