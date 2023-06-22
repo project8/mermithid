@@ -245,6 +245,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         # set optimum density back
         self.sens_main.CL90(Experiment={"number_density": rho_opt})
         logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_main.effective_volume/(m**3), rho_opt*(m**3)))
+        logger.info("Loaded Q: {}".format(self.sens_main.loaded_q))
         logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_main.larmor_power/W, self.sens_main.signal_power/W))
         logger.info('Hanneke / Larmor power = {}'.format(self.sens_main.signal_power/self.sens_main.larmor_power))
         
@@ -275,6 +276,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
                 logger.info('Comparison curve:')
                 logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_ref[i].effective_volume/(m**3), rho_opt_ref*(m**3)))
+                logger.info("Loaded Q: {}".format(self.sens_ref[i].loaded_q))
                 logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_ref[i].larmor_power/W, self.sens_ref[i].signal_power/W))
                 logger.info('Hanneke / Larmor power = {}'.format(self.sens_ref[i].signal_power/self.sens_ref[i].larmor_power))
             
