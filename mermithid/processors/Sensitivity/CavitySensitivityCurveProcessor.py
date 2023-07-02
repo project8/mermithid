@@ -79,7 +79,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.density_range = reader.read_param(params, 'density_range', [1e14,1e21])
         self.year_range = reader.read_param(params, "years_range", [0.1, 10])
         self.exposure_range = reader.read_param(params, "exposure_range", [1e-10, 1e3])
+        self.frequency_range = reader.read_param(params, "frequency_range", [1e6, 1e9])
         self.density_axis = reader.read_param(params, "density_axis", True)
+        self.frequency_axis = reader.read_param(params, "frequency_axis", False)
         self.ylim = reader.read_param(params, 'y_limits', [1e-2, 1e2])
         self.track_length_axis = reader.read_param(params, 'track_length_axis', True)
         self.atomic_axis = reader.read_param(params, 'atomic_axis', False)
@@ -102,6 +104,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.density_axis:
             self.add_sens_line = self.add_density_sens_line
             logger.info("Doing density lines")
+        elif self.frequency_axis:
+            self.add_sens_line = self.add_frequency_sens_line
+            logger.info("Doing frequency lines")
         else:
             self.add_sens_line = self.add_exposure_sens_line
             logger.info("Doing exposure lines")
@@ -161,9 +166,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 logger.warn("No experiment is configured to be atomic")
 
         # densities, exposures, runtimes
-        self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 100)/m**3
+        self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 500)/m**3
         self.exposures = np.logspace(np.log10(self.exposure_range[0]), np.log10(self.exposure_range[1]), 100)*m**3*year
         self.years = np.logspace(np.log10(self.year_range[0]), np.log10(self.year_range[1]), 100)*year
+        self.frequencies = np.logspace(np.log10(self.frequency_range[0]), np.log10(self.frequency_range[1]), 10)*Hz
         
         return True
 
@@ -327,6 +333,17 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             ax.set_ylabel(r"90% CL $m_\beta$ (eV)")
 
             
+        elif self.frequency_axis:
+            logger.info("Adding frequency axis")
+            ax.set_xlim(self.frequencies[0]/Hz, self.frequencies[-1]/Hz)
+            ax.set_xlabel("TE011 frequency (Hz)")
+            ax.set_ylim((np.array(self.ylim)**2/np.sqrt(1.64)))
+            ax.set_ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
+            
+            self.ax2 = ax.twinx()
+            self.ax2.set_ylabel(r"90% CL $m_\beta$ (eV)")
+            self.ax2.set_yscale("log")
+            self.ax2.set_ylim(self.ylim)
             
         else:
             logger.info("Adding exposure axis")
@@ -344,11 +361,12 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.ax2.set_ylim(self.ylim)
         
         if self.make_key_parameter_plots:
-            self.kp_fig, self.kp_ax = plt.subplots(1,2, figsize=(10,5))
-            self.kp_ax[0].set_ylabel('Resolution (meV)')
-            self.kp_ax[1].set_ylabel('Track analysis length (ms)')
+            
             
             if self.density_axis:
+                
+                self.kp_fig, self.kp_ax = plt.subplots(1,2, figsize=(10,6))
+                self.kp_fig.tight_layout()
             
                 for ax in self.kp_ax:
                     ax.set_xlim(self.rhos[0]*m**3, self.rhos[-1]*m**3)
@@ -356,6 +374,29 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                     ax.set_yscale("log")
                     axis_label = r"Number density $\rho\, \, (\mathrm{m}^{-3})$"
                     ax.set_xlabel(axis_label)
+                    
+                self.kp_ax[0].set_ylabel('Resolution (meV)')
+                self.kp_ax[1].set_ylabel('Track analysis length (ms)')
+                    
+            elif self.frequency_axis:
+                
+                self.kp_fig, self.kp_ax = plt.subplots(2,2, figsize=(10,10))
+                
+            
+                self.kp_ax = self.kp_ax.flatten()
+                for ax in self.kp_ax:
+                    ax.set_xlim(self.frequencies[0]/Hz, self.frequencies[-1]/Hz)
+                    ax.set_xscale("log")
+                    ax.set_yscale("log")
+                    axis_label = "TE011 frequency (Hz)"
+                    ax.set_xlabel(axis_label)
+                    ax.axvline(325e6, linestyle="--", color="grey")
+                self.kp_ax[0].set_ylabel('Resolution (meV)')
+                self.kp_ax[1].set_ylabel(r'Optimum desnity (1/m$^3$)')
+                self.kp_ax[2].set_ylabel(r'Total and effective (dashed) Volume (m$^3$)')
+                self.kp_ax[3].set_ylabel('Noise temperature (K)')
+                
+                self.kp_fig.tight_layout()
                     
 
     def add_track_length_axis(self):
@@ -389,22 +430,6 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
         
     def add_comparison_curve(self, label, color='k'):
-        
-        """    
-        limit = [self.sens_ref.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
-        opt_ref = np.argmin(limit)
-        rho_opt = self.rhos[opt_ref]
-        
-        logger.info('Ref. optimum density: {} /m**3'.format(rho_opt*m**3))
-        logger.info('Ref. sigmaE_r: {} eV'.format(self.sens_ref.MagneticField.sigmae_r/eV))
-        logger.info('Ref. curve (veff = {} m**3):'.format(self.sens_ref.effective_volume/(m**3)))
-        logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_ref.larmor_power/W, self.sens_ref.signal_power/W))
-        logger.info('Ref. T in Veff: {}'.format(rho_opt*self.sens_ref.effective_volume))
-        logger.info('Ref. total signal: {}'.format(rho_opt*self.sens_ref.effective_volume*
-                                                   self.sens_ref.Experiment.LiveTime/
-                                                   self.sens_ref.tau_tritium))
-        logger.info('Ref. CL90 limit: {}'.format(self.sens_ref.CL90(Experiment={"number_density": rho_opt})/eV))
-        """
     
         for a in range(len(self.sens_ref)):
             limits = self.add_sens_line(self.sens_ref[a], plot_key_params=True, color=self.comparison_curve_colors[a], label=label[a])
@@ -610,7 +635,65 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         print(x_start, y_start)
         self.ax.annotate("Phase II T$_2$ density \nand resolution", xy=[x_start*0.9, y_start*1.01],textcoords="axes fraction", fontsize=13)
         
+      
+    def add_frequency_sens_line(self, sens, plot_key_params=True, **kwargs):
+        limits = []
+        resolutions = []
+        crlb_window = []
+        crlb_max_window = []
+        crlb_slope_zero_window = []
+        total_volumes = []
+        effective_volumes = []
+        opt_rho = []
+        noise_power = []
         
+        configured_magnetic_field = sens.MagneticField.nominal_field
+        
+        gamma = sens.T_endpoint/(me*c0**2) + 1
+        for freq in self.frequencies:
+            magnetic_field = freq/(e/(2*np.pi*me)/gamma)
+            sens.MagneticField.nominal_field = magnetic_field
+            
+            logger.info("Frequency: {:2e} Hz, Magentic field: {:2e} T".format(freq/Hz, magnetic_field/T))
+            
+            # calcualte new cavity properties
+            sens.CavityRadius()
+            total_volumes.append(sens.CavityVolume()/m**3)
+            effective_volumes.append(sens.EffectiveVolume()/m**3)
+            sens.CavityPower()
+            
+            rho_limits = [sens.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
+            
+            limits.append(np.min(rho_limits))
+            opt_rho.append(self.rhos[np.argmin(rho_limits)]*m**3)
+            sens.Experiment.number_density = self.rhos[np.argmin(rho_limits)]
+        
+            # other quantities
+            resolutions.append(sens.syst_frequency_extraction()[0]/meV)
+            crlb_window.append(sens.best_time_window/ms)
+            crlb_max_window.append(sens.time_window/ms)
+            crlb_slope_zero_window.append(sens.time_window_slope_zero/ms)
+            noise_power.append(sens.noise_power/K)
+            
+        
+        self.ax2.plot(self.frequencies/Hz, limits, **kwargs)
+        logger.info('Minimum limit at {}: {}'.format(self.rhos[np.argmin(limits)]*m**3, np.min(limits)))
+        
+        # change cavity back to config file
+        """sens.MagneticField.nominal_field = configured_magnetic_field
+        sens.CavityRadius()
+        sens.CavityVolume()
+        sens.EffectiveVolume()
+        sens.CavityPower()"""
+        
+        if self.make_key_parameter_plots and plot_key_params:
+            self.kp_ax[0].plot(self.frequencies/Hz, resolutions, **kwargs)
+            
+            self.kp_ax[1].plot(self.frequencies/Hz, opt_rho, **kwargs)
+            self.kp_ax[2].plot(self.frequencies/Hz, total_volumes, **kwargs)
+            self.kp_ax[2].plot(self.frequencies/Hz, effective_volumes, linestyle="--", **kwargs)
+            self.kp_ax[3].plot(self.frequencies/Hz, noise_power, linestyle="-", **kwargs)
+        return limits  
 
         
     def add_text(self, x, y, text, color="k"): #, fontsize=9.5
