@@ -65,6 +65,55 @@ class SensitivityTest(unittest.TestCase):
         
         sens_config_dict = {
             # required
+            "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment_conservative.cfg",
+            #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
+            "plot_path": "./sensitivity_vs_frequency.pdf",
+            # optional
+            "figsize": (10,6),
+            "fontsize": 15,
+            "legend_location": "upper right",
+            "track_length_axis": False,
+            "molecular_axis": False,
+            "atomic_axis": False,
+            "density_axis": False,
+            "frequency_axis": True,
+            "cavity": True,
+            "add_PhaseII": False,
+            "add_1year_1cav_point_to_last_ref": False,
+            "PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg",
+            "y_limits": [10e-3, 10],
+            "density_range": [1e12,1e19],
+            "exposure_range": [1e-11, 1e4],
+            "frequency_range": [1e6, 20e9],
+            #"efficiency_range": [0.0001, 1],
+            #"density_range": [1e8, 1e12],
+            "main_curve_upper_label": r"Molecular, conservative",
+            "main_curve_lower_label": r"$\sigma^\bar{B}_\mathrm{reco} = 0.07\,\mathrm{eV}$",
+            "goals": {"Phase IV (0.04 eV)": (0.04**2/np.sqrt(1.64))},
+            "comparison_curve": True,
+            "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg", 
+                                            "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", 
+                                            "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"],
+            "comparison_curve_label": [r"Molecular, reaching PIII target", "Atomic, conservative", "Atomic, reaching PIV target"],
+            "comparison_curve_colors": ["blue", "darkred", "red"],
+            #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
+            #"B_inhomogeneity": np.linspace(0.1, 2.1, 10)*1e-6,
+            #"B_inhom_uncertainty": 0.01,
+            "sigmae_theta_r": 0.159, #in eV, energy broadening from theta and r reconstruction
+            "lower_label_y_position": 0.17,
+            "upper_label_y_position": 0.7,
+            "label_x_position": 1e8, #1.5e15, #0.02, #1e14,
+            "goals_x_position": 1e9, #2e12 #0.0002
+            "goals_y_rel_position": 0.4,
+            "plot_key_parameters": True
+            }
+        sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        sens_curve.Configure(sens_config_dict)
+        sens_curve.Run()
+        
+        
+        sens_config_dict = {
+            # required
             "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
             #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
             "plot_path": "./sensitivity_vs_density_curve_with_sigmaBcorrs.pdf",
