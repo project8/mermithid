@@ -395,7 +395,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 self.kp_ax[1].set_ylabel(r'Optimum desnity (1/m$^3$)')
                 self.kp_ax[2].set_ylabel(r'Total and effective (dashed) Volume (m$^3$)')
                 self.kp_ax[3].set_ylabel('Noise temperature (K)')
-                
+
                 self.kp_fig.tight_layout()
                     
 
