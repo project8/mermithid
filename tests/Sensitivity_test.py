@@ -16,7 +16,6 @@ class SensitivityTest(unittest.TestCase):
     def test_SensitivityCurveProcessor(self):
         from mermithid.processors.Sensitivity import CavitySensitivityCurveProcessor
 
-
         sens_config_dict = {
             # required
             "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment_conservative.cfg",
@@ -63,11 +62,11 @@ class SensitivityTest(unittest.TestCase):
         #sens_curve.Run()
         
         
-        sens_config_dict = {
+        sens_config_dict2 = {
             # required
             "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment_conservative.cfg",
             #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
-            "plot_path": "./sensitivity_vs_frequency.pdf",
+            "plot_path": "./sensitivity_vs_frequency2.pdf",
             # optional
             "figsize": (9,6),
             "fontsize": 15,
@@ -106,9 +105,9 @@ class SensitivityTest(unittest.TestCase):
             "goals_y_rel_position": 0.4,
             "plot_key_parameters": True
             }
-        sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-        sens_curve.Configure(sens_config_dict)
-        sens_curve.Run()
+        #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        #sens_curve.Configure(sens_config_dict2)
+        #sens_curve.Run()
         
         
         sens_config_dict = {
@@ -200,7 +199,7 @@ class SensitivityTest(unittest.TestCase):
             "y_limits": [2e-2, 4],
             "density_range": [1e12,3e18],
             "efficiency_range": [0.0001, 1],
-            "main_curve_upper_label": r"Molecular, best-case-scenario",
+            "main_curve_upper_label": r"Molecular, best-case scenario",
             "goals": {"Phase III (0.2 eV)": 0.2, "Phase IV (0.04 eV)": 0.04},
             "comparison_curve": False,
             "sigmae_theta_r": 0.159,
@@ -208,6 +207,41 @@ class SensitivityTest(unittest.TestCase):
             "upper_label_y_position": 0.7,
             "label_x_position": 4e14, 
             "goals_x_position": 1.2e12, 
+            "plot_key_parameters": True
+            }
+        #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        #sens_curve.Configure(sens_config_dict)
+        #sens_curve.Run()
+
+        sens_config_dict = {
+            # required
+            "config_file_path": "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
+            #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
+            "plot_path": "./sensitivity_vs_density_T2_best_case_curve_comparison.pdf",
+            # optional
+            "figsize": (6.7,6),
+            "legend_location": "upper left",
+            "track_length_axis": True,
+            "molecular_axis": True,
+            "atomic_axis": True,
+            "density_axis": True,
+            "cavity": True,
+            "y_limits": [3e-2, 0.5],
+            "density_range": [1e14, 7e17],#[1e12,3e18],
+            "efficiency_range": [0.0001, 1],
+            "main_curve_upper_label": r"Atomic, reaching target", #$\Delta B_{r, \phi}=0$, rate 'boosted' $\times 2$
+            "goals": {"Phase IV (0.04 eV)": 0.04},
+            "comparison_curve": True,
+            "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment_best_case.cfg"],
+            "comparison_curve_label": [r"Molecular, same conditions"], 
+            "comparison_label_y_position": [2, 0.105, 0.046],
+            "comparison_label_x_position": [4.5e15, 7e14, 7e14],
+            "sigmae_theta_r": 0.159,
+            "lower_label_y_position": 0.17,
+            "upper_label_y_position": 0.7,
+            "label_x_position": 4e14, 
+            "goals_x_position": 1.2e14, 
+            "goals_y_rel_position": 1.1,
             "plot_key_parameters": True
             }
         #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
