@@ -1,8 +1,8 @@
 '''
 Calculate sensitivity curve and plot vs. pressure
 function.
-Author: R. Reimann, C. Claessens, T. Weiss
-Date:11/17/2020
+Author: C. Claessens, T. Weiss
+Date:06/07/2023
 
 More description
 '''
@@ -70,30 +70,38 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.B_error = reader.read_param(params, 'B_inhomogeneity', 7e-6)
         self.B_error_uncertainty = reader.read_param(params, 'B_inhom_uncertainty', 0.05)
         self.sigmae_theta_r = reader.read_param(params, 'sigmae_theta_r', 0.159) #eV
-
+        self.configure_sigma_theta_r = reader.read_param(params, "configure_sigma_theta_r", False)
 
         # main plot configurations
         self.figsize = reader.read_param(params, 'figsize', (6,6))
         self.legend_location = reader.read_param(params, 'legend_location', 'upper left')
         self.fontsize = reader.read_param(params, 'fontsize', 12)
+        
+        self.density_axis = reader.read_param(params, "density_axis", True)
+        self.frequency_axis = reader.read_param(params, "frequency_axis", False)
+        self.exposure_axis = reader.read_param(params, "exposure_axis", False)
+        self.track_length_axis = reader.read_param(params, 'track_length_axis', True)
+        self.atomic_axis = reader.read_param(params, 'atomic_axis', False)
+        self.molecular_axis = reader.read_param(params, 'molecular_axis', False)
+        self.magnetic_field_axis = reader.read_param(params, 'magnetic_field_axis', False)
+        
         self.density_range = reader.read_param(params, 'density_range', [1e14,1e21])
         self.year_range = reader.read_param(params, "years_range", [0.1, 10])
         self.exposure_range = reader.read_param(params, "exposure_range", [1e-10, 1e3])
         self.frequency_range = reader.read_param(params, "frequency_range", [1e6, 1e9])
-        self.density_axis = reader.read_param(params, "density_axis", True)
-        self.frequency_axis = reader.read_param(params, "frequency_axis", False)
+        
         self.ylim = reader.read_param(params, 'y_limits', [1e-2, 1e2])
-        self.track_length_axis = reader.read_param(params, 'track_length_axis', True)
-        self.atomic_axis = reader.read_param(params, 'atomic_axis', False)
-        self.molecular_axis = reader.read_param(params, 'molecular_axis', False)
+        
         self.label_x_position = reader.read_param(params, 'label_x_position', 5e19)
+        self.upper_label_y_position = reader.read_param(params, 'upper_label_y_position', 5)
+        self.lower_label_y_position = reader.read_param(params, 'lower_label_y_position', 2.3)
+        self.goal_x_pos = reader.read_param(params, "goals_x_position", 1e14)
+        
         self.comparison_label_y_position = reader.read_param(params, 'comparison_label_y_position', 0.044)
         self.comparison_label_x_position = reader.read_param(params, 'comparison_label_x_position', 5e16)
         if self.comparison_label_x_position == None:
             self.comparison_label_x_position = reader.read_param(params, 'label_x_position', 5e16)
-        self.upper_label_y_position = reader.read_param(params, 'upper_label_y_position', 5)
-        self.lower_label_y_position = reader.read_param(params, 'lower_label_y_position', 2.3)
-        self.goal_x_pos = reader.read_param(params, "goals_x_position", 1e14)
+        
         self.add_PhaseII = reader.read_param(params, "add_PhaseII", False)
         self.goals_y_rel_position = reader.read_param(params, "goals_y_rel_position", 0.75)
         self.add_1year_1cav_point_to_last_ref = reader.read_param(params, "add_1year_1cav_point_to_last_ref", False)
@@ -166,10 +174,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 logger.warn("No experiment is configured to be atomic")
 
         # densities, exposures, runtimes
-        self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 500)/m**3
+        self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 1000)/m**3
         self.exposures = np.logspace(np.log10(self.exposure_range[0]), np.log10(self.exposure_range[1]), 100)*m**3*year
         self.years = np.logspace(np.log10(self.year_range[0]), np.log10(self.year_range[1]), 100)*year
-        self.frequencies = np.logspace(np.log10(self.frequency_range[0]), np.log10(self.frequency_range[1]), 10)*Hz
+        self.frequencies = np.logspace(np.log10(self.frequency_range[0]), np.log10(self.frequency_range[1]), 20)*Hz
         
         return True
 
@@ -180,12 +188,15 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.create_plot()
         
         # optionally add Phase II curve and point to exposure plot
-        if self.density_axis == False and self.add_PhaseII:
+        if self.exposure_axis and self.add_PhaseII:
             self.add_Phase_II_exposure_sens_line(self.sens_PhaseII)
 
         # add second and third x axis for track lengths
-        if self.track_length_axis:
+        if self.density_axis and self.track_length_axis:
             self.add_track_length_axis()
+            
+        if self.frequency_axis and self.magnetic_field_axis:
+            self.add_magnetic_field_axis()
 
         for key, value in self.goals.items():
             logger.info('Adding goal: {} = {}'.format(key, value))
@@ -198,7 +209,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.sens_main.Experiment.number_density = rho_opt
 
         # if B is list plot line for each B
-        if isinstance(self.sigmae_theta_r, list) or isinstance(self.sigmae_theta_r, np.ndarray):
+        if self.configure_sigma_theta_r and (isinstance(self.sigmae_theta_r, list) or isinstance(self.sigmae_theta_r, np.ndarray)):
             N = len(self.sigmae_theta_r)
             for a, color in self.range(0, N):
                 #sig = self.sens_main.BToKeErr(self.sens_main.MagneticField.nominal_field*self.B_error[a], self.sens_main.MagneticField.nominal_field)
@@ -218,8 +229,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             #self.sens_main.MagneticField.usefixedvalue = True
             #self.sens_main.MagneticField.default_systematic_smearing = sig
             #self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
-            self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
-            self.sens_main.MagneticField.sigmae_theta = 0 * eV
+            if self.configure_sigma_theta_r:
+                self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
+                self.sens_main.MagneticField.sigmae_theta = 0 * eV
             self.add_sens_line(self.sens_main, color='darkblue', label=self.main_curve_upper_label)
             #self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label, color='blue')
 
@@ -240,10 +252,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         #self.sens_main.MagneticField.default_systematic_smearing = sig
         #self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
                 
-        if isinstance(self.sigmae_theta_r, list) or isinstance(self.sigmae_theta_r, np.ndarray):
+        if self.configure_sigma_theta_r and (isinstance(self.sigmae_theta_r, list) or isinstance(self.sigmae_theta_r, np.ndarray)):
             self.sens_main.MagneticField.sigmae_r = self.sigmae_theta_r[0] * eV
             self.sens_main.MagneticField.sigmae_theta = 0 * eV
-        else:
+        elif self.configure_sigma_theta_r:
             self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
             self.sens_main.MagneticField.sigmae_theta = 0 * eV
 
@@ -427,6 +439,15 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         else:
             logger.warning("No track length axis added since neither atomic nor molecular was requested")
         self.fig.tight_layout()
+        
+    def add_magnetic_field_axis(self):
+        ax3 = self.ax.twiny()
+        ax3.set_xscale("log")
+        ax3.set_xlabel("Magnetic field strength (T)")
+        
+        gamma = self.sens_main.T_endpoint/(me*c0**2) + 1
+        ax3.set_xlim(self.frequencies[0]/(e/(2*np.pi*me)/gamma)/T, self.frequencies[-1]/(e/(2*np.pi*me)/gamma)/T)
+        
 
         
     def add_comparison_curve(self, label, color='k'):
@@ -665,8 +686,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             rho_limits = [sens.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
             
             limits.append(np.min(rho_limits))
-            opt_rho.append(self.rhos[np.argmin(rho_limits)]*m**3)
-            sens.Experiment.number_density = self.rhos[np.argmin(rho_limits)]
+            this_optimum_rho = self.rhos[np.argmin(rho_limits)]
+            if this_optimum_rho == self.rhos[0] or this_optimum_rho == self.rhos[-1]:
+                raise ValueError("Cannot optimize density. Ideal value {:2e} at edge of range".format(this_optimum_rho*m**3))
+            opt_rho.append(this_optimum_rho*m**3)
+            sens.Experiment.number_density = this_optimum_rho
         
             # other quantities
             resolutions.append(sens.syst_frequency_extraction()[0]/meV)
@@ -707,6 +731,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
     def save(self, savepath, **kwargs):
         if self.density_axis:
             legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1,0.765))
+        elif self.frequency_axis:
+            if self.magnetic_field_axis:
+                legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.14,0,1,0.85  ))
+            else:
+                legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.14,0,1,0.95  ))
         else:
             legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(-0.,0,0.89,0.97))
             

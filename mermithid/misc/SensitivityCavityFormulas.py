@@ -1,7 +1,7 @@
 '''
 Class calculating neutrino mass sensitivities based on analytic formulas from CDR.
-Author: R. Reimann, C. Claessens, T. Weiss
-Date:11/17/2020
+Author: R. Reimann, C. Claessens, T. Weiss, W. Van De Pontseele
+Date:06/07/2023
 
 The statistical method and formulars are described in
 CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc673d862fa923d53.
@@ -630,7 +630,7 @@ class CavitySensitivity(object):
             return sigma, delta
 
         B = self.MagneticField.nominal_field
-        if self.MagneticField.useinhomogenarity:
+        if self.MagneticField.useinhomogeneity:
             frac_uncertainty = self.MagneticField.fraction_uncertainty_on_field_broadening
             sigma_meanB = self.MagneticField.sigma_meanb
             sigmaE_meanB = self.BToKeErr(sigma_meanB*B, B)
@@ -639,6 +639,8 @@ class CavitySensitivity(object):
             sigmaE_phi = self.MagneticField.sigmae_theta
             sigma = np.sqrt(sigmaE_meanB**2 + sigmaE_r**2 + sigmaE_theta**2 + sigmaE_phi**2)
             return sigma, frac_uncertainty*sigma
+        else:
+            return 0, 0
         """
         BMapErr = self.MagneticField.probe_repeatability  # Probe Repeatability
         delta_BMapErr = self.MagneticField.probe_resolution # Probe resolution
