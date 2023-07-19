@@ -29,7 +29,7 @@ last_1ev_fraction_atomic = 2.067914e-13/eV**3
 
 tritium_mass_molecular = 6.032099 * amu *c0**2
 tritium_electron_crosssection_molecular = 3.67*1e-22*m**2 #[Inelastic from Aseev (2000) for T2] + [Elastic from Liu (1987) for H2, extrapolated by Elise to 18.6keV]
-tritium_endpoint_molecular = 18573.24*eV
+tritium_endpoint_molecular = 18574.01*eV
 last_1ev_fraction_molecular = 1.67364e-13/eV**3
 
 ground_state_width = 0.436 * eV
@@ -426,7 +426,8 @@ class CavitySensitivity(object):
         return np.array(labels), np.array(sigmas), np.array(deltas)
 
     def print_statistics(self):
-        print("Statistical", " "*18, "%.2f"%(np.sqrt(self.StatSens())/meV), "meV")
+        print("Contribution to sigma_(m_beta^2)", " "*18, "%.2f"%(self.StatSens()/meV**2), "meV^2 ->", "%.2f"%(np.sqrt(self.StatSens())/meV), "meV")
+        print("Statistical mass limit", " "*18, "%.2f"%(np.sqrt(1.28*self.StatSens())/meV), "meV")
 
     def print_systematics(self):
         labels, sigmas, deltas = self.get_systematics()
@@ -438,6 +439,12 @@ class CavitySensitivity(object):
             sigma_squared += sigma**2
         sigma_total = np.sqrt(sigma_squared)
         print("Total sigma", " "*(np.max([len(l) for l in labels])-len("Total sigma")), "%8.2f"%(sigma_total/meV),)
+        try:
+            print("(Contribution from axial variation: ", "%8.2f"%(self.sigma_K_reconstruction/meV)," meV)")
+        except AttributeError:
+            pass
+        print("Contribution to sigma_(m_beta^2)", " "*18, "%.2f"%(self.SystSens()/meV**2), "meV^2 ->", "%.2f"%(np.sqrt(self.SystSens())/meV), "meV")
+        print("Systematic mass limit", " "*18, "%.2f"%(np.sqrt(1.28*self.SystSens())/meV), "meV")
 
     def syst_doppler_broadening(self):
         # estimated standard deviation of Doppler broadening distribution from
@@ -449,7 +456,7 @@ class CavitySensitivity(object):
             delta = self.DopplerBroadening.Default_Systematic_Uncertainty
             return sigma, delta
 
-        # termal doppler broardening
+        # thermal doppler broardening
         gasTemp = self.DopplerBroadening.gas_temperature
         mass_T = self.T_mass
         endpoint = self.T_endpoint
@@ -509,10 +516,24 @@ class CavitySensitivity(object):
         
         P_signal_received = Pe*db_to_pwr_ratio(att_cir_db_freq+att_line_db_freq)
         tau_snr = kB*tn_system_fft/P_signal_received
-        
+
         # end of Wouter's calculation
         return tau_snr
         
+
+    def print_SNRs(self, rho_opt):
+        tau_snr = self.calculate_tau_snr(self.time_window, sideband_power_fraction=1)
+        logger.info("tau_SNR: {}s".format(tau_snr/s))
+        eV_bandwidth = np.abs(frequency(self.T_endpoint, self.MagneticField.nominal_field) - frequency(self.T_endpoint + 1*eV, self.MagneticField.nominal_field))
+        SNR_1eV = 1/eV_bandwidth/2./tau_snr
+        track_duration = track_length(rho_opt, self.T_endpoint, molecular=(not self.Experiment.atomic))
+        SNR_track_duration = track_duration/2./tau_snr
+        SNR_1ms = 0.001*s/2./tau_snr
+        logger.info("SNR for 1eV bandwidth: {}".format(SNR_1eV))
+        logger.info("Track duration: {}ms".format(track_duration/ms))
+        logger.info("SNR for track duration: {}".format(SNR_track_duration))
+        logger.info("SNR for 1 ms: {}".format(SNR_1ms))
+
 
     def syst_frequency_extraction(self):
         # cite{https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398} (Section 1.2, p 7-9)

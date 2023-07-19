@@ -177,6 +177,29 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
     def InternalRun(self):
 
+        sigma_startf, stat_on_mbeta2, syst_on_mbeta2 = [], [], []
+        for n in self.rhos:
+                self.sens_main.Experiment.number_density = n
+                labels, sigmas, deltas = self.sens_main.get_systematics()
+                sigma_startf.append(sigmas[1])
+                stat_on_mbeta2.append(self.sens_main.StatSens())
+                syst_on_mbeta2.append(self.sens_main.SystSens())
+        sigma_startf, stat_on_mbeta2, syst_on_mbeta2 = np.array(sigma_startf), np.array(stat_on_mbeta2), np.array(syst_on_mbeta2)
+        fig = plt.figure()
+        plt.loglog(self.rhos*m**3, stat_on_mbeta2/eV**2, label='Statistical uncertainty')
+        plt.loglog(self.rhos*m**3, syst_on_mbeta2/eV**2, label='Systematic uncertainty')
+        plt.xlabel(r"Number density $n\, \, (\mathrm{m}^{-3})$")
+        plt.ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
+        plt.legend()
+        plt.savefig("stat_and_syst_vs_density.pdf")
+
+        fig = plt.figure()
+        plt.loglog(self.rhos*m**3, sigma_startf/eV)
+        plt.xlabel(r"Number density $n\, \, (\mathrm{m}^{-3})$")
+        plt.ylabel(r"Resolution from $f$ reconstruction, axial field (eV)")
+        plt.savefig("resolution_from_CRLB_vs_density.pdf")
+
+
         self.create_plot()
         
         # optionally add Phase II curve and point to exposure plot
@@ -258,6 +281,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.sens_main.FrequencyExtraction.crlb_on_sidebands:
             logger.info("Uncertainty of frequency resolution and energy reconstruction (for pitch angle): {} eV, {} eV".format(self.sens_main.sigma_K_f_CRLB/eV, self.sens_main.sigma_K_reconstruction/eV))
        
+        self.sens_main.print_SNRs(rho_opt)
         logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
         logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.effective_volume))
         logger.info('Total signal: {}'.format(rho_opt*self.sens_main.effective_volume*
@@ -289,6 +313,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 if self.sens_ref[i].FrequencyExtraction.crlb_on_sidebands:
                     logger.info("Uncertainty of frequency resolution and energy reconstruction (for pitch angle): {} eV, {} eV".format(self.sens_ref[i].sigma_K_f_CRLB/eV, self.sens_ref[i].sigma_K_reconstruction/eV))
     
+                self.sens_ref[i].print_SNRs(rho_opt_ref)
                 logger.info('CL90 limit: {}'.format(self.sens_ref[i].CL90(Experiment={"number_density": rho_opt_ref})/eV))
                 logger.info('T2 in Veff: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume))
                 logger.info('Total signal: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume*
@@ -299,8 +324,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                                                    self.sens_ref[i].Experiment.LiveTime/
                                                    self.sens_ref[i].tau_tritium*2))
 
-            self.sens_ref[i].print_statistics()
-            self.sens_ref[i].print_systematics()
+                self.sens_ref[i].print_statistics()
+                self.sens_ref[i].print_systematics()
             
         # save plot
         self.save(self.plot_path)
@@ -320,13 +345,13 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             ax.set_xlim(self.rhos[0]*m**3, self.rhos[-1]*m**3)
 
             if self.atomic_axis and self.molecular_axis:
-                axis_label = r"(Atomic / molecular) number density $\rho\, \, (\mathrm{m}^{-3})$"
+                axis_label = r"(Atomic / molecular) number density $n\, \, (\mathrm{m}^{-3})$"
             elif self.atomic_axis:
-                axis_label = r"(Atomic) number density $\rho\, \, (\mathrm{m}^{-3})$"
+                axis_label = r"(Atomic) number density $n\, \, (\mathrm{m}^{-3})$"
             elif self.molecular_axis:
-                axis_label = r"(Molecular) number density $\rho\, \, (\mathrm{m}^{-3})$"
+                axis_label = r"(Molecular) number density $n\, \, (\mathrm{m}^{-3})$"
             else:
-                axis_label = r"Number density $\rho\, \, (\mathrm{m}^{-3})$"
+                axis_label = r"Number density $n\, \, (\mathrm{m}^{-3})$"
                 
             ax.set_xlabel(axis_label)
             ax.set_ylim(self.ylim)
@@ -372,7 +397,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                     ax.set_xlim(self.rhos[0]*m**3, self.rhos[-1]*m**3)
                     ax.set_xscale("log")
                     ax.set_yscale("log")
-                    axis_label = r"Number density $\rho\, \, (\mathrm{m}^{-3})$"
+                    axis_label = r"Number density $n\, \, (\mathrm{m}^{-3})$"
                     ax.set_xlabel(axis_label)
                     
                 self.kp_ax[0].set_ylabel('Resolution (meV)')

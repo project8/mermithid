@@ -180,9 +180,9 @@ class SensitivityTest(unittest.TestCase):
             "goals_x_position": 1.2e12, #0.0002
             "plot_key_parameters": True
             }
-        #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-        #sens_curve.Configure(sens_config_dict)
-        #sens_curve.Run()
+        sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        sens_curve.Configure(sens_config_dict)
+        sens_curve.Run()
 
 
         sens_config_dict = {
@@ -217,7 +217,6 @@ class SensitivityTest(unittest.TestCase):
         sens_config_dict = {
             # required
             "config_file_path": "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
-            #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
             "plot_path": "./sensitivity_vs_density_T2_best_case_curve_comparison.pdf",
             # optional
             "figsize": (6.7,6),
@@ -230,14 +229,14 @@ class SensitivityTest(unittest.TestCase):
             "y_limits": [3e-2, 0.5],
             "density_range": [1e14, 7e17],#[1e12,3e18],
             "efficiency_range": [0.0001, 1],
-            "main_curve_upper_label": r"Atomic, reaching target", #$\Delta B_{r, \phi}=0$, rate 'boosted' $\times 2$
+            "main_curve_upper_label": r"Atomic, $\Delta B_{r, \phi, t}=0$, rate 'boosted' $\times 2$",
             "goals": {"Phase IV (0.04 eV)": 0.04},
             "comparison_curve": True,
             "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment_best_case.cfg"],
             "comparison_curve_label": [r"Molecular, same conditions"], 
             "comparison_label_y_position": [2, 0.105, 0.046],
             "comparison_label_x_position": [4.5e15, 7e14, 7e14],
-            "sigmae_theta_r": 0.159,
+            "sigmae_theta_r": 0.0,
             "lower_label_y_position": 0.17,
             "upper_label_y_position": 0.7,
             "label_x_position": 4e14, 
@@ -248,6 +247,37 @@ class SensitivityTest(unittest.TestCase):
         #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
         #sens_curve.Configure(sens_config_dict)
         #sens_curve.Run()
+    
+        sens_config_dict = {
+            # required
+            "config_file_path": "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
+            "plot_path": "./sensitivity_vs_density_T2_no-DeltaB-r-phi-t.pdf",
+            # optional
+            "figsize": (7.5,5),
+            "track_length_axis": False,
+            "molecular_axis": False,
+            "atomic_axis": True,
+            "density_axis": True,
+            "cavity": True,
+            "y_limits": [3e-2, 0.5], #[2e-2, 4],
+            "density_range": [1e14, 7e17], #[1e12,3e18],
+            "efficiency_range": [0.0001, 1],
+            "main_curve_upper_label": r" ", #r"Atomic, $\Delta B_{r, \phi, t}=0$, rate 'boosted' $\times 2$",
+            "goals": {"Phase IV (0.04 eV)": 0.04},
+            "comparison_curve": False,
+            "sigmae_theta_r": 0.0,
+            "lower_label_y_position": 0.17,
+            "upper_label_y_position": 0.7,
+            "label_x_position": 4e14, 
+            "goals_x_position": 1.2e14, 
+            "goals_y_rel_position": 1.1,
+            #"legend_location": "upper left",
+            "plot_key_parameters": True
+            }
+        #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+        #sens_curve.Configure(sens_config_dict)
+        #sens_curve.Run()
+
 
     def test_SensitivityProcessor(self):
         from mermithid.processors.Sensitivity import AnalyticSensitivityEstimation
