@@ -722,7 +722,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             crlb_window.append(sens.best_time_window/ms)
             crlb_max_window.append(sens.time_window/ms)
             crlb_slope_zero_window.append(sens.time_window_slope_zero/ms)
-            noise_power.append(sens.noise_power/K)
+            noise_power.append(sens.noise_temp/K)
             
         
         self.ax2.plot(self.frequencies/Hz, limits, **kwargs)
