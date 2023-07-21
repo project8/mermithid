@@ -262,7 +262,7 @@ class CavitySensitivity(object):
         #Jprime_0 = 3.8317
         
         #self.signal_power = self.FrequencyExtraction.mode_coupling_efficiency * self.CavityLoadedQ() * self.FrequencyExtraction.hanneke_factor * self.T_endpoint/eV * e/C * Jprime_0**2 / (2*np.pi**2*self.Experiment.L_over_D*2*self.cavity_radius**3/m**3 * frequency(self.T_endpoint, self.MagneticField.nominal_field)*s)*W
-        self.signal_power = np.mean(larmor_orbit_averaged_hanneke_power_box(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=10000), 
+        self.signal_power = np.mean(larmor_orbit_averaged_hanneke_power_box(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=1000), 
                                                                             self.CavityLoadedQ(), 
                                                                             2*self.Experiment.L_over_D*self.cavity_radius, 
                                                                             self.cavity_radius, 
