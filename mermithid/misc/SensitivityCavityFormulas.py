@@ -262,7 +262,7 @@ class CavitySensitivity(object):
         #Jprime_0 = 3.8317
         
         #self.signal_power = self.FrequencyExtraction.mode_coupling_efficiency * self.CavityLoadedQ() * self.FrequencyExtraction.hanneke_factor * self.T_endpoint/eV * e/C * Jprime_0**2 / (2*np.pi**2*self.Experiment.L_over_D*2*self.cavity_radius**3/m**3 * frequency(self.T_endpoint, self.MagneticField.nominal_field)*s)*W
-        self.signal_power = np.mean(larmor_orbit_averaged_hanneke_power_box(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=1000), 
+        self.signal_power = np.mean(larmor_orbit_averaged_hanneke_power_box(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=10000), 
                                                                             self.CavityLoadedQ(), 
                                                                             2*self.Experiment.L_over_D*self.cavity_radius, 
                                                                             self.cavity_radius, 
@@ -501,6 +501,7 @@ class CavitySensitivity(object):
         
         # Noise power for bandwidth set by density/track length
         fft_bandwidth = 3/time_window #(delta f) is the frequency bandwidth of interest. We have a main carrier and 2 axial side bands, so 3*(FFT bin width)
+        self.fft_bandwidth = fft_bandwidth
         tn_fft = Pn_dut_entrance(self.FrequencyExtraction.cavity_temperature,
                                  self.FrequencyExtraction.amplifier_temperature,
                                  att_line_db_freq,att_cir_db_freq,
@@ -511,14 +512,16 @@ class CavitySensitivity(object):
         # Noise temperature of amplifier
         tn_amplifier = endpoint_frequency*hbar*2*np.pi/kB/self.FrequencyExtraction.quantum_amp_efficiency
         tn_system_fft = tn_amplifier+tn_fft
-        self.noise_power = tn_system_fft
+        self.noise_temp = tn_system_fft
         
         # Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
         # logger.info("Power: {}".format(Pe/W))
         Pe = self.signal_power * sideband_power_fraction
         
         P_signal_received = Pe*db_to_pwr_ratio(att_cir_db_freq+att_line_db_freq)
+        self.received_power = P_signal_received
         tau_snr = kB*tn_system_fft/P_signal_received
+        self.noise_energy = kB*tn_system_fft
 
         # end of Wouter's calculation
         return tau_snr
@@ -533,9 +536,13 @@ class CavitySensitivity(object):
         SNR_track_duration = track_duration/2./tau_snr
         SNR_1ms = 0.001*s/2./tau_snr
         logger.info("SNR for 1eV bandwidth: {}".format(SNR_1eV))
+        logger.info("SNR 1 eV from temperatures:{}".format(self.received_power/(self.noise_energy*eV_bandwidth)))
         logger.info("Track duration: {}ms".format(track_duration/ms))
+        logger.info("Sampling duration for 1eV: {}ms".format(1/eV_bandwidth/ms))
         logger.info("SNR for track duration: {}".format(SNR_track_duration))
         logger.info("SNR for 1 ms: {}".format(SNR_1ms))
+        logger.info("Received power: {}W".format(self.received_power/W))
+        logger.info("Noise power in 1eV: {}W".format(self.noise_energy*eV_bandwidth/W))
 
 
     def syst_frequency_extraction(self):
