@@ -225,6 +225,7 @@ class CavitySensitivity(object):
         self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
 
         self.CRLB_constant = 12
+        #self.CRLB_constant = 90
         self.CavityRadius()
         self.CavityVolume()
         self.EffectiveVolume()
@@ -243,6 +244,7 @@ class CavitySensitivity(object):
         logger.info("Frequency: {} MHz".format(round(frequency(self.T_endpoint, self.MagneticField.nominal_field)/MHz, 3)))
         logger.info("Wavelength: {} cm".format(round(wavelength(self.T_endpoint, self.MagneticField.nominal_field)/cm, 3)))
         logger.info("Radius: {} cm".format(round(self.cavity_radius/cm, 3)))
+        logger.info("Length: {} cm".format(round(2*self.cavity_radius*self.Experiment.L_over_D/cm, 3)))
         logger.info("Total volume {} m^3".format(round(self.total_volume/m**3)))
         
         return self.total_volume
@@ -278,12 +280,14 @@ class CavitySensitivity(object):
         required_bw_axialfrequency = axial_frequency(self.Experiment.L_over_D*self.CavityRadius()*2, 
                                                      self.T_endpoint, 
                                                      self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
+        self.required_bw_axialfrequency = required_bw_axialfrequency
         
         required_bw_meanfield = mean_field_frequency_variation(endpoint_frequency, 
                                                                self.Experiment.L_over_D,
                                                                self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
         
         required_bw = np.add(required_bw_axialfrequency,required_bw_meanfield) # Broadcasting
+        self.required_bw = required_bw
     
         # Cavity coupling
         self.loaded_q = endpoint_frequency/required_bw # FWHM
@@ -540,6 +544,8 @@ class CavitySensitivity(object):
         logger.info("SNR for 1 ms: {}".format(SNR_1ms))
         logger.info("Received power: {}W".format(self.received_power/W))
         logger.info("Noise power in 1eV: {}W".format(self.noise_energy*eV_bandwidth/W))
+        logger.info("Noise temperature: {}K".format(self.noise_temp/K))
+        logger.info("Opimtum energy window: {} eV".format(self.DeltaEWidth()/eV))
 
 
     def syst_frequency_extraction(self):

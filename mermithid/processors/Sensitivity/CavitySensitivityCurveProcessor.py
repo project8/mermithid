@@ -255,7 +255,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             if self.configure_sigma_theta_r:
                 self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
                 self.sens_main.MagneticField.sigmae_theta = 0 * eV
-            self.add_sens_line(self.sens_main, color='darkred', label=self.main_curve_upper_label)
+            self.add_sens_line(self.sens_main, color='darkblue', label=self.main_curve_upper_label)
             #self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label, color='blue')
 
         # add line for comparison using second config
@@ -287,6 +287,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.sens_main.CL90(Experiment={"number_density": rho_opt})
         logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_main.effective_volume/(m**3), rho_opt*(m**3)))
         logger.info("Loaded Q: {}".format(self.sens_main.loaded_q))
+        logger.info("Axial frequency for minimum detectable angle: {} MHz".format(self.sens_main.required_bw_axialfrequency/MHz))
+        logger.info("Total bandwidth: {} MHz".format(self.sens_main.required_bw/MHz))
         logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_main.larmor_power/W, self.sens_main.signal_power/W))
         logger.info('Hanneke / Larmor power = {}'.format(self.sens_main.signal_power/self.sens_main.larmor_power))
         
@@ -437,8 +439,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                     
 
     def add_track_length_axis(self):
-        N_ref = len(self.sens_ref)
+       
         if self.atomic_axis:
+            N_ref = len(self.sens_ref)
             ax2 = self.ax.twiny()
             ax2.set_xscale("log")
             ax2.set_xlabel("(Atomic) track length (s)")
