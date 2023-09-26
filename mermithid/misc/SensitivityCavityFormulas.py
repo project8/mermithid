@@ -276,6 +276,9 @@ class CavitySensitivity(object):
         # Using Wouter's calculation:
         # Total required bandwidth is the sum of the endpoint region and the axial frequency. 
         # I will assume the bandwidth is dominated by the sidebands and not by the energy ROI
+        
+        #self.loaded_q =1/(0.22800*((90-self.FrequencyExtraction.minimum_angle_in_bandwidth)*np.pi/180)**2+2**2*0.01076**2/(4*0.22800))
+
         endpoint_frequency = frequency(self.T_endpoint, self.MagneticField.nominal_field)
         required_bw_axialfrequency = axial_frequency(self.Experiment.L_over_D*self.CavityRadius()*2, 
                                                      self.T_endpoint, 
