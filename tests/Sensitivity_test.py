@@ -67,7 +67,6 @@ class SensitivityTest(unittest.TestCase):
         sens_config_dict = {
             # required
             "config_file_path": "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
-            #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
             "plot_path": "./sensitivity_vs_density_curve.pdf",
             # optional
             "figsize": (7.0,6),
@@ -135,7 +134,6 @@ class SensitivityTest(unittest.TestCase):
         sens_config_dict = {
             # required
             "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg",
-            #"config_file_path": "//host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg",
             "sensitivity_target": [0.4**2/np.sqrt(1.64)]#, 0.7**2/np.sqrt(1.64), 1**2/np.sqrt(1.64)]
             }
         #sens = ConstantSensitivityParameterPlots("sensitivity_processor")

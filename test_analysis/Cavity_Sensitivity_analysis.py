@@ -62,7 +62,6 @@ sens_config_dict = {
 sens_config_dict2 = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment_conservative.cfg",
-    #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
     "plot_path": "./sensitivity_vs_frequency2.pdf",
     # optional
     "figsize": (9,6),
@@ -110,7 +109,6 @@ sens_config_dict2 = {
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
-    #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
     "plot_path": "./sensitivity_vs_density_curve_with_sigmaBcorrs.pdf",
     # optional
     "track_length_axis": True,
@@ -148,7 +146,6 @@ sens_config_dict = {
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
-    #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
     "plot_path": "./sensitivity_vs_density_curve.pdf",
     # optional
     "figsize": (7.0,6),
@@ -190,7 +187,6 @@ sens_curve.Run()
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment_best_case.cfg",
-    #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
     "plot_path": "./sensitivity_vs_density_T2_best_case_curve.pdf",
     # optional
     "figsize": (6.7,6),
@@ -286,7 +282,6 @@ sens_config_dict = {
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_CCA_Experiment.cfg",
-    #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
     "plot_path": "./cca_sensitivity_vs_density_curve.pdf",
     # optional
     "figsize": (7.0,6),
