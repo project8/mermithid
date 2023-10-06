@@ -13,6 +13,7 @@ import random
 import time
 import json
 import os
+import matplotlib.pyplot as plt
 
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
@@ -101,7 +102,7 @@ class FakeDataGenerator(BaseProcessor):
         if self.Kmax <= self.Kmin:
             logger.error("Kmax <= Kmin!")
             return False
-        self.n_steps = reader.read_param(params, 'n_steps', 1e5)
+        self.n_steps = reader.read_param(params, 'n_steps', 200)
         if self.n_steps <= 0:
             logger.error("Negative number of steps!")
             return False
@@ -143,7 +144,7 @@ class FakeDataGenerator(BaseProcessor):
         self.use_combined_four_trap_inst_reso = reader.read_param(params, 'use_combined_four_trap_inst_reso', True)
         self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', True)
         self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
-        self.min_energy = reader.read_param(params,'min_lineshape_energy', -1000)
+        self.min_energy = reader.read_param(params,'min_lineshape_energy', -200)
         self.scale_factor = reader.read_param(params, 'scale_factor', 1.0)
         self.ins_res_width_bounds = reader.read_param(params, 'ins_res_width_bounds', None) #Default values here need to be corrected
         self.ins_res_width_factors = reader.read_param(params, 'ins_res_width_factors', [1.])
@@ -196,6 +197,11 @@ class FakeDataGenerator(BaseProcessor):
                     full_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra_file')
 
                 logger.info('Path to scatter_spectra_file: {}'.format(self.path_to_scatter_spectra_file))
+                
+                step_size = (self.Kmax-self.Kmin)/float(self.n_steps)
+                steps_for_complex_lineshape = int(np.round(np.abs(self.min_energy)*2/step_size))
+                
+                print(step_size, steps_for_complex_lineshape)
 
 
                 # lineshape params
@@ -230,7 +236,8 @@ class FakeDataGenerator(BaseProcessor):
                     'sigma_array': self.sigma_array,
 
                     # This is an important parameter which determines how finely resolved the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to be increased for larger datasets.
-                    'num_points_in_std_array': 10000,#35846,
+                    'num_points_in_std_array': steps_for_complex_lineshape,#35846,
+                    'min_energy': self.min_energy,
                     'base_shape': 'dirac',
                     'path_to_osc_strengths_files': self.path_to_osc_strengths_files,
                     'path_to_scatter_spectra_file':self.path_to_scatter_spectra_file,
@@ -240,6 +247,7 @@ class FakeDataGenerator(BaseProcessor):
                     'path_to_four_trap_ins_resolution_data_txt': self.path_to_four_trap_ins_resolution_data_txt,
                     'shake_spectrum_parameters_json_path': self.shake_spectrum_parameters_json_path
                 }
+                logger.warning(self.path_to_ins_resolution_data_txt)
                 logger.info('Setting up complex lineshape object')
                 self.complexLineShape = MultiGasComplexLineShape("complexLineShape")
                 logger.info('Configuring complex lineshape')
@@ -365,6 +373,8 @@ class FakeDataGenerator(BaseProcessor):
         FWHM_convert = 2*math.sqrt(2*math.log(2))
         max_energy = -self.min_energy
         min_energy = self.min_energy
+        
+        print(Kmin, Kmax, self.min_energy)
 
         Kmax_eff = Kmax+max_energy #Maximum energy for data is slightly above Kmax>Q-m
         Kmin_eff = Kmin+min_energy #Minimum is slightly below Kmin<Q-m
@@ -464,7 +474,6 @@ class FakeDataGenerator(BaseProcessor):
         #if self.ins_res_width_bounds==None:
         temp_Koptions, temp_probsS, temp_probsB = self.Koptions, probsS, probsB
         split_Koptions, split_probsS, split_probsB = [], [], []
-        print(len(temp_Koptions), len(temp_probsS))
         for i in range(len(self.channel_bounds)):
             split_Koptions.append(temp_Koptions[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
             split_probsS.append(temp_probsS[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
@@ -485,6 +494,10 @@ class FakeDataGenerator(BaseProcessor):
         rates = np.concatenate(rates)
         self.probs = rates/np.sum(rates)
 
+        print(self.Koptions, rates)
+        plt.figure()
+        plt.plot(self.Koptions, rates)
+        plt.savefig("probs_vs_options.png", dpi=200)
         if self.poisson_stats:
             KE = np.random.choice(self.Koptions, np.random.poisson(S+B), p = self.probs)
         else:

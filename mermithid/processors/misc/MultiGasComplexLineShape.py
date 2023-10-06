@@ -93,6 +93,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         # This is an important parameter which determines how finely resolved
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
+        self.min_energy = reader.read_param(params, "min_energy", -1000)
         self.RF_ROI_MIN = reader.read_param(params, 'RF_ROI_MIN', 25850000000.0)
         self.base_shape = reader.read_param(params, 'base_shape', 'shake')
         self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
@@ -184,8 +185,8 @@ class MultiGasComplexLineShape(BaseProcessor):
     # with number of points equal to self.num_points_in_std_array. All convolutions
     # will be carried out on this particular discretization
     def std_eV_array(self):
-        emin = -1000
-        emax = 1000
+        emin = self.min_energy
+        emax = -self.min_energy
         array = np.linspace(emin,emax,self.num_points_in_std_array)
         return array
 
@@ -474,6 +475,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         return ans_normed
 
     def read_ins_resolution_data(self, path_to_ins_resolution_data_txt):
+        print(path_to_ins_resolution_data_txt)
         ins_resolution_data = np.loadtxt(path_to_ins_resolution_data_txt)
         x_data = ins_resolution_data.T[0]
         y_data = ins_resolution_data.T[1]
@@ -561,6 +563,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         if self.sample_ins_resolution_errors:
             y_data = np.random.normal(y_data, y_err_data)
             logger.info("Sampling instrumental resolution counts per bin")
+        y_data[y_data<0] = 0
         self.interpolated_resolution = interpolate.interp1d(x_data, y_data, fill_value=(0,0), bounds_error=False)
 
     #might be untested

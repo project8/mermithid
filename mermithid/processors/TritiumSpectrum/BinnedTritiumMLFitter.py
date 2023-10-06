@@ -1042,7 +1042,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
     def gauss_resolution_f(self, energy_array, A, sigma, mu):
         f = A*(1/(sigma*np.sqrt(2*np.pi)))*np.exp(-(((energy_array-mu)/sigma)**2.)/2.)
-        return f
+        return np.abs(f)
 
     def derived_two_gaussian_resolution(self, energy_array, sigma_s, mu_1, mu_2, A=1):
         sigma_1 = (sigma_s-self.two_gaussian_p0 + self.two_gaussian_fraction * self.two_gaussian_p0)/(self.two_gaussian_fraction + self.two_gaussian_p1 - self.two_gaussian_fraction* self.two_gaussian_p1)
@@ -1587,7 +1587,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
                 plt.xlabel('Energy [eV]')
                 plt.ylabel('Amplitude')
                 plt.grid()
-                plt.xlim(-500, 250)
+                #plt.xlim(-500, 250)
                 plt.legend(loc='best')
                 plt.tight_layout()
                 plt.savefig(os.path.join(self.savepath, 'lineshape.pdf'), dpi=200, transparent=True)
@@ -1677,16 +1677,16 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
             print('E is float, only returning tritium amplitude')
             return K*(E[1]-E[0])/K_norm
         else:
-
+            binning_factor = (E[1]-E[0])/(self.energies[1]-self.energies[0])
             b = args[self.background_index]/(max(self._energies)-min(self._energies))
             a = args[self.amplitude_index]#-b
 
             B = np.ones(np.shape(E))
-            B = B*b*(E[1]-E[0])#/(self._energies[1]-self._energies[0])
+            B = B*b*binning_factor#/(self._energies[1]-self._energies[0])
             #B= B/np.sum(B)*background
 
 
-            K = (K/K_norm*(E[1]-E[0]))*a
+            K = (K/K_norm*binning_factor)*a
             #K[E>endpoint-np.abs(m_nu**0.5)+de] = np.zeros(len(K[E>endpoint-np.abs(m_nu**2)+de]))
             #K= K/np.sum(K)*a
             #K = K+B
@@ -1694,7 +1694,7 @@ class BinnedTritiumMLFitter(BinnedDataFitter):
 
 
         if self.pass_efficiency_error:
-            K_error = K_error*(E[1]-E[0])/K_norm*a
+            K_error = K_error*binning_factor/K_norm*a
             #K_error = K_error/np.sum(K)*a
             return K+B, K_error
         else: return K+B
