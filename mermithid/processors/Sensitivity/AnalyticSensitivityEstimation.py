@@ -16,7 +16,7 @@ import numpy as np
 # Numericalunits is a package to handle units and some natural constants
 # natural constants
 
-from numericalunits import meV, eV
+from numericalunits import meV, eV, T
 
 
 # morpho imports
@@ -104,11 +104,13 @@ class AnalyticSensitivityEstimation(BaseProcessor, Sensitivity):
 
     def CL90(self, **kwargs):
         """ Gives 90% CL upper limit on neutrino mass."""
-        # 90% of gaussian are contained in +-1.64 sigma region
-        return np.sqrt(np.sqrt(1.64)*self.sensitivity(**kwargs))
+        # If integrate gaussian -infinity to 1.28*sigma, the result is 90%.
+        # https://www.wolframalpha.com/input?i=1%2F2+%281+%2B+erf%281.281551%2Fsqrt%282%29%29%29
+        # So we assume that 1.28*sigma_{m_beta^2} is the 90% upper limit on m_beta^2. 
+        return np.sqrt(1.281551*self.sensitivity(**kwargs))
 
     def sterial_m2_limit(self, Ue4_sq):
-        return np.sqrt(np.sqrt(1.64)*np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens()**2))
+        return np.sqrt(1.281551*np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens()**2))
 
 
     # print functions

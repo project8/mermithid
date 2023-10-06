@@ -65,8 +65,8 @@ class SensitivityCurveProcessor(BaseProcessor):
 
         # options
         self.comparison_curve = reader.read_param(params, 'comparison_curve', False)
-        self.B = reader.read_param(params, 'B', 7e-6)
-        self.B_uncertainty = reader.read_param(params, 'B_uncertainty', 0.05)
+        self.B_error = reader.read_param(params, 'B_inhomogeneity', 7e-6)
+        self.B_error_uncertainty = reader.read_param(params, 'B_inhom_uncertainty', 0.05)
 
 
         # plot configurations
@@ -76,10 +76,13 @@ class SensitivityCurveProcessor(BaseProcessor):
         self.track_length_axis = reader.read_param(params, 'track_length_axis', True)
         self.atomic_axis = reader.read_param(params, 'atomic_axis', False)
         self.molecular_axis = reader.read_param(params, 'molecular_axis', False)
+        self.label_x_position = reader.read_param(params, 'label_x_position', 5e19)
+        self.upper_label_y_position = reader.read_param(params, 'upper_label_y_position', 5)
+        self.lower_label_y_position = reader.read_param(params, 'lower_label_y_position', 2.3)
 
 
         # goals
-        self.goals = reader.read_param(params, "goals", {"Phase III (2 eV)": 2, "Phase IV (40 meV)": 0.04})
+        self.goals = reader.read_param(params, "goals", {})
 
 
         # setup sensitivities
@@ -136,24 +139,24 @@ class SensitivityCurveProcessor(BaseProcessor):
             self.add_goal(value*eV, key)
 
         # if B is list plot line for each B
-        if isinstance(self.B, list) or isinstance(self.B, np.ndarray):
-            N = len(self.B)
-            for a, color in self.range(1, N):
-                sig = self.sens_main.BToKeErr(self.B[a]*T, self.sens_main.MagneticField.nominal_field)
+        if isinstance(self.B_error, list) or isinstance(self.B_error, np.ndarray):
+            N = len(self.B_error)
+            for a, color in self.range(0, N):
+                sig = self.sens_main.BToKeErr(self.sens_main.MagneticField.nominal_field*self.B_error[a], self.sens_main.MagneticField.nominal_field)
                 self.sens_main.MagneticField.usefixedvalue = True
                 self.sens_main.MagneticField.default_systematic_smearing = sig
-                self.sens_main.MagneticField.default_systematic_uncertainty = self.B_uncertainty*sig
+                self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
                 self.add_sens_line(self.sens_main, color=color)
-            self.add_text(5e19, 5, self.main_curve_upper_label)
-            self.add_text(5e19, 2.3, self.main_curve_lower_label)
+            self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label)
+            self.add_text(self.label_x_position, self.lower_label_y_position, self.main_curve_lower_label)
 
         else:
-            sig = self.sens_main.BToKeErr(self.B*T, self.sens_main.MagneticField.nominal_field)
+            sig = self.sens_main.BToKeErr(self.sens_main.MagneticField.nominal_field*self.B_error[a], self.sens_main.MagneticField.nominal_field)
             self.sens_main.MagneticField.usefixedvalue = True
             self.sens_main.MagneticField.default_systematic_smearing = sig
-            self.sens_main.MagneticField.default_systematic_uncertainty = self.B_uncertainty*sig
+            self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
             self.add_sens_line(self.sens_main, color='blue')
-            self.add_text(5e19, 5, self.main_curve_upper_label)
+            self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label)
 
 
         # save plot
@@ -164,8 +167,10 @@ class SensitivityCurveProcessor(BaseProcessor):
         self.opt_ref = np.argmin(limit)
 
         rho_opt = self.rhos[self.opt_ref]
+
+
         logger.info('Main curve (veff = {} cm**3, rho = {} /m**3):'.format(self.sens_main.Experiment.v_eff/(cm**3), rho_opt*(m**3)))
-        logger.info('Sensitivity limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
+        logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
         logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.Experiment.v_eff))
         logger.info('Total signal: {}'.format(rho_opt*self.sens_main.Experiment.v_eff*
                                                    self.sens_main.Experiment.LiveTime/
@@ -174,6 +179,9 @@ class SensitivityCurveProcessor(BaseProcessor):
                                                    rho_opt*self.sens_main.Experiment.v_eff*
                                                    self.sens_main.Experiment.LiveTime/
                                                    self.sens_main.tau_tritium*2))
+
+        self.sens_main.print_statistics()
+        self.sens_main.print_systematics()
 
         return True
 
@@ -186,6 +194,7 @@ class SensitivityCurveProcessor(BaseProcessor):
         ax.set_yscale("log")
         ax.set_xlim(self.rhos[0]*m**3, self.rhos[-1]*m**3)
         ax.set_ylim(self.ylim)
+        #ax.grid()
 
         if self.atomic_axis and self.molecular_axis:
             axis_label = r"(atomic / molecular) number density $\rho\, /\, \mathrm{m}^{-3}$"
@@ -236,7 +245,7 @@ class SensitivityCurveProcessor(BaseProcessor):
         logger.info('T in Veff: {}'.format(rho_opt*self.sens_ref.Experiment.v_eff))
         logger.info('Ref. total signal: {}'.format(rho_opt*self.sens_ref.Experiment.v_eff*
                                                    self.sens_ref.Experiment.LiveTime/
-                                                   self.sens_ref.T_livetime))
+                                                   self.sens_ref.tau_tritium))
 
         self.ax.plot(self.rhos*m**3, limit, color=color)
         self.ax.axvline(self.rhos[self.opt_ref]*m**3, ls=":", color="gray", alpha=0.4)
@@ -274,10 +283,12 @@ class SensitivityCurveProcessor(BaseProcessor):
 
     def add_goal(self, value, label):
         self.ax.axhline(value/eV, color="gray", ls="--")
-        self.ax.text(3e14, 1.1*value/eV, label)
+        self.ax.text(3e18, 0.8*value/eV, label)
 
     def add_sens_line(self, sens, **kwargs):
-        self.ax.plot(self.rhos*m**3, [sens.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos], **kwargs)
+        limits = [sens.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
+        self.ax.plot(self.rhos*m**3, limits, **kwargs)
+        logger.info('Minimum limit at {}: {}'.format(self.rhos[np.argmin(limits)]*m**3, np.min(limits)))
 
     def add_text(self, x, y, text):
         self.ax.text(x, y, text)
@@ -296,7 +307,7 @@ class SensitivityCurveProcessor(BaseProcessor):
                     }
                     #"Keywords": keywords}
         if savepath is not None:
-            self.fig.savefig(savepath.replace(".pdf", ".png"), dpi=200, metadata=metadata)
+            self.fig.savefig(savepath.replace(".pdf", ".png"), dpi=300, metadata=metadata)
             self.fig.savefig(savepath.replace(".png", ".pdf"), bbox_inches="tight", metadata=metadata)
 
 

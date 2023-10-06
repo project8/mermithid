@@ -240,6 +240,9 @@ class Sensitivity(object):
     def BToKeErr(self, BErr, B):
          return e*BErr/(2*np.pi*frequency(self.T_endpoint, B)/c0**2)
 
+    def KeToBerr(self, KeErr, B):
+        return KeErr/e*(2*np.pi*frequency(self.T_endpoint, B)/c0**2)
+
     def track_length(self, rho):
         return track_length(rho, self.T_endpoint, not self.Experiment.atomic)
 
@@ -265,7 +268,7 @@ class Sensitivity(object):
         sigma_Miss, delta_sigma_Miss = self.syst_missing_tracks()
         sigma_Plasma, delta_sigma_Plasma = self.syst_plasma_effects()
 
-        labels = ["Termal Doppler Broadening", "Start Frequency Resolution", "Magnetic Field", "Missing Tracks", "Plasma Effects"]
+        labels = ["Thermal Doppler Broadening", "Start Frequency Resolution", "Magnetic Field", "Missing Tracks", "Plasma Effects"]
         sigmas = [sigma_trans, sigma_f, sigma_B, sigma_Miss, sigma_Plasma]
         deltas = [delta_sigma_trans, delta_sigma_f, delta_sigma_B, delta_sigma_Miss, delta_sigma_Plasma]
 
@@ -277,7 +280,7 @@ class Sensitivity(object):
         return np.array(labels), np.array(sigmas), np.array(deltas)
 
     def print_statistics(self):
-        print("Statistic", " "*18, "%.2f"%(np.sqrt(self.StatSens())/meV), "meV")
+        print("Statistical", " "*18, "%.2f"%(np.sqrt(self.StatSens())/meV), "meV")
 
     def print_systematics(self):
         labels, sigmas, deltas = self.get_systematics()
