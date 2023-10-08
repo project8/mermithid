@@ -102,3 +102,4 @@ ENV/
 *.root
 *.png
 *.pdf
+*.DS_Store
