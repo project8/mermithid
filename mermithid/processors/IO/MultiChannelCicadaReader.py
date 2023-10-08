@@ -99,10 +99,10 @@ class MultiChannelCicadaReader(IOProcessor):
                 index = np.where((true_frequencies>=self.transition_freqs[i][0]) &(true_frequencies<self.transition_freqs[i][1]))
                 all_frequencies.extend(list(true_frequencies[index]))
 
-                self.data[self.channel_ids[i]]['TrueStartFrequenciesCut'] = true_frequencies[index]
+                self.data[self.channel_ids[i]]['TrueStartFrequenciesCut'] = list(true_frequencies[index])
                 self.data[self.channel_ids[i]]['FrequencyRange'] = [self.transition_freqs[i][0], self.transition_freqs[i][1]]
 
-            self.data[self.frequency_variable_name] = all_frequencies
+            self.data[self.frequency_variable_name] = list(all_frequencies)
         return True
 
     def Writer(self):

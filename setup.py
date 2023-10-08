@@ -20,7 +20,7 @@ on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 
 requirements = []
 extras_require = {
-    'core':['colorlog'],
+    'core':['colorlog', 'iminuit'],
     'doc': ['sphinx','sphinx_rtd_theme','sphinxcontrib-programoutput', 'six', 'colorlog']
 }
 

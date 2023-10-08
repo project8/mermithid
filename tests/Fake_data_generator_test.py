@@ -20,16 +20,20 @@ class FakeDataGenerationTest(unittest.TestCase):
             "apply_efficiency": False,
             "efficiency_path": "./combined_energy_corrected_eff_at_quad_trap_frequencies.json",
             "simplified_lineshape_path": None,
+            "path_to_detailed_scatter_spectra_dir": '/host',
             "detailed_or_simplified_lineshape": "detailed", #"simplified" or "detailed"
             "use_lineshape": False, # if False only gaussian smearing is applied
             "return_frequency": True,
             "scattering_sigma": 18.6, # only used if use_lineshape = True
-            "scattering_prob": 0.77, # only used if use_lineshape = True
+            "survival_prob": 0.77, # only used if use_lineshape = True
+            "scatter_proportion": 0.8, # only used if use_lineshape = True and lineshape = detailed
             "B_field": 0.9578186017836624,
             "S": 4500, # number of tritium events
-            "n_steps": 1000, # stepsize for pseudo continuous data is: (Kmax_eff-Kmin_eff)/nsteps
+            "n_steps": 10000, # stepsize for pseudo continuous data is: (Kmax_eff-Kmin_eff)/nsteps
             "A_b": 1e-10, # background rate 1/eV/s
-            "poisson_stats": True
+            "poisson_stats": True,
+            "molecular_final_states": False,
+            "final_states_file": "../mermithid/misc/saenz_mfs.json"
         }
 
         specGen = FakeDataGenerator("specGen")
