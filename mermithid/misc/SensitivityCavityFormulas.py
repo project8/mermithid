@@ -94,10 +94,6 @@ def rad_power(kin_energy, pitch, magnetic_field):
     Pe = 2*np.pi*(e*f*b*np.sin(pitch/rad))**2/(3*eps0*c0*(1-b**2))
     return Pe
 
-#def rad_power(kin_energy, pitch, magnetic_field):
-#    Pe = 2*(e**2*magnetic_field*np.sin(pitch))**2*(gamma(kin_energy)**2-1)/(12*eps0*c0*np.pi*me**2)
-#    return Pe
-
 def track_length(rho, kin_energy=None, molecular=True):
     if kin_energy is None:
         kin_energy = tritium_endpoint_molecular if molecular else tritium_endpoint_atomic
@@ -226,6 +222,7 @@ class CavitySensitivity(object):
 
         self.CRLB_constant = 12
         #self.CRLB_constant = 90
+        
         self.CavityRadius()
         self.CavityVolume()
         self.EffectiveVolume()
