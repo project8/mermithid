@@ -62,7 +62,7 @@ sens_config_dict = {
 sens_config_dict2 = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment_conservative.cfg",
-    "plot_path": "./sensitivity_vs_frequency2.pdf",
+    "plot_path": "./sensitivity_vs_frequency.pdf",
     # optional
     "figsize": (9,6),
     "fontsize": 15,
@@ -99,7 +99,7 @@ sens_config_dict2 = {
     "label_x_position": 1e8, #1.5e15, #0.02, #1e14,
     "goals_x_position": 1e9, #2e12 #0.0002
     "goals_y_rel_position": 0.4,
-    "plot_key_parameters": True
+    "plot_key_parameters": False
     }
 #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
 #sens_curve.Configure(sens_config_dict2)
@@ -108,7 +108,7 @@ sens_config_dict2 = {
 # Configuration for Sensitivity vs. density plot for different B sigmas
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
+    "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment_conservative.cfg",
     "plot_path": "./sensitivity_vs_density_curve_with_sigmaBcorrs.pdf",
     # optional
     "track_length_axis": True,
@@ -125,17 +125,18 @@ sens_config_dict = {
     "comparison_curve_label": [r"Atomic"+"\n"+r"10 $\times$ 3 years"+"\n"+r"$\sigma^B_\mathrm{corr} = 0.16\,\mathrm{eV}$"],
     "goals": {"Phase III (0.2 eV)": 0.2, "Phase IV (0.04 eV)": 0.04},
     "comparison_curve": True,
-    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"],
+    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg"],
     #"comparison_config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
     #"B_inhomogeneity": np.linspace(0.1, 2.1, 10)*1e-6,
     #"B_inhom_uncertainty": 0.01,
+    "configure_sigma_theta_r": True,
     "sigmae_theta_r": np.linspace(0.16, 1., 10), #in eV, energy broadening from theta and r reconstruction
     "comparison_label_y_position": [0.044],
     "lower_label_y_position": 0.17,
     "upper_label_y_position": 0.7,
     "label_x_position": 1.5e15, #0.02, #1e14,
     "goals_x_position": 2e12, #0.0002
-    "plot_key_parameters": True
+    "plot_key_parameters": False
     }
 #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
 #sens_curve.Configure(sens_config_dict)
@@ -143,9 +144,10 @@ sens_config_dict = {
 
 
 # Configuration for Sensitivity vs. density plot
+# Currently comparing conservative atomic vs. scenario that reaches target without statistics boost
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg",
+    "config_file_path": "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg",
     "plot_path": "./sensitivity_vs_density_curve.pdf",
     # optional
     "figsize": (7.0,6),
@@ -158,7 +160,7 @@ sens_config_dict = {
     "density_range": [1e12,3e18],
     "efficiency_range": [0.0001, 1],
     #"density_range": [1e8, 1e12],
-    "main_curve_upper_label": r"Atomic, reaching target", #r"Molecular"+"\n"+"Reaching target",
+    "main_curve_upper_label": r"Atomic, conservative", #r"Molecular"+"\n"+"Reaching target",
     "comparison_curve_label": [#"Molecular, reaching target", 
                                 "Atomic, alternative scenario 1"], 
                                 #"Atomic, reaching target"], 
@@ -178,9 +180,9 @@ sens_config_dict = {
     "goals_x_position": 1.2e12, #0.0002
     "plot_key_parameters": True
     }
-sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-sens_curve.Configure(sens_config_dict)
-sens_curve.Run()
+#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+#sens_curve.Configure(sens_config_dict)
+#sens_curve.Run()
 
 
 # Configuration for Sensitivity vs. density plot for best possible molecular scenario
@@ -206,7 +208,7 @@ sens_config_dict = {
     "upper_label_y_position": 0.7,
     "label_x_position": 4e14, 
     "goals_x_position": 1.2e12, 
-    "plot_key_parameters": True
+    "plot_key_parameters": False
     }
 #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
 #sens_curve.Configure(sens_config_dict)
@@ -241,7 +243,7 @@ sens_config_dict = {
     "label_x_position": 4e14, 
     "goals_x_position": 1.2e14, 
     "goals_y_rel_position": 1.1,
-    "plot_key_parameters": True
+    "plot_key_parameters": False
     }
 #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
 #sens_curve.Configure(sens_config_dict)

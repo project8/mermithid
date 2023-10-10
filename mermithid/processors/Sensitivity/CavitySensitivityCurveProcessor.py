@@ -106,7 +106,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.goals_y_rel_position = reader.read_param(params, "goals_y_rel_position", 0.75)
         self.add_1year_1cav_point_to_last_ref = reader.read_param(params, "add_1year_1cav_point_to_last_ref", False)
         
-        # other plot
+        # key parameter plots
         self.make_key_parameter_plots = reader.read_param(params, 'plot_key_parameters', False)
         
         if self.density_axis:
@@ -122,12 +122,12 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
         # goals
         self.goals = reader.read_param(params, "goals", {})
-        
-        if self.add_PhaseII:
-            self.sens_PhaseII = CavitySensitivity(self.PhaseII_path)
 
 
         # setup sensitivities
+        if self.add_PhaseII:
+            self.sens_PhaseII = CavitySensitivity(self.PhaseII_path)
+            
         self.cavity = reader.read_param(params, 'cavity', True)
         
         if self.cavity:
@@ -185,29 +185,40 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
     def InternalRun(self):
 
-        sigma_startf, stat_on_mbeta2, syst_on_mbeta2 = [], [], []
-        for n in self.rhos:
+        
+                
+        if self.make_key_parameter_plots:
+            
+            # First key parameter plot: Stat and Syst vs. density
+            
+            sigma_startf, stat_on_mbeta2, syst_on_mbeta2 = [], [], []
+
+            for n in self.rhos:
                 self.sens_main.Experiment.number_density = n
                 labels, sigmas, deltas = self.sens_main.get_systematics()
                 sigma_startf.append(sigmas[1])
                 stat_on_mbeta2.append(self.sens_main.StatSens())
                 syst_on_mbeta2.append(self.sens_main.SystSens())
-        sigma_startf, stat_on_mbeta2, syst_on_mbeta2 = np.array(sigma_startf), np.array(stat_on_mbeta2), np.array(syst_on_mbeta2)
-        fig = plt.figure()
-        plt.loglog(self.rhos*m**3, stat_on_mbeta2/eV**2, label='Statistical uncertainty')
-        plt.loglog(self.rhos*m**3, syst_on_mbeta2/eV**2, label='Systematic uncertainty')
-        plt.xlabel(r"Number density $n\, \, (\mathrm{m}^{-3})$")
-        plt.ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
-        plt.legend()
-        plt.savefig("stat_and_syst_vs_density.pdf")
+                    
+            sigma_startf, stat_on_mbeta2, syst_on_mbeta2 = np.array(sigma_startf), np.array(stat_on_mbeta2), np.array(syst_on_mbeta2)
+            fig = plt.figure()
+            plt.loglog(self.rhos*m**3, stat_on_mbeta2/eV**2, label='Statistical uncertainty')
+            plt.loglog(self.rhos*m**3, syst_on_mbeta2/eV**2, label='Systematic uncertainty')
+            plt.xlabel(r"Number density $n\, \, (\mathrm{m}^{-3})$")
+            plt.ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
+            plt.legend()
+            plt.tight_layout()
+            plt.savefig("stat_and_syst_vs_density.pdf")
 
-        fig = plt.figure()
-        plt.loglog(self.rhos*m**3, sigma_startf/eV)
-        plt.xlabel(r"Number density $n\, \, (\mathrm{m}^{-3})$")
-        plt.ylabel(r"Resolution from $f$ reconstruction, axial field (eV)")
-        plt.savefig("resolution_from_CRLB_vs_density.pdf")
+            fig = plt.figure()
+            plt.loglog(self.rhos*m**3, sigma_startf/eV)
+            plt.xlabel(r"Number density $n\, \, (\mathrm{m}^{-3})$")
+            plt.ylabel(r"Resolution from $f$ reconstruction, axial field (eV)")
+            plt.tight_layout()
+            plt.savefig("resolution_from_CRLB_vs_density.pdf")
 
 
+        # create main plot
         self.create_plot()
         
         # optionally add Phase II curve and point to exposure plot
@@ -218,14 +229,16 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.density_axis and self.track_length_axis:
             self.add_track_length_axis()
             
+        # add magnetic field axis if frequency axis
         if self.frequency_axis and self.magnetic_field_axis:
             self.add_magnetic_field_axis()
 
+        # add goals
         for key, value in self.goals.items():
             logger.info('Adding goal: {} = {}'.format(key, value))
             self.add_goal(value, key)
             
-        # first optimize density
+        # optimize density
         limit = [self.sens_main.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
         opt = np.argmin(limit)
         rho_opt = self.rhos[opt]
@@ -274,7 +287,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         #self.sens_main.MagneticField.usefixedvalue = True
         #self.sens_main.MagneticField.default_systematic_smearing = sig
         #self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
-                
+            
+        # if the magnetic field uncertainties were configured above, set them back to the first value in the list    
         if self.configure_sigma_theta_r and (isinstance(self.sigmae_theta_r, list) or isinstance(self.sigmae_theta_r, np.ndarray)):
             self.sens_main.MagneticField.sigmae_r = self.sigmae_theta_r[0] * eV
             self.sens_main.MagneticField.sigmae_theta = 0 * eV
@@ -282,7 +296,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
             self.sens_main.MagneticField.sigmae_theta = 0 * eV
 
-        logger.info('Main curve (molecular):')
+        logger.info('Main curve:')
         # set optimum density back
         self.sens_main.CL90(Experiment={"number_density": rho_opt})
         logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_main.effective_volume/(m**3), rho_opt*(m**3)))
@@ -309,7 +323,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.sens_main.print_statistics()
         self.sens_main.print_systematics()
 
-        # Optimize atomic density
+        # Optimize comparison curves over density
         if self.comparison_curve:
             for i in range(len(self.sens_ref)):
                 limit_ref = [self.sens_ref[i].CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
@@ -435,9 +449,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 self.kp_ax[2].set_ylabel(r'Total and effective (dashed) Volume (m$^3$)')
                 self.kp_ax[3].set_ylabel('Noise temperature (K)')
 
-                self.kp_fig.tight_layout()
+            self.kp_fig.tight_layout()
                     
-
     def add_track_length_axis(self):
        
         if self.atomic_axis:
@@ -475,9 +488,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
         gamma = self.sens_main.T_endpoint/(me*c0**2) + 1
         ax3.set_xlim(self.frequencies[0]/(e/(2*np.pi*me)/gamma)/T, self.frequencies[-1]/(e/(2*np.pi*me)/gamma)/T)
-        
-
-        
+             
     def add_comparison_curve(self, label, color='k'):
     
         for a in range(len(self.sens_ref)):
@@ -589,9 +600,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         logger.info("Exposure and mass limit for single point: {}, {}".format(standard_exposure, np.sqrt(1.28*limit)))
         sens.print_statistics()
         sens.print_systematics()
-        
-        
-        
+             
     def add_exposure_sens_line(self, sens, plot_key_params=False, **kwargs):
         
         limit = [sens.sensitivity(Experiment={"number_density": rho})/eV**2 for rho in self.rhos]
@@ -683,8 +692,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                       )
         print(x_start, y_start)
         self.ax.annotate("Phase II T$_2$ density \nand resolution", xy=[x_start*0.9, y_start*1.01],textcoords="axes fraction", fontsize=13)
-        
-      
+             
     def add_frequency_sens_line(self, sens, plot_key_params=True, **kwargs):
         limits = []
         resolutions = []
@@ -746,8 +754,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.kp_ax[2].plot(self.frequencies/Hz, effective_volumes, linestyle="--", **kwargs)
             self.kp_ax[3].plot(self.frequencies/Hz, noise_power, linestyle="-", **kwargs)
         return limits  
-
-        
+      
     def add_text(self, x, y, text, color="k"): #, fontsize=9.5
         self.ax.text(x, y, text, color=color)
 
