@@ -532,10 +532,10 @@ class CavitySensitivity(object):
         tau_snr = self.calculate_tau_snr(self.time_window, sideband_power_fraction=1)
         logger.info("tau_SNR: {}s".format(tau_snr/s))
         eV_bandwidth = np.abs(frequency(self.T_endpoint, self.MagneticField.nominal_field) - frequency(self.T_endpoint + 1*eV, self.MagneticField.nominal_field))
-        SNR_1eV = 1/eV_bandwidth/2./tau_snr
+        SNR_1eV = 1/eV_bandwidth/tau_snr
         track_duration = track_length(rho_opt, self.T_endpoint, molecular=(not self.Experiment.atomic))
-        SNR_track_duration = track_duration/2./tau_snr
-        SNR_1ms = 0.001*s/2./tau_snr
+        SNR_track_duration = track_duration/tau_snr
+        SNR_1ms = 0.001*s/tau_snr
         logger.info("SNR for 1eV bandwidth: {}".format(SNR_1eV))
         logger.info("SNR 1 eV from temperatures:{}".format(self.received_power/(self.noise_energy*eV_bandwidth)))
         logger.info("Track duration: {}ms".format(track_duration/ms))
