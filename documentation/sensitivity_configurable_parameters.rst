@@ -74,38 +74,44 @@ We use the CRLB for calculating the frequency resolution. The CRLB is calculated
 
 **DopplerBroadening**
 
-* usefixedvalue = False
-* gas_temperature = 85 * K
-* gas_temperature_uncertainty = 1 * K
-* fraction_uncertainty_on_doppler_broadening = 0.01
+* ``usefixedvalue``: If True ``default_systematic_smearing`` and ``default_systematic_uncertainty`` are used.
+* ``default_systematic_smearing``: Default systematic broadening for this category. Units must be eV.
+* ``default_systematic_uncertainty``: Default systematic uncertainty for this category. Units must be eV.
+* ``gas_temperature``: Temperature of the source gas. This should only be different from the cavity temperature if the gas is not in thermal equilibrium with the cavity. The gas temperature is used to calculate the Doppler broadening.
+* ``gas_temperature_uncertainty``: Absolute uncertainty of the gas temperature.
+* ``fraction_uncertainty_on_doppler_broadening``: Fractional uncertainty on the Doppler broadening.
 
 
 **MagneticField**
 
-* usefixedvalue = False
-* nominal_field = 36.9  * mT
-* useinhomogeneity = True
-* fraction_uncertainty_on_field_broadening = 0.01 #Applies to all parameters below
-* sigma_meanb = 0.0 * ppm #Magnetic field instability (which is not fully corrected using live calibration) and unknown wiggles in the z-field profile, relative to a smooth trap shape.
-* sigmae_r = 0.159 * eV #Energy broadening from radial field inhomogeneity that remains after radial reconstruction. Accounts for both the uncertainty on each electron's radius and the uncertainty on the radial field profile.
-* sigmae_theta = 0.0 * eV #Energy broadening remaining after theta reconstruction, from electrons with lower pitch angles exploring high fields. Accounts for both the uncertainty on theta and uncertainties on the trap depth/boxiness.
-* sigmae_phi = 0.0 * eV #Energy broadening from phi field inhomogeneity that remains after phi reconstruction.
+* ``usefixedvalue``: If True ``default_systematic_smearing`` and ``default_systematic_uncertainty`` are used.
+* ``default_systematic_smearing``: Default systematic broadening for this category. Units must be eV.
+* ``default_systematic_uncertainty``: Default systematic uncertainty for this category. Units must be eV.
+* ``nominal_field``: Determines the CRES and cavity TE011 mode frequency. The cavity dimensions are derived from this and ``L_over_D``
+* ``useinhomogeneity``: True
+* ``fraction_uncertainty_on_field_broadening``: Fractional uncertainty on field inhomogeneity. Applies to all parameters below
+* ``sigma_meanb``: Fixed input in eV. Magnetic field instability (which is not fully corrected using live calibration) and unknown wiggles in the z-field profile, relative to a smooth trap shape.
+* ``sigmae_r``: Fixed input in eV. Energy broadening from radial field inhomogeneity that remains after radial reconstruction. Accounts for both the uncertainty on each electron's radius and the uncertainty on the radial field profile.
+* ``sigmae_theta``: Fixed input in eV. Energy broadening remaining after theta reconstruction, from electrons with lower pitch angles exploring high fields. Accounts for both the uncertainty on theta and uncertainties on the trap depth/boxiness.
+* ``sigmae_phi``: Fixed input in eV. Energy broadening from phi field inhomogeneity that remains after phi reconstruction.
 
 **FinalStates**
 
-* ground_state_width_uncertainty_fraction = 0.001
+* ``ground_state_width_uncertainty_fraction``: Uncertainty on the ground state width. Recommended to use 0.001.
 
+
+The sections below have so far not been used and are assumed to be negligible.
 
 **MissingTracks**
 
-* usefixedvalue = True
-* default_systematic_smearing = 0.0 * eV
-* default_systematic_uncertainty = 0.0 * eV
+* ``usefixedvalue``: If True ``default_systematic_smearing`` and ``default_systematic_uncertainty`` are used.
+* ``default_systematic_smearing``: Default systematic broadening for this category. Units must be eV.
+* ``default_systematic_uncertainty``: Default systematic uncertainty for this category. Units must be eV.
 
 **PlasmaEffects**
 
-* usefixedvalue = True
-* default_systematic_smearing = 0.0 * eV
-* default_systematic_uncertainty = 0.0 * eV
+* ``usefixedvalue``: If True ``default_systematic_smearing`` and ``default_systematic_uncertainty`` are used.
+* ``default_systematic_smearing``: Default systematic broadening for this category. Units must be eV.
+* ``default_systematic_uncertainty``: Default systematic uncertainty for this category. Units must be eV.
 
 
