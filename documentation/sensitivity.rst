@@ -24,15 +24,16 @@ The following contributions to energy broadening of the beta spectrum are includ
 
 In the list above, each variable that starts with ``sigma`` is a standard deviation of a distribution of energies. The measured spectrum is the convolution of the underlying beta spectrum with such distributions of energies. Asymmetries in these distributions are not accounted for in this approximate model.
 
-Each ``sigma`` has an associated ``delta``, which is the uncertainty on ``sigma`` from calibration, theory, and/or simulation (see :ref:`Analytic sensitivity formula`). For example, ``sigma_trans`` has an associated variable ``delta_sigma_trans``.
+Each ``sigma`` has an associated ``delta``, which is the uncertainty on ``sigma`` from calibration, theory, and/or simulation (see the previous section). For example, ``sigma_trans`` has an associated variable ``delta_sigma_trans``.
 
 In the script ``mermithid/mermithid/misc/SensitivityCavityFormulas.py``, lists of these energy broadening standard deviations (sigmas) and uncertainties on them (deltas) are returned by the ``get_systematics`` method of the ``CavitySensitivity`` class.
 
-Contributions 4 and 5 are simply inputted in the sensitivity configuration file; we do not yet have a way to calculate these contribution in mermithid. Contributions 1, 2, and 3 are calculated in mermithid, as described below.
+Contributions 4 and 5 are simply inputted in the sensitivity configuration file; we do not yet have a way to calculate these in mermithid. Contributions 1, 2, and 3 are calculated in mermithid, as described below.
 
 
 Translational Doppler broadening (``sigma_trans``)
 ============================
+
 
 
 Track start frequency determination and pitch angle correction (``sigma_f``)
