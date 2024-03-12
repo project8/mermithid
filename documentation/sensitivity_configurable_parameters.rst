@@ -54,7 +54,7 @@ Not yet used (work in progress):
 
 We use the CRLB for calculating the frequency resolution. The CRLB is calculated from the signal to noise ratio (SNR) and track length. The sensitivity calculations therefore include a calculation of the noise and signal power.
 
-* ``usefixedvalue``: If true all parameters below are ignored but ``default_systematic_smearing``.
+* ``usefixedvalue``: If true all parameters below are ignored but ``default_systematic_smearing`` and ``default_systematic_uncertainty``.
 * ``default_systematic_smearing``: Used if ``usefixedvalue`` is true. Units must be eV.
 * ``default_systematic_uncertainty``: Used if ``usefixedvalue`` is true. Units must be eV
 * ``usefixeduncertainty``: If true, the uncertainty on the frequency extraction is fixed to the value of ``fixed_relativ_uncertainty``. False will result in an error because no calculation is currently implemented.
