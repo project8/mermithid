@@ -72,7 +72,7 @@ sens_config_dict = {
     "scan_parameter_range": [83, 89],
     "scan_parameter_steps": 3,
     "scan_parameter_unit": deg,
-    "plot_sensitivity_scan_on_log_scale": True,
+    "plot_sensitivity_scan_on_log_scale": False,
     #"sigmae_theta_r": 0.159,
     "lower_label_y_position": 0.17,
     "upper_label_y_position": 0.7,

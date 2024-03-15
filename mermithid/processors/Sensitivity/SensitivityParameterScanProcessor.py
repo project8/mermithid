@@ -184,7 +184,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
               
             # add main curve
             logger.info("Drawing main curve")  
-            self.add_sens_line(self.sens_main, label=f"{self.scan_parameter_name} = {parameter_value/self.scan_parameter_unit:.2f} {self.scan_parameter_unit_string}")
+            self.add_sens_line(self.sens_main, label=f"{param} = {parameter_value/self.scan_parameter_unit:.2f} {self.scan_parameter_unit_string}")
                  
             if self.make_key_parameter_plots:
                 logger.info("Making key parameter plots")
@@ -247,7 +247,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             self.sens_main.print_statistics()
             self.sens_main.print_systematics()
             
-        self.save(self.plot_path.replace(".pdf", "_{}_scan.pdf".format(self.scan_parameter_name)))
+        self.save(self.plot_path.replace(".pdf", "_for_{}_scan.pdf".format(param)))
             
 
         # plot and print best limits
@@ -258,14 +258,14 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         plt.figure(figsize=self.figsize)
         #plt.title("Sensitivity vs. {}".format(self.scan_parameter_name))
         plt.plot(self.scan_parameter_values/self.scan_parameter_unit, np.array(self.optimum_limits)/eV, marker=".", label="Density optimized scenarios")
-        plt.xlabel(f"{self.scan_parameter_name} ({self.scan_parameter_unit_string})", fontsize=self.fontsize)
+        plt.xlabel(f"{param} ({self.scan_parameter_unit_string})", fontsize=self.fontsize)
         plt.ylabel(r"90% CL $m_\beta$ (eV)", fontsize=self.fontsize)
         if self.plot_sensitivity_scan_on_log_scale:
             plt.yscale("log")
         plt.axhline(40e-3, label="Phase IV goal", color="grey", linestyle="-")
         plt.legend(fontsize=self.fontsize)
         plt.tight_layout()
-        plt.savefig(f"{self.scan_parameter_name}_optimum_limits.pdf")
+        plt.savefig(f"{param}_scan_optimum_limits.pdf")
         plt.show()
         
         
@@ -347,7 +347,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             ax3.set_xlim(self.sens_main.track_length(self.rhos[0])/s,
                          self.sens_main.track_length(self.rhos[-1])/s)
 
-        else:
+        if not self.atomic_axis and not self.molecular_axis:
             logger.warning("No track length axis added since neither atomic nor molecular was requested")
         self.fig.tight_layout()
         
