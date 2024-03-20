@@ -33,7 +33,7 @@ Contributions 4 and 5 are simply inputted in the sensitivity configuration file;
 
 Translational Doppler broadening (``sigma_trans``)
 ============================
-
+The translational Doppler broadening is 
 
 
 Track start frequency determination and pitch angle correction (``sigma_f``)
