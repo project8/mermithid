@@ -226,6 +226,7 @@ class CavitySensitivity(object):
         self.CavityRadius()
         self.CavityVolume()
         self.EffectiveVolume()
+        self.PitchDependentTrappingEfficiency()
         self.CavityPower()
 
     # CAVITY
@@ -250,12 +251,21 @@ class CavitySensitivity(object):
         if self.Efficiency.usefixedvalue:
             self.effective_volume = self.total_volume * self.Efficiency.fixed_efficiency
         else:
-            # trapping efficiecny is currently configured. replace with box trap calculation
-            self.effective_volume = self.total_volume*self.Efficiency.radial_efficiency*self.Efficiency.trapping_efficiency
+            # radial and detection efficiency are configured in the config file
+            logger.info("Radial efficiency: {}".format(self.Efficiency.radial_efficiency))
+            logger.info("Detection efficiency: {}".format(self.Efficiency.detection_efficiency))
+            logger.info("Pitch angle efficiency: {}".format(self.PitchDependentTrappingEfficiency()))
+            logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
             
+            self.effective_volume = self.total_volume*self.Efficiency.radial_efficiency*self.Efficiency.detection_efficiency*self.PitchDependentTrappingEfficiency()   
+        logger.info("Total efficiency: {}".format(self.effective_volume/self.total_volume))        
         self.effective_volume*=self.Experiment.sri_factor
         return self.effective_volume
         
+    def PitchDependentTrappingEfficiency(self):
+        self.pitch_angle_efficiency = np.cos(self.FrequencyExtraction.minimum_angle_in_bandwidth)
+        return self.pitch_angle_efficiency
+
     def CavityPower(self):
         # from Hamish's atomic calculator
         #Jprime_0 = 3.8317
