@@ -55,8 +55,8 @@ The thermal translational motion of tritium atoms causes a Doppler broadening of
 This is done in the ``DopplerBroadening`` section of the configuration file, by setting ``UseFixedValue`` to ``True`` and providing values for ``Default_Systematic_Smearing`` and ``Default_Systematic_Uncertainty``.
 
 2. Have mermithid calculate ``sigma_trans``, for you (default option).
-- For an atomic tritium experiment, mermithid will also calculate ``delta_trans``, conservatively assuming that the gas temperature uncertainty will be determined simply by our knowledge that the gas is not so hot that it escapes the atom trap. These calculations for an atomic experiment are described further, below.
-- For a molecular tritium experiment, you need to input a number ``fraction_uncertainty_on_doppler_broadening`` (which equals ``delta_trans``/``sigma_trans``) in the ``DopplerBroadening`` section of the configuration file. 
+ - For an atomic tritium experiment, mermithid will also calculate ``delta_trans``, conservatively assuming that the gas temperature uncertainty will be determined simply by our knowledge that the gas is not so hot that it escapes the atom trap. These calculations for an atomic experiment are described further, below.
+ - For a molecular tritium experiment, you need to input a number ``fraction_uncertainty_on_doppler_broadening`` (which equals ``delta_trans``/``sigma_trans``) in the ``DopplerBroadening`` section of the configuration file. 
 
 Calculation of ``sigma_trans`` for option 2:
 For a thermalized source gas, the translational Doppler broadening is described by Gaussian with standard deviation 
