@@ -15,7 +15,7 @@ import numpy as np
 # Configuration for CCA Sensitivity vs. density plot
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment.cfg", #"/termite/sensitivity_config_files/Config_LoverDof5_LFA_Experiment.cfg",
+    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #"/termite/sensitivity_config_files/Config_LoverDof5_LFA_Experiment.cfg",
     #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
     "plot_path": "./lfa_sensitivity_vs_density_curve.pdf",
     # optional
@@ -30,8 +30,8 @@ sens_config_dict = {
     "density_range": [1e13,1e20],
     "efficiency_range": [0.0001, 1],
     #"density_range": [1e8, 1e12],
-    "main_curve_upper_label": r"$\sigma^B_\mathrm{corr} = 1\,\mathrm{eV}$", #r"Molecular"+"\n"+"Reaching target",
-    "main_curve_lower_label": r"$\sigma^B_\mathrm{corr} = 0.16\,\mathrm{eV}$", #r"Molecular"+"\n"+"Reaching target",
+    "main_curve_upper_label": r"$\sigma^B_\mathrm{corr} = 0.5\,\mathrm{eV}$", #r"Molecular"+"\n"+"Reaching target",
+    "main_curve_lower_label": r"$\sigma^B_\mathrm{corr} = 0.1\,\mathrm{eV}$", #r"Molecular"+"\n"+"Reaching target",
     #"comparison_curve_label": [#"Molecular, reaching target", 
     #                            "Atomic, alternative scenario 1"], 
     #                            #"Atomic, reaching target"], 
@@ -51,7 +51,7 @@ sens_config_dict = {
     "goals_x_position": 1.2e14, #0.0002
     "plot_key_parameters": True,
     "configure_sigma_theta_r": True,
-    "sigmae_theta_r": np.linspace(0.16, 1., 10), #in eV, energy broadening from theta and r reconstruction
+    "sigmae_theta_r": np.linspace(0.1, 0.5, 10), #in eV, energy broadening from theta and r reconstruction
     }
 sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
 sens_curve.Configure(sens_config_dict)
@@ -60,8 +60,8 @@ sens_curve.Run()
 
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
-    "plot_path": "./lfa_sensitivity_vs_exposure_curve_LoverD5.pdf",
+    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
+    "plot_path": "./lfa_sensitivity_vs_exposure_curve_1GHz.pdf",
     # optional
     "figsize": (10,6),
     "fontsize": 15,
