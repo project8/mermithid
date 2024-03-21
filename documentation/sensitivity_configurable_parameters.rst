@@ -4,8 +4,8 @@ Configuring mermithid sensitivity calculation
 
 The sensitivity calculation is configured using a configuration file. The configuration files for Project 8 live in the termite repository: https://github.com/project8/termite/tree/feature/sensitivity_config_files/sensitivity_config_files
 
-Our main goal is the calcualtion of sensitivity in a cavity experiment. The configurations below are to be used for https://github.com/project8/mermithid/blob/feature/sensitivity_curve/mermithid/misc/SensitivityCavityFormulas.py
-
+Our main goal is the calcualtion of sensitivity in a cavity experiment. The configurations below are to be used for the CavitySensitivity class in https://github.com/project8/mermithid/blob/feature/sensitivity_curve/mermithid/misc/SensitivityCavityFormulas.py
+This class is used by the CavitySensitivityCurveProcessor and the SensitivityParameterScanProcessor. 
 
 Structure of a config file
 --------------------------
@@ -32,13 +32,13 @@ Below is a list of the parameters with a short description of what role they pla
 
 **Experiment**
 
-* ``L_over_D``: The ratio of the length of the cavity to the diameter of the cavity. Together with the frequency of the cavity, this parameter determines the length and volume of a single cavity. It also impacts the cavity Q-factor which is determined by the bandwidth needed to observe the axial frequency of the trapped electrons.
+* ``L_over_D``: The ratio of the length of the cavity to the diameter of the cavity. Together with the frequency of the cavity's TE011 mode, this parameter determines the length and volume of a single cavity. It also impacts the cavity Q-factor which is determined by the bandwidth needed to observe the axial frequency of the trapped electrons.
 * ``livetime``: Run duration of the experiment. Together with the total volume, efficiency, and the gas density, this determines the statistical power of the experiment. 
 * ``n_cavities``: Number of identical cavities in the experimennt. This parameter multiplies the single cavity volume to give the total experimental volume.
 * ``background_rate_per_ev``: Background rate per electronvolt for the entire experiment. It is not automultiplied by the number of channels (cavities) in the experiment.
 * ``number_density``: The gas number density together with the total volume, livetime, and the efficiency determines the statistical power of the experiment. Gas density also determines the track length and therefore the frequency resolution. The sensitivity curve processor can optimize this parameter to maximize the sensitivity. In that case this number is overwritten in the calculation. 
-* ``sri_factor``: The statistical rate increase factor articifially increases the number of observed events. It is highly recommended to set it to 1.
-* ``atomic``: If true the calculation is done for atomic tritium. If false moecular tritium is assumed. This affects the number of decays per gas molecule/atom (2 for molecular 1 for atomic), the track length in a given gas density (via electron scattering cross section), and the width of the final ground state.
+* ``sri_factor``: The statistical rate increase factor articifially increases the number of observed events (it multiplies the total efficiency). It is highly recommended to set it to 1.
+* ``atomic``: If true, the calculation is done for atomic tritium. If false, moecular tritium is assumed. This affects the number of decays per gas molecule/atom (2 for molecular 1 for atomic), the track length in a given gas density (via electron scattering cross section), and the width of the final ground state.
 
 
 **Efficiency**
