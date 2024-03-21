@@ -9,5 +9,7 @@ Contents:
     intro
     install
     contribute
+    sensitivity
+    sensitivity_configurable_parameters
     validation_log
     better_apidoc_out/modules
