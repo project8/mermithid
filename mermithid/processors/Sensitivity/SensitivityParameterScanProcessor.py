@@ -12,6 +12,7 @@ from __future__ import absolute_import
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 
 
@@ -91,11 +92,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         self.density_range = reader.read_param(params, 'density_range', [1e14,1e21])
         self.ylim = reader.read_param(params, 'y_limits', [1e-2, 1e2])
         
-        self.label_x_position = reader.read_param(params, 'label_x_position', 5e19)
-        self.upper_label_y_position = reader.read_param(params, 'upper_label_y_position', 5)
-        self.lower_label_y_position = reader.read_param(params, 'lower_label_y_position', 2.3)
-        self.goal_x_pos = reader.read_param(params, "goals_x_position", 1e14)
-        self.goals_y_rel_position = reader.read_param(params, "goals_y_rel_position", 0.75)
+        
 
         # key parameter plots
         self.make_key_parameter_plots = reader.read_param(params, 'plot_key_parameters', False)
@@ -108,6 +105,8 @@ class SensitivityParameterScanProcessor(BaseProcessor):
 
         # goals
         self.goals = reader.read_param(params, "goals", {})
+        self.goal_x_pos = reader.read_param(params, "goals_x_position", 1e14)
+        self.goals_y_rel_position = reader.read_param(params, "goals_y_rel_position", 0.75)
 
 
         # setup sensitivities
@@ -136,7 +135,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
                 logger.warn("No experiment is configured to be atomic")
 
         # densities, exposures, runtimes
-        self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 1000)/m**3
+        self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 100)/m**3
         self.scan_parameter_values = np.linspace(self.scan_parameter_range[0], self.scan_parameter_range[1], self.scan_parameter_steps)*self.scan_parameter_unit
          
         return True
@@ -145,27 +144,30 @@ class SensitivityParameterScanProcessor(BaseProcessor):
 
     def InternalRun(self):
         
-        self.create_plot()
+        self.create_plot(self.scan_parameter_values/self.scan_parameter_unit)
         # add second and third x axis for track lengths
         if self.density_axis and self.track_length_axis:
             self.add_track_length_axis()
             
-        # add goals
+        # add goals to density plot
         for key, value in self.goals.items():
             logger.info('Adding goal: {} = {}'.format(key, value))
             self.add_goal(value, key)
                 
         
         self.optimum_limits = []
+        self.optimum_rhos = []
 
-        for i in range(self.scan_parameter_steps):
+
+        for i, color in self.range(self.scan_parameter_values/self.scan_parameter_unit):
             parameter_value = self.scan_parameter_values[i]
             
             category, param = self.scan_parameter_name.split(".")
             
             self.sens_main.__dict__[category].__dict__[param] = parameter_value 
-            setattr(self.sens_main, self.scan_parameter_name, parameter_value)
-            read_back = getattr(self.sens_main, self.scan_parameter_name)
+            read_back = self.sens_main.__dict__[category].__dict__[param]
+            #setattr(self.sens_main, self.scan_parameter_name, parameter_value)
+            #read_back = getattr(self.sens_main, self.scan_parameter_name)
             logger.info(f"Setting {self.scan_parameter_name} to {parameter_value/self.scan_parameter_unit} and reading back: {read_back/ self.scan_parameter_unit}")
             
     
@@ -180,11 +182,13 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             self.optimum_limits.append(np.min(limit))
             opt = np.argmin(limit)
             rho_opt = self.rhos[opt]
+            self.optimum_rhos.append(rho_opt)
             self.sens_main.Experiment.number_density = rho_opt
               
             # add main curve
             logger.info("Drawing main curve")  
-            self.add_sens_line(self.sens_main, label=f"{param} = {parameter_value/self.scan_parameter_unit:.2f} {self.scan_parameter_unit_string}")
+            label = f"{param} = {parameter_value/self.scan_parameter_unit:.2f} {self.scan_parameter_unit_string}"
+            self.add_sens_line(self.sens_main, label=label, color=color)
                  
             if self.make_key_parameter_plots:
                 logger.info("Making key parameter plots")
@@ -207,15 +211,9 @@ class SensitivityParameterScanProcessor(BaseProcessor):
                 plt.ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
                 plt.legend()
                 plt.tight_layout()
-                plt.savefig(f"{self.scan_parameter_name}_{parameter_value/self.scan_parameter_values}_stat_and_syst_vs_density.pdf")
+                plt.savefig(os.path.join(self.plot_path, f"{param}_{parameter_value/self.scan_parameter_unit}_stat_and_syst_vs_density.pdf"))
 
-                fig = plt.figure()
-                plt.loglog(self.rhos*m**3, sigma_startf/eV)
-                plt.xlabel(r"Number density $n\, \, (\mathrm{m}^{-3})$")
-                plt.ylabel(r"Resolution from $f$ reconstruction, axial field (eV)")
-                plt.tight_layout()
-                plt.savefig(f"{self.scan_parameter_name}_{parameter_value/self.scan_parameter_unit}_resolution_from_CRLB_vs_density.pdf")
-
+                
 
 
 
@@ -247,10 +245,14 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             self.sens_main.print_statistics()
             self.sens_main.print_systematics()
             
-        self.save(self.plot_path.replace(".pdf", "_for_{}_scan.pdf".format(param)))
+        self.save("sensitivity_vs_density_for_{}_scan.pdf".format(param))
             
 
         # plot and print best limits
+        self.results = {"scan_parameter": self.scan_parameter_name, "scan parameter_unit": self.scan_parameter_unit_string,
+                        "scan_parameter_values": self.scan_parameter_values, "optimum_limits_eV": np.array(self.optimum_limits)/eV,
+                        "optimum_densities_/m3": np.array(self.optimum_rhos)*(m**3)}
+        
         logger.info("Scan parameter: {}".format(self.scan_parameter_name))
         logger.info("Tested parameter values: {}".format(self.scan_parameter_values/self.scan_parameter_unit))
         logger.info("Best limits: {}".format(np.array(self.optimum_limits)/eV))
@@ -262,10 +264,13 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         plt.ylabel(r"90% CL $m_\beta$ (eV)", fontsize=self.fontsize)
         if self.plot_sensitivity_scan_on_log_scale:
             plt.yscale("log")
-        plt.axhline(40e-3, label="Phase IV goal", color="grey", linestyle="-")
+            
+        for key, value in self.goals.items():
+            logger.info('Adding goal: {} = {}'.format(key, value))
+            plt.axhline(value, label=key, color="grey", linestyle="--")
         plt.legend(fontsize=self.fontsize)
         plt.tight_layout()
-        plt.savefig(f"{param}_scan_optimum_limits.pdf")
+        plt.savefig(os.path.join(self.plot_path, f"{param}_scan_optimum_limits.pdf"))
         plt.show()
         
         
@@ -276,7 +281,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         return True
 
 
-    def create_plot(self):
+    def create_plot(self, param_range=[]):
         # setup axis
         plt.rcParams.update({'font.size': self.fontsize})
         self.fig, self.ax = plt.subplots(figsize=self.figsize)
@@ -299,27 +304,17 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             ax.set_xlabel(axis_label)
             ax.set_ylim(self.ylim)
             ax.set_ylabel(r"90% CL $m_\beta$ (eV)")
+            
+        if len(param_range)>4:
+            # add colorbar with colors from self.range
+            cmap = matplotlib.cm.get_cmap('Spectral')
+            norm = matplotlib.colors.Normalize(vmin=np.min(param_range), vmax=np.max(param_range))
+            sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+            sm.set_array([])
+            self.fig.colorbar(sm, ticks=np.round(param_range, 2), label=f"{self.scan_parameter_name} ({self.scan_parameter_unit_string})")
+            
         
-        if self.make_key_parameter_plots:
-            
-            
-            if self.density_axis:
-                
-                self.kp_fig, self.kp_ax = plt.subplots(1,2, figsize=(10,6))
-                self.kp_fig.tight_layout()
-            
-                for ax in self.kp_ax:
-                    ax.set_xlim(self.rhos[0]*m**3, self.rhos[-1]*m**3)
-                    ax.set_xscale("log")
-                    ax.set_yscale("log")
-                    axis_label = r"Number density $n\, \, (\mathrm{m}^{-3})$"
-                    ax.set_xlabel(axis_label)
-                    
-                self.kp_ax[0].set_ylabel('Resolution (meV)')
-                self.kp_ax[1].set_ylabel('Track analysis length (ms)')
-                    
 
-            self.kp_fig.tight_layout()
                     
     def add_track_length_axis(self):
        
@@ -390,34 +385,32 @@ class SensitivityParameterScanProcessor(BaseProcessor):
     def add_text(self, x, y, text, color="k"): #, fontsize=9.5
         self.ax.text(x, y, text, color=color)
 
-    def range(self, start, stop):
+    def range(self, param_range):
         cmap = matplotlib.cm.get_cmap('Spectral')
-        norm = matplotlib.colors.Normalize(vmin=start, vmax=stop)
-        return [(idx, cmap(norm(idx))) for idx in range(start, stop)]
+        norm = matplotlib.colors.Normalize(vmin=0, vmax=len(param_range)-1)
+        return [(idx, cmap(norm(idx))) for idx, _ in enumerate(param_range)]
 
-    def save(self, savepath, **kwargs):
+    def save(self, filename, **kwargs):
+        
         if self.density_axis:
-            legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1,0.765))
-        elif self.frequency_axis:
-            if self.magnetic_field_axis:
-                legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.14,0,1,0.85  ))
-            else:
-                legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.14,0,1,0.95  ))
+            if self.scan_parameter_steps < 5:
+                legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1,0.765))
+            
         else:
             legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(-0.,0,0.89,0.97))
+
             
-        self.fig.tight_layout()
+            
         #keywords = ", ".join(["%s=%s"%(key, value) for key, value in kwargs.items()])
         metadata = {"Author": "p8/mermithid",
                     "Title": "Neutrino mass sensitivity",
                     "Subject":"90% CL upper limit on neutrino mass assuming true mass is zero."
                     }
                     #"Keywords": keywords}
-        if savepath is not None:
-            self.fig.savefig(savepath.replace(".pdf", ".png"), dpi=300, metadata=metadata)
-            self.fig.savefig(savepath.replace(".png", ".pdf"), bbox_inches="tight", metadata=metadata)
+                    
+        self.fig.tight_layout()
+        self.fig.savefig(os.path.join(self.plot_path, filename), bbox_inches="tight", metadata=metadata)
+        self.fig.savefig(os.path.join(self.plot_path, filename.replace(".pdf", ".png")), bbox_inches="tight", metadata=metadata)
             
-        if self.make_key_parameter_plots:
-            self.kp_fig.savefig('key_parameters.pdf')
 
 
