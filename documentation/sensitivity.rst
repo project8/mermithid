@@ -33,7 +33,20 @@ Contributions 4 and 5 are simply inputted in the sensitivity configuration file;
 
 Translational Doppler broadening (``sigma_trans``)
 ============================
-The translational Doppler broadening is 
+The thermal translational motion of tritium atoms causes a Doppler broadening of the $\beta$ energy spectrum. ``sigma_trans`` is the standard deviation of this broadening distribution. There are two options for how to include translational Doppler broadening in your sensitivity calculations, in mermithid:
+
+1. Manually input values for ``sigma_trans`` and its uncertainty ``delta_trans``, calculated outside of mermithid. This is done in the ``DopplerBroadening`` section of the configuration file, by setting ``UseFixedValue`` to ``True`` and providing values for ``Default_Systematic_Smearing`` and ``Default_Systematic_Uncertainty``.
+
+2. Have mermithid calculate ``sigma_trans``, for you (default option).
+    - For an atomic tritium experiment, mermithid will also calculate ``delta_trans``, conservatively assuming that the gas temperature uncertainty will be determined simply by our knowledge that the gas is not so hot that it escapes the atom trap. These calculations for an atomic experiment are described further, below.
+    - For a molecular tritium experiment, you need to input a number ``fraction_uncertainty_on_doppler_broadening`` (which equals ``delta_trans``/``sigma_trans``) in the ``DopplerBroadening`` section of the configuration file. 
+
+Calculation of ``sigma_trans`` for option 2: See https://www.overleaf.com/project/5de3e02edd267500011b8cc4. 
+(Will copy to here and format.)
+
+Calculation of ``delta_trans`` for option 2, with atomic T: See https://www.overleaf.com/project/5de3e02edd267500011b8cc4. 
+(Will copy to here and format.)
+
 
 
 Track start frequency determination and pitch angle correction (``sigma_f``)
