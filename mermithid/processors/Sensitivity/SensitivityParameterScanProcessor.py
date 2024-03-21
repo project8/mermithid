@@ -42,9 +42,9 @@ __all__.append(__name__)
 
 
 def return_var_name(variable):
- for name in globals():
-     if eval(name) == variable:
-        return name
+    for name in globals():
+        if eval(name) == variable:
+            return name
 
 
 
