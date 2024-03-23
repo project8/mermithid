@@ -1,7 +1,8 @@
 '''
 Generate binned or pseudo unbinned data
-Author: T. Weiss, C. Claessens
-Date:4/6/2020
+Author: T. Weiss, C. Claessens, X. Huyan
+Date: 4/6/2020
+Updated: 2/9/2021
 '''
 
 from __future__ import absolute_import
@@ -16,7 +17,8 @@ import os
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.misc.FakeTritiumDataFunctions import *
-from mermithid.processors.misc.KrComplexLineShape import KrComplexLineShape
+from mermithid.processors.misc.MultiGasComplexLineShape import MultiGasComplexLineShape
+from mermithid.misc import Constants, ComplexLineShapeUtilities, ConversionFunctions
 logger = morphologging.getLogger(__name__)
 
 
@@ -36,9 +38,10 @@ class FakeDataGenerator(BaseProcessor):
         Configurable parameters are:
         - Q [eV]: endpoint energy
         - neutrino_mass [eV]: true neutrino mass
-        - minf [Hz]: low frequency cut-off (high cutoff is determined from efficiency dict)
         – Kmin [eV]: low energy cut-off
         – Kmax [eV]: high energy cut-off
+        - minf [Hz]: low frequency cut-off
+        - maxf [Hz]: high frequency cutoff (optional; if not provided, max frequency is determined from efficiency dict)
         - n_steps: number of energy bins that data will be drawn from
         - B_field: used for energy-frequency conversion
         - sig_trans [eV]: width of thermal broadening
@@ -48,13 +51,33 @@ class FakeDataGenerator(BaseProcessor):
         - A_b [1/eV/s]: background rate
         - poisson_stats (boolean): if True number of total events is random
         - err_from_B [eV]: energy uncertainty originating from B uncertainty
-        - survival_prob: lineshape parameter - ratio of n+t/nth peak
-        - scattering_sigma [eV]: lineshape parameter - 0-th peak gaussian broadening standard deviation
+        – gases: list of strings naming gases to be included in complex lineshape model. Options: 'H2', 'He', 'Kr', 'Ar', 'CO'
         - NScatters: lineshape parameter - number of scatters included in lineshape
-        - scatter_proportion: fraction of hydrogen in complex lineshape
-        - simplified_scattering_path: path to simplified lineshape parameters
-        - path_to_detailed_scatter_spectra_dir: path to oscillator and or scatter_spectra_file
+        - trap_weights: distionary of two lists, labeled 'weights' and 'errors', which respectively include the fractions of counts from each trap and the uncertainties on those fractions
+        - scatter_peak_ratio_b: "b" in reconstrudction efficiency curve model: e^(-b*i^c), where i is the scatter order
+        - scatter_peak_ratio_c: "c" in the same reconstruction efficiency model
+        – scatter_proportion: list of proportion of scatters due to each gas in self.gases (in the same order), in complex lineshape
+        - survival_prob: lineshape parameter - probability of electron staying in the trap between two inelastics scatters (it could escape due to elastics scatters or the inelastics scatters, themselves)
+        – use_radiation_loss: if True, radiation loss will be included in the complex lineshape; should be set to True except for testing purposes
+        – resolution_function: string determinign type of resolution function; options are 'simulated_resolution', 'gaussian_resolution', 'gaussian_lorentzian_composite_resolution'.
+        – ratio_gamma_to_sigma: parameter in gaussian_lorentzian_composite_resolution; see the MultiGasComplexLineShape processor
+        – gaussian_proportion: also a parameter in gaussian_lorentzian_composite_resolution
+        – A_array: parameter for Gaussian resolution with variable width; see the MultiGasComplexLineShape processor
+        - sigma_array: also a parameter for Gaussian resolution with variable width
+        – fit_recon_eff: if True, determine recon eff parameters by fitting to FTG data, instead of by using parameters given in self.recon_eff_parameters
+        – use_combined_four_trap_inst_reso: for simulated resolution, combine resolution distributions provided for four different traps
+        - sample_ins_resolution_errors: if True, and if using a simulated instrumental resolution, the count numbers in that distribution will be sampled from uncertainties
+        - scattering_sigma [eV]: lineshape parameter - 0-th peak gaussian broadening standard deviation
+        - min_energy [eV]: minimum of lineshape energy window for convolution with beta spectrum. Same magnitude is used for the max energy of the window.
         - efficiency_path: path to efficiency vs. frequency (and uncertainties)
+        - simplified_scattering_path: path to simplified lineshape parameters
+        – path_to_osc_strengths_files: path to oscillator strength files containing energy loss distributions for the gases in self.gases
+        – path_to_scatter_spectra_file: path to scatter spectra file, which is generated from the osc strenth files and accounts for cross scattering
+        – rad_loss_path: path to file containing data describing radiation loss
+        - path_to_detailed_scatter_spectra_dir: path to oscillator and or scatter_spectra_file
+        – path_to_ins_resolution_data_txt: path to file containing simulated instrumental resolution data, already combined among the four traps
+        - path_to_four_trap_ins_resolution_data_txt: path to files containing simulated instrumental resolution data for each of the four individual traps
+        - final_states_file: path to file containing molecular final state binding energies and corresponding probabilities
         - use_lineshape (boolean): determines whether tritium spectrum is smeared by lineshape.
           If False, it will only be smeared with a Gaussian
         - detailed_or_simplified_lineshape: If use lineshape, this string determines which lineshape model is used.
@@ -95,17 +118,36 @@ class FakeDataGenerator(BaseProcessor):
 
 
         #Scattering model parameters
-        self.survival_prob = reader.read_param(params, 'survival_prob', 0.77)
-        self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
+        self.gases = reader.read_param(params, 'gases', ['H2', 'He', 'CO'])
         self.NScatters = reader.read_param(params, 'NScatters', 20)
-        self.scatter_proportion = reader.read_param(params, 'scatter_proportion', 1.0)
+        self.trap_weights = reader.read_param(params, 'trap_weights', {'weights':[0.076,  0.341, 0.381, 0.203], 'errors':[0.003, 0.013, 0.014, 0.02]})
+        #self.recon_eff_params = reader.read_param(params, 'recon_eff_params', [0.005569990343215976, 0.351, 0.546])
+        self.scatter_peak_ratio_b = reader.read_param(params, 'scatter_peak_ratio_b', 0.686312493)
+        self.scatter_peak_ratio_c = reader.read_param(params, 'scatter_peak_ratio_c', 0.52481056)
+        self.scatter_proportion = reader.read_param(params, 'scatter_proportion', [])
+        self.survival_prob = reader.read_param(params, 'survival_prob', 0.7)
+        self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
+        self.resolution_function = reader.read_param(params, 'resolution_function', '')
+        self.ratio_gamma_to_sigma = reader.read_param(params, 'ratio_gamma_to_sigma', 0.8)
+        self.gaussian_proportion = reader.read_param(params, 'gaussian_proportion', 0.8)
+        self.A_array = reader.read_param(params, 'A_array', [0.076, 0.341, 0.381, 0.203])
+        self.sigma_array = reader.read_param(params, 'sigma_array', [5.01, 13.33, 15.40, 11.85])
+        self.fit_recon_eff = reader.read_param(params, 'fit_recon_eff', False)
+        self.use_combined_four_trap_inst_reso = reader.read_param(params, 'use_combined_four_trap_inst_reso', True)
+        self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', True)
+        self.scattering_sigma = reader.read_param(params, 'scattering_sigma', 18.6)
         self.min_energy = reader.read_param(params,'min_lineshape_energy', -1000)
 
         #paths
-        self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
-        self.detailed_scatter_spectra_path = reader.read_param(params, 'path_to_detailed_scatter_spectra_dir', '.')
         self.efficiency_path = reader.read_param(params, 'efficiency_path', '')
+        self.simplified_scattering_path = reader.read_param(params, 'simplified_scattering_path', '/host/input_data/simplified_scattering_params.txt')
+        self.path_to_osc_strengths_files = reader.read_param(params, 'path_to_osc_strengths_files', '/host/')
+        self.path_to_scatter_spectra_file = reader.read_param(params, 'path_to_scatter_spectra_file', '/host/')
+        self.rad_loss_path = reader.read_param(params, 'rad_loss_path', '')
+        self.path_to_ins_resolution_data_txt = reader.read_param(params, 'path_to_ins_resolution_data_txt', '/host/ins_resolution_all.txt')
+        self.path_to_four_trap_ins_resolution_data_txt = reader.read_param(params, 'path_to_four_trap_ins_resolution_data_txt', ['/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap1.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap2.txt', '/host/T2-1.56e-4/analysis_input/complex-lineshape-inputs/res_cf15.5_trap3.txt', '/host/analysis_input/complex-lineshape-inputs/T2-1.56e-4/res_cf15.5_trap4.txt'])
         self.final_states_file = reader.read_param(params, 'final_states_file', '')
+        self.shake_spectrum_parameters_json_path = reader.read_param(params, 'shake_spectrum_parameters_json_path', 'shake_spectrum_parameters.json')
 
         #options
         self.use_lineshape = reader.read_param(params, 'use_lineshape', True)
@@ -113,6 +155,7 @@ class FakeDataGenerator(BaseProcessor):
         self.apply_efficiency = reader.read_param(params, 'apply_efficiency', False)
         self.return_frequency = reader.read_param(params, 'return_frequency', True)
         self.molecular_final_states = reader.read_param(params, 'molecular_final_states', False)
+
 
         # will be replaced with complex lineshape object if detailed lineshape is used
         self.complexLineShape = None
@@ -134,35 +177,54 @@ class FakeDataGenerator(BaseProcessor):
                                                         self.NScatters)
             elif self.lineshape=='detailed':
                 # check path exists
-                if 'scatter_spectra_file' in self.detailed_scatter_spectra_path:
-                    full_path = self.detailed_scatter_spectra_path
-                    self.detailed_scatter_spectra_path, _ = os.path.split(full_path)
+                if 'scatter_spectra_file' in self.path_to_scatter_spectra_file:
+                    full_path = self.path_to_scatter_spectra_file
+                    self.path_to_scatter_spectra_file, _ = os.path.split(full_path)
                 else:
-                    full_path = os.path.join(self.detailed_scatter_spectra_path, 'scatter_spectra_file')
+                    full_path = os.path.join(self.path_to_scatter_spectra_file, 'scatter_spectra_file')
 
-                logger.info('Path to scatter_spectra_file: {}'.format(self.detailed_scatter_spectra_path))
+                logger.info('Path to scatter_spectra_file: {}'.format(self.path_to_scatter_spectra_file))
 
 
                 # lineshape params
                 self.SimpParams = [self.scattering_sigma*2*math.sqrt(2*math.log(2)), self.survival_prob]
-
                 # Setup and configure lineshape processor
                 complexLineShape_config = {
-                    'gases': ["H2","He"],
+                    'gases': self.gases,
                     'max_scatters': self.NScatters,
-                    'fix_scatter_proportion': True,
-                    # When fix_scatter_proportion is True, set the scatter proportion for gas1 below
-                    'gas1_scatter_proportion': self.scatter_proportion,
-                    # This is an important parameter which determines how finely resolved
-                    # the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to
-                    # be increased for larger datasets.
-                    'num_points_in_std_array': 10000,
-                    'B_field': self.B_field,
+                    'trap_weights': self.trap_weights,
+                    'fixed_scatter_proportion': True,
+                    # When fix_scatter_proportion is True, set the scatter proportion for the gases below
+                    'gas_scatter_proportion': self.scatter_proportion,
+                    'partially_fixed_scatter_proportion': False,
+                    'fixed_survival_probability': True,
+                    'survival_prob': self.survival_prob,
+                    'use_radiation_loss': self.use_radiation_loss,
+                    'sample_ins_res_errors': self.sample_ins_resolution_errors,
+                    'resolution_function': self.resolution_function,
+                    'scatter_peak_ratio_b': self.scatter_peak_ratio_b,
+                    'scatter_peak_ratio_c': self.scatter_peak_ratio_c,
+                    'fit_recon_eff': self.fit_recon_eff,
+
+                    #For analytics resolution functions, only:
+                    'ratio_gamma_to_sigma': self.ratio_gamma_to_sigma,
+                    'gaussian_proportion': self.gaussian_proportion,
+                    'A_array': self.A_array,
+                    'sigma_array': self.sigma_array,
+                    
+                    # This is an important parameter which determines how finely resolved the scatter calculations are. 10000 seems to produce a stable fit with minimal slowdown, for ~4000 fake events. The parameter may need to be increased for larger datasets.
+                    'num_points_in_std_array': 35838,
                     'base_shape': 'dirac',
-                    'path_to_osc_strengths_files': self.detailed_scatter_spectra_path
+                    'path_to_osc_strengths_files': self.path_to_osc_strengths_files,
+                    'path_to_scatter_spectra_file':self.path_to_scatter_spectra_file,
+                    'rad_loss_path': self.rad_loss_path,
+                    'path_to_ins_resolution_data_txt': self.path_to_ins_resolution_data_txt,
+                    'use_combined_four_trap_inst_reso': self.use_combined_four_trap_inst_reso,
+                    'path_to_four_trap_ins_resolution_data_txt': self.path_to_four_trap_ins_resolution_data_txt,
+                    'shake_spectrum_parameters_json_path': self.shake_spectrum_parameters_json_path 
                 }
                 logger.info('Setting up complex lineshape object')
-                self.complexLineShape = KrComplexLineShape("complexLineShape")
+                self.complexLineShape = MultiGasComplexLineShape("complexLineShape")
                 logger.info('Configuring complex lineshape')
                 self.complexLineShape.Configure(complexLineShape_config)
                 logger.info('Checking existence of scatter spectra files')
@@ -262,7 +324,7 @@ class FakeDataGenerator(BaseProcessor):
         - 'gaussian'
         - 'simplified': Central gaussian + approximated scattering
         - 'detailed': Central gaussian + detailed scattering
-        'params' is a list of the params inputted into the lineshape function. The first entry of the list should be a standard deviation of full width half max that provides the scale of the lineshape width.
+        'params' is a list of the params inputted into the lineshape function. If such a parameter exists, the first entry of the list should be a standard deviation of full width half max that provides the scale of the lineshape width.
         """
         logger.info('Going to generate pseudo-unbinned data with {} lineshape'.format(lineshape))
 
@@ -282,12 +344,8 @@ class FakeDataGenerator(BaseProcessor):
 
         nstdevs = 7 #Number of standard deviations (of size broadening) below Kmin and above Q-m to generate data, for the gaussian case
         FWHM_convert = 2*math.sqrt(2*math.log(2))
-        if lineshape=='gaussian':
-            max_energy = nstdevs*params[0]
-            min_energy = self.min_energy
-        elif lineshape=='simplified_scattering' or lineshape=='simplified' or lineshape=='detailed_scattering' or lineshape=='detailed':
-            max_energy = nstdevs/FWHM_convert*params[0]
-            min_energy = self.min_energy
+        max_energy = -self.min_energy
+        min_energy = self.min_energy
 
         Kmax_eff = Kmax+max_energy #Maximum energy for data is slightly above Kmax>Q-m
         Kmin_eff = Kmin+min_energy #Minimum is slightly below Kmin<Q-m
@@ -315,11 +373,13 @@ class FakeDataGenerator(BaseProcessor):
         time0 = time.time()
 
         if array_method == True:
-            ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean, mass, Kmin,
-                                                    lineshape, params, min_energy, max_energy,
-                                                    self.complexLineShape, self.final_state_array)
+            ratesS = convolved_spectral_rate_arrays(self.Koptions, Q_mean,
+            mass, Kmin, lineshape, params, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, self.scatter_proportion, min_energy, max_energy,
+            self.complexLineShape, self.final_state_array)
         else:
-            ratesS = [convolved_spectral_rate(K, Q_mean, mass, Kmin, lineshape, params, min_energy, max_energy) for K in self.Koptions]
+            ratesS = [convolved_spectral_rate(K, Q_mean, mass, Kmin,
+                lineshape, params, min_energy, max_energy) for K in
+                self.Koptions]
 
         # multiply rates by efficiency
         ratesS = ratesS*efficiency
@@ -330,10 +390,11 @@ class FakeDataGenerator(BaseProcessor):
         # background
         if array_method == True:
             ratesB = convolved_bkgd_rate_arrays(self.Koptions, Kmin, Kmax,
-                                                lineshape, params, min_energy, max_energy,
+                                                lineshape, params, self.scatter_peak_ratio_b, self.scatter_peak_ratio_c, self.scatter_proportion, min_energy, max_energy,
                                                 self.complexLineShape)
         else:
-            ratesB = [convolved_bkgd_rate(K, Kmin, Kmax, lineshape, params, min_energy, max_energy) for K in self.Koptions]
+            ratesB = [convolved_bkgd_rate(K, Kmin, Kmax, lineshape, params,
+            min_energy, max_energy) for K in self.Koptions]
 
         time2 = time.time()
         logger.info('... background rate took {} s'.format(time2 - time1))

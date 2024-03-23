@@ -274,7 +274,7 @@ def convolved_bkgd_rate(K, Kmin, Kmax, lineshape, ls_params, min_energy, max_ene
 
 #Convolution of signal and lineshape using scipy.signal.convolve
 def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
-                                   lineshape, ls_params, min_energy, max_energy,
+                                   lineshape, ls_params, scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, min_energy, max_energy,
                                    complexLineShape, final_state_array):
     """K is an array-like object
     """
@@ -293,15 +293,14 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
+        lineshape_rates = complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(1, ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, gauss_FWHM_eV=ls_params[0], emitted_peak='dirac')
+        lineshape_rates = np.flipud(lineshape_rates)
 
-        lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., ls_params[0], 0, 1, ls_params[1])
-
-    beta_rates = spectral_rate(K, Q, mnu, final_state_array) #np.zeros(len(K))
-    #for i,ke in enumerate(K):
-    #    beta_rates[i] = spectral_rate(ke, Q, mnu, final_state_array)
+    beta_rates = spectral_rate(K, Q, mnu, final_state_array)
 
     #Convolving
     convolved = convolve(beta_rates, lineshape_rates, mode='same')
+    
     below_Kmin = np.where(K < Kmin)
     np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
     return convolved
@@ -309,7 +308,7 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
 
 
 #Convolution of background and lineshape using scipy.signal.convolve
-def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, max_energy, complexLineShape):
+def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, min_energy, max_energy, complexLineShape):
     """K is an array-like object
     """
     energy_half_range = max(max_energy, abs(min_energy))
@@ -325,8 +324,9 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
-        lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., ls_params[0], 0, 1, ls_params[1])
-
+        lineshape_rates = complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(1, ls_params[1], scatter_peak_ratio_b, scatter_peak_ratio_c, scatter_fraction, gauss_FWHM_eV=ls_params[0], emitted_peak='dirac')
+        lineshape_rates = np.flipud(lineshape_rates)
+        
     bkgd_rates = np.full(len(K), bkgd_rate())
     if len(K) < len(K_lineshape):
         raise Exception("lineshape array is longer than Koptions")
@@ -335,22 +335,32 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
     convolved = convolve(bkgd_rates, lineshape_rates, mode='same')
     below_Kmin = np.where(K < Kmin)
     np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
+    
     return convolved
 
 
 
-##Fraction of events near the endpoint
-##Currently, this only holds for the last 13.6 eV of the spectrum
-#def frac_near_endpt(Kmin, Q, mass, atom_or_mol='atom'):
-#    A = integrate.quad(spectral_rate, Kmin, Q-mass, args=(Q,mass))
-#    B = integrate.quad(spectral_rate, V0, Q-mass, args=(Q,mass)) #Minimum at V0 because electrons with energy below screening barrier do not escape
-#    f = (A[0])/(B[0])
-#    if atom_or_mol=='atom':
-#        return 0.7006*f
-#    elif atom_or_mol=='mol' or atom_or_mol=='molecule':
-#        return 0.57412*f
-#    else:
-#        print("Choose 'atom' or 'mol'.")
+#Fraction of events near the endpoint
+def frac_near_endpt(Kmin, Q, mass, final_state_array, atom_or_mol='mol', range='wide'):
+    """
+    Options for range:
+        - 'narrow': Only extends ~18 eV (or less) below the endpoint, so that all decays are to the ground state
+        - 'wide': Wide enough that the probability of decay to a 3He electronic energy level that would shift Q below the ROI is very low
+    """
+    A = integrate.quad(spectral_rate, Kmin, Q-mass, args=(Q, mass, final_state_array))
+    B = integrate.quad(spectral_rate, V0, Q-mass, args=(Q, mass, final_state_array)) #Minimum at V0 because electrons with energy below screening barrier do not escape
+    f = (A[0])/(B[0])
+    if range=='narrow':
+        if atom_or_mol=='atom':
+            return 0.7006*f
+        elif atom_or_mol=='mol' or atom_or_mol=='molecule':
+            return 0.57412*f
+        else:
+            logger.warn("Choose 'atom' or 'mol'.")
+    elif range=='wide':
+        return f
+    else:
+        logger.warn("Choose range 'narrow' or 'wide'")
 
 
 #Convert [number of particles]=(density*volume*efficiency) to a signal activity A_s, measured in events/second.
@@ -358,7 +368,7 @@ def find_signal_activity(Nparticles, m, Q, Kmin, atom_or_mol='atom', nTperMolecu
     """
     Functions to calculate number of events to generate
     """
-    br = frac_near_endpt(Kmin, Q, m, atom_or_mol)
+    br = frac_near_endpt(Kmin, Q, m, final_state_array, atom_or_mol)
     Thalflife = 3.8789*10**8
     A_s = Nparticles*np.log(2)/(Thalflife)*br
     if atom_or_mol=='atom':
