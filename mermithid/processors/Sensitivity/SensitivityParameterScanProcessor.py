@@ -170,8 +170,8 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             #read_back = getattr(self.sens_main, self.scan_parameter_name)
             logger.info(f"Setting {self.scan_parameter_name} to {parameter_value/self.scan_parameter_unit} and reading back: {read_back/ self.scan_parameter_unit}")
             
-    
-            logger.info("Calculating cavity experiment")   
+            logger.info("Calculating cavity experiment radius, volume, effective volume, power") 
+            self.sens_main.CavityRadius()  
             self.sens_main.CavityVolume()
             self.sens_main.EffectiveVolume()
             self.sens_main.CavityPower()
@@ -251,7 +251,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         # plot and print best limits
         self.results = {"scan_parameter": self.scan_parameter_name, "scan parameter_unit": self.scan_parameter_unit_string,
                         "scan_parameter_values": self.scan_parameter_values, "optimum_limits_eV": np.array(self.optimum_limits)/eV,
-                        "optimum_densities_/m3": np.array(self.optimum_rhos)*(m**3)}
+                        "optimum_densities/m3": np.array(self.optimum_rhos)*(m**3)}
         
         logger.info("Scan parameter: {}".format(self.scan_parameter_name))
         logger.info("Tested parameter values: {}".format(self.scan_parameter_values/self.scan_parameter_unit))
