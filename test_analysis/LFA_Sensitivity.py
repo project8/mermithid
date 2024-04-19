@@ -15,7 +15,7 @@ import numpy as np
 # Configuration for CCA Sensitivity vs. density plot
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/config_LFA_Experiment_500MHz.cfg", #Config_LFA_Experiment_1GHz.cfg", 
+    "config_file_path": "/termite/sensitivity_config_files/config_LFA_Experiment_1GHz.cfg", #Config_LFA_Experiment_1GHz.cfg", 
     #"config_file_path": "/host_repos/sensitivity_branches/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg",
     "plot_path": "./lfa_sensitivity_vs_density_curve.pdf",
     # optional
