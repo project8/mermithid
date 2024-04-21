@@ -115,9 +115,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         elif self.frequency_axis:
             self.add_sens_line = self.add_frequency_sens_line
             logger.info("Doing frequency lines")
-        else:
+        elif self.exposure_axis:
             self.add_sens_line = self.add_exposure_sens_line
             logger.info("Doing exposure lines")
+        else: raise ValueError("No axis specified")
 
 
         # goals
@@ -645,7 +646,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         sens.sensitivity()
         logger.info("Phase II sensitivity for exposure {} calculated: {}".format(standard_exposure, sens.sensitivity()/eV**2))
         
-        
+        # Phase II experimental results
         phaseIIsens = 9822
         phaseIIsense_error = 1520
         exposure_error = np.sqrt((standard_exposure*0.008)**2 + (standard_exposure*0.09)**2)
