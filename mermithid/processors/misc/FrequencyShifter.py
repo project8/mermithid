@@ -32,7 +32,7 @@ class FrequencyShifter(BaseProcessor):
             self.results = {}
             return True
         if self.frequency_shift == 0:
-            looger.warning("Zero frequency shift!")
+            logger.warning("Zero frequency shift!")
             self.results = self.frequencies
             return True
         for frequency in self.frequencies:
