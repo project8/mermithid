@@ -73,10 +73,12 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         self.scan_parameter_steps = reader.read_param(params, "scan_parameter_steps", 3)
         scan_parameter_unit = reader.read_param(params, "scan_parameter_unit", eV)
         
-        
         self.scan_parameter_unit_string = return_var_name(scan_parameter_unit)
         print("Unit string: ", self.scan_parameter_unit_string)
         self.scan_parameter_unit = scan_parameter_unit
+        
+        self.plot_on_total_sigma_axis = reader.read_param(params, "plot_on_total_sigma_axis", False)
+        self.save_plots = reader.read_param(params, "save_plots", True)
 
         # main plot configurations
         self.figsize = reader.read_param(params, 'figsize', (6,6))
@@ -136,7 +138,10 @@ class SensitivityParameterScanProcessor(BaseProcessor):
 
         # densities, exposures, runtimes
         self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 100)/m**3
-        self.scan_parameter_values = np.linspace(self.scan_parameter_range[0], self.scan_parameter_range[1], self.scan_parameter_steps)*self.scan_parameter_unit
+        if self.plot_sensitivity_scan_on_log_scale:
+            self.scan_parameter_values = np.logspace(np.log10(self.scan_parameter_range[0]), np.log10(self.scan_parameter_range[1]), self.scan_parameter_steps)*self.scan_parameter_unit
+        else:
+            self.scan_parameter_values = np.linspace(self.scan_parameter_range[0], self.scan_parameter_range[1], self.scan_parameter_steps)*self.scan_parameter_unit
          
         return True
 
@@ -144,19 +149,21 @@ class SensitivityParameterScanProcessor(BaseProcessor):
 
     def InternalRun(self):
         
-        self.create_plot(self.scan_parameter_values/self.scan_parameter_unit)
-        # add second and third x axis for track lengths
-        if self.density_axis and self.track_length_axis:
-            self.add_track_length_axis()
-            
-        # add goals to density plot
-        for key, value in self.goals.items():
-            logger.info('Adding goal: {} = {}'.format(key, value))
-            self.add_goal(value, key)
+        if self.save_plots:
+            self.create_plot(self.scan_parameter_values/self.scan_parameter_unit)
+            # add second and third x axis for track lengths
+            if self.density_axis and self.track_length_axis:
+                self.add_track_length_axis()
+                
+            # add goals to density plot
+            for key, value in self.goals.items():
+                logger.info('Adding goal: {} = {}'.format(key, value))
+                self.add_goal(value, key)
                 
         
         self.optimum_limits = []
         self.optimum_rhos = []
+        self.total_resolutions = []
 
 
         for i, color in self.range(self.scan_parameter_values/self.scan_parameter_unit):
@@ -184,11 +191,18 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             rho_opt = self.rhos[opt]
             self.optimum_rhos.append(rho_opt)
             self.sens_main.Experiment.number_density = rho_opt
+            
+            labels, sigmas, deltas = self.sens_main.get_systematics()
+            self.total_resolutions.append(np.sqrt(np.sum(sigmas**2)))
               
             # add main curve
-            logger.info("Drawing main curve")  
-            label = f"{param} = {parameter_value/self.scan_parameter_unit:.2f} {self.scan_parameter_unit_string}"
-            self.add_sens_line(self.sens_main, label=label, color=color)
+            if self.save_plots:
+                logger.info("Drawing main curve")  
+                label = f"{param} = {parameter_value/self.scan_parameter_unit:.2f} {self.scan_parameter_unit_string}"
+                
+                if self.plot_on_total_sigma_axis:
+                    label=f"Resolution = {self.total_resolutions[-1]/eV:.2f} eV"
+                self.add_sens_line(self.sens_main, label=label, color=color, marker="")
                  
             if self.make_key_parameter_plots:
                 logger.info("Making key parameter plots")
@@ -211,7 +225,8 @@ class SensitivityParameterScanProcessor(BaseProcessor):
                 plt.ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
                 plt.legend()
                 plt.tight_layout()
-                plt.savefig(os.path.join(self.plot_path, f"{param}_{parameter_value/self.scan_parameter_unit}_stat_and_syst_vs_density.pdf"))
+                if self.save_plots:
+                    plt.savefig(os.path.join(self.plot_path, f"{param}_{parameter_value/self.scan_parameter_unit}_stat_and_syst_vs_density.pdf"))
 
                 
 
@@ -244,34 +259,45 @@ class SensitivityParameterScanProcessor(BaseProcessor):
 
             self.sens_main.print_statistics()
             self.sens_main.print_systematics()
-            
-        self.save("sensitivity_vs_density_for_{}_scan.pdf".format(param))
+         
+        if self.save_plots:   
+            self.save("sensitivity_vs_density_for_{}_scan.pdf".format(param))
             
 
         # plot and print best limits
         self.results = {"scan_parameter": self.scan_parameter_name, "scan parameter_unit": self.scan_parameter_unit_string,
                         "scan_parameter_values": self.scan_parameter_values, "optimum_limits_eV": np.array(self.optimum_limits)/eV,
-                        "optimum_densities/m3": np.array(self.optimum_rhos)*(m**3)}
+                        "optimum_densities/m3": np.array(self.optimum_rhos)*(m**3), "total_energy_resolutions_eV": np.array(self.total_resolutions)/eV}
         
         logger.info("Scan parameter: {}".format(self.scan_parameter_name))
         logger.info("Tested parameter values: {}".format(self.scan_parameter_values/self.scan_parameter_unit))
         logger.info("Best limits: {}".format(np.array(self.optimum_limits)/eV))
         
-        plt.figure(figsize=self.figsize)
-        #plt.title("Sensitivity vs. {}".format(self.scan_parameter_name))
-        plt.plot(self.scan_parameter_values/self.scan_parameter_unit, np.array(self.optimum_limits)/eV, marker=".", label="Density optimized scenarios")
-        plt.xlabel(f"{param} ({self.scan_parameter_unit_string})", fontsize=self.fontsize)
-        plt.ylabel(r"90% CL $m_\beta$ (eV)", fontsize=self.fontsize)
-        if self.plot_sensitivity_scan_on_log_scale:
-            plt.yscale("log")
+        if self.save_plots:
+            plt.figure(figsize=self.figsize)
+            #plt.title("Sensitivity vs. {}".format(self.scan_parameter_name))
             
-        for key, value in self.goals.items():
-            logger.info('Adding goal: {} = {}'.format(key, value))
-            plt.axhline(value, label=key, color="grey", linestyle="--")
-        plt.legend(fontsize=self.fontsize)
-        plt.tight_layout()
-        plt.savefig(os.path.join(self.plot_path, f"{param}_scan_optimum_limits.pdf"))
-        plt.show()
+            if self.plot_on_total_sigma_axis:
+                plt.plot(np.array(self.total_resolutions)/eV, np.array(self.optimum_limits)/eV, marker=".", label="Density optimized scenarios")
+                plt.xlabel(f"Energy resolution (eV)", fontsize=self.fontsize)
+            
+            else:
+                plt.plot(self.scan_parameter_values/self.scan_parameter_unit, np.array(self.optimum_limits)/eV, marker="", label="Density optimized scenarios")
+                plt.xlabel(f"{param} ({self.scan_parameter_unit_string})", fontsize=self.fontsize)
+            
+            plt.ylabel(r"90% CL $m_\beta$ (eV)", fontsize=self.fontsize)
+            if self.plot_sensitivity_scan_on_log_scale:
+                plt.yscale("log")
+                plt.xscale("log")
+                
+            for key, value in self.goals.items():
+                logger.info('Adding goal: {} = {}'.format(key, value))
+                plt.axhline(value, label=key, color="grey", linestyle="--")
+            plt.legend(fontsize=self.fontsize)
+            plt.tight_layout()
+
+            plt.savefig(os.path.join(self.plot_path, f"{param}_scan_optimum_limits.pdf"))
+            plt.show()
         
         
         
@@ -308,10 +334,27 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         if len(param_range)>4:
             # add colorbar with colors from self.range
             cmap = matplotlib.cm.get_cmap('Spectral')
-            norm = matplotlib.colors.Normalize(vmin=np.min(param_range), vmax=np.max(param_range))
-            sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-            sm.set_array([])
-            self.fig.colorbar(sm, ticks=np.round(param_range, 2), label=f"{self.scan_parameter_name} ({self.scan_parameter_unit_string})")
+            
+            if self.plot_sensitivity_scan_on_log_scale:
+                norm = matplotlib.colors.LogNorm(vmin=np.min(param_range), vmax=np.max(param_range))
+                sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+                sm.set_array([])
+                
+                if self.plot_on_total_sigma_axis:
+                    self.fig.colorbar(sm, label=f"Energy resolution (eV)")
+                else:
+                    self.fig.colorbar(sm, label=f"{self.scan_parameter_name} ({self.scan_parameter_unit_string})")
+            
+            
+            else:
+                norm = matplotlib.colors.Normalize(vmin=np.min(param_range), vmax=np.max(param_range))
+                sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+                sm.set_array([])
+                
+                if self.plot_on_total_sigma_axis:
+                    self.fig.colorbar(sm, ticks=np.round((param_range), 2), label=f"Energy resolution (eV)")
+                else:
+                    self.fig.colorbar(sm, ticks=np.round((param_range), 2), label=f"{self.scan_parameter_name} ({self.scan_parameter_unit_string})")
             
         
 
