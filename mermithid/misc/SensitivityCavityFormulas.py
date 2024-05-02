@@ -538,24 +538,37 @@ class CavitySensitivity(object):
         return tau_snr
         
 
-    def print_SNRs(self, rho_opt):
-        tau_snr = self.calculate_tau_snr(self.time_window, sideband_power_fraction=1)
-        logger.info("tau_SNR: {}s".format(tau_snr/s))
+    def print_SNRs(self, rho=None):
+        logger.info("SNR parameters:")
+        if rho != None:
+            logger.warning("Deprecation warning: This function does not modify the number density in the Experiment namespace. Values printed are for pre-set number density.")
+        
+        track_duration = self.time_window 
+        tau_snr = self.calculate_tau_snr(track_duration, sideband_power_fraction=1)
+        
+        
         eV_bandwidth = np.abs(frequency(self.T_endpoint, self.MagneticField.nominal_field) - frequency(self.T_endpoint + 1*eV, self.MagneticField.nominal_field))
-        SNR_1eV = 1/eV_bandwidth/2./tau_snr
-        track_duration = track_length(rho_opt, self.T_endpoint, molecular=(not self.Experiment.atomic))
-        SNR_track_duration = track_duration/2./tau_snr
-        SNR_1ms = 0.001*s/2./tau_snr
+        SNR_1eV = 1/eV_bandwidth/tau_snr
+        SNR_track_duration = track_duration/tau_snr
+        SNR_1ms = 0.001*s/tau_snr
+        
+        logger.info("Number density: {} m^-3".format(self.Experiment.number_density*m**3))
+        logger.info("Track duration: {}ms".format(track_duration/ms))
+        logger.info("tau_SNR: {}s".format(tau_snr/s))
+        logger.info("Sampling duration for 1eV: {}ms".format(1/eV_bandwidth/ms))
+        
+        logger.info("Received power: {}W".format(self.received_power/W))
+        logger.info("Noise temperature: {}K".format(self.noise_temp/K))
+        logger.info("Noise power in 1eV: {}W".format(self.noise_energy*eV_bandwidth/W))
         logger.info("SNR for 1eV bandwidth: {}".format(SNR_1eV))
         logger.info("SNR 1 eV from temperatures:{}".format(self.received_power/(self.noise_energy*eV_bandwidth)))
-        logger.info("Track duration: {}ms".format(track_duration/ms))
-        logger.info("Sampling duration for 1eV: {}ms".format(1/eV_bandwidth/ms))
         logger.info("SNR for track duration: {}".format(SNR_track_duration))
         logger.info("SNR for 1 ms: {}".format(SNR_1ms))
-        logger.info("Received power: {}W".format(self.received_power/W))
-        logger.info("Noise power in 1eV: {}W".format(self.noise_energy*eV_bandwidth/W))
-        logger.info("Noise temperature: {}K".format(self.noise_temp/K))
+        
+        
         logger.info("Opimtum energy window: {} eV".format(self.DeltaEWidth()/eV))
+        
+        return self.noise_temp, SNR_1eV, track_duration
 
 
     def syst_frequency_extraction(self):
