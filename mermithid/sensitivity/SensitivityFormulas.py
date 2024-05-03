@@ -8,7 +8,6 @@ CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc
 '''
 import numpy as np
 import configparser
-from numpy import pi
 
 from mermithid.misc.Constants_numericalunits import *
 from mermithid.misc.CRESFunctions_numericalunits import *
@@ -293,7 +292,7 @@ class Sensitivity(object):
         Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
         alpha_approx = fEndpoint * 2 * np.pi * Pe/me/c0**2 # track slope
         # quantum limited noise
-        sigNoise = np.sqrt((2*pi*fEndpoint*hbar*self.FrequencyExtraction.amplifier_noise_scaling+kB*self.FrequencyExtraction.antenna_noise_temperature)/ts) # noise level
+        sigNoise = np.sqrt((2*np.pi*fEndpoint*hbar*self.FrequencyExtraction.amplifier_noise_scaling+kB*self.FrequencyExtraction.antenna_noise_temperature)/ts) # noise level
         Amplitude = np.sqrt(self.FrequencyExtraction.epsilon_collection*Pe)
         Nsteps = 1 / (self.Experiment.number_density * self.Te_crosssection*betae*c0*ts) # Number of timesteps of length ts
 

@@ -7,8 +7,6 @@ The statistical method and formulars are described in
 CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc673d862fa923d53.
 '''
 import numpy as np
-import configparser
-from numpy import pi
 
 from mermithid.misc.Constants_numericalunits import *
 from mermithid.misc.CRESFunctions_numericalunits import *
@@ -39,7 +37,7 @@ def mean_field_frequency_variation(cyclotron_frequency, length_diameter_ratio, m
     # depending on its position in the trap, especially the pitch angle.
     # This is a rough estimate of the mean field variation, inspired by calcualtion performed by Rene.
     #y = (90-max_pitch_angle)/4
-    phi_rad = (90-max_pitch_angle)/180*pi
+    phi_rad = (90-max_pitch_angle)/180*np.pi
     return 0.16*phi_rad**2*cyclotron_frequency*(10/length_diameter_ratio)
     #return 0.002*y**2*cyclotron_frequency*(10/length_diameter_ratio)
 
