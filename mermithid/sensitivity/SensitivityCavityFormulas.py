@@ -106,7 +106,10 @@ class CavitySensitivity(Sensitivity):
 
         self.CRLB_constant = 12
         #self.CRLB_constant = 90
-        
+        if hasattr(self.FrequencyExtraction, "crlb_constant"):
+            self.CRLB_constant = self.FrequencyExtraction.crlb_constant
+            logger.info("Using configured CRLB constant")       
+ 
         self.CavityRadius()
         self.CavityVolume()
         self.EffectiveVolume()
