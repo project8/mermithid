@@ -10,47 +10,8 @@ import numpy as np
 import configparser
 from numpy import pi
 
-# Numericalunits is a package to handle units and some natural constants
-# natural constants
-from numericalunits import e, me, c0, eps0, kB, hbar
-from numericalunits import meV, eV, keV, MeV, cm, m, ns, s, Hz, kHz, MHz, GHz, amu
-from numericalunits import nT, uT, mT, T, mK, K,  C, F, g, W
-from numericalunits import hour, year, day
-from numericalunits import mu0, NA, kB, hbar, me, c0, e, eps0, hPlanck
-
-T0 = -273.15*K
-
-tritium_livetime = 5.605e8*s
-tritium_mass_atomic = 3.016* amu *c0**2
-tritium_electron_crosssection_atomic = 1.1e-22*m**2
-tritium_endpoint_atomic = 18563.251*eV
-last_1ev_fraction_atomic = 2.067914e-13/eV**3
-
-tritium_mass_molecular = 6.032099 * amu *c0**2
-tritium_electron_crosssection_molecular = 3.487*1e-22*m**2
-tritium_endpoint_molecular = 18573.24*eV
-last_1ev_fraction_molecular = 1.67364e-13/eV**3
-
-ground_state_width = 0.436 * eV
-ground_state_width_uncertainty = 0.01*0.436*eV
-
-gyro_mag_ratio_proton = 42.577*MHz/T
-
-# units that do not show up in numericalunits
-# missing pre-factors
-fW = W*1e-15
-
-# unitless units, relative fractions
-pc = 0.01
-ppm = 1e-6
-ppb = 1e-9
-ppt = 1e-12
-ppq = 1e-15
-
-# radian and degree which are also not really units
-rad = 1
-deg = np.pi/180
-
+from mermithid.misc.Constants_numericalunits import *
+from mermithid.misc.CRESFunctions_numericalunits import *
 
 try:
     from morpho.utilities import morphologging
@@ -67,40 +28,6 @@ class NameSpace(object):
     def __getattribute__(self, item):
         return object.__getattribute__(self, item.lower())
 
-##############################################################################
-# CRES functions
-def gamma(kin_energy):
-    return kin_energy/(me*c0**2) + 1
-
-def beta(kin_energy):
-    # electron speed at kin_energy
-    return np.sqrt(kin_energy**2+2*kin_energy*me*c0**2)/(kin_energy+me*c0**2)
-
-def frequency(kin_energy, magnetic_field):
-    # cyclotron frequency
-    return e/(2*np.pi*me)/gamma(kin_energy)*magnetic_field
-
-def kin_energy(freq, magnetic_field):
-    return (e*c0**2/(2*np.pi*freq)*magnetic_field - me*c0**2)
-
-def rad_power(kin_energy, pitch, magnetic_field):
-    # electron radiation power
-    f = frequency(kin_energy, magnetic_field)
-    b = beta(kin_energy)
-    Pe = 2*np.pi*(e*f*b*np.sin(pitch/rad))**2/(3*eps0*c0*(1-b**2))
-    return Pe
-
-def track_length(rho, kin_energy=None, molecular=True):
-    if kin_energy is None:
-        kin_energy = tritium_endpoint_molecular if molecular else tritium_endpoint_atomic
-    crosssect = tritium_electron_crosssection_molecular if molecular else tritium_electron_crosssection_atomic
-    return 1 / (rho * crosssect * beta(kin_energy) * c0)
-
-def sin2theta_sq_to_Ue4_sq(sin2theta_sq):
-    return 0.5*(1-np.sqrt(1-sin2theta_sq**2))
-
-def Ue4_sq_to_sin2theta_sq(Ue4_sq):
-    return 4*Ue4_sq*(1-Ue4_sq)
 
 ###############################################################################
 class Sensitivity(object):
@@ -146,6 +73,7 @@ class Sensitivity(object):
         self.MagneticField = NameSpace({opt: eval(self.cfg.get('MagneticField', opt)) for opt in self.cfg.options('MagneticField')})
         self.MissingTracks = NameSpace({opt: eval(self.cfg.get('MissingTracks', opt)) for opt in self.cfg.options('MissingTracks')})
         self.PlasmaEffects = NameSpace({opt: eval(self.cfg.get('PlasmaEffects', opt)) for opt in self.cfg.options('PlasmaEffects')})
+        self.FinalStates = NameSpace({opt: eval(self.cfg.get('FinalStates', opt)) for opt in self.cfg.options('FinalStates')})
 
     # SENSITIVITY
     def SignalRate(self):
@@ -157,6 +85,8 @@ class Sensitivity(object):
                 signal_rate *= avg_n_T_atoms
             else:
                 signal_rate *= 2
+        if hasattr(self.Experiment, 'active_gas_fraction'):
+            signal_rate *= self.Experiment.active_gas_fraction
         return signal_rate
 
     def BackgroundRate(self):
@@ -275,19 +205,33 @@ class Sensitivity(object):
         if not self.Experiment.atomic:
             labels.append("Molecular final state")
             sigmas.append(ground_state_width)
-            deltas.append(ground_state_width_uncertainty)
+            if hasattr(self.FinalStates, "ground_state_width_uncertainty_fraction"):
+                deltas.append(self.FinalStates.ground_state_width_uncertainty_fraction*ground_state_width)
+            else: 
+                deltas.append(ground_state_width_uncertainty)
 
         return np.array(labels), np.array(sigmas), np.array(deltas)
 
     def print_statistics(self):
-        print("Statistical", " "*18, "%.2f"%(np.sqrt(self.StatSens())/meV), "meV")
+        print("Contribution to sigma_(m_beta^2)", " "*18, "%.2f"%(self.StatSens()/meV**2), "meV^2 ->", "%.2f"%(np.sqrt(self.StatSens())/meV), "meV")
+        print("Statistical mass limit", " "*18, "%.2f"%(np.sqrt(1.28*self.StatSens())/meV), "meV")
 
     def print_systematics(self):
         labels, sigmas, deltas = self.get_systematics()
 
         print()
+        sigma_squared = 0
         for label, sigma, delta in zip(labels, sigmas, deltas):
             print(label, " "*(np.max([len(l) for l in labels])-len(label)),  "%8.2f"%(sigma/meV), "+/-", "%8.2f"%(delta/meV), "meV")
+            sigma_squared += sigma**2
+        sigma_total = np.sqrt(sigma_squared)
+        print("Total sigma", " "*(np.max([len(l) for l in labels])-len("Total sigma")), "%8.2f"%(sigma_total/meV),)
+        try:
+            print("(Contribution from axial variation: ", "%8.2f"%(self.sigma_K_reconstruction/meV)," meV)")
+        except AttributeError:
+            pass
+        print("Contribution to sigma_(m_beta^2)", " "*18, "%.2f"%(self.SystSens()/meV**2), "meV^2 ->", "%.2f"%(np.sqrt(self.SystSens())/meV), "meV")
+        print("Systematic mass limit", " "*18, "%.2f"%(np.sqrt(1.28*self.SystSens())/meV), "meV")
 
     def syst_doppler_broadening(self):
         # estimated standard deviation of Doppler broadening distribution from
@@ -319,7 +263,10 @@ class Sensitivity(object):
         p_rec = np.sqrt( Emax**2-me**2*c0**4 + (Emax - Ee - E_rec)**2 - mbeta**2 + 2*Ee*(Emax - Ee - E_rec)*betae*betanu*cosThetaenu )
         sigma_trans = np.sqrt(p_rec**2/(2*mass_T)*2*kB*gasTemp)
 
-        delta_trans = np.sqrt(p_rec**2/(2*mass_T)*kB/gasTemp*self.DopplerBroadening.gas_temperature_uncertainty**2)
+        if self.Experiment.atomic == True:
+            delta_trans = np.sqrt(p_rec**2/(2*mass_T)*kB/gasTemp*self.DopplerBroadening.gas_temperature_uncertainty**2)
+        else:
+            delta_trans = sigma_trans*self.DopplerBroadening.fraction_uncertainty_on_doppler_broadening
         return sigma_trans, delta_trans
 
 

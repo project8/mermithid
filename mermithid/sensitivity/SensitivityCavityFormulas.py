@@ -13,6 +13,7 @@ from numpy import pi
 from mermithid.misc.Constants_numericalunits import *
 from mermithid.misc.CRESFunctions_numericalunits import *
 from mermithid.cavity.HannekeFunctions import *
+from mermithid.sensitivity.SensitivityFormulas import *
 
 
 
@@ -22,17 +23,6 @@ try:
 except:
     print("Run without morpho!")
 
-class NameSpace(object):
-    def __init__(self, iteritems):
-        if type(iteritems) == dict:
-            iteritems = iteritems.items()
-        for k, v in iteritems:
-            setattr(self, k.lower(), v)
-    def __getattribute__(self, item):
-        return object.__getattribute__(self, item.lower())
-
-##############################################################################
-# CRES functions
 
 
 # Wouters functinos
@@ -103,7 +93,7 @@ def t_effective(t_physical, cyclotron_frequency):
        return quantum*(1/2+1/(np.exp(quantum/t_physical)-1))
 
 ###############################################################################
-class CavitySensitivity(object):
+class CavitySensitivity(Sensitivity):
     """
     Documentation:
         * Phase IV sensitivity document: https://www.overleaf.com/project/5de3e02edd267500011b8cc4
@@ -112,42 +102,9 @@ class CavitySensitivity(object):
         * Molecular contamination in atomic tritium: https://3.basecamp.com/3700981/buckets/3107037/documents/3151077016
     """
     def __init__(self, config_path):
-        self.cfg = configparser.ConfigParser()
-        with open(config_path, 'r') as configfile:
-            self.cfg.read_file(configfile)
-
-        # display configuration
-        try:
-            logger.info("Config file content:")
-            for sect in self.cfg.sections():
-               logger.info('    Section: {}'.format(sect))
-               for k,v in self.cfg.items(sect):
-                  logger.info('        {} = {}'.format(k,v))
-        except:
-            pass
-
-        self.Experiment = NameSpace({opt: eval(self.cfg.get('Experiment', opt)) for opt in self.cfg.options('Experiment')})
-
-        self.tau_tritium = tritium_livetime
-        if self.Experiment.atomic:
-            self.T_mass = tritium_mass_atomic
-            self.Te_crosssection = tritium_electron_crosssection_atomic
-            self.T_endpoint = tritium_endpoint_atomic
-            self.last_1ev_fraction = last_1ev_fraction_atomic
-        else:
-            self.T_mass = tritium_mass_molecular
-            self.Te_crosssection = tritium_electron_crosssection_molecular
-            self.T_endpoint = tritium_endpoint_molecular
-            self.last_1ev_fraction = last_1ev_fraction_molecular
-
-
-        self.DopplerBroadening = NameSpace({opt: eval(self.cfg.get('DopplerBroadening', opt)) for opt in self.cfg.options('DopplerBroadening')})
-        self.FrequencyExtraction = NameSpace({opt: eval(self.cfg.get('FrequencyExtraction', opt)) for opt in self.cfg.options('FrequencyExtraction')})
-        self.MagneticField = NameSpace({opt: eval(self.cfg.get('MagneticField', opt)) for opt in self.cfg.options('MagneticField')})
-        self.FinalStates = NameSpace({opt: eval(self.cfg.get('FinalStates', opt)) for opt in self.cfg.options('FinalStates')})
-        self.MissingTracks = NameSpace({opt: eval(self.cfg.get('MissingTracks', opt)) for opt in self.cfg.options('MissingTracks')})
-        self.PlasmaEffects = NameSpace({opt: eval(self.cfg.get('PlasmaEffects', opt)) for opt in self.cfg.options('PlasmaEffects')})
+        Sensitivity.__init__(self, config_path)
         self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
+        
 
         self.CRLB_constant = 12
         #self.CRLB_constant = 90
@@ -189,6 +146,10 @@ class CavitySensitivity(object):
             self.effective_volume = self.total_volume*self.Efficiency.radial_efficiency*self.Efficiency.detection_efficiency*self.PitchDependentTrappingEfficiency()   
         logger.info("Total efficiency: {}".format(self.effective_volume/self.total_volume))        
         self.effective_volume*=self.Experiment.sri_factor
+        
+        # for parent SignalRate function
+        self.Experiment.v_eff = self.effective_volume
+        
         return self.effective_volume
         
     def PitchDependentTrappingEfficiency(self):
@@ -200,7 +161,7 @@ class CavitySensitivity(object):
         #Jprime_0 = 3.8317
         
         #self.signal_power = self.FrequencyExtraction.mode_coupling_efficiency * self.CavityLoadedQ() * self.FrequencyExtraction.hanneke_factor * self.T_endpoint/eV * e/C * Jprime_0**2 / (2*np.pi**2*self.Experiment.L_over_D*2*self.cavity_radius**3/m**3 * frequency(self.T_endpoint, self.MagneticField.nominal_field)*s)*W
-        self.signal_power = np.mean(larmor_orbit_averaged_hanneke_power_box(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=1000), 
+        self.signal_power = np.mean(larmor_orbit_averaged_hanneke_power_box(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=2000), 
                                                                             self.CavityLoadedQ(), 
                                                                             2*self.Experiment.L_over_D*self.cavity_radius, 
                                                                             self.cavity_radius, 
@@ -233,197 +194,11 @@ class CavitySensitivity(object):
         return self.loaded_q
     
     # SENSITIVITY
-    def SignalRate(self):
-        """signal events in the energy interval before the endpoint, scale with DeltaE**3"""
-        #self.EffectiveVolume()
-        signal_rate = self.Experiment.number_density*self.effective_volume*self.last_1ev_fraction/self.tau_tritium
-        if not self.Experiment.atomic:
-            if hasattr(self.Experiment, 'gas_fractions'):
-                avg_n_T_atoms = self.AvgNumTAtomsPerParticle_MolecularExperiment(self.Experiment.gas_fractions, self.Experiment.H2_type_gas_fractions)
-                signal_rate *= avg_n_T_atoms
-            else:
-                signal_rate *= 2
-        if hasattr(self.Experiment, 'active_gas_fraction'):
-            signal_rate *= self.Experiment.active_gas_fraction
-        return signal_rate
-
-    def BackgroundRate(self):
-        """background rate, can be calculated from multiple components.
-        Assumes that background rate is constant over considered energy / frequency range."""
-        return self.Experiment.background_rate_per_eV
-
-    def SignalEvents(self):
-        """Number of signal events."""
-        return self.SignalRate()*self.Experiment.LiveTime*self.DeltaEWidth()**3
-
-    def BackgroundEvents(self):
-        """Number of background events."""
-        return self.BackgroundRate()*self.Experiment.LiveTime*self.DeltaEWidth()
-
-    def DeltaEWidth(self):
-        """optimal energy bin width"""
-        labels, sigmas, deltas = self.get_systematics()
-        return np.sqrt(self.BackgroundRate()/self.SignalRate()
-                              + 8*np.log(2)*(np.sum(sigmas**2)))
-
-    def StatSens(self):
-        """Pure statistic sensitivity assuming Poisson count experiment in a single bin"""
-        sig_rate = self.SignalRate()
-        DeltaE = self.DeltaEWidth()
-        sens = 2/(3*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*DeltaE
-                                                                  +self.BackgroundRate()*self.Experiment.LiveTime/DeltaE)
-        return sens
-
-    def SystSens(self):
-        """Pure systematic componenet to sensitivity"""
-        labels, sigmas, deltas = self.get_systematics()
-        sens = 4*np.sqrt(np.sum((sigmas*deltas)**2))
-        return sens
-
-    def sensitivity(self, **kwargs):
-        """Combined statisical and systematic uncertainty.
-        Using kwargs settings in namespaces can be changed.
-        Example how to change number density which lives in namespace Experiment:
-            self.sensitivity(Experiment={"number_density": rho})
-        """
-        for sect, options in kwargs.items():
-            for opt, val in options.items():
-                self.__dict__[sect].__dict__[opt] = val
-
-        StatSens = self.StatSens()
-        SystSens = self.SystSens()
-
-        # Standard deviation on a measurement of m_beta**2 assuming a mass of zero
-        sigma_m_beta_2 =  np.sqrt(StatSens**2 + SystSens**2)
-        return sigma_m_beta_2
-
-    def CL90(self, **kwargs):
-        """ Gives 90% CL upper limit on neutrino mass."""
-        # 90% of gaussian are contained in +-1.64 sigma region
-        return np.sqrt(np.sqrt(1.64)*self.sensitivity(**kwargs))
-
-    def sterial_m2_limit(self, Ue4_sq):
-        return np.sqrt(np.sqrt(1.64)*np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens()**2))
-
-    # PHYSICS Functions
-
-    def AvgNumTAtomsPerParticle_MolecularExperiment(self, gas_fractions, H2_type_gas_fractions):
-        """
-        Given gas composition info (H2 vs. other gases, and how much of each H2-type isotopolog), returns an average number of tritium atoms per gas particle.
-
-        Inputs:
-        - gas_fractions: dict of composition fractions of each gas (different from scatter fractions!); all H2 isotopologs are combined under key 'H2'
-        - H2_type_gas_fractions: dict with fraction of each isotopolog, out of total amount of H2
-        """
-        H2_iso_avg_num = 0
-        for (key, val) in H2_type_gas_fractions.items():
-            if key=='T2':
-              H2_iso_avg_num += 2*val
-            elif key=='HT' or key=='DT':
-              H2_iso_avg_num += val
-            elif key=='H2' or key=='HD' or key=='D2':
-              pass
-        logger.info("Activive fraction: {}".format(gas_fractions['H2']*H2_iso_avg_num))
-        return gas_fractions['H2']*H2_iso_avg_num
-
-    def BToKeErr(self, BErr, B):
-         return e*BErr/(2*np.pi*frequency(self.T_endpoint, B)/c0**2)
-
-    def KeToBerr(self, KeErr, B):
-        return KeErr/e*(2*np.pi*frequency(self.T_endpoint, B)/c0**2)
-
-    def track_length(self, rho):
-        return track_length(rho, self.T_endpoint, not self.Experiment.atomic)
+    # see parent class in SensitivityFormulas.py
+ 
 
     # SYSTEMATICS
-
-    def get_systematics(self):
-        """ Returns list of energy broadenings (sigmas) and
-        uncertainties on these energy broadenings (deltas)
-        for all considered systematics. We need to make sure
-        that we do not include effects twice or miss any
-        important effect.
-
-        Returns:
-             * list of labels
-             * list of energy broadenings
-             * list of energy broadening uncertainties
-        """
-
-        # Different types of uncertainty contributions
-        sigma_trans, delta_sigma_trans = self.syst_doppler_broadening()
-        sigma_f, delta_sigma_f = self.syst_frequency_extraction()
-        sigma_B, delta_sigma_B = self.syst_magnetic_field()
-        sigma_Miss, delta_sigma_Miss = self.syst_missing_tracks()
-        sigma_Plasma, delta_sigma_Plasma = self.syst_plasma_effects()
-
-        labels = ["Thermal Doppler Broadening", "Start Frequency Resolution", "Magnetic Field", "Missing Tracks", "Plasma Effects"]
-        sigmas = [sigma_trans, sigma_f, sigma_B, sigma_Miss, sigma_Plasma]
-        deltas = [delta_sigma_trans, delta_sigma_f, delta_sigma_B, delta_sigma_Miss, delta_sigma_Plasma]
-
-        if not self.Experiment.atomic:
-            labels.append("Molecular final state")
-            sigmas.append(ground_state_width)
-            deltas.append(self.FinalStates.ground_state_width_uncertainty_fraction*ground_state_width)
-
-        return np.array(labels), np.array(sigmas), np.array(deltas)
-
-    def print_statistics(self):
-        print("Contribution to sigma_(m_beta^2)", " "*18, "%.2f"%(self.StatSens()/meV**2), "meV^2 ->", "%.2f"%(np.sqrt(self.StatSens())/meV), "meV")
-        print("Statistical mass limit", " "*18, "%.2f"%(np.sqrt(1.28*self.StatSens())/meV), "meV")
-
-    def print_systematics(self):
-        labels, sigmas, deltas = self.get_systematics()
-
-        print()
-        sigma_squared = 0
-        for label, sigma, delta in zip(labels, sigmas, deltas):
-            print(label, " "*(np.max([len(l) for l in labels])-len(label)),  "%8.2f"%(sigma/meV), "+/-", "%8.2f"%(delta/meV), "meV")
-            sigma_squared += sigma**2
-        sigma_total = np.sqrt(sigma_squared)
-        print("Total sigma", " "*(np.max([len(l) for l in labels])-len("Total sigma")), "%8.2f"%(sigma_total/meV),)
-        try:
-            print("(Contribution from axial variation: ", "%8.2f"%(self.sigma_K_reconstruction/meV)," meV)")
-        except AttributeError:
-            pass
-        print("Contribution to sigma_(m_beta^2)", " "*18, "%.2f"%(self.SystSens()/meV**2), "meV^2 ->", "%.2f"%(np.sqrt(self.SystSens())/meV), "meV")
-        print("Systematic mass limit", " "*18, "%.2f"%(np.sqrt(1.28*self.SystSens())/meV), "meV")
-
-    def syst_doppler_broadening(self):
-        # estimated standard deviation of Doppler broadening distribution from
-        # translational motion of tritium atoms / molecules
-        # Predicted uncertainty on standard deviation, based on expected precision
-        # of temperature knowledge
-        if self.DopplerBroadening.UseFixedValue:
-            sigma = self.DopplerBroadening.Default_Systematic_Smearing
-            delta = self.DopplerBroadening.Default_Systematic_Uncertainty
-            return sigma, delta
-
-        # thermal doppler broardening
-        gasTemp = self.DopplerBroadening.gas_temperature
-        mass_T = self.T_mass
-        endpoint = self.T_endpoint
-
-        # these factors are mainly neglidible in the recoil equation below
-        E_rec = 3.409 * eV # maximal value # same for molecular tritium?
-        mbeta = 0*eV # term neglidible
-        betanu = 1 # neutrinos are fast
-        # electron-neutrino correlation term: 1 + 0.105(6)*betae*cosThetanu
-        # => expectation value of cosThetanu = 0.014
-        cosThetaenu = 0.014
-
-        Ke = endpoint
-        betae = np.sqrt(Ke**2+2*Ke*me*c0**2)/(Ke+me*c0**2) ## electron speed at energy Ke
-        Emax = endpoint + me*c0**2
-        Ee = endpoint + me*c0**2
-        p_rec = np.sqrt( Emax**2-me**2*c0**4 + (Emax - Ee - E_rec)**2 - mbeta**2 + 2*Ee*(Emax - Ee - E_rec)*betae*betanu*cosThetaenu )
-        sigma_trans = np.sqrt(p_rec**2/(2*mass_T)*2*kB*gasTemp)
-
-        if self.Experiment.atomic == True:
-            delta_trans = np.sqrt(p_rec**2/(2*mass_T)*kB/gasTemp*self.DopplerBroadening.gas_temperature_uncertainty**2)
-        else:
-            delta_trans = sigma_trans*self.DopplerBroadening.fraction_uncertainty_on_doppler_broadening
-        return sigma_trans, delta_trans
+    # Generic systematics are implemented in the parent class in SensitivityFormulas.py
 
     def calculate_tau_snr(self, time_window, sideband_power_fraction=1):
         
@@ -465,39 +240,6 @@ class CavitySensitivity(object):
 
         # end of Wouter's calculation
         return tau_snr
-        
-
-    def print_SNRs(self, rho=None):
-        logger.info("SNR parameters:")
-        if rho != None:
-            logger.warning("Deprecation warning: This function does not modify the number density in the Experiment namespace. Values printed are for pre-set number density.")
-        
-        track_duration = self.time_window 
-        tau_snr = self.calculate_tau_snr(track_duration, sideband_power_fraction=1)
-        
-        
-        eV_bandwidth = np.abs(frequency(self.T_endpoint, self.MagneticField.nominal_field) - frequency(self.T_endpoint + 1*eV, self.MagneticField.nominal_field))
-        SNR_1eV = 1/eV_bandwidth/tau_snr
-        SNR_track_duration = track_duration/tau_snr
-        SNR_1ms = 0.001*s/tau_snr
-        
-        logger.info("Number density: {} m^-3".format(self.Experiment.number_density*m**3))
-        logger.info("Track duration: {}ms".format(track_duration/ms))
-        logger.info("tau_SNR: {}s".format(tau_snr/s))
-        logger.info("Sampling duration for 1eV: {}ms".format(1/eV_bandwidth/ms))
-        
-        logger.info("Received power: {}W".format(self.received_power/W))
-        logger.info("Noise temperature: {}K".format(self.noise_temp/K))
-        logger.info("Noise power in 1eV: {}W".format(self.noise_energy*eV_bandwidth/W))
-        logger.info("SNR for 1eV bandwidth: {}".format(SNR_1eV))
-        logger.info("SNR 1 eV from temperatures:{}".format(self.received_power/(self.noise_energy*eV_bandwidth)))
-        logger.info("SNR for track duration: {}".format(SNR_track_duration))
-        logger.info("SNR for 1 ms: {}".format(SNR_1ms))
-        
-        
-        logger.info("Opimtum energy window: {} eV".format(self.DeltaEWidth()/eV))
-        
-        return self.noise_temp, SNR_1eV, track_duration
 
 
     def syst_frequency_extraction(self):
@@ -600,7 +342,9 @@ class CavitySensitivity(object):
             raise NotImplementedError("Unvertainty on CRLB for cavity noise calculation is not implemented.")
 
     def syst_magnetic_field(self):
-
+        """
+        Magnetic field uncertanty is in principle generic but its impact on efficiency depends on reconstruction and therefore on detector technology.
+        """
         # magnetic field uncertainties can be decomposed in several part
         # * true magnetic field inhomogeneity
         #   (would be there also without a trap)
@@ -627,71 +371,37 @@ class CavitySensitivity(object):
             return sigma, frac_uncertainty*sigma
         else:
             return 0, 0
-        """
-        BMapErr = self.MagneticField.probe_repeatability  # Probe Repeatability
-        delta_BMapErr = self.MagneticField.probe_resolution # Probe resolution
-
-        BFlatErr = self.MagneticField.BFlatErr # averaging over the flat part of the field
-        delta_BFlatErr = self.MagneticField.relative_uncertainty_BFlatErr*BFlatErr # UPDATE ?
-
-        Delta_t_since_calib = self.MagneticField.time_since_calibration
-        shiftBdot = self.MagneticField.shift_Bdot
-        smearBdot = self.MagneticField.smear_Bdot
-        delta_shiftBdot = self.MagneticField.uncertainty_shift_Bdot
-        delta_smearBdot = self.MagneticField.uncertainty_smearBdot
-        BdotErr = Delta_t_since_calib * np.sqrt(shiftBdot**2 + smearBdot**2)
-        delta_BdotErr = Delta_t_since_calib**2/BdotErr * np.sqrt(shiftBdot**2 * delta_shiftBdot**2 + smearBdot**2 * delta_smearBdot**2)
-
-        # position uncertainty is linear in wavelength
-        # position uncertainty is nearly constant w.r.t. radial position
-        # based on https://3.basecamp.com/3700981/buckets/3107037/uploads/3442593126
-        rRecoErr = self.MagneticField.rRecoErr
-        delta_rRecoErr = self.MagneticField.relative_Uncertainty_rRecoErr * rRecoErr
-
-        rRecoPhiErr = self.MagneticField.rRecoPhiErr
-        delta_rRecoPhiErr = self.MagneticField.relative_uncertainty_rRecoPhiErr * rRecoPhiErr
-
-        rProbeErr = self.MagneticField.rProbeErr
-        delta_rProbeErr = self.MagneticField.relative_uncertainty_rProbeErr * rProbeErr
-
-        rProbePhiErr = self.MagneticField.rProbePhiErr
-        delta_rProbePhiErr = self.MagneticField.relative_uncertainty_rProbePhiErr * rProbePhiErr
-
-        Berr = np.sqrt(BMapErr**2 +
-                       BFlatErr**2 +
-                       BdotErr**2 +
-                       rRecoErr**2 +
-                       rRecoPhiErr**2 +
-                       rProbeErr**2 +
-                       rProbePhiErr**2)
-
-        delta_Berr = 1/Berr * np.sqrt(BMapErr**2 * delta_BMapErr**2 +
-                                      BFlatErr**2 * delta_BFlatErr**2 +
-                                      BdotErr**2 * delta_BdotErr**2 +
-                                      rRecoErr**2 * delta_rRecoErr**2 +
-                                      rRecoPhiErr**2 * delta_rRecoPhiErr**2 +
-                                      rProbeErr**2 * delta_rProbeErr**2 +
-                                      rProbePhiErr**2 * delta_rProbePhiErr**2)
-
-        return self.BToKeErr(Berr, B), self.BToKeErr(delta_Berr, B)
-        """
-
-    def syst_missing_tracks(self):
-        # this systematic should describe the energy broadening due to the line shape.
-        # Line shape is caused because you miss the first n tracks but then detect the n+1
-        # track and you assume that this is the start frequency.
-        # This depends on the gas composition, density and cross-section.
-        if self.MissingTracks.UseFixedValue:
-            sigma = self.MissingTracks.Default_Systematic_Smearing
-            delta = self.MissingTracks.Default_Systematic_Uncertainty
-            return sigma, delta
-        else:
-            raise NotImplementedError("Missing track systematic is not implemented.")
-
-    def syst_plasma_effects(self):
-        if self.PlasmaEffects.UseFixedValue:
-            sigma = self.PlasmaEffects.Default_Systematic_Smearing
-            delta = self.PlasmaEffects.Default_Systematic_Uncertainty
-            return sigma, delta
-        else:
-            raise NotImplementedError("Plasma effect sysstematic is not implemented.")
+        
+    
+    # PRINTS
+    def print_SNRs(self, rho=None):
+        logger.info("SNR parameters:")
+        if rho != None:
+            logger.warning("Deprecation warning: This function does not modify the number density in the Experiment namespace. Values printed are for pre-set number density.")
+        
+        track_duration = self.time_window 
+        tau_snr = self.calculate_tau_snr(track_duration, sideband_power_fraction=1)
+        
+        
+        eV_bandwidth = np.abs(frequency(self.T_endpoint, self.MagneticField.nominal_field) - frequency(self.T_endpoint + 1*eV, self.MagneticField.nominal_field))
+        SNR_1eV = 1/eV_bandwidth/tau_snr
+        SNR_track_duration = track_duration/tau_snr
+        SNR_1ms = 0.001*s/tau_snr
+        
+        logger.info("Number density: {} m^-3".format(self.Experiment.number_density*m**3))
+        logger.info("Track duration: {}ms".format(track_duration/ms))
+        logger.info("tau_SNR: {}s".format(tau_snr/s))
+        logger.info("Sampling duration for 1eV: {}ms".format(1/eV_bandwidth/ms))
+        
+        logger.info("Received power: {}W".format(self.received_power/W))
+        logger.info("Noise temperature: {}K".format(self.noise_temp/K))
+        logger.info("Noise power in 1eV: {}W".format(self.noise_energy*eV_bandwidth/W))
+        logger.info("SNR for 1eV bandwidth: {}".format(SNR_1eV))
+        logger.info("SNR 1 eV from temperatures:{}".format(self.received_power/(self.noise_energy*eV_bandwidth)))
+        logger.info("SNR for track duration: {}".format(SNR_track_duration))
+        logger.info("SNR for 1 ms: {}".format(SNR_1ms))
+        
+        
+        logger.info("Opimtum energy window: {} eV".format(self.DeltaEWidth()/eV))
+        
+        return self.noise_temp, SNR_1eV, track_duration
