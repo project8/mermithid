@@ -22,10 +22,6 @@ RUN mkdir -p $MERMITHID_BUILD_PREFIX &&\
     echo 'export PYTHONPATH=$MERMITHID_BUILD_PREFIX/$(python3 -m site --user-site | sed "s%$(python3 -m site --user-base)%%"):$PYTHONPATH' >> setup.sh &&\
     /bin/true
 
-RUN source $COMMON_BUILD_PREFIX/setup.sh &&\
-    pip install iminuit &&\
-    /bin/true
-
 ########################
 FROM mermithid_common as mermithid_done
 
@@ -45,6 +41,7 @@ COPY tests $MERMITHID_BUILD_PREFIX/tests
 
 # repeat the cmake command to get the change of install prefix to set correctly (a package_builder known issue)
 RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
+#    pip3 install --upgrade pip &&\
     cd /tmp_source &&\
     mkdir -p build &&\
     cd build &&\
@@ -64,3 +61,4 @@ RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
 FROM mermithid_common
 
 COPY --from=mermithid_done $MERMITHID_BUILD_PREFIX $MERMITHID_BUILD_PREFIX
+RUN pip3 install seaborn statsmodels
