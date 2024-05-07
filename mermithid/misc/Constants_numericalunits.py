@@ -1,5 +1,6 @@
 '''
 Some constants useful for various things...
+The constants here use the numericalunits package. For constants not using this package import form Constants.py
 '''
 
 import numpy as np
@@ -25,7 +26,7 @@ tritium_endpoint_molecular = 18574.01*eV
 last_1ev_fraction_molecular = 1.67364e-13/eV**3
 
 ground_state_width = 0.436 * eV
-#ground_state_width_uncertainty = 0.001*0.436*eV
+ground_state_width_uncertainty = 0.001*0.436*eV
 
 gyro_mag_ratio_proton = 42.577*MHz/T
 

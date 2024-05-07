@@ -2,6 +2,9 @@
 Miscellaneous functions for CRES conversions
 Author: C. Claessens
 Date: 05/02/2024
+
+Note: The functions here use the numericalunits package. They are used by the Sensitivity calculations. 
+For CRES functions not using numericalunits import from ConversionFunctions.py.
 '''
 
 from __future__ import absolute_import

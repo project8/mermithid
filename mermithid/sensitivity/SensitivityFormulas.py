@@ -72,7 +72,13 @@ class Sensitivity(object):
         self.MagneticField = NameSpace({opt: eval(self.cfg.get('MagneticField', opt)) for opt in self.cfg.options('MagneticField')})
         self.MissingTracks = NameSpace({opt: eval(self.cfg.get('MissingTracks', opt)) for opt in self.cfg.options('MissingTracks')})
         self.PlasmaEffects = NameSpace({opt: eval(self.cfg.get('PlasmaEffects', opt)) for opt in self.cfg.options('PlasmaEffects')})
-        self.FinalStates = NameSpace({opt: eval(self.cfg.get('FinalStates', opt)) for opt in self.cfg.options('FinalStates')})
+        
+        if self.cfg.has_section('FinalStates'):
+            self.FinalStates = NameSpace({opt: eval(self.cfg.get('FinalStates', opt)) for opt in self.cfg.options('FinalStates')})
+        
+        if not self.Experiment.atomic and not self.cfg.has_section('FinalStates'):
+            logger.warning(f"No configuration of ground state width uncertainty. Using default value {ground_state_width_uncertainty/eV} eV")
+                
 
     # SENSITIVITY
     def SignalRate(self):
@@ -204,7 +210,7 @@ class Sensitivity(object):
         if not self.Experiment.atomic:
             labels.append("Molecular final state")
             sigmas.append(ground_state_width)
-            if hasattr(self.FinalStates, "ground_state_width_uncertainty_fraction"):
+            if self.cfg.has_section('FinalStates') and hasattr(self.FinalStates, "ground_state_width_uncertainty_fraction"):
                 deltas.append(self.FinalStates.ground_state_width_uncertainty_fraction*ground_state_width)
             else: 
                 deltas.append(ground_state_width_uncertainty)

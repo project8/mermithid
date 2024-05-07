@@ -196,7 +196,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
                 sigma_startf, stat_on_mbeta2, syst_on_mbeta2 = [], [], []
 
                 for n in self.rhos:
-                    self.sens_main.Experiment.number_density = n
+                    self.sens_main.CL90(Experiment={"number_density": n})
                     labels, sigmas, deltas = self.sens_main.get_systematics()
                     sigma_startf.append(sigmas[1])
                     stat_on_mbeta2.append(self.sens_main.StatSens())
@@ -213,9 +213,6 @@ class SensitivityParameterScanProcessor(BaseProcessor):
                 plt.savefig(os.path.join(self.plot_path, f"{param}_{parameter_value/self.scan_parameter_unit}_stat_and_syst_vs_density.pdf"))
 
                 
-
-
-
 
             logger.info('Experiment info:')
             # set optimum density back
@@ -368,7 +365,8 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         
         self.ax.plot(self.rhos*m**3, limits, **kwargs)
         rho_opt = self.rhos[np.argmin(limits)]
-        self.sens_main.Experiment.number_density = rho_opt
+        # set experiment to optimum density
+        sens.CL90(Experiment={"number_density": rho_opt})
         logger.info('Minimum limit at {}: {}'.format(rho_opt*m**3, np.min(limits)))
         
         if self.make_key_parameter_plots and plot_key_params:
