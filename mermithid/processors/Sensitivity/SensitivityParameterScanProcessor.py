@@ -154,10 +154,33 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             logger.info('Adding goal: {} = {}'.format(key, value))
             self.add_goal(value, key)
                 
-        
+        # arrays for results values for output
         self.optimum_limits = []
         self.optimum_rhos = []
-
+        
+        self.noise_temp = []
+        self.SNR = []
+        self.track_duration = []
+        self.total_sigma = []
+        self.sys_lim = []
+        '''
+        # Define some functions used for calcing results values
+        tritium_endpoint_molecular = 18574.01*eV
+        tritium_endpoint_atomic = 18563.251*eV
+        tritium_electron_crosssection_molecular = 3.67*1e-22*m**2
+        tritium_electron_crosssection_atomic = 9.e-23*m**2
+        def gamma(kin_energy):
+            return kin_energy/(me*c0**2) + 1
+        def beta(kin_energy):
+            return np.sqrt(kin_energy**2+2*kin_energy*me*c0**2)/(kin_energy+me*c0**2)
+        def frequency(kin_energy, magnetic_field):
+            return e/(2*np.pi*me)/gamma(kin_energy)*magnetic_field
+        def track_length(rho, kin_energy=None, molecular=True):
+            if kin_energy is None:
+                kin_energy = tritium_endpoint_molecular if molecular else tritium_endpoint_atomic
+            crosssect = tritium_electron_crosssection_molecular if molecular else tritium_electron_crosssection_atomic
+            return 1 / (rho * crosssect * beta(kin_energy) * c0)
+        '''
 
         for i, color in self.range(self.scan_parameter_values/self.scan_parameter_unit):
             parameter_value = self.scan_parameter_values[i]
@@ -230,8 +253,13 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             
             if self.sens_main.FrequencyExtraction.crlb_on_sidebands:
                 logger.info("Uncertainty of frequency resolution and energy reconstruction (for pitch angle): {} eV, {} eV".format(self.sens_main.sigma_K_f_CRLB/eV, self.sens_main.sigma_K_reconstruction/eV))
-        
+       
             self.sens_main.print_SNRs(rho_opt)
+            noise_temp, SNR, track_duration = self.sens_main.print_SNRs(rho_opt)
+            # Store relevant values
+            self.noise_temp.append(noise_temp)
+            self.SNR.append(SNR)
+            self.track_duration.append(track_duration)
             logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
             logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.effective_volume))
             logger.info('Total signal: {}'.format(rho_opt*self.sens_main.effective_volume*
@@ -244,6 +272,9 @@ class SensitivityParameterScanProcessor(BaseProcessor):
 
             self.sens_main.print_statistics()
             self.sens_main.print_systematics()
+            systematic_limit, total_sigma = self.sens_main.print_systematics()
+            self.sys_lim.append(systematic_limit)
+            self.total_sigma.append(total_sigma) 
             
         self.save("sensitivity_vs_density_for_{}_scan.pdf".format(param))
             
@@ -251,12 +282,15 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         # plot and print best limits
         self.results = {"scan_parameter": self.scan_parameter_name, "scan parameter_unit": self.scan_parameter_unit_string,
                         "scan_parameter_values": self.scan_parameter_values, "optimum_limits_eV": np.array(self.optimum_limits)/eV,
-                        "optimum_densities/m3": np.array(self.optimum_rhos)*(m**3)}
+                        "optimum_densities/m3": np.array(self.optimum_rhos)*(m**3),
+                        "Noise Temperatures/K": np.array(self.noise_temp)/K,
+                        "SNRs 1eV from temperature": np.array(self.SNR), "track durations": np.array(self.track_duration)/ms,
+                        "Systematic limits": np.array(self.sys_lim), "Total Sigmas": np.array(self.total_sigma)}
         
         logger.info("Scan parameter: {}".format(self.scan_parameter_name))
         logger.info("Tested parameter values: {}".format(self.scan_parameter_values/self.scan_parameter_unit))
         logger.info("Best limits: {}".format(np.array(self.optimum_limits)/eV))
-        
+
         plt.figure(figsize=self.figsize)
         #plt.title("Sensitivity vs. {}".format(self.scan_parameter_name))
         plt.plot(self.scan_parameter_values/self.scan_parameter_unit, np.array(self.optimum_limits)/eV, marker=".", label="Density optimized scenarios")

@@ -271,6 +271,7 @@ class CavitySensitivity(object):
         #Jprime_0 = 3.8317
         
         #self.signal_power = self.FrequencyExtraction.mode_coupling_efficiency * self.CavityLoadedQ() * self.FrequencyExtraction.hanneke_factor * self.T_endpoint/eV * e/C * Jprime_0**2 / (2*np.pi**2*self.Experiment.L_over_D*2*self.cavity_radius**3/m**3 * frequency(self.T_endpoint, self.MagneticField.nominal_field)*s)*W
+        #np.random.seed(1)
         self.signal_power = np.mean(larmor_orbit_averaged_hanneke_power_box(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=1000), 
                                                                             self.CavityLoadedQ(), 
                                                                             2*self.Experiment.L_over_D*self.cavity_radius, 
@@ -459,6 +460,7 @@ class CavitySensitivity(object):
             pass
         print("Contribution to sigma_(m_beta^2)", " "*18, "%.2f"%(self.SystSens()/meV**2), "meV^2 ->", "%.2f"%(np.sqrt(self.SystSens())/meV), "meV")
         print("Systematic mass limit", " "*18, "%.2f"%(np.sqrt(1.28*self.SystSens())/meV), "meV")
+        return np.sqrt(1.28*self.SystSens())/meV, np.sqrt(np.sum(sigmas**2))
 
     def syst_doppler_broadening(self):
         # estimated standard deviation of Doppler broadening distribution from
@@ -557,6 +559,21 @@ class CavitySensitivity(object):
         logger.info("Noise temperature: {}K".format(self.noise_temp/K))
         logger.info("Opimtum energy window: {} eV".format(self.DeltaEWidth()/eV))
 
+        return self.noise_temp/K, self.received_power/(self.noise_energy*eV_bandwidth), track_duration/ms
+
+#    def return_extra_info(self, rho_opt):
+#        # Func to return additional relevant parameter values for output in sensitivityparameterscan
+#        tau_snr = self.calculate_tau_snr(self.time_window, sideband_power_fraction=1)
+#        logger.info("tau_SNR: {}s".format(tau_snr/s))
+#        eV_bandwidth = np.abs(frequency(self.T_endpoint, self.MagneticField.nominal_field) - frequency(self.T_endpoint + 1*eV, self.MagneticField.nominal_field))
+#        SNR_1eV = 1/eV_bandwidth/2./tau_snr
+#        track_duration = track_length(rho_opt, self.T_endpoint, molecular=(not self.Experiment.atomic))
+#        SNR_track_duration = track_duration/2./tau_snr
+#        SNR_1ms = 0.001*s/2./tau_snr
+#       
+#        labels, sigmas, deltas = self.get_systematics()
+#        # noise_temp, SNR, track_duration, systematic limit, total sigma
+#        return self.noise_temp/K, self.received_power/(self.noise_energy*eV_bandwidth), track_duration/ms, np.sqrt(1.28*self.SystSens())/meV, np.sqrt(np.sum(sigmas**2))
 
     def syst_frequency_extraction(self):
         # cite{https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398} (Section 1.2, p 7-9)
