@@ -81,7 +81,7 @@ class SensitivityTest(unittest.TestCase):
             "comparison_curve_label": ["Molecular, reaching target", 
                                        "Atomic, conservative", 
                                         "Atomic, reaching target"], 
-            "goals": {"Pilot T goal (0.1 eV)": 0.1, "Phase IV (0.04 eV)": 0.04},
+            "goals": {"Phase III (0.2 eV)": 0.2, "Phase IV (0.04 eV)": 0.04},
             "comparison_curve": True,
             #"comparison_curve_colors": ["red"],
             "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg", 

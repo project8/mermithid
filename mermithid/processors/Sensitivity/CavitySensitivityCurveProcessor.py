@@ -27,8 +27,7 @@ ppb = 1e-9
 # morpho imports
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
-from mermithid.misc.SensitivityFormulas import Sensitivity
-from mermithid.misc.SensitivityCavityFormulas import CavitySensitivity
+from mermithid.sensitivity.SensitivityCavityFormulas import CavitySensitivity
 
 
 logger = morphologging.getLogger(__name__)
@@ -129,22 +128,15 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.add_PhaseII:
             self.sens_PhaseII = CavitySensitivity(self.PhaseII_path)
             
-        self.cavity = reader.read_param(params, 'cavity', True)
         
-        if self.cavity:
-            self.sens_main = CavitySensitivity(self.config_file_path)
-        else:
-            self.sens_main = Sensitivity(self.config_file_path)
+        self.sens_main = CavitySensitivity(self.config_file_path)
         self.sens_main_is_atomic = self.sens_main.Experiment.atomic
 
         if self.comparison_curve:
             ref = []
-            if self.cavity:
-                for file in self.comparison_config_file_path:
-                    ref.append(CavitySensitivity(file))
-            else:
-                for file in self.comparison_config_file_path:
-                    ref.append(CavitySensitivity(file))
+            for file in self.comparison_config_file_path:
+                ref.append(CavitySensitivity(file))
+            
             self.sens_ref = ref
             is_atomic = []
             for i in range(len(self.sens_ref)):

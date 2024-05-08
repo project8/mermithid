@@ -26,7 +26,7 @@ from numericalunits import meV, eV, m, T
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
 from mermithid.processors.Sensitivity import AnalyticSensitivityEstimation
-from mermithid.misc.SensitivityFormulas import Sensitivity
+from mermithid.sensitivity.SensitivityFormulas import Sensitivity
 
 
 logger = morphologging.getLogger(__name__)

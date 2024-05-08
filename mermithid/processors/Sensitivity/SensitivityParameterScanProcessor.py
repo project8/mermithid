@@ -29,8 +29,8 @@ deg = np.pi/180
 # morpho imports
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
-from mermithid.misc.SensitivityFormulas import Sensitivity
-from mermithid.misc.SensitivityCavityFormulas import CavitySensitivity
+from mermithid.sensitivity.SensitivityFormulas import Sensitivity
+from mermithid.sensitivity.SensitivityCavityFormulas import CavitySensitivity
 
 
 logger = morphologging.getLogger(__name__)
@@ -183,7 +183,6 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             opt = np.argmin(limit)
             rho_opt = self.rhos[opt]
             self.optimum_rhos.append(rho_opt)
-            self.sens_main.Experiment.number_density = rho_opt
               
             # add main curve
             logger.info("Drawing main curve")  
@@ -197,7 +196,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
                 sigma_startf, stat_on_mbeta2, syst_on_mbeta2 = [], [], []
 
                 for n in self.rhos:
-                    self.sens_main.Experiment.number_density = n
+                    self.sens_main.CL90(Experiment={"number_density": n})
                     labels, sigmas, deltas = self.sens_main.get_systematics()
                     sigma_startf.append(sigmas[1])
                     stat_on_mbeta2.append(self.sens_main.StatSens())
@@ -215,9 +214,6 @@ class SensitivityParameterScanProcessor(BaseProcessor):
 
                 
 
-
-
-
             logger.info('Experiment info:')
             # set optimum density back
             self.sens_main.CL90(Experiment={"number_density": rho_opt})
@@ -231,7 +227,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             if self.sens_main.FrequencyExtraction.crlb_on_sidebands:
                 logger.info("Uncertainty of frequency resolution and energy reconstruction (for pitch angle): {} eV, {} eV".format(self.sens_main.sigma_K_f_CRLB/eV, self.sens_main.sigma_K_reconstruction/eV))
         
-            self.sens_main.print_SNRs(rho_opt)
+            self.sens_main.print_SNRs()
             logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
             logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.effective_volume))
             logger.info('Total signal: {}'.format(rho_opt*self.sens_main.effective_volume*
@@ -369,7 +365,8 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         
         self.ax.plot(self.rhos*m**3, limits, **kwargs)
         rho_opt = self.rhos[np.argmin(limits)]
-        self.sens_main.Experiment.number_density = rho_opt
+        # set experiment to optimum density
+        sens.CL90(Experiment={"number_density": rho_opt})
         logger.info('Minimum limit at {}: {}'.format(rho_opt*m**3, np.min(limits)))
         
         if self.make_key_parameter_plots and plot_key_params:

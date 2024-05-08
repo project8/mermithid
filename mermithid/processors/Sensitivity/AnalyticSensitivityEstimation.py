@@ -22,7 +22,7 @@ from numericalunits import meV, eV, T
 # morpho imports
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
-from mermithid.misc.SensitivityFormulas import Sensitivity
+from mermithid.sensitivity.SensitivityFormulas import Sensitivity
 
 
 logger = morphologging.getLogger(__name__)
