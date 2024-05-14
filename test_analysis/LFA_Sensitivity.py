@@ -24,12 +24,15 @@ sens_config_dict = {
     "molecular_axis": False,
     "atomic_axis": False,
     "density_axis": True,
+    "optimize_main_density": True,
     "cavity": True,
     #"y_limits": [2e-2, 20],
     "y_limits": [2e-1, 20],
     "density_range": [1e13,1e20],
-    "efficiency_range": [0.0001, 1],
+    #"efficiency_range": [0.0001, 1],
     #"density_range": [1e8, 1e12],
+    "configure_sigma_theta_r": True,
+    "sigmae_theta_r": np.linspace(0.1, 0.5, 10), #in eV, energy broadening from theta and r reconstruction
     "main_curve_upper_label": r"$\sigma^B_\mathrm{corr} = 0.5\,\mathrm{eV}$", #r"Molecular"+"\n"+"Reaching target",
     "main_curve_lower_label": r"$\sigma^B_\mathrm{corr} = 0.1\,\mathrm{eV}$", #r"Molecular"+"\n"+"Reaching target",
     #"comparison_curve_label": [#"Molecular, reaching target", 
@@ -49,9 +52,7 @@ sens_config_dict = {
     "upper_label_y_position": 4,
     "label_x_position": 4e14, #4e14, #0.02, #1e14,
     "goals_x_position": 1.2e14, #0.0002
-    "plot_key_parameters": True,
-    "configure_sigma_theta_r": True,
-    "sigmae_theta_r": np.linspace(0.1, 0.5, 10), #in eV, energy broadening from theta and r reconstruction
+    "plot_key_parameters": True
     }
 #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
 #sens_curve.Configure(sens_config_dict)
@@ -62,10 +63,11 @@ sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
     "plot_path": "./lfa_sensitivity_vs_exposure_curve_1GHz.pdf",
+    "exposure_axis": True,
     # optional
-    "figsize": (8,6),
+    "figsize": (10,6),
     "fontsize": 15,
-    "legend_location": "upper center",
+    "legend_location": "upper right",
     "track_length_axis": False,
     "molecular_axis": False,
     "atomic_axis": False,
@@ -75,7 +77,7 @@ sens_config_dict = {
     "y_limits": [10e-3, 500],
     "density_range": [1e12,1e19],
     "exposure_range": [1e-11, 1e4],
-    "main_curve_upper_label": r"LFA (atomic T pilot) - 1 GHz",
+    "main_curve_upper_label": r"LFA (atomic T)$\,-\,$1 GHz",
     "main_curve_lower_label": r"$\sigma^\bar{B}_\mathrm{reco} = 0.16\,\mathrm{eV}$",
     "goals": {"Phase III (0.4 eV)": (0.4**2/np.sqrt(1.64)), "Phase IV (0.04 eV)": (0.04**2/np.sqrt(1.64))},
     "comparison_curve": True,
@@ -85,7 +87,7 @@ sens_config_dict = {
     #                                "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", 
     #                                "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"],
     #"comparison_curve_label": [r"Molecular, conservative", "Atomic, conservative", "Atomic, reaching PIV target"],
-    "comparison_curve_label": [r"LFA (atomic T pilot) - 500 MHz", r"Phase IV scenario - 150 MHz"],
+    "comparison_curve_label": [r"LFA (atomic T)$\,-\,$500 MHz", r"Phase IV scenario$\,-\,$150 MHz"],
     #"comparison_curve_colors": ["blue", "darkred", "red"],
     "comparison_curve_colors": ["darkred", "red"],
     "optimize_main_density": False,
