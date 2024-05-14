@@ -67,7 +67,7 @@ This is done in the ``DopplerBroadening`` section of the configuration file, by 
 
 Calculation of ``sigma_trans`` for option 2:
 For a thermalized source gas, the translational Doppler broadening is described by Gaussian with standard deviation
-.. math:: :name:eq:sigtrans `{\sigma_{\text{trans}} = \sqrt{\frac{p_{\text{rec}}^2}{2m_T}2 k_B T}}`,
+:math:`{\sigma_{\text{trans}} = \sqrt{\frac{p_{\text{rec}}^2}{2m_T}2 k_B T}}`,
 where :math:`{m_T}` is the mass of tritium and :math:`{T}` is the gas temperature.
 
 
