@@ -48,7 +48,7 @@ Before installing, clone subdirecories recursively: ``git submodule update --ini
 
 ### Docker installation
 
-Docker provides a uniform test bed for development and bug testing. Please use this environment to testing/resolving bugs.
+Create a docker image and start a mermithid container
 
 1. Install Docker (Desktop version): <https://docs.docker.com/engine/installation/>
 3. Clone and pull the latest main version of mermithid or the feature branch you want to work with
@@ -80,6 +80,6 @@ Mermithid works a-la morpho, where the operations on data are defined using proc
 
 ## Easy development
 
-To develop mermithid without having to rebuild the container, share the repository on the host with the container by starting it with: ```docker run --rm -it -v ~/mermithid_share:/host -v ~/repos/mermithid:/mermithid mermithid:<tag> /bin/bash```.
+To develop mermithid without having to rebuild the container, share the repository on the host with the container by starting it with: ```docker run --rm -it -v ~/mermithid_share:/host -v ~/repos/mermithid:/mermithid mermithid:<tag> /bin/bash```. This assumes that mermithid was cloned to ``~/repos``.
 
-Then, after sourcing the setup scripts modify the PYTHONPATH ```export PYTHONPATH=/mermithid:$PYTHONPATH```. Now changes made on the host will directly be used by the container.
+After sourcing the setup scripts, modify the PYTHONPATH: ```export PYTHONPATH=/mermithid:$PYTHONPATH```. Now changes made on the host will directly be used by the container.
