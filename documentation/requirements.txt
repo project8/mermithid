@@ -1,6 +1,1 @@
-sphinx
 sphinx_rtd_theme
-sphinxcontrib-programoutput
-six
-colorlog
-better-apidoc
