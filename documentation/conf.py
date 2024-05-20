@@ -28,4 +28,4 @@ html_theme = 'alabaster'
 html_static_path = ['_static']
 
 
-extensions = ["myst_parser"]
+extensions = ['sphinxcontrib.contentui']
