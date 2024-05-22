@@ -1,5 +1,2 @@
-six
+sphinxcontrib-contentui
 sphinx_rtd_theme
-sphinxcontrib-programoutput
-colorlog
-better-apidoc
