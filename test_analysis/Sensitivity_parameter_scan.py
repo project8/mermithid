@@ -109,10 +109,10 @@ sens_config_dict = {
     #"scan_parameter_range": [5, 8],
     #"scan_parameter_steps": 3,
     #"scan_parameter_unit": 1,
-    "scan_parameter_name": "Experiment.background_rate_per_ev",
-    "scan_parameter_range": [1e-10, 4e-10],
-    "scan_parameter_steps": 4, # This is the one that currently has text output
-    "scan_parameter_unit": 1/(eV*s),
+    "scan_parameter_name": "Efficiency.radial_efficiency",
+    "scan_parameter_range": [0.55, 0.85],
+    "scan_parameter_steps": 7, # This is the one that currently has text output
+    "scan_parameter_unit": 1,
     "plot_sensitivity_scan_on_log_scale": False,
     "goals_x_position": 1.2e12, #0.0002
     "plot_key_parameters": False

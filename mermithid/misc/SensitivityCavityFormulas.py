@@ -460,7 +460,7 @@ class CavitySensitivity(object):
             pass
         print("Contribution to sigma_(m_beta^2)", " "*18, "%.2f"%(self.SystSens()/meV**2), "meV^2 ->", "%.2f"%(np.sqrt(self.SystSens())/meV), "meV")
         print("Systematic mass limit", " "*18, "%.2f"%(np.sqrt(1.28*self.SystSens())/meV), "meV")
-        return np.sqrt(1.28*self.SystSens())/meV, np.sqrt(np.sum(sigmas**2))
+        return np.sqrt(1.28*self.SystSens())/meV, np.sqrt(np.sum(sigmas**2))/meV
 
     def syst_doppler_broadening(self):
         # estimated standard deviation of Doppler broadening distribution from
@@ -557,7 +557,7 @@ class CavitySensitivity(object):
         logger.info("Received power: {}W".format(self.received_power/W))
         logger.info("Noise power in 1eV: {}W".format(self.noise_energy*eV_bandwidth/W))
         logger.info("Noise temperature: {}K".format(self.noise_temp/K))
-        logger.info("Opimtum energy window: {} eV".format(self.DeltaEWidth()/eV))
+        logger.info("Optimum energy window: {} eV".format(self.DeltaEWidth()/eV))
 
         return self.noise_temp/K, self.received_power/(self.noise_energy*eV_bandwidth), track_duration/ms
 
