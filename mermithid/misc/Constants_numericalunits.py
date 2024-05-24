@@ -6,7 +6,7 @@ The constants here use the numericalunits package. For constants not using this 
 import numpy as np
 
 from numericalunits import e, me, c0, eps0, kB, hbar
-from numericalunits import meV, eV, keV, MeV, cm, m, ns, s, Hz, kHz, MHz, GHz, amu, nJ
+from numericalunits import meV, eV, keV, MeV, mm, cm, m, ns, s, Hz, kHz, MHz, GHz, amu, nJ
 from numericalunits import nT, uT, mT, T, mK, K,  C, F, g, W
 from numericalunits import hour, year, day, s, ms
 from numericalunits import mu0, NA, kB, hbar, me, c0, e, eps0, hPlanck

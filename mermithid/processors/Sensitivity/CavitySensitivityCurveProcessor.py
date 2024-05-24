@@ -302,6 +302,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.sens_main.FrequencyExtraction.crlb_on_sidebands:
             logger.info("Uncertainty of frequency resolution and energy reconstruction (for pitch angle): {} eV, {} eV".format(self.sens_main.sigma_K_f_CRLB/eV, self.sens_main.sigma_K_reconstruction/eV))
        
+        self.sens_main.print_Efficiencies()
         self.sens_main.print_SNRs(rho_opt)
         logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
         logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.effective_volume))
@@ -626,6 +627,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.ax.plot(self.exposures/m**3/year, limits, color=kwargs["color"]) #label="{} density = {:.1e} {}".format(gas, rho_opt*m**3, unit))
         
     def add_Phase_II_exposure_sens_line(self, sens):
+        logger.warning("Adding Phase II sensitivity")
         sens.Experiment.number_density = 2.09e17/m**3
         sens.effective_volume = 1.2*mm**3
         sens.Experiment.sri_factor = 1 #0.389*0.918*0.32
@@ -636,6 +638,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         sens.print_systematics()
         sens.print_statistics()
         sens.sensitivity()
+        sens.print_Efficiencies()
+        sens.print_SNRs()
         logger.info("Phase II sensitivity for exposure {} calculated: {}".format(standard_exposure, sens.sensitivity()/eV**2))
         
         # Phase II experimental results
