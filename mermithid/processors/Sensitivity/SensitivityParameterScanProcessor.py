@@ -261,7 +261,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
                         "scan_parameter_values": self.scan_parameter_values, "optimum_limits_eV": np.array(self.optimum_limits)/eV,
                         "optimum_densities/m3": np.array(self.optimum_rhos)*(m**3),
                         "Noise Temperatures/K": np.array(self.noise_temp),
-                        "SNRs 1eV from temperature": np.array(self.SNR), "track durations": np.array(self.track_duration)/ms,
+                        "SNRs 1eV from temperature": np.array(self.SNR), "track durations": np.array(self.track_duration),
                         "Systematic limits": np.array(self.sys_lim), "Total Sigmas": np.array(self.total_sigma)}
         
         logger.info("Scan parameter: {}".format(self.scan_parameter_name))
