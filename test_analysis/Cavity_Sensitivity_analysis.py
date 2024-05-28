@@ -41,8 +41,9 @@ sens_config_dict = {
     "goals": {"Phase III (0.2 eV)": (0.2**2/np.sqrt(1.64)), "Phase IV (0.04 eV)": (0.04**2/np.sqrt(1.64))},
     "comparison_curve": True,
     "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg", 
-                                    #"/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", 
-                                    "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"],
+                                    "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", 
+                                    "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"
+                                    ],
     "comparison_curve_label": [r"Molecular, reaching PIII target", "Atomic, conservative", "Atomic, reaching PIV target"],
     "comparison_curve_colors": ["blue", "darkred", "red"],
     #"B_inhomogeneity": np.linspace(0.1, 2.1, 10)*1e-6,
