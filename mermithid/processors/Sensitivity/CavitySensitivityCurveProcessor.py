@@ -27,8 +27,7 @@ ppb = 1e-9
 # morpho imports
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
-from mermithid.misc.SensitivityFormulas import Sensitivity
-from mermithid.misc.SensitivityCavityFormulas import CavitySensitivity
+from mermithid.sensitivity.SensitivityCavityFormulas import CavitySensitivity
 
 
 logger = morphologging.getLogger(__name__)
@@ -115,9 +114,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         elif self.frequency_axis:
             self.add_sens_line = self.add_frequency_sens_line
             logger.info("Doing frequency lines")
-        else:
+        elif self.exposure_axis:
             self.add_sens_line = self.add_exposure_sens_line
             logger.info("Doing exposure lines")
+        else: raise ValueError("No axis specified")
 
 
         # goals
@@ -128,22 +128,15 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.add_PhaseII:
             self.sens_PhaseII = CavitySensitivity(self.PhaseII_path)
             
-        self.cavity = reader.read_param(params, 'cavity', True)
         
-        if self.cavity:
-            self.sens_main = CavitySensitivity(self.config_file_path)
-        else:
-            self.sens_main = Sensitivity(self.config_file_path)
+        self.sens_main = CavitySensitivity(self.config_file_path)
         self.sens_main_is_atomic = self.sens_main.Experiment.atomic
 
         if self.comparison_curve:
             ref = []
-            if self.cavity:
-                for file in self.comparison_config_file_path:
-                    ref.append(CavitySensitivity(file))
-            else:
-                for file in self.comparison_config_file_path:
-                    ref.append(CavitySensitivity(file))
+            for file in self.comparison_config_file_path:
+                ref.append(CavitySensitivity(file))
+            
             self.sens_ref = ref
             is_atomic = []
             for i in range(len(self.sens_ref)):
@@ -309,6 +302,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.sens_main.FrequencyExtraction.crlb_on_sidebands:
             logger.info("Uncertainty of frequency resolution and energy reconstruction (for pitch angle): {} eV, {} eV".format(self.sens_main.sigma_K_f_CRLB/eV, self.sens_main.sigma_K_reconstruction/eV))
        
+        self.sens_main.print_Efficiencies()
         self.sens_main.print_SNRs(rho_opt)
         logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
         logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.effective_volume))
@@ -633,6 +627,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.ax.plot(self.exposures/m**3/year, limits, color=kwargs["color"]) #label="{} density = {:.1e} {}".format(gas, rho_opt*m**3, unit))
         
     def add_Phase_II_exposure_sens_line(self, sens):
+        logger.warning("Adding Phase II sensitivity")
         sens.Experiment.number_density = 2.09e17/m**3
         sens.effective_volume = 1.2*mm**3
         sens.Experiment.sri_factor = 1 #0.389*0.918*0.32
@@ -643,9 +638,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         sens.print_systematics()
         sens.print_statistics()
         sens.sensitivity()
+        sens.print_Efficiencies()
+        sens.print_SNRs()
         logger.info("Phase II sensitivity for exposure {} calculated: {}".format(standard_exposure, sens.sensitivity()/eV**2))
         
-        
+        # Phase II experimental results
         phaseIIsens = 9822
         phaseIIsense_error = 1520
         exposure_error = np.sqrt((standard_exposure*0.008)**2 + (standard_exposure*0.09)**2)

@@ -1,35 +1,41 @@
-------------------
+--------------------------------------
 Neutrino Mass Sensitivity Calculation
-------------------
+--------------------------------------
 
 
 Scripts used in sensitivity calculations
-----------------------------------
+-------------------------------------------
 
 The mermithid sensitivity calculations are written in python and a python script can be used to configure the calculation and make sensitivity plots.
-Mermithid has several processors to make this a lot esaier. For cavity sensitivity calculations that is the `CavitySensitivityCurveProcessor`_.
+Mermithid has several processors for this purpose, in `mermithid/mermithid/processors/Sensitivity/`_. For cavity sensitivity calculations, use the `CavitySensitivityCurveProcessor`_.
 
+.. _mermithid/mermithid/processors/Sensitivity/: https://github.com/project8/mermithid/tree/feature/sensitivity_curve/mermithid/processors/Sensitivity 
 .. _CavitySensitivityCurveProcessor: https://github.com/project8/mermithid/blob/feature/sensitivity_curve/mermithid/processors/Sensitivity/CavitySensitivityCurveProcessor.py
 
 Mermithid processors are all designed to be used in the same way:
-1. Define a dictionary with the processors configurable parameters
-2. Instantiate a processor and pass the configuration dictionary to its ``Configure()`` method.
-3. Call the processors ``Run()`` method to make it perform its task.
 
-In `mermithid/tests`_ the ``Sensitivity_test.py`` script contains several examples of how to perform sensitivity calculations using mermithid processors. In ``test_SensitivityCurveProcessor`` the ``CavitySensitivityCurveProcessor`` is used as described above to calculate and plot the sensitivity of a cavity experiment to the neutrino mass as a function of gas density.
+1. Define a dictionary with the processor's configurable parameters;
+2. Instantiate a processor and pass the configuration dictionary to its ``Configure()`` method;
+3. Call the processor's ``Run()`` method to make it perform its task.
+
+In `mermithid/tests`_, the ``Sensitivity_test.py`` script contains several examples of how to perform sensitivity calculations using mermithid processors. In ``test_SensitivityCurveProcessor``, the ``CavitySensitivityCurveProcessor`` is used as described above to calculate and plot sensitivity to the neutrino mass as a function of gas density.
 Other working examples for creating sensivitiy plots vs. frequency or exposure can be found in `mermithid/test_analyses/Cavity_Sensitivity_analysis.py`_.
 
 .. _mermithid/tests: https://github.com/project8/mermithid/blob/feature/sensitivity_curve/tests
 .. _mermithid/test_analyses/Cavity_Sensitivity_analysis.py: https://github.com/project8/mermithid/blob/feature/sensitivity_curve/test_analysis/Cavity_Sensitivity_analysis.py
 
+The dictionary to configure the processor (see #1, above) can read in a separate configuration file (``.cfg``) with sensitivity-specific parameters. The documentation page `sensitivity_configurable_parameters.rst`_ describes all parameters in such a ``.cfg``.
+
+.. _sensitivity_configurable_parameters.rst: https://github.com/project8/mermithid/blob/feature/sensitivity_curve/documentation/sensitivity_configurable_parameters.rst 
+
 
 Analytic sensitivity formula
-----------------------------------
-
+-----------------------------------
+Test
 
 
 Systematic uncertainty contributions
-----------------------------------
+-------------------------------------
 
 The following contributions to energy broadening of the beta spectrum are included:
 
@@ -49,8 +55,8 @@ Contributions 4 and 5 are simply inputted in the sensitivity configuration file;
 
 
 Translational Doppler broadening (``sigma_trans``)
-============================
-The thermal translational motion of tritium atoms causes a Doppler broadening of the $\beta$ energy spectrum. ``sigma_trans`` is the standard deviation of this broadening distribution. There are two options for how to include translational Doppler broadening in your sensitivity calculations, in mermithid:
+========================================================
+The thermal translational motion of tritium atoms causes a Doppler broadening of the :math:`{\beta}` energy spectrum. ``sigma_trans`` is the standard deviation of this broadening distribution. There are two options for how to include translational Doppler broadening in your sensitivity calculations, in mermithid:
 
 1. Manually input values for ``sigma_trans`` and its uncertainty ``delta_trans``, calculated outside of mermithid.
 This is done in the ``DopplerBroadening`` section of the configuration file, by setting ``UseFixedValue`` to ``True`` and providing values for ``Default_Systematic_Smearing`` and ``Default_Systematic_Uncertainty``.
@@ -60,9 +66,9 @@ This is done in the ``DopplerBroadening`` section of the configuration file, by 
  - For a molecular tritium experiment, you need to input a number ``fraction_uncertainty_on_doppler_broadening`` (which equals ``delta_trans``/``sigma_trans``) in the ``DopplerBroadening`` section of the configuration file. 
 
 Calculation of ``sigma_trans`` for option 2:
-For a thermalized source gas, the translational Doppler broadening is described by Gaussian with standard deviation 
-.. math:: :name:eq:sigtrans \sigma_{\text{trans}} = \sqrt{\frac{p_{\text{rec}}^2}{2m_T}2 k_B T},
-where :math:`m_T` is the mass of tritium and :math:`T` is the gas temperature.
+For a thermalized source gas, the translational Doppler broadening is described by Gaussian with standard deviation
+:math:`{\sigma_{\text{trans}} = \sqrt{\frac{p_{\text{rec}}^2}{2m_T}2 k_B T}}`,
+where :math:`{m_T}` is the mass of tritium and :math:`{T}` is the gas temperature.
 
 
 Calculation of ``delta_trans`` for option 2, with atomic T:
@@ -70,9 +76,9 @@ Calculation of ``delta_trans`` for option 2, with atomic T:
 
 
 Track start frequency determination and pitch angle correction (``sigma_f``)
-============================
+====================================================================================
 
 
 Radial, azimuthal, and temporal field broadening (``sigma_B``)
-============================
+====================================================================================
 

@@ -1,6 +1,6 @@
-------------------
+----------------------------------------------------
 Configuring mermithid sensitivity calculation
-------------------
+----------------------------------------------------
 
 The sensitivity calculation is configured using a configuration file. The configuration files for Project 8 live in the termite repository: https://github.com/project8/termite/tree/feature/sensitivity_config_files/sensitivity_config_files
 
