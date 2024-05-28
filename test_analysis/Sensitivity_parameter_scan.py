@@ -109,8 +109,8 @@ sens_config_dict = {
     #"scan_parameter_range": [5, 8],
     #"scan_parameter_steps": 3,
     #"scan_parameter_unit": 1,
-    "scan_parameter_name": "Efficiency.detection_efficiency",
-    "scan_parameter_range": [0.55, 0.85],
+    "scan_parameter_name": "Experiment.n_cavities",
+    "scan_parameter_range": [4, 16],
     "scan_parameter_steps": 7, # This is the one that currently has text output
     "scan_parameter_unit": 1,
     "plot_sensitivity_scan_on_log_scale": False,

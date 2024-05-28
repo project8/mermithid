@@ -237,6 +237,7 @@ class Sensitivity(object):
             pass
         print("Contribution to sigma_(m_beta^2)", " "*18, "%.2f"%(self.SystSens()/meV**2), "meV^2 ->", "%.2f"%(np.sqrt(self.SystSens())/meV), "meV")
         print("Systematic mass limit", " "*18, "%.2f"%(np.sqrt(1.28*self.SystSens())/meV), "meV")
+        return np.sqrt(1.28*self.SystSens())/meV, np.sqrt(np.sum(sigmas**2))/meV
 
     def syst_doppler_broadening(self):
         # estimated standard deviation of Doppler broadening distribution from
