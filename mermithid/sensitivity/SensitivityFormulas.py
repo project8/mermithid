@@ -53,7 +53,8 @@ class Sensitivity(object):
             pass
 
         self.Experiment = NameSpace({opt: eval(self.cfg.get('Experiment', opt)) for opt in self.cfg.options('Experiment')})
-
+        
+        # seetings fro molecular or atomic tritium
         self.tau_tritium = tritium_livetime
         if self.Experiment.atomic:
             self.T_mass = tritium_mass_atomic
@@ -65,6 +66,10 @@ class Sensitivity(object):
             self.Te_crosssection = tritium_electron_crosssection_molecular
             self.T_endpoint = tritium_endpoint_molecular
             self.last_1ev_fraction = last_1ev_fraction_molecular
+            
+        # effective volume if configured
+        if hasattr(self.Experiment, "v_eff"):
+            self.effective_volume = self.Experiment.v_eff # v_eff can be configured in Experiment section
 
 
         self.DopplerBroadening = NameSpace({opt: eval(self.cfg.get('DopplerBroadening', opt)) for opt in self.cfg.options('DopplerBroadening')})
@@ -83,7 +88,7 @@ class Sensitivity(object):
     # SENSITIVITY
     def SignalRate(self):
         """signal events in the energy interval before the endpoint, scale with DeltaE**3"""
-        signal_rate = self.Experiment.number_density*self.Experiment.v_eff*self.last_1ev_fraction/self.tau_tritium
+        signal_rate = self.Experiment.number_density*self.effective_volume*self.last_1ev_fraction/self.tau_tritium
         if not self.Experiment.atomic:
             if hasattr(self.Experiment, 'gas_fractions'):
                 avg_n_T_atoms = self.AvgNumTAtomsPerParticle_MolecularExperiment(self.Experiment.gas_fractions, self.Experiment.H2_type_gas_fractions)

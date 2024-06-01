@@ -169,6 +169,14 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             
             category, param = self.scan_parameter_name.split(".")
             
+            # read current value of param
+            try:
+                current_value = self.sens_main.__dict__[category].__dict__[param]
+                logger.info(f"Current value of {param}: {current_value/self.scan_parameter_unit}")
+            except KeyError as e:
+                logger.error(f"Parameter {param} not found in {category}")
+                raise e
+            
             self.sens_main.__dict__[category].__dict__[param] = parameter_value 
             read_back = self.sens_main.__dict__[category].__dict__[param]
             #setattr(self.sens_main, self.scan_parameter_name, parameter_value)
