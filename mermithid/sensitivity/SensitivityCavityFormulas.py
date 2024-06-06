@@ -139,17 +139,17 @@ class CavitySensitivity(Sensitivity):
             self.effective_volume = self.total_volume * self.Efficiency.fixed_efficiency
         else:
             # radial and detection efficiency are configured in the config file
-            logger.info("Radial efficiency: {}".format(self.Efficiency.radial_efficiency))
-            logger.info("Detection efficiency: {}".format(self.Efficiency.detection_efficiency))
-            logger.info("Pitch angle efficiency: {}".format(self.PitchDependentTrappingEfficiency()))
-            logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
+            #logger.info("Radial efficiency: {}".format(self.Efficiency.radial_efficiency))
+            #logger.info("Detection efficiency: {}".format(self.Efficiency.detection_efficiency))
+            #logger.info("Pitch angle efficiency: {}".format(self.PitchDependentTrappingEfficiency()))
+            #logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
             
             self.effective_volume = self.total_volume*self.Efficiency.radial_efficiency*self.Efficiency.detection_efficiency*self.PitchDependentTrappingEfficiency()   
-        logger.info("Total efficiency: {}".format(self.effective_volume/self.total_volume))        
+        #logger.info("Total efficiency: {}".format(self.effective_volume/self.total_volume))        
         self.effective_volume*=self.Experiment.sri_factor
         
         # for parent SignalRate function
-        self.Experiment.v_eff = self.effective_volume
+        # self.Experiment.v_eff = self.effective_volume
         
         return self.effective_volume
         
@@ -296,11 +296,14 @@ class CavitySensitivity(Sensitivity):
         sigma_f_CRLB = np.sqrt((self.CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
         self.best_time_window = self.time_window
 
-        """ non constant slope
+        # non constant slope
+        self.sigma_f_CRLB_slope_fitted = np.sqrt((20*(self.slope*tau_snr_full_length)**2 + self.CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
+        if self.CRLB_constant > 10: sigma_f_CRLB = self.sigma_f_CRLB_slope_fitted
+        """
         CRLB_constant = 6
         sigma_CRLB_slope_zero = np.sqrt((CRLB_constant*tau_snr_part_length/self.time_window_slope_zero**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
         
-        sigma_f_CRLB_slope_fitted = np.sqrt((20*(self.slope*tau_snr_full_length)**2 + 90*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
+        
     
         sigma_f_CRLB = np.min([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])
         
@@ -405,4 +408,20 @@ class CavitySensitivity(Sensitivity):
         
         logger.info("Opimtum energy window: {} eV".format(self.DeltaEWidth()/eV))
         
+        logger.info("CRLB if slope is nonzero and needs to be fitted: {} Hz".format(self.sigma_f_CRLB_slope_fitted/Hz))
+        logger.info("CRLB constant: {}".format(self.CRLB_constant))
+        
         return self.noise_temp, SNR_1eV, track_duration
+    
+    
+    def print_Efficiencies(self):
+        
+        if not self.Efficiency.usefixedvalue:
+            # radial and detection efficiency are configured in the config file
+            logger.info("Radial efficiency: {}".format(self.Efficiency.radial_efficiency))
+            logger.info("Detection efficiency: {}".format(self.Efficiency.detection_efficiency))
+            logger.info("Pitch angle efficiency: {}".format(self.PitchDependentTrappingEfficiency()))
+            logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
+            
+        logger.info("Effective volume: {} mm^3".format(round(self.effective_volume/mm**3, 3)))
+        logger.info("Total efficiency: {}".format(self.effective_volume/self.total_volume))  

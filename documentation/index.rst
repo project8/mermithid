@@ -1,15 +1,28 @@
-Welcome to mermithid's documentation!
-====================================
+.. mermithid documentation master file, created by
+   sphinx-quickstart on Mon May 20 13:35:50 2024.
+   You can adapt this file completely to your liking, but it should at least
+   contain the root `toctree` directive.
 
-Contents:
+Welcome to mermithid's documentation!
+=====================================
 
 .. toctree::
-    :maxdepth: 2
+   :maxdepth: 2
+   :caption: Contents:
+    
+   intro
+   howmermithidworks
+   install
+   contribute
+   sensitivity
+   sensitivity_configurable_parameters
+   validation_log
 
-    intro
-    install
-    contribute
-    sensitivity
-    sensitivity_configurable_parameters
-    validation_log
-    better_apidoc_out/modules
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
