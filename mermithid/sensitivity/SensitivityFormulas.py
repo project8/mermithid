@@ -152,7 +152,8 @@ class Sensitivity(object):
     def CL90(self, **kwargs):
         """ Gives 90% CL upper limit on neutrino mass."""
         # 90% of gaussian are contained in +-1.64 sigma region
-        return np.sqrt(np.sqrt(1.64)*self.sensitivity(**kwargs))
+        #return np.sqrt(np.sqrt(1.64)*self.sensitivity(**kwargs))
+        return np.sqrt(1.64*self.sensitivity(**kwargs))
 
     def sterial_m2_limit(self, Ue4_sq):
         return np.sqrt(np.sqrt(1.64)*np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens()**2))
