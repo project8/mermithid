@@ -62,7 +62,7 @@ sens_config_dict = {
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
-    "plot_path": "./lfa_sensitivity_vs_exposure_curve_1GHz.pdf",
+    "plot_path": "./lfa_sensitivity_vs_exposure_curve_PhaseIV.pdf",
     "exposure_axis": True,
     # optional
     "figsize": (10,6),
@@ -77,12 +77,13 @@ sens_config_dict = {
     "y_limits": [10e-3, 500],
     "density_range": [1e12,1e19],
     "exposure_range": [1e-11, 1e4],
-    "main_curve_upper_label": r"LFA (atomic T)$\,-\,$1 GHz",
-    "main_curve_lower_label": r"$\sigma^\bar{B}_\mathrm{reco} = 0.16\,\mathrm{eV}$",
+    #"main_curve_upper_label": r"LFA (atomic T)$\,-\,$1 GHz",
+    "main_curve_upper_label":  r"Phase IV scenario$\,-\,$150 MHz",
+    #"main_curve_lower_label": r"$\sigma^\bar{B}_\mathrm{reco} = 0.16\,\mathrm{eV}$",
     "goals": {"Phase III (0.4 eV)": (0.4**2/np.sqrt(1.64)), "Phase IV (0.04 eV)": (0.04**2/np.sqrt(1.64))},
-    "comparison_curve": True,
+    "comparison_curve": False,
     "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_500MHz.cfg",
-                                    "/termite/sensitivity_config_files/Config_atomic_find_factor_22_Experiment_conservative.cfg"], 
+                                    "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"], 
     #"comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment_conservative.cfg", 
     #                                "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", 
     #                                "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"],
@@ -96,8 +97,8 @@ sens_config_dict = {
     "label_x_position": 0.015, #1.5e15, #0.02, #1e14,
     "goals_x_position": 0.2e-10, #2e12 #0.0002
     "goals_y_rel_position": 0.4,
-    "add_PhaseII": True,
-    "PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg"
+    "add_PhaseII": False
+    #"PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg"
     }
 sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
 sens_curve.Configure(sens_config_dict)
