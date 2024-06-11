@@ -67,7 +67,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.main_curve_color = reader.read_param(params, 'main_curve_color', "darkblue")
 
         # options
-        self.optimize_main_density = reader.read_param(params, 'optimize_main_density', True)
+        #self.optimize_main_density = reader.read_param(params, 'optimize_main_density', True)
         self.optimize_comparison_density = reader.read_param(params, 'optimize_comparison_density', True)
         self.comparison_curve = reader.read_param(params, 'comparison_curve', False)
         self.B_error = reader.read_param(params, 'B_inhomogeneity', 7e-6)
@@ -238,11 +238,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.add_goal(value, key)
             
         # optimize density
-        if self.optimize_main_density:
-            limit = [self.sens_main.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
-            opt = np.argmin(limit)
-            rho_opt = self.rhos[opt]
-            self.sens_main.Experiment.number_density = rho_opt
+        limit = [self.sens_main.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
+        opt = np.argmin(limit)
+        rho_opt = self.rhos[opt]
+        self.sens_main.Experiment.number_density = rho_opt
 
         # if B is list plot line for each B
         if self.configure_sigma_theta_r and (isinstance(self.sigmae_theta_r, list) or isinstance(self.sigmae_theta_r, np.ndarray)):
