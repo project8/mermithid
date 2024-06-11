@@ -66,7 +66,7 @@ This is done in the ``DopplerBroadening`` section of the configuration file, by 
  - For a molecular tritium experiment, you need to input a number ``fraction_uncertainty_on_doppler_broadening`` (which equals ``delta_trans``/``sigma_trans``) in the ``DopplerBroadening`` section of the configuration file. 
 
 Calculation of ``sigma_trans`` for option 2:
-For a thermalized source gas, the translational Doppler broadening is described by Gaussian with standard deviation
+For a thermalized source gas, the translational Doppler broadening is described by a Gaussian with standard deviation
 :math:`{\sigma_{\text{trans}} = \sqrt{\frac{p_{\text{rec}}^2}{2m_T}2 k_B T}}`,
 where :math:`{m_T}` is the mass of tritium and :math:`{T}` is the gas temperature.
 
