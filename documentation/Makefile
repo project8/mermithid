@@ -8,8 +8,6 @@ SPHINXPROJ    = mermithid
 SOURCEDIR     = .
 BUILDDIR      = build
 
-PY_CMD = import better_apidoc; better_apidoc.main(['better_apidoc','-t', '_templates','--force','--separate','-o','better_apidoc_out','../$(SPHINXPROJ)'])  # overwrite existing files
-APIDOC_CMD = python -c "$(PY_CMD)"
 
 # Put it first so that "make" without argument is like "make help".
 help:
@@ -22,5 +20,3 @@ help:
 %: Makefile
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-betterapi:
-	@$(APIDOC_CMD)

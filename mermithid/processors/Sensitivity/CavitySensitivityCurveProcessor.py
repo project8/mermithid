@@ -28,8 +28,7 @@ ppb = 1e-9
 # morpho imports
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
-from mermithid.misc.SensitivityFormulas import Sensitivity
-from mermithid.misc.SensitivityCavityFormulas import CavitySensitivity
+from mermithid.sensitivity.SensitivityCavityFormulas import CavitySensitivity
 
 
 logger = morphologging.getLogger(__name__)
@@ -65,6 +64,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.main_curve_lower_label = reader.read_param(params, 'main_curve_lower_label', r"$\sigma_B = 1\,\mathrm{ppm}$")
         self.comparison_curve_label = reader.read_param(params, 'comparison_curve_label', r"atomic"+"\n"+r"$V_\mathrm{eff} = 5\, \mathrm{m}^3$"+"\n"+r"$\sigma_B = 0.13\,\mathrm{ppm}$")
         self.comparison_curve_colors = reader.read_param(params,'comparison_curve_colors', ["blue", "darkred", "red"])
+        self.main_curve_color = reader.read_param(params, 'main_curve_color', "darkblue")
 
         # options
         self.optimize_main_density = reader.read_param(params, 'optimize_main_density', True)
@@ -118,9 +118,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         elif self.frequency_axis:
             self.add_sens_line = self.add_frequency_sens_line
             logger.info("Doing frequency lines")
-        else:
+        elif self.exposure_axis:
             self.add_sens_line = self.add_exposure_sens_line
             logger.info("Doing exposure lines")
+        else: raise ValueError("No axis specified")
 
 
         # goals
@@ -131,22 +132,15 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.add_PhaseII:
             self.sens_PhaseII = CavitySensitivity(self.PhaseII_path)
             
-        self.cavity = reader.read_param(params, 'cavity', True)
         
-        if self.cavity:
-            self.sens_main = CavitySensitivity(self.config_file_path)
-        else:
-            self.sens_main = Sensitivity(self.config_file_path)
+        self.sens_main = CavitySensitivity(self.config_file_path)
         self.sens_main_is_atomic = self.sens_main.Experiment.atomic
 
         if self.comparison_curve:
             ref = []
-            if self.cavity:
-                for file in self.comparison_config_file_path:
-                    ref.append(CavitySensitivity(file))
-            else:
-                for file in self.comparison_config_file_path:
-                    ref.append(CavitySensitivity(file))
+            for file in self.comparison_config_file_path:
+                ref.append(CavitySensitivity(file))
+            
             self.sens_ref = ref
             is_atomic = []
             for i in range(len(self.sens_ref)):
@@ -274,7 +268,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             if self.configure_sigma_theta_r:
                 self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
                 self.sens_main.MagneticField.sigmae_theta = 0 * eV
-            self.add_sens_line(self.sens_main, color='darkblue', label=self.main_curve_upper_label)
+            self.add_sens_line(self.sens_main, color=self.main_curve_color, label=self.main_curve_upper_label)
             #self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label, color='blue')
 
         
@@ -304,10 +298,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.sens_main.FrequencyExtraction.crlb_on_sidebands:
             logger.info("Uncertainty of frequency resolution and energy reconstruction (for pitch angle): {} eV, {} eV".format(self.sens_main.sigma_K_f_CRLB/eV, self.sens_main.sigma_K_reconstruction/eV))
        
-        self.sens_main.print_SNRs(rho)
-        logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho})/eV))
-        logger.info('T2 in Veff: {}'.format(rho*self.sens_main.effective_volume))
-        logger.info('Total signal: {}'.format(rho*self.sens_main.effective_volume*
+        self.sens_main.print_Efficiencies()
+        self.sens_main.print_SNRs(rho_opt)
+        logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
+        logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.effective_volume))
+        logger.info('Total signal: {}'.format(rho_opt*self.sens_main.effective_volume*
                                                    self.sens_main.Experiment.LiveTime/
                                                    self.sens_main.tau_tritium*2))
         logger.info('Signal in last eV: {}'.format(self.sens_main.last_1ev_fraction*eV**3*
@@ -396,7 +391,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             logger.info("Adding frequency axis")
             ax.set_xlim(self.frequencies[0]/Hz, self.frequencies[-1]/Hz)
             ax.set_xlabel("TE011 frequency (Hz)")
-            ax.set_ylim((np.array(self.ylim)**2/np.sqrt(1.64)))
+            #ax.set_ylim((np.array(self.ylim)**2/np.sqrt(1.64)))
+            ax.set_ylim((np.array(self.ylim)**2/1.64))
             ax.set_ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
             
             self.ax2 = ax.twinx()
@@ -407,11 +403,13 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         else:
             logger.info("Adding exposure axis")
             ax.set_xlim(self.exposure_range[0], self.exposure_range[-1])
-            ax.tick_params(axis='x', which='minor', bottom=True)
+            #ax.tick_params(axis='x', which='minor', bottom=True)
+            #ax.tick_params(axis='y', which='minor', left=True)
             axis_label = r"Efficiency $\times$ Volume $\times$ Time (m$^3$y)"
             
             ax.set_xlabel(axis_label)
-            ax.set_ylim((np.array(self.ylim)**2/np.sqrt(1.64)))
+            #ax.set_ylim((np.array(self.ylim)**2/np.sqrt(1.64)))
+            ax.set_ylim((np.array(self.ylim)**2/1.64))
             ax.set_ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
             
             self.ax2 = ax.twinx()
@@ -460,15 +458,23 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
     def add_track_length_axis(self):
        
         if self.atomic_axis:
-            N_ref = len(self.sens_ref)
             ax2 = self.ax.twiny()
             ax2.set_xscale("log")
             ax2.set_xlabel("(Atomic) track length (s)")
-            ax2.set_xlim(self.sens_ref[N_ref - 1].track_length(self.rhos[0])/s,
-                         self.sens_ref[N_ref - 1].track_length(self.rhos[-1])/s)
+            
+            if self.sens_main_is_atomic:
+                ax2.set_xlim(self.sens_main.track_length(self.rhos[0])/s,
+                            self.sens_main.track_length(self.rhos[-1])/s)
+            else:
+                for sens in self.sens_ref:
+                    if sens.Experiment.atomic:
+                        ax2.set_xlim(sens.track_length(self.rhos[0])/s,
+                                    sens.track_length(self.rhos[-1])/s)
 
         if self.molecular_axis:
             ax3 = self.ax.twiny()
+            ax3.set_xscale("log")
+            ax3.set_xlabel("(Molecular) track length (s)")
 
             if self.atomic_axis:
                 ax3.spines["top"].set_position(("axes", 1.2))
@@ -477,13 +483,17 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 for sp in ax3.spines.values():
                     sp.set_visible(False)
                 ax3.spines["top"].set_visible(True)
+                
+            if not self.sens_main_is_atomic:
+                ax3.set_xlim(self.sens_main.track_length(self.rhos[0])/s,
+                            self.sens_main.track_length(self.rhos[-1])/s)
+            else:
+                for sens in self.sens_ref:
+                    if not sens.Experiment.atomic:
+                        ax3.set_xlim(sens.track_length(self.rhos[0])/s,
+                            sens.track_length(self.rhos[-1])/s)
 
-            ax3.set_xscale("log")
-            ax3.set_xlabel("(Molecular) track length (s)")
-            ax3.set_xlim(self.sens_main.track_length(self.rhos[0])/s,
-                         self.sens_main.track_length(self.rhos[-1])/s)
-
-        else:
+        if not self.molecular_axis and not self.atomic_axis:
             logger.warning("No track length axis added since neither atomic nor molecular was requested")
         self.fig.tight_layout()
         
@@ -604,16 +614,16 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
         self.ax.scatter([standard_exposure], [limit], marker="s", s=25, color=color, label=label, zorder=10)
         
-        logger.info("Exposure and mass limit for single point: {}, {}".format(standard_exposure, np.sqrt(1.28*limit)))
+        logger.info("Exposure and mass limit for single point: {}, {}".format(standard_exposure, np.sqrt(1.64*limit)))
         sens.print_statistics()
         sens.print_systematics()
              
     def add_exposure_sens_line(self, sens, plot_key_params=False, **kwargs):
         
-        limit = sens.sensitivity()/eV**2
-        #opt = np.argmin(limit)
-        #rho_opt = self.rhos[opt]
-        #sens.Experiment.number_density = rho_opt
+        sigma_mbeta = [sens.sensitivity(Experiment={"number_density": rho})/eV**2 for rho in self.rhos]
+        opt = np.argmin(sigma_mbeta)
+        rho_opt = self.rhos[opt]
+        sens.Experiment.number_density = rho_opt
         
         #logger.info("Optimum density: {} /m^3".format(rho_opt*m**3))
         logger.info("Years: {}".format(sens.Experiment.livetime/year))
@@ -621,28 +631,27 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         standard_exposure = sens.EffectiveVolume()*sens.Experiment.livetime/m**3/year
     
         
-        self.ax.scatter([standard_exposure], limit, s=40, marker="d", zorder=20, **kwargs)
+        self.ax.scatter([standard_exposure], [np.min(sigma_mbeta)], s=40, marker="d", zorder=20, **kwargs)
         
-        limits = []
+        sigma_mbetas = []
         years = []
         temp_lt = deepcopy(sens.Experiment.livetime)
         for ex in self.exposures:
             lt = ex/sens.EffectiveVolume()
             years.append(lt/year)
             sens.Experiment.livetime = lt
-            limits.append(sens.sensitivity()/eV**2)
+            sigma_mbetas.append(sens.sensitivity()/eV**2)
             #exposures.append(sens.EffectiveVolume()/m**3*sens.Experiment.livetime/year)
             
-        sens.Experiment.livetime = temp_lt
-        
-        if sens.Experiment.atomic:
+        """if sens.Experiment.atomic:
             gas = "T"
         else:
             gas = r"T$_2$"
-        unit = r"m$^{-3}$"
-        self.ax.plot(self.exposures/m**3/year, limits, color=kwargs["color"]) #label="{} density = {:.1e} {}".format(gas, rho_opt*m**3, unit))
+        unit = r"m$^{-3}$"""
+        self.ax.plot(self.exposures/m**3/year, sigma_mbetas, color=kwargs["color"]) #label="{} density = {:.1e} {}".format(gas, rho_opt*m**3, unit))
         
     def add_Phase_II_exposure_sens_line(self, sens):
+        logger.warning("Adding Phase II sensitivity")
         sens.Experiment.number_density = 2.09e17/m**3
         sens.effective_volume = 1.2*mm**3
         sens.Experiment.sri_factor = 1 #0.389*0.918*0.32
@@ -650,12 +659,17 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         sens.CRLB_constant = 180
         
         standard_exposure = sens.effective_volume*sens.Experiment.livetime/m**3/year
+        #sens.sensitivity()
+        #sens.CL90(Experiment={"number_density": 2.09e17/m**3})/eV
+        
         sens.print_systematics()
         sens.print_statistics()
-        sens.sensitivity()
+        sens.print_Efficiencies()
+        sens.print_SNRs()
+        
         logger.info("Phase II sensitivity for exposure {} calculated: {}".format(standard_exposure, sens.sensitivity()/eV**2))
         
-        
+        # Phase II experimental results from frequentist analysis
         phaseIIsens = 9822
         phaseIIsense_error = 1520
         exposure_error = np.sqrt((standard_exposure*0.008)**2 + (standard_exposure*0.09)**2)
@@ -665,18 +679,19 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                          label="Phase II (measured)")
         
         
-        limits = []
+        sigma_mbetas = []
         years = []
         for ex in self.exposures:
             lt = ex/sens.effective_volume
             years.append(lt/year)
             sens.Experiment.livetime = lt
-            limits.append(sens.sensitivity()/eV**2)
+            sigma_mbetas.append(sens.sensitivity()/eV**2)
             #exposures.append(sens.EffectiveVolume()/m**3*sens.Experiment.livetime/year)
             
-        unit = r"m$^{-3}$"
-        gas = r"T$_2$"
-        self.ax.plot(self.exposures/m**3/year, limits, color='k', linestyle=':')#, label="{} density = {:.1e} {}".format(gas, 7.5e16, unit))
+            
+        # unit = r"m$^{-3}$"
+        # gas = r"T$_2$"
+        self.ax.plot(self.exposures/m**3/year, sigma_mbetas, color='k', linestyle=':')#, label="{} density = {:.1e} {}".format(gas, 7.5e16, unit))
         
         def get_relative(val, axis):
             xmin, xmax = self.ax.get_xlim() if axis == "x" else self.ax.get_ylim()
@@ -700,7 +715,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                       head_width=0.01,
                       head_length=0.01,
                       )
-        print(x_start, y_start)
+
         self.ax.annotate("Phase II T$_2$ density \nand resolution", xy=[x_start*0.9, y_start*1.01],textcoords="axes fraction", fontsize=13)
              
     def add_frequency_sens_line(self, sens, plot_key_params=True, **kwargs):
@@ -784,7 +799,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
     def save(self, savepath, **kwargs):
         logger.info("Saving")
         if self.density_axis:
-            if not self.configure_sigma_theta_r:
+            if self.track_length_axis:
+                legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1,0.85))
+            else:
                 legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1,0.765))
         elif self.frequency_axis:
             if self.magnetic_field_axis:
