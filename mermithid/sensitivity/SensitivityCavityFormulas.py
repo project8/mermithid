@@ -143,8 +143,9 @@ class CavitySensitivity(Sensitivity):
             #logger.info("Detection efficiency: {}".format(self.Efficiency.detection_efficiency))
             #logger.info("Pitch angle efficiency: {}".format(self.PitchDependentTrappingEfficiency()))
             #logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
-            
-            self.effective_volume = self.total_volume*self.Efficiency.radial_efficiency*self.Efficiency.detection_efficiency*self.PitchDependentTrappingEfficiency()   
+            self.radial_efficiency = (self.cavity_radius - self.Efficiency.unusable_dist_from_wall)**2/self.cavity_radius**2
+            self.fa_cut_efficiency = np.cos(self.Efficiency.min_pitch_used_in_analysis)/self.PitchDependentTrappingEfficiency()
+            self.effective_volume = self.total_volume*self.radial_efficiency*self.Efficiency.detection_efficiency*self.fa_cut_efficiency*self.PitchDependentTrappingEfficiency()   
         #logger.info("Total efficiency: {}".format(self.effective_volume/self.total_volume))        
         self.effective_volume*=self.Experiment.sri_factor
         
@@ -438,8 +439,9 @@ class CavitySensitivity(Sensitivity):
         
         if not self.Efficiency.usefixedvalue:
             # radial and detection efficiency are configured in the config file
-            logger.info("Radial efficiency: {}".format(self.Efficiency.radial_efficiency))
+            logger.info("Radial efficiency: {}".format(self.radial_efficiency))
             logger.info("Detection efficiency: {}".format(self.Efficiency.detection_efficiency))
+            logger.info("Efficiency from axial frquency cut: {}".format(self.fa_cut_efficiency))
             logger.info("Pitch angle efficiency: {}".format(self.PitchDependentTrappingEfficiency()))
             logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
             
