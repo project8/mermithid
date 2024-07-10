@@ -132,11 +132,6 @@ class MultiGasComplexLineShape(BaseProcessor):
 
         # fit with shake spectrum
         data_hist_freq, freq_bins= np.histogram(a,bins=self.bins_choice)
-        # histogram = data_hist_freq
-#         bins = freq_bins
-#         guess = np.where(np.array(histogram) == np.max(histogram))[0][0]
-#         kr17kev_in_hz = guess*(bins[1]-bins[0])+bins[0]
-        #self.B_field = B(17.8, kr17kev_in_hz + 0)
         if self.resolution_function == 'simulated_resolution':
             if self.fixed_scatter_proportion == True:
                 self.results = self.fit_data_ftc(freq_bins, data_hist_freq)

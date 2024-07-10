@@ -118,7 +118,7 @@ def energy_guess_to_frequency(energy_guess, energy_guess_err, B_field_guess):
     frequency_err = const/(1+energy_guess/mass_energy_electron)**2*energy_guess_err/mass_energy_electron
     return frequency , frequency_err
 
-# Given a frequency and error, converts those to B field values assuming the line is the 17.8 keV line
+# Given a frequency, converts it to a B field value assuming the line is the 17.8 keV line
 def central_frequency_to_B_field(central_freq):
     const = (2.*np.pi*m_e)*(1+kr_17keV_line/mass_energy_electron)/e_charge
     B_field = const*central_freq

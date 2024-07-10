@@ -396,10 +396,6 @@ class FakeDataGenerator(BaseProcessor):
 
         if efficiency_dict is not None:
             logger.info('Evaluating efficiencies')
-            """efficiency_mean, efficiency_error = efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
-            logger.info("Sampling efficiencies given means and uncertainties")
-            efficiency = np.random.normal(efficiency_mean, efficiency_error)"""
-
             efficiency = random_efficiency_from_interpolation(self.Koptions, efficiency_dict, B_field)
             eff_negative = (efficiency<0.)
             efficiency[eff_negative] = 0. #Whenever this occurs, efficiency_mean=0 and efficiency_error=1
@@ -456,14 +452,6 @@ class FakeDataGenerator(BaseProcessor):
         ratesS[ratesS<0.] = 0.
         rate_sumS = np.sum(ratesS)
         probsS = np.array(ratesS)/rate_sumS
-        """
-        else:
-            rate_sumS, probsS = [], []
-            for i in range(len(ratesS)):
-                ratesS[i] = convolve(ratesS[i], gaussian_rates, mode='same')
-                rate_sumS.append(np.sum(ratesS[i]))
-                probsS.append(np.array(ratesS[i])/rate_sumS[i])
-        """
 
         ratesB[ratesB<0.] = 0.
         rate_sumB = np.sum(ratesB)

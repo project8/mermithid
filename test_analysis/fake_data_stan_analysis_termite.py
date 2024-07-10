@@ -1,18 +1,25 @@
 #
-# fake_data_stan_analysis.py
+# fake_data_stan_analysis_termite.py
 # Author: T. E. Weiss
 # Date modified: June 2, 2020
+# Comments added on July 10, 2024
 #
 # This script generates fake data, then analyzes the data in Stan to infer posteriors.
 # Pathnames configured for running from: termite/phase2_main_scripts/
 #
+# For the official Project 8 Phase II Bayesian analysis, a script similar to this one 
+# located in termite was used.
+#
+# To run this script, install mermithid, then type in command line:
+# python3 fake_data_stan_analysis_termite.py file.root
+# Here, file.root is where you want the results to be saved.
+#
+
 
 """
 To-do:
-    - In FakeExperimentEnsemble, add:
-        1. Tracking of convergence issues, so that a summary of problems can be saved/printed
-        2. An option to parallelize with slurm instead of multiprocessing
-    - Run morpho processor for ensemble-analysis plotting, once it has been tested sufficiently
+In FakeExperimentEnsemble, add tracking of convergence issues, so that a summary of problems
+can be saved/printed.
 """
 
 
