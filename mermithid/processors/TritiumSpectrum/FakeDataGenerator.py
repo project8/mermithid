@@ -1,8 +1,8 @@
 '''
 Generate binned or pseudo unbinned data
 Author: T. Weiss, C. Claessens, X. Huyan
-Date: 4/6/2020
-Updated: 10/19/2021
+Date: April 6, 2020
+Updated: July 10, 2024
 '''
 
 from __future__ import absolute_import
@@ -117,8 +117,6 @@ class FakeDataGenerator(BaseProcessor):
         self.channel_bounds = reader.read_param(params, 'channel_bounds', [1.38623121e9+24.5e9, 1.44560621e9+24.5e9])
         self.S = reader.read_param(params, 'S', 3300)
         self.B_1kev = reader.read_param(params, 'B_1keV', 0.1) #Background rate per keV for full runtime
-        #self.A_b = reader.read_param(params, 'A_b', self.B_1kev/float(self.runtime)/1000.) #Flat background activity: events/s/eV #No longer in use
-        #self.B =self.A_b*self.runtime*(self.Kmax-self.Kmin) #Background poisson rate #No longer in use
         self.poisson_stats = reader.read_param(params, 'poisson_stats', True)
         self.err_from_B = reader.read_param(params, 'err_from_B', 0.) #In eV, kinetic energy error from f_c --> K conversion
 
@@ -183,10 +181,28 @@ class FakeDataGenerator(BaseProcessor):
         # generate data with lineshape
         if self.use_lineshape:
             self.lineshape = self.detailed_or_simplified_lineshape
+
+            # The simplified lineshape model uses Gaussians to model each scatter peak.
+            # It is appropriate for a case where the instrumental resolution (detector
+            # response of unscattered electrons) is broad, so that the instrumental res
+            # width dominates over the asymmetry in the underlying scatter-spectrum shape.
+            # For more detail, see the function "simplified_ls" in the script:
+            # mermithid/mermithid/misc/FakeTritiumDataFunctions.py
             if self.lineshape == 'simplified':
                 self.ls_params = self.load_simp_params(self.scattering_sigma,
                                                         self.survival_prob,
                                                         self.NScatters)
+            
+            # The detailed lineshape model numerically convolves scatter spectra with a
+            # simulated instrumental resolution function to produce scatter peaks. The
+            # scatter peak ratios are modeled with a modified exponential and depends on
+            # variables p and q (see Eq. 15 of https://arxiv.org/pdf/2303.12055). Gas
+            # composition, count ratios in different electron traps, uncertainties on the
+            # simulated resolution, and energy loss from cylotron radiation are all included.
+            # For the underlying spectrum, either a Dirac Delta function or the krypton
+            # spectrum (with shake-up and shake-off) may be used. For more information, see
+            # the complexLineShape_config dictionary below, as well as the processor:
+            # mermithid/mermithid/processors/misc/MultiGasComplexLineShape 
             elif self.lineshape=='detailed':
                 # check path exists
                 if 'scatter_spectra_file' in self.path_to_scatter_spectra_file:
@@ -223,7 +239,7 @@ class FakeDataGenerator(BaseProcessor):
 					'factor': self.scatter_peak_ratio_factor,
                     'fit_recon_eff': self.fit_recon_eff,
 
-                    #For analytics resolution functions, only:
+                    #For analytic resolution functions, only:
                     'ratio_gamma_to_sigma': self.ratio_gamma_to_sigma,
                     'gaussian_proportion': self.gaussian_proportion,
                     'A_array': self.A_array,
@@ -252,6 +268,7 @@ class FakeDataGenerator(BaseProcessor):
                 logger.error("'detailed_or_simplified' is neither 'detailed' nor 'simplified'")
                 return False
 
+        # The detector response can altneratively be a simple gaussian.
         else:
             self.lineshape = 'gaussian'
             self.ls_params = [self.scattering_sigma]
