@@ -143,9 +143,11 @@ class CavitySensitivity(Sensitivity):
             #logger.info("Detection efficiency: {}".format(self.Efficiency.detection_efficiency))
             #logger.info("Pitch angle efficiency: {}".format(self.PitchDependentTrappingEfficiency()))
             #logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
+            
             self.radial_efficiency = (self.cavity_radius - self.Efficiency.unusable_dist_from_wall)**2/self.cavity_radius**2
             self.fa_cut_efficiency = np.cos(self.Efficiency.min_pitch_used_in_analysis)/self.PitchDependentTrappingEfficiency()
             self.effective_volume = self.total_volume*self.radial_efficiency*self.Efficiency.detection_efficiency*self.fa_cut_efficiency*self.PitchDependentTrappingEfficiency()   
+            
         #logger.info("Total efficiency: {}".format(self.effective_volume/self.total_volume))        
         self.effective_volume*=self.Experiment.sri_factor
         
