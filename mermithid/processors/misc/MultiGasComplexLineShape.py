@@ -1,7 +1,8 @@
 '''
 Fits data to complex lineshape model.
 Author: E. Machado, Y.-H. Sun, E. Novitski, T. Weiss, X. Huyan
-Date: 2/9/2021
+Date: February 9, 2021
+Comments added: July 10, 2024
 
 This processor takes in frequency data in binned histogram and fit the histogram with two gas scattering complex line shape model.
 

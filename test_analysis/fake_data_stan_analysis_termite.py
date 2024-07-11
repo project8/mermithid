@@ -4,20 +4,21 @@
 # Date modified: June 2, 2020
 # Comments added on July 10, 2024
 #
-# This script generates fake data, then analyzes the data in Stan to infer posteriors.
-# Pathnames configured for running from: termite/phase2_main_scripts/
-#
-# For the official Project 8 Phase II Bayesian analysis, a script similar to this one 
-# located in termite was used.
+# This script generates fake CRES beta spectrum data, then analyzes the data in Stan
+# (Bayesian software package) to infer posteriors.
+# For the official Project 8 Phase II Bayesian analysis, a script similar to this one was
+# used. The script is located in the Project 8's termite repository.
 #
 # To run this script, install mermithid, then type in command line:
 # python3 fake_data_stan_analysis_termite.py file.root
 # Here, file.root is where you want the results to be saved.
 #
+# Pathnames configured for running from: termite/phase2_main_scripts/
+#
 
 
 """
-To-do:
+Optional to-do (would improve ease of):
 In FakeExperimentEnsemble, add tracking of convergence issues, so that a summary of problems
 can be saved/printed.
 """

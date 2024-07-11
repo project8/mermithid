@@ -1,8 +1,29 @@
 '''
 Generate binned or pseudo unbinned data
-Author: T. Weiss, C. Claessens, X. Huyan
+Author: T. E. Weiss, C. Claessens, X. Huyan
 Date: April 6, 2020
 Updated: July 10, 2024
+
+This processsor is employed in Project 8's official Bayesian and frequentist analyses of
+tritium beta-decay data.
+
+Specifically, we use this processor in scripts in the termite repository called
+fake_data_stan_analysis.py and fake_and_real_data_frequentist_analysis_2021.py for the
+Bayesian and frequentist analyses, respectively.
+
+To run this processor, include the following lines in a different python script:
+from mermithid.processors.TritiumSpectrum.FakeDataGenerator import FakeDataGenerator
+specGen = FakeDataGenerator("specGen")
+specGen_config = { ...
+    }
+#Configuration step
+specGen.Configure(specGen_config)
+#Generate data
+specGen.Run()
+results = specGen.results
+
+Where the specGen_config is a dictionary with entries that define the parameters described
+below, under InternalConfigure.
 '''
 
 from __future__ import absolute_import
@@ -29,7 +50,7 @@ __all__.append(__name__)
 class FakeDataGenerator(BaseProcessor):
     """
     Generates (pseudo) binned tritium data with Project 8 specific features, like lineshape and effciency.
-    Can be confifured to produce energy and frequency data.
+    Can be configured to produce energy and frequency data.
     """
 
     def InternalConfigure(self, params):

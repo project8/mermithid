@@ -1,7 +1,19 @@
 '''
-Reads in data and fits it with complex lineshape model.
-Author: E. Machado, Y.-H. Sun, E. Novitski
+Authors: E. Machado, Y.-H. Sun, E. Novitski
+(File description added by T. E. Weiss.)
 Date: 4/8/20
+
+Reads in krypton CRES data and fits it with complex lineshape model.
+That model can be found in mermithid/processors/misc/MultiGasComplexLineShape.py
+
+This is an early version of the script used to fit krypton data for the Project 8 Phase II
+analyis. The final version can be found on this branch of mermithid: https://github.com/project8/mermithid/tree/yuhao_mermithid_on_Case_cluster.
+Contact Y.-H. Sun to learn more.
+
+To run this script, edit names and paths of input files in the reader_config and the
+complexLineShape_config. Modify other configuration parameters as desired. Install mermithid.
+Then, simply run:
+python3 Complex_line_shape_fitter.py 
 '''
 
 import numpy as np
