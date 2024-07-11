@@ -1,10 +1,20 @@
 '''
 Fits data to complex lineshape model.
-Author: E. Machado, Y.-H. Sun, E. Novitski, T. Weiss, X. Huyan
+Author: E. Machado, Y.-H. Sun, E. Novitski, T. E. Weiss, X. Huyan
 Date: February 9, 2021
 Comments added: July 10, 2024
 
-This processor takes in frequency data in binned histogram and fit the histogram with two gas scattering complex line shape model.
+This processor takes in CRES frequency data in a binned histogram and fits the histogram 
+with a complex line shape model that includes scattering with multiple gases.
+
+This processor was used for the official Project 8 Phase II data analysis. In particular,
+we used the processor to generate a detector response function for tritium data, then
+convolved the response with the underlying beta spectrum using the FakeDataGenerator.
+That generator uses the following functions in the MultiGasComplexLineShape processor:
+- make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio()
+- make_spectrum_gaussian_resolution_fit_scatter_peak_ratio()
+Please see those functions below for more detail.
+
 
 Configurable parameters:
 
@@ -18,6 +28,8 @@ RF_ROI_MIN: can be found from meta data.
 B_field: can be put in hand or found by position of the peak of the frequency histogram.
 shake_spectrum_parameters_json_path: path to json file storing shake spectrum parameters.
 path_to_osc_strength_files: path to oscillator strength files.
+
+See those code below for more configurable parameters.
 '''
 
 from __future__ import absolute_import
@@ -729,7 +741,12 @@ class MultiGasComplexLineShape(BaseProcessor):
         return current_full_spectrum
 
     # Produces a spectrum in real energy that can now be evaluated off of the SELA.
-    #def spectrum_func(x_keV,FWHM_G_eV,line_pos_keV,scatter_prob,amplitude):
+    # p0 is a list of input parameters, where:
+    #   p0[0] is the mean magnetic field experience by the electrons
+    #   p0[1] is the full-width-half-max of the instrumental resolution (i.e., the detector response distribution with no scattering)
+    #   p0[2] is the amplitude of ...
+    #   p0[3] is prob_parameter, such that scatter peak M is scaled by prob_parameter**M
+    #   The remaining elements of p0 are the fractions of inelastic scatters between electrons and each gas present during data-taking.
     def spectrum_func(self, bins_Hz, *p0):
         B_field = p0[0]
         FWHM_G_eV = p0[1]
@@ -2025,7 +2042,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         amplitude = p0[1] # The amplitude that's scaled so that it's scaled at the level close to the total counts
         sigma = p0[2] # The standard deviation of the gaussian function
         N = len(self.free_gases)
-        scatter_proportion = p0[3: 2+N] # The scatter fractions of the gas species that are left as free parameters
+        scatter_proportion = p0[3: 2+N] # The inelastic scatter fractions of the gas species that are left as free parameters
 
         x_eV = ConversionFunctions.Energy(bins_Hz, B_field)
         en_loss_array = self.std_eV_array()
@@ -3132,7 +3149,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
-    # This is one of the two functions called in the tritium fake data generator
+    # This is one of the two functions called in the tritium fake data generator, for the
+    # final Project 8 Phase II analysis:
     # https://github.com/project8/mermithid/blob/combining_ComplexLineShape_and_FakeDataGenerator/mermithid/misc/FakeTritiumDataFunctions.py#L317
     def make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(self, scale_factor, survival_probability, scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, emitted_peak='shake'):
         p = np.zeros(len(self.gases))
@@ -3335,7 +3353,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
-    # This is one of the two functions called in the tritium fake data generator
+    # This is one of the two functions called in the tritium fake data generator, for the
+    # final Project 8 Phase II analysis: 
     # https://github.com/project8/mermithid/blob/combining_ComplexLineShape_and_FakeDataGenerator/mermithid/misc/FakeTritiumDataFunctions.py#L321
     def make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(self, gauss_FWHM_eV, survival_probability, scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, emitted_peak='shake'):
         p = np.zeros(len(self.gases))
