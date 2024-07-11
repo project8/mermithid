@@ -2018,13 +2018,14 @@ class MultiGasComplexLineShape(BaseProcessor):
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
 
+    # The model fits the lineshape with a resolution described by a composite gaussian and lorentzian function but the calculation of the energy loss from scatter is using an earlier and slower method [2024-07-11 Thu 09:20]
     def spectrum_func_composite_gaussian_lorentzian_fixed_survival_probability_partially_fixed_scatter_proportion(self, bins_Hz, eff_array, *p0):
-
-        B_field = p0[0]
-        amplitude = p0[1]
-        sigma = p0[2]
+        # Initial conditions of the fit parameters are set in fit_data_composite_gaussian_lorentzian_fixed_survival_probability_partially_fixed_scatter_proportion()
+        B_field = p0[0] # The effective magnetic field
+        amplitude = p0[1] # The amplitude that's scaled so that it's scaled at the level close to the total counts
+        sigma = p0[2] # The standard deviation of the gaussian function
         N = len(self.free_gases)
-        scatter_proportion = p0[3: 2+N]
+        scatter_proportion = p0[3: 2+N] # The scatter fractions of the gas species that are left as free parameters
 
         x_eV = ConversionFunctions.Energy(bins_Hz, B_field)
         en_loss_array = self.std_eV_array()
@@ -3131,6 +3132,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
+    # This is one of the two functions called in the tritium fake data generator
+    # https://github.com/project8/mermithid/blob/combining_ComplexLineShape_and_FakeDataGenerator/mermithid/misc/FakeTritiumDataFunctions.py#L317
     def make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(self, scale_factor, survival_probability, scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, emitted_peak='shake'):
         p = np.zeros(len(self.gases))
         p[0:-1] = scatter_fraction
@@ -3332,7 +3335,8 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
-
+    # This is one of the two functions called in the tritium fake data generator
+    # https://github.com/project8/mermithid/blob/combining_ComplexLineShape_and_FakeDataGenerator/mermithid/misc/FakeTritiumDataFunctions.py#L321
     def make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(self, gauss_FWHM_eV, survival_probability, scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, emitted_peak='shake'):
         p = np.zeros(len(self.gases))
         p[0:-1] = scatter_fraction
