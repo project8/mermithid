@@ -23,6 +23,7 @@ gases: array for names of the two gases involved in the scattering process.
 max_scatter: max number of scatterings for only single gas scatterings.
 max_comprehansive_scatter: max number of scatterings for all cross scatterings.
 scatter_proportion: when fix_scatter_proportion is set as true, gives the fixed scatter proportion.
+resolution_function: The configuration of the resolution function decides which fit function along with the model for resolution to be used in the fit. To see which fit function is used for a specific setting of the resolution function, see the beginning of the Internal_run(). The list of available settings for resolution functions are 'simulated_resolution', 'gaussian_resolution', 'gaussian_lorentzian_composite_resolution', 'elevated_gaussian', 'composite_gaussian_pedestal_factor', 'composite_gaussian_pedestal_factor', 'composite_gaussian_scaled', 'simulated_resolution_scaled', 'simulated_resolution_scaled_fit_scatter_peak_ratio', 'gaussian_resolution_fit_scatter_peak_ratio'
 num_points_in_std_array: number of points for std_array defining how finely the scatter calculations are.
 RF_ROI_MIN: can be found from meta data.
 B_field: can be put in hand or found by position of the peak of the frequency histogram.
@@ -88,12 +89,13 @@ class MultiGasComplexLineShape(BaseProcessor):
         self.use_radiation_loss = reader.read_param(params, 'use_radiation_loss', True)
         self.sample_ins_resolution_errors = reader.read_param(params, 'sample_ins_res_errors', False)
         # configure the resolution functions: gaussian_lorentzian_composite_resolution, elevated_gaussian, composite_gaussian, composite_gaussian_pedestal_factor, and simulated_resolution_scaled
+        # The configuration of the resolution function decides which fit function to be used in the fit. To see which fit function is used for a specific setting of the resolution function, see the beginning of the Internal_run()
         self.resolution_function = reader.read_param(params, 'resolution_function', '')
         if self.resolution_function == 'gaussian_lorentzian_composite_resolution':
             self.ratio_gamma_to_sigma = reader.read_param(params, 'ratio_gamma_to_sigma', 0.8)
             self.gaussian_proportion = reader.read_param(params, 'gaussian_proportion', 0.8)
         if self.resolution_function == 'elevated_gaussian':
-            self.ratio_gamma_to_sigma = reader.read_param(params, 'ratio_gamma_to_sigma', 0.8)
+            self.elevation_factor = reader.read_param(params, 'elevation_factor', 20)
         if self.resolution_function == 'composite_gaussian' or 'composite_gaussian_pedestal_factor':
             self.A_array = reader.read_param(params, 'A_array', [0.076, 0.341, 0.381, 0.203])
             self.sigma_array = reader.read_param(params, 'sigma_array', [5.01, 13.33, 15.40, 11.85])
@@ -102,7 +104,6 @@ class MultiGasComplexLineShape(BaseProcessor):
         if self.resolution_function == 'simulated_resolution_scaled_fit_scatter_peak_ratio' or 'gaussian_resolution_fit_scatter_peak_ratio':
             self.fixed_parameter_names = reader.read_param(params, 'fixed_parameter_names', [])
             self.fixed_parameter_values = reader.read_param(params, 'fixed_parameter_values', [])
-            #self.elevation_factor = reader.read_param(params, 'elevation_factor', 20)
         # This is an important parameter which determines how finely resolved
         # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
         self.num_points_in_std_array = reader.read_param(params, 'num_points_in_std_array', 10000)
