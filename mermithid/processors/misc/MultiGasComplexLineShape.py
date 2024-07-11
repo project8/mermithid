@@ -2019,12 +2019,12 @@ class MultiGasComplexLineShape(BaseProcessor):
 
     # The model fits the lineshape with a resolution described by a composite gaussian and lorentzian function but the calculation of the energy loss from scatter is using an earlier and slower method [2024-07-11 Thu 09:20]
     def spectrum_func_composite_gaussian_lorentzian_fixed_survival_probability_partially_fixed_scatter_proportion(self, bins_Hz, eff_array, *p0):
-
-        B_field = p0[0]
-        amplitude = p0[1]
-        sigma = p0[2]
+        # Initial conditions of the fit parameters are set in fit_data_composite_gaussian_lorentzian_fixed_survival_probability_partially_fixed_scatter_proportion()
+        B_field = p0[0] # The effective magnetic field
+        amplitude = p0[1] # The amplitude that's scaled so that it's scaled at the level close to the total counts
+        sigma = p0[2] # The standard deviation of the gaussian function
         N = len(self.free_gases)
-        scatter_proportion = p0[3: 2+N]
+        scatter_proportion = p0[3: 2+N] # The scatter fractions of the gas species that are left as free parameters
 
         x_eV = ConversionFunctions.Energy(bins_Hz, B_field)
         en_loss_array = self.std_eV_array()
