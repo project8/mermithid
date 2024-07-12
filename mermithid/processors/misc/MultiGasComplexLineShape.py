@@ -1231,6 +1231,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 current_full_spectrum += coefficient*current_working_spectrum*prob_parameter**M
         return current_full_spectrum
 
+    # spectrum_func_ftc2() is constructing an energy spectrum based on the make_spectrum_ftc_2() function.
     # Difference between spectrum_func_ftc() and spectrum_func_ftc_2() is that the modified exponential function is not included in the scatter peak amplitude curve in spectrum_func_ftc_2() [2024-07-12 Fri]
     # The way to take into account of the different possible sequences of the scattering with multiple gas species is outdated. [2024-07-12 Fri]
     def spectrum_func_ftc_2(self, bins_Hz, *p0):
