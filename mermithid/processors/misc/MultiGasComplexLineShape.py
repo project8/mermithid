@@ -745,7 +745,7 @@ class MultiGasComplexLineShape(BaseProcessor):
     # p0 is a list of input parameters, where:
     #   p0[0] is the mean magnetic field experience by the electrons
     #   p0[1] is the full-width-half-max of the instrumental resolution (i.e., the detector response distribution with no scattering)
-    #   p0[2] is the amplitude of ...
+    #   p0[2] is the amplitude that is scaled to match the total counts in the data histogram to be fitted
     #   p0[3] is prob_parameter, such that scatter peak M is scaled by prob_parameter**M
     #   The remaining elements of p0 are the fractions of inelastic scatters between electrons and each gas present during data-taking.
     def spectrum_func(self, bins_Hz, *p0):
