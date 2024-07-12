@@ -919,7 +919,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 current_full_spectrum += coefficient*current_working_spectrum*prob_parameter**M
         return current_full_spectrum
 
-    # Produces an energy spectrum based on make_spectrum_1()
+    # Produces an energy spectrum based on make_spectrum_1(), where the scatter peak amplitude curve is modeled by an exponential function. [2024-07-12 Fri]
     def spectrum_func_1(self, bins_Hz, *p0):
         B_field = p0[0]
         FWHM_G_eV = p0[1]
