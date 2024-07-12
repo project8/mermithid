@@ -1231,8 +1231,8 @@ class MultiGasComplexLineShape(BaseProcessor):
                 current_full_spectrum += coefficient*current_working_spectrum*prob_parameter**M
         return current_full_spectrum
 
-    # Difference between spectrum_func_ftc() and spectrum_func_ftc_2() is that the modified exponential function is not included in the scatter peak amplitude curve [2024-07-12 Fri 11:01]
-    # The calculation of the weights in the scatter peak amplitude are outdated. [2024-07-12 Fri]
+    # Difference between spectrum_func_ftc() and spectrum_func_ftc_2() is that the modified exponential function is not included in the scatter peak amplitude curve in spectrum_func_ftc_2() [2024-07-12 Fri]
+    # The way to take into account of the different possible sequences of the scattering with multiple gas species is outdated. [2024-07-12 Fri]
     def spectrum_func_ftc_2(self, bins_Hz, *p0):
         B_field = p0[0]
         amplitude = p0[1]
