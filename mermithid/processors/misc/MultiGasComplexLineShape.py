@@ -919,6 +919,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 current_full_spectrum += coefficient*current_working_spectrum*prob_parameter**M
         return current_full_spectrum
 
+    # Produces an energy spectrum based on make_spectrum_1(), where the scatter peak amplitude curve is modeled by an exponential function. [2024-07-12 Fri]
     def spectrum_func_1(self, bins_Hz, *p0):
         B_field = p0[0]
         FWHM_G_eV = p0[1]
@@ -942,6 +943,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
         return f
 
+    # Fit a frequency spectrum with spectrum_func_1() to extract the fit parameters
     def fit_data_1(self, freq_bins, data_hist_freq):
         t = time.time()
         self.check_existence_of_scatter_file()
@@ -1084,6 +1086,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 current_full_spectrum += relative_reconstruction_eff*coefficient*current_working_spectrum*survival_prob**M
         return current_full_spectrum
 
+    # Produces energy spectrum based on make_spectrum_ftc(), where the scatter peak amplitude curve was modeled by the product of a modified exponential functio and an exponential function
     def spectrum_func_ftc(self, bins_Hz, *p0):
         B_field = p0[0]
         amplitude = p0[1]
@@ -1104,6 +1107,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
         return f
 
+    # Perform fit on a frequency histogram with spectrum_fuc_ftc()
     def fit_data_ftc(self, freq_bins, data_hist_freq):
         t = time.time()
         self.check_existence_of_scatter_file()
@@ -1181,7 +1185,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         }
         return dictionary_of_fit_results
 
-    #simulated resolution with scatter_proportion floating, without reconstruction eff curve, without detection eff curve
+    # simulated resolution with scatter_proportion floating, without reconstruction eff curve, without detection eff curve
     def make_spectrum_ftc_2(self, prob_parameter, scatter_proportion, emitted_peak='shake'):
         gases = self.gases
         current_path = self.path_to_scatter_spectra_file
@@ -1227,6 +1231,9 @@ class MultiGasComplexLineShape(BaseProcessor):
                 current_full_spectrum += coefficient*current_working_spectrum*prob_parameter**M
         return current_full_spectrum
 
+    # spectrum_func_ftc2() is constructing an energy spectrum based on the make_spectrum_ftc_2() function.
+    # Difference between spectrum_func_ftc() and spectrum_func_ftc_2() is that the modified exponential function is not included in the scatter peak amplitude curve in spectrum_func_ftc_2() [2024-07-12 Fri]
+    # The way to take into account of the different possible sequences of the scattering with multiple gas species is outdated. [2024-07-12 Fri]
     def spectrum_func_ftc_2(self, bins_Hz, *p0):
         B_field = p0[0]
         amplitude = p0[1]
@@ -1251,6 +1258,7 @@ class MultiGasComplexLineShape(BaseProcessor):
         f[nonzero_idx] += amplitude*f_intermediate[nonzero_idx]/np.sum(f_intermediate[nonzero_idx])
         return f
 
+    # Fit frequency spectrum with spectrum_func_ftc_2()
     def fit_data_ftc_2(self, freq_bins, data_hist_freq):
         t = time.time()
         self.check_existence_of_scatter_file()
@@ -2141,6 +2149,7 @@ class MultiGasComplexLineShape(BaseProcessor):
                 output_string += '{} Scatter proportion \n= '.format(self.free_gases[i]) + "{:.6e}".format(scatter_proportion_fit[i])\
                 +' +/- ' + "{:.2e}".format(scatter_proportion_fit_err[i])+'\n'
                 output_string += '-----------------\n'
+            # Most convenient place to see how the scatter fractions for some gases are fixed.
             for i in range(len(self.fixed_gases)):
                 output_string += '{} Scatter proportion (fixed) \n= '.format(self.fixed_gases[i]) + "{:.6e}\n".format(self.scatter_proportion_for_fixed_gases[i])
                 output_string += '-----------------\n'
