@@ -32,8 +32,8 @@ def GF(): return 1.1663787*10**(-23) #Gf/(hc)^3, in eV^(-2)
 def Vud(): return 0.97425 #CKM element
 
 #Beta decay-specific physical constants
-def QT(): return 18563.251 #For atomic tritium (eV), from Bodine et al. (2015)
-def QT2(): return 18573.24 #For molecular tritium (eV), Bodine et al. (2015)
+def QT(): return 18563.251 #SHOULD BE DOUBLE-CHECKED. For atomic tritium (eV), from Bodine et al. (2015) 
+def QT2(): return 18574.01 #For molecular tritium (eV). Calculation here: https://projecteight.slack.com/archives/CG5TY2UE7/p1649963449399179, based on Bodine et al. (2015).
 def Rn(): return 2.8840*10**(-3) #Helium-3 nuclear radius in units of me, from Kleesiek et al. (2018): https://arxiv.org/pdf/1806.00369.pdf
 def M_3He_in_me(): return 5497.885 #Helium-3 mass in units of me, Kleesiek et al. (2018)
 def atomic_num(): return 2. #For helium-3
