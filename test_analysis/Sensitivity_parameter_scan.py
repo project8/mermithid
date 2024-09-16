@@ -138,11 +138,11 @@ sens_config_dict = {
     "density_range": [1e12,3e18],
     #"density_range": [1e8, 1e12],
     "goals": {"Phase IV (0.04 eV)": 0.04},
-    "scan_parameter_name": "MagneticField.nominal_field",
-    "scan_parameter_range": [0.0015,0.0095],
+    "scan_parameter_name": "MagneticField.sigmae_r",
+    "scan_parameter_range": [.02,0.18],
     "scan_parameter_steps": 5,
     "scan_parameter_scale": "lin",
-    "scan_parameter_unit": T,
+    "scan_parameter_unit": eV,
     "plot_sensitivity_scan_on_log_scale": False,
     "goals_x_position": 1.2e12, #0.0002
     "plot_key_parameters": False
