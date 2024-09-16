@@ -360,7 +360,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         return True
 
 
-    def print_disclaimers():
+    def print_disclaimers(self):
         logger.info("Disclaimers / assumptions:")
         logger.info("1. Often, in practice, 'sigmae_r' is used to stand-in for combined radial, \
                     azimuthal, and temporal magnetic field spectral broadening effects. Check \
