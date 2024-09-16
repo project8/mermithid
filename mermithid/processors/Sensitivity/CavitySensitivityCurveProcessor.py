@@ -57,7 +57,6 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.plot_path = reader.read_param(params, 'plot_path', "required")
         self.PhaseII_path = reader.read_param(params, 'PhaseII_config_path', '')
 
-
         # labels
         self.main_curve_upper_label = reader.read_param(params, 'main_curve_upper_label', r"molecular"+"\n"+r"$V_\mathrm{eff} = 2\, \mathrm{cm}^3$"+"\n"+r"$\sigma_B = 7\,\mathrm{ppm}$")
         self.main_curve_lower_label = reader.read_param(params, 'main_curve_lower_label', r"$\sigma_B = 1\,\mathrm{ppm}$")
@@ -65,6 +64,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.comparison_curve_colors = reader.read_param(params,'comparison_curve_colors', ["blue", "darkred", "red"])
 
         # options
+        self.verbose = reader.read_param(params, 'verbose', True)
         self.comparison_curve = reader.read_param(params, 'comparison_curve', False)
         self.B_error = reader.read_param(params, 'B_inhomogeneity', 7e-6)
         self.B_error_uncertainty = reader.read_param(params, 'B_inhom_uncertainty', 0.05)
@@ -270,8 +270,6 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             #self.add_arrow(self.sens_main)
 
         
-        
-        
         # PRINT OPTIMUM RESULTS
 
         # print number of events
@@ -356,9 +354,36 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         # save plot
         self.save(self.plot_path)
 
+        if self.verbose:
+            self.print_disclaimers()
+
         return True
 
 
+    def print_disclaimers():
+        logger.info("Disclaimers / assumptions:")
+        logger.info("1. Often, in practice, 'sigmae_r' is used to stand-in for combined radial, \
+                    azimuthal, and temporal magnetic field spectral broadening effects. Check \
+                    your experiment config file *and* your processor config dictionary to see \
+                    if that is the case.")
+        logger.info("2. Trap design is not yet linked to cavity L/D in the sensitivity model. So, \
+                    the model does *not* capture how reducing L/D worsens the resolution.")
+        logger.info("3. In reality, the frequency resolution could be worse or somewhat better \
+                    than predicted by the general CRLB calculation used here. See work by Florian.")
+        logger.info("4. The analytic sensitivity formula oaccounts for energy resolution contributions \
+                    that are *normally distributed*. (Energy resolution = std of the response fn \
+                    that broadens the spectrum.) To account for asymmetric contributions, generate \
+                    spectra with MC sampling and then analyze them. This can be done in mermithid.")
+        logger.info("5. The best-fit mbeta is assumed to be zero when converting to a 90\% limit.")
+        if self.density_axis:
+            logger.info("6. This sensitivity formula does not work for very small numbers of counts, \
+                        because the analytic formula assumes Gaussian statistics. In typical Phase IV \
+                        scenarios, if the minimum allowed density is 1e-20 atoms/m^3, the optimization \
+                        over density still works.")
+        logger.info("Once you have read these disclaimers and are familiar with them, you can set \
+                    verbose==False in your config dictionary to stop seeing them.")
+
+    
     def create_plot(self):
         # setup axis
         plt.rcParams.update({'font.size': self.fontsize})
