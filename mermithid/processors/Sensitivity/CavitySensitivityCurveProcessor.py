@@ -607,7 +607,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
         self.ax.scatter([standard_exposure], [limit], marker="s", s=25, color=color, label=label, zorder=10)
         
-        logger.info("Exposure and mass limit for single point: {}, {}".format(standard_exposure, np.sqrt(1.28*limit)))
+        logger.info("Exposure and mass limit for single point: {}, {}".format(standard_exposure, np.sqrt(1.64*limit)))
         sens.print_statistics()
         sens.print_systematics()
              

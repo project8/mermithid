@@ -156,7 +156,7 @@ class Sensitivity(object):
         return np.sqrt(1.64*self.sensitivity(**kwargs))
 
     def sterial_m2_limit(self, Ue4_sq):
-        return np.sqrt(np.sqrt(1.64)*np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens()**2))
+        return np.sqrt(1.64*np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens()**2))
 
     # PHYSICS Functions
 
@@ -225,7 +225,7 @@ class Sensitivity(object):
 
     def print_statistics(self):
         print("Contribution to sigma_(m_beta^2)", " "*18, "%.2f"%(self.StatSens()/meV**2), "meV^2 ->", "%.2f"%(np.sqrt(self.StatSens())/meV), "meV")
-        print("Statistical mass limit", " "*18, "%.2f"%(np.sqrt(1.28*self.StatSens())/meV), "meV")
+        print("Statistical mass limit", " "*18, "%.2f"%(np.sqrt(1.64*self.StatSens())/meV), "meV")
 
     def print_systematics(self):
         labels, sigmas, deltas = self.get_systematics()
@@ -242,7 +242,7 @@ class Sensitivity(object):
         except AttributeError:
             pass
         print("Contribution to sigma_(m_beta^2)", " "*18, "%.2f"%(self.SystSens()/meV**2), "meV^2 ->", "%.2f"%(np.sqrt(self.SystSens())/meV), "meV")
-        print("Systematic mass limit", " "*18, "%.2f"%(np.sqrt(1.28*self.SystSens())/meV), "meV")
+        print("Systematic mass limit", " "*18, "%.2f"%(np.sqrt(1.64*self.SystSens())/meV), "meV")
 
     def syst_doppler_broadening(self):
         # estimated standard deviation of Doppler broadening distribution from
