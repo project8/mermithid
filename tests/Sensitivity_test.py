@@ -41,7 +41,7 @@ class SensitivityTest(unittest.TestCase):
             "exposure_range": [1e-11, 1e4],
             "main_curve_upper_label": r"Molecular, conservative",
             "main_curve_lower_label": r"$\sigma^\bar{B}_\mathrm{reco} = 0.07\,\mathrm{eV}$",
-            "goals": {"Phase III (0.2 eV)": (0.2**2/np.sqrt(1.64)), "Phase IV (0.04 eV)": (0.04**2/np.sqrt(1.64))},
+            "goals": {"Phase III (0.2 eV)": (0.2**2/1.64), "Phase IV (0.04 eV)": (0.04**2/1.64)},
             "comparison_curve": True,
             "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg", 
                                             "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", 
@@ -125,7 +125,7 @@ class SensitivityTest(unittest.TestCase):
         sens_config_dict = {
             # required
             "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg",
-            "sensitivity_target": [0.4**2/np.sqrt(1.64)]#, 0.7**2/np.sqrt(1.64), 1**2/np.sqrt(1.64)]
+            "sensitivity_target": [0.4**2/1.64]#, 0.7**2/1.64, 1**2/1.64]
             }
         #sens = ConstantSensitivityParameterPlots("sensitivity_processor")
         #sens.Configure(sens_config_dict)

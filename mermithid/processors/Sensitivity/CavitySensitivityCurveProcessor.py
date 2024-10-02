@@ -62,6 +62,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.main_curve_lower_label = reader.read_param(params, 'main_curve_lower_label', r"$\sigma_B = 1\,\mathrm{ppm}$")
         self.comparison_curve_label = reader.read_param(params, 'comparison_curve_label', r"atomic"+"\n"+r"$V_\mathrm{eff} = 5\, \mathrm{m}^3$"+"\n"+r"$\sigma_B = 0.13\,\mathrm{ppm}$")
         self.comparison_curve_colors = reader.read_param(params,'comparison_curve_colors', ["blue", "darkred", "red"])
+        self.main_curve_color = reader.read_param(params, 'main_curve_color', "darkblue")
 
         # options
         self.verbose = reader.read_param(params, 'verbose', True)
@@ -261,7 +262,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             if self.configure_sigma_theta_r:
                 self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
                 self.sens_main.MagneticField.sigmae_theta = 0 * eV
-            self.add_sens_line(self.sens_main, color='darkblue', label=self.main_curve_upper_label)
+            self.add_sens_line(self.sens_main, color=self.main_curve_color, label=self.main_curve_upper_label)
             #self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label, color='blue')
 
         # add line for comparison using second config
@@ -413,7 +414,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             logger.info("Adding frequency axis")
             ax.set_xlim(self.frequencies[0]/Hz, self.frequencies[-1]/Hz)
             ax.set_xlabel("TE011 frequency (Hz)")
-            ax.set_ylim((np.array(self.ylim)**2/np.sqrt(1.64)))
+            #ax.set_ylim((np.array(self.ylim)**2/np.sqrt(1.64)))
+            ax.set_ylim((np.array(self.ylim)**2/1.64))
             ax.set_ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
             
             self.ax2 = ax.twinx()
@@ -429,7 +431,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             axis_label = r"Efficiency $\times$ Volume $\times$ Time (m$^3$y)"
             
             ax.set_xlabel(axis_label)
-            ax.set_ylim((np.array(self.ylim)**2/np.sqrt(1.64)))
+            #ax.set_ylim((np.array(self.ylim)**2/np.sqrt(1.64)))
+            ax.set_ylim((np.array(self.ylim)**2/1.64))
             ax.set_ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
             
             self.ax2 = ax.twinx()
@@ -478,15 +481,23 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
     def add_track_length_axis(self):
        
         if self.atomic_axis:
-            N_ref = len(self.sens_ref)
             ax2 = self.ax.twiny()
             ax2.set_xscale("log")
             ax2.set_xlabel("(Atomic) track length (s)")
-            ax2.set_xlim(self.sens_ref[N_ref - 1].track_length(self.rhos[0])/s,
-                         self.sens_ref[N_ref - 1].track_length(self.rhos[-1])/s)
+            
+            if self.sens_main_is_atomic:
+                ax2.set_xlim(self.sens_main.track_length(self.rhos[0])/s,
+                            self.sens_main.track_length(self.rhos[-1])/s)
+            else:
+                for sens in self.sens_ref:
+                    if sens.Experiment.atomic:
+                        ax2.set_xlim(sens.track_length(self.rhos[0])/s,
+                                    sens.track_length(self.rhos[-1])/s)
 
         if self.molecular_axis:
             ax3 = self.ax.twiny()
+            ax3.set_xscale("log")
+            ax3.set_xlabel("(Molecular) track length (s)")
 
             if self.atomic_axis:
                 ax3.spines["top"].set_position(("axes", 1.2))
@@ -495,13 +506,17 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 for sp in ax3.spines.values():
                     sp.set_visible(False)
                 ax3.spines["top"].set_visible(True)
+                
+            if not self.sens_main_is_atomic:
+                ax3.set_xlim(self.sens_main.track_length(self.rhos[0])/s,
+                            self.sens_main.track_length(self.rhos[-1])/s)
+            else:
+                for sens in self.sens_ref:
+                    if not sens.Experiment.atomic:
+                        ax3.set_xlim(sens.track_length(self.rhos[0])/s,
+                            sens.track_length(self.rhos[-1])/s)
 
-            ax3.set_xscale("log")
-            ax3.set_xlabel("(Molecular) track length (s)")
-            ax3.set_xlim(self.sens_main.track_length(self.rhos[0])/s,
-                         self.sens_main.track_length(self.rhos[-1])/s)
-
-        else:
+        if not self.molecular_axis and not self.atomic_axis:
             logger.warning("No track length axis added since neither atomic nor molecular was requested")
         self.fig.tight_layout()
         
@@ -621,7 +636,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
         self.ax.scatter([standard_exposure], [limit], marker="s", s=25, color=color, label=label, zorder=10)
         
-        logger.info("Exposure and mass limit for single point: {}, {}".format(standard_exposure, np.sqrt(1.28*limit)))
+        logger.info("Exposure and mass limit for single point: {}, {}".format(standard_exposure, np.sqrt(1.64*limit)))
         sens.print_statistics()
         sens.print_systematics()
              
@@ -721,7 +736,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                       head_width=0.01,
                       head_length=0.01,
                       )
-        print(x_start, y_start)
+
         self.ax.annotate("Phase II T$_2$ density \nand resolution", xy=[x_start*0.9, y_start*1.01],textcoords="axes fraction", fontsize=13)
              
     def add_frequency_sens_line(self, sens, plot_key_params=True, **kwargs):
@@ -796,7 +811,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
     def save(self, savepath, **kwargs):
         if self.density_axis:
-            legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1,0.765))
+            if self.track_length_axis:
+                legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1,0.85))
+            else:
+                legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1,0.765))
         elif self.frequency_axis:
             if self.magnetic_field_axis:
                 legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.14,0,1,0.85  ))

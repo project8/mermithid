@@ -38,7 +38,7 @@ sens_config_dict = {
     "exposure_range": [1e-11, 1e4],
     "main_curve_upper_label": r"Phase IV scenario", #"Molecular, conservative",
     #"main_curve_lower_label": r"$\sigma^\bar{B}_\mathrm{reco} = 0.07\,\mathrm{eV}$",
-    "goals": {"Phase IV (0.04 eV)": (0.04**2/np.sqrt(1.64))}, #"Phase III (0.2 eV)": (0.2**2/np.sqrt(1.64)), 
+    "goals": {"Phase IV (0.04 eV)": (0.04**2/1.64)},
     "comparison_curve": False,
     "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg", 
                                     "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", 
@@ -55,9 +55,9 @@ sens_config_dict = {
     "goals_x_position": 0.2e-10, #2e12 #0.0002
     "goals_y_rel_position": 0.4
     }
-sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-sens_curve.Configure(sens_config_dict)
-sens_curve.Run()
+#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+#sens_curve.Configure(sens_config_dict)
+#sens_curve.Run()
 
 
 # Configuration for Sensitivity vs. frequency plot
@@ -85,7 +85,7 @@ sens_config_dict2 = {
     "density_range": [1e7, 1e20],
     "main_curve_upper_label": r"Molecular, conservative",
     "main_curve_lower_label": r"$\sigma^\bar{B}_\mathrm{reco} = 0.07\,\mathrm{eV}$",
-    "goals": {"Phase IV (0.04 eV)": (0.04**2/np.sqrt(1.64))},
+    "goals": {"Phase IV (0.04 eV)": (0.04**2/1.64)},
     "comparison_curve": True,
     "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg", 
                                     "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", 
@@ -153,6 +153,7 @@ sens_config_dict = {
     "plot_path": "./sensitivity_vs_density_curve_87deg_min_pitch.pdf",
     # optional
     "figsize": (7.0,6),
+    "fontsize": 15,
     "track_length_axis": False,
     "molecular_axis": False,
     "atomic_axis": True,
@@ -171,7 +172,7 @@ sens_config_dict = {
     "comparison_curve": False,
     "comparison_curve_colors": ["red"],
     "comparison_config_file_path": [#"/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg", 
-                                    "/termite/sensitivity_config_files/Config_atomic_find_factor_22_Experiment_conservative.cfg"], #, 
+                                    "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"], #, 
                                     #"/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"],
     "comparison_label_y_position": [2, 0.105, 0.046], #[2, 0.105, 0.046],
     "comparison_label_x_position": [4.5e15, 7e14, 7e14], #[4.5e15, 2.2e16, 1e15],
@@ -182,9 +183,9 @@ sens_config_dict = {
     "goals_x_position": 1.2e12, #0.0002
     "plot_key_parameters": True
     }
-#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-#sens_curve.Configure(sens_config_dict)
-#sens_curve.Run()
+sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+sens_curve.Configure(sens_config_dict)
+sens_curve.Run()
 
 
 # Configuration for Sensitivity vs. density plot for best possible molecular scenario
