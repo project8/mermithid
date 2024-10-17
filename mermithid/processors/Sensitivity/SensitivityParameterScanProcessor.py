@@ -248,9 +248,9 @@ class SensitivityParameterScanProcessor(BaseProcessor):
        
             noise_temp, SNR, track_duration = self.sens_main.print_SNRs(rho_opt)
             # Store relevant values
-            self.noise_temp.append(noise_temp)
+            self.noise_temp.append(noise_temp/K)
             self.SNR.append(SNR)
-            self.track_duration.append(track_duration)
+            self.track_duration.append(track_duration/ms)
         
             logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
             logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.effective_volume))

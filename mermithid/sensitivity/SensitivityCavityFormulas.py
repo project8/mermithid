@@ -102,6 +102,7 @@ class CavitySensitivity(Sensitivity):
     def __init__(self, config_path):
         Sensitivity.__init__(self, config_path)
         self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
+        
 
         self.CRLB_constant = 12
         #self.CRLB_constant = 90
@@ -161,8 +162,6 @@ class CavitySensitivity(Sensitivity):
         #Jprime_0 = 3.8317
         
         #self.signal_power = self.FrequencyExtraction.mode_coupling_efficiency * self.CavityLoadedQ() * self.FrequencyExtraction.hanneke_factor * self.T_endpoint/eV * e/C * Jprime_0**2 / (2*np.pi**2*self.Experiment.L_over_D*2*self.cavity_radius**3/m**3 * frequency(self.T_endpoint, self.MagneticField.nominal_field)*s)*W
-        #np.random.seed(1)
-
         self.signal_power = np.mean(larmor_orbit_averaged_hanneke_power_box(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=2000), 
                                                                             self.CavityLoadedQ(), 
                                                                             2*self.Experiment.L_over_D*self.cavity_radius, 
@@ -412,7 +411,7 @@ class CavitySensitivity(Sensitivity):
         logger.info("CRLB if slope is nonzero and needs to be fitted: {} Hz".format(self.sigma_f_CRLB_slope_fitted/Hz))
         logger.info("CRLB constant: {}".format(self.CRLB_constant))
         
-        return self.noise_temp/K, self.received_power/(self.noise_energy*eV_bandwidth), track_duration/ms
+        return self.noise_temp, SNR_1eV, track_duration
     
     
     def print_Efficiencies(self):
