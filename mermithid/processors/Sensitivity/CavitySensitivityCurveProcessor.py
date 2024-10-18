@@ -261,7 +261,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             if self.configure_sigma_theta_r:
                 self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
                 self.sens_main.MagneticField.sigmae_theta = 0 * eV
-            self.add_sens_line(self.sens_main, color='darkblue', label=self.main_curve_upper_label)
+            self.add_sens_line(self.sens_main, color='blue', label=self.main_curve_upper_label)
             #self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label, color='blue')
 
         # add line for comparison using second config
