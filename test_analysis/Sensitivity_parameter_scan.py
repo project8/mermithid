@@ -122,9 +122,9 @@ sens_config_dict = {
     "density_range": [1e12,3e18],
     #"density_range": [1e8, 1e12],
     "goals": {"Phase IV (0.04 eV)": 0.04},
-    "scan_parameter_name": "Efficiency.radial_efficiency",
-    "scan_parameter_range": [0.5, 0.9],
-    "scan_parameter_steps": 3,
+    "scan_parameter_name": "Experiment.livetime",
+    "scan_parameter_range": [0.1*3e7, 20*3e7],
+    "scan_parameter_steps": 10,
     "scan_parameter_unit": 1,
     "plot_sensitivity_scan_on_log_scale": False,
     "goals_x_position": 1.2e12, #0.0002
