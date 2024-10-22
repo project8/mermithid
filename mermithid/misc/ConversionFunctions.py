@@ -33,3 +33,5 @@ def Energy(F, B=1):
     else:
         gamma = (e()*B)/(2.0*np.pi*emass_kg) * 1/(F)
         return (gamma-1)*m_electron()
+
+

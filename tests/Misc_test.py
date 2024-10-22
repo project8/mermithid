@@ -11,8 +11,6 @@ import unittest
 from morpho.utilities import morphologging, parser
 logger = morphologging.getLogger(__name__)
 
-import matplotlib.pyplot as plt
-import numpy as np
 
 class MiscTest(unittest.TestCase):
 
@@ -36,7 +34,6 @@ class MiscTest(unittest.TestCase):
         freq_proc.Run()
 
         logger.info("Resulting energies: %s"%freq_proc.energies)
-
 
 
 
