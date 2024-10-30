@@ -27,12 +27,51 @@ except:
 def db_to_pwr_ratio(q_db):
     return 10**(q_db/10)
 
-def axial_frequency(length, kin_energy, max_pitch_angle=86):
+def axial_motion(magnetic_field, pitch, cavity_length, minimum_trapped_pitch, kin_energy, flat_fraction=0.5, trajectory = None):
+    # returns the axial motion frequency and a trajectory of point along the axial motion 
+    # also return the average magnetic field seen by the electron
+    # from z=0 to z=cavity_length/2 with npoints set by the trajectory variable
+    # See LUCKEY write-up for a little more on Talia's "flat fraction" trap model
+    pitch = pitch/180*np.pi
+    minimum_trapped_pitch/180*np.pi
+
+    # Axial motion:
+    z_w = cavity_length/2
+    speed = beta(kin_energy)*c0
+    transverse_speed = speed*np.cos(pitch)
+    tan_min = np.tan(minimum_trapped_pitch)
+    # Axial frequency
+    time_flat = z_w*flat_fraction/transverse_speed
+    time_harmonic = np.pi*z_w*(1-flat_fraction)*tan_min/(2*speed*np.sin(pitch))
+    axial_frequency = 1/4/(time_flat+time_harmonic)
+
+    #Average magnetic field:
+    magnetic_field_avg_harm = magnetic_field/2*(1+1/np.sin(pitch)**2) 
+    magnetic_field_avg = (magnetic_field_avg_harm*time_harmonic + magnetic_field*time_flat)/(time_harmonic+time_flat)
+
+    # Trajectory:
+    if trajectory is None:
+       z_t = None
+    else:
+        omega_harm = speed*np.sin(pitch)/z_w/tan_min/(1-flat_fraction)
+        time = np.linspace(0, time_flat+time_harmonic, trajectory)
+        z_t = np.heaviside(time_flat-time, 0.5)*time*transverse_speed +\
+              np.heaviside(time-time_flat, 0.5)*(z_w*flat_fraction + z_w*(1-flat_fraction)*tan_min/np.tan(pitch)*np.sin(omega_harm*(time-time_flat)))
+  
+    return axial_frequency, magnetic_field_avg, z_t
+
+def magnetic_field_flat_harmonic(z,magnetic_field, cavity_length,minimum_trapped_pitch, flat_fraction=0.5):
+    z_w = cavity_length/2
+    a = z_w*(1-flat_fraction)*np.tan(minimum_trapped_pitch)
+    return magnetic_field*(1+np.heaviside(np.abs(z)-z_w*flat_fraction, 0.5)*(np.abs(z)-z_w*flat_fraction)**2/a**2)
+
+
+def axial_frequency_box(length, kin_energy, max_pitch_angle=86):
     pitch_max = max_pitch_angle/180*np.pi
     return (beta(kin_energy)*c0*np.cos(pitch_max)) / (2*length)
 
 def mean_field_frequency_variation(cyclotron_frequency, length_diameter_ratio, max_pitch_angle=86):
-    # Because of the differenct electron trajectories in the trap,
+    # Because of the different electron trajectories in the trap,
     # An electron will see a slightly different magnetic field
     # depending on its position in the trap, especially the pitch angle.
     # This is a rough estimate of the mean field variation, inspired by calcualtion performed by Rene.
@@ -178,15 +217,17 @@ class CavitySensitivity(Sensitivity):
         #self.loaded_q =1/(0.22800*((90-self.FrequencyExtraction.minimum_angle_in_bandwidth)*np.pi/180)**2+2**2*0.01076**2/(4*0.22800))
 
         endpoint_frequency = frequency(self.T_endpoint, self.MagneticField.nominal_field)
-        required_bw_axialfrequency = axial_frequency(self.Experiment.L_over_D*self.CavityRadius()*2, 
-                                                     self.T_endpoint, 
-                                                     self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
+        #required_bw_axialfrequency = axial_frequency(self.Experiment.L_over_D*self.CavityRadius()*2, 
+        #                                             self.T_endpoint, 
+        #                                             self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
+        max_ax_freq, mean_field, _ = axial_motion(self.MagneticField.nominal_field,
+                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth/deg,
+                                                  self.Experiment.L_over_D*self.CavityRadius()*2,
+                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, 
+                                                  self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
+        required_bw_axialfrequency = max_ax_freq
         self.required_bw_axialfrequency = required_bw_axialfrequency
-        
-        required_bw_meanfield = mean_field_frequency_variation(endpoint_frequency, 
-                                                               self.Experiment.L_over_D,
-                                                               self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
-        
+        required_bw_meanfield = required_bw_meanfield = np.abs(frequency(self.T_endpoint, mean_field) - endpoint_frequency)
         required_bw = np.add(required_bw_axialfrequency,required_bw_meanfield) # Broadcasting
         self.required_bw = required_bw
     
@@ -326,9 +367,10 @@ class CavitySensitivity(Sensitivity):
             
             # calculate uncertainty of energy correction for pitch angle
             var_f0_reconstruction = (sigma_f_sideband_crlb**2+sigma_f_CRLB**2)/self.FrequencyExtraction.sideband_order**2 
-            max_ax_freq = axial_frequency(self.Experiment.L_over_D*self.CavityRadius()*2, 
-                                          self.T_endpoint, 
-                                          self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
+            max_ax_freq, mean_field, _ = axial_motion(self.MagneticField.nominal_field, self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, self.Experiment.L_over_D*self.CavityRadius()*2, self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
+            #max_ax_freq = axial_frequency(self.Experiment.L_over_D*self.CavityRadius()*2, 
+            #                              self.T_endpoint, 
+            #                              self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
             # 0.16 is the trap quadratic term. 3.8317 is the first 0 in J'0
             var_f0_reconstruction *= (8 * 0.16 * (3.8317*self.Experiment.L_over_D / (np.pi * beta(self.T_endpoint)))**2*max_ax_freq/endpoint_frequency)**2*(1/3.0)
             sigma_f0_reconstruction = np.sqrt(var_f0_reconstruction)

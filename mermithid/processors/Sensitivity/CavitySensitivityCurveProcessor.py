@@ -88,7 +88,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.magnetic_field_axis = reader.read_param(params, 'magnetic_field_axis', False)
         
         self.density_range = reader.read_param(params, 'density_range', [1e14,1e21])
-        self.year_range = reader.read_param(params, "years_range", [0.1, 20])
+        self.year_range = reader.read_param(params, "year_range", [0.1, 20])
         self.exposure_range = reader.read_param(params, "exposure_range", [1e-10, 1e3])
         self.frequency_range = reader.read_param(params, "frequency_range", [1e6, 1e9])
         
@@ -117,12 +117,12 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         elif self.frequency_axis:
             self.add_sens_line = self.add_frequency_sens_line
             logger.info("Plotting sensitivity vs. frequency")
-        elif self.exposure_axis:
+        elif self.exposure_axis or self.livetime_axis:
             self.add_sens_line = self.add_exposure_sens_line
-            logger.info("Plotting sensitivity vs. exposure")
-        elif self.livetime_axis:
-            self.add_sens_line = self.add_livetime_sens_line
-            logger.info("Plotting sensitivity vs. livetime")
+            logger.info("Plotting sensitivity vs. exposure or livetime")
+        #elif self.livetime_axis:
+        #    self.add_sens_line = self.add_exposure_sens_line(livetime_plot=True)
+        #    logger.info("Plotting sensitivity vs. livetime")
         else: raise ValueError("No axis specified")
 
 
@@ -255,7 +255,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 #self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
                 self.sens_main.MagneticField.sigmae_r = self.sigmae_theta_r[a] * eV
                 self.sens_main.MagneticField.sigmae_theta = 0 * eV
-                self.add_sens_line(self.sens_main, color=color)
+                if self.livetime_axis:
+                    self.add_sens_line(self.sens_main, livetime_plot=True, color=color)
+                else:
+                    self.add_sens_line(self.sens_main, color=color)
                 #print("sigmae_theta_r:", self.sens_main.MagneticField.sigmae_r/eV)
                 self.sens_main.print_systematics()
             self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label, color="darkblue")
@@ -269,7 +272,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             if self.configure_sigma_theta_r:
                 self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
                 self.sens_main.MagneticField.sigmae_theta = 0 * eV
-            self.add_sens_line(self.sens_main, color=self.main_curve_color, label=self.main_curve_upper_label)
+            if self.livetime_axis:
+                    self.add_sens_line(self.sens_main, livetime_plot=True, color=self.main_curve_color, label=self.main_curve_upper_label)
+            else:
+                self.add_sens_line(self.sens_main, color=self.main_curve_color, label=self.main_curve_upper_label)
             #self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label, color='blue')
 
         # add line for comparison using second config
@@ -435,7 +441,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             ax.set_xlim(self.exposure_range[0], self.exposure_range[-1])
             #ax.tick_params(axis='x', which='minor', bottom=True)
             #ax.tick_params(axis='y', which='minor', left=True)
-            axis_label = r"Efficiency $\times$ Volume $\times$ Time (m$^3$y)"
+            axis_label = r"Effective Volume $\times$ Time (m$^3$y)" #r"Efficiency $\times$ Volume $\times$ Time (m$^3$y)"
             
             ax.set_xlabel(axis_label)
             #ax.set_ylim((np.array(self.ylim)**2/np.sqrt(1.64)))
@@ -552,7 +558,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
     def add_comparison_curve(self, label, color='k'):
     
         for a in range(len(self.sens_ref)):
-            limits = self.add_sens_line(self.sens_ref[a], plot_key_params=True, color=self.comparison_curve_colors[a], label=label[a])
+            if self.livetime_axis == True:
+                limits = self.add_sens_line(self.sens_ref[a], livetime_plot=True, plot_key_params=True, color=self.comparison_curve_colors[a], label=label[a])
+            else:
+                limits = self.add_sens_line(self.sens_ref[a], plot_key_params=True, color=self.comparison_curve_colors[a], label=label[a])
             #self.ax.text(self.comparison_label_x_position[a], self.comparison_label_y_position[a], label[a], color=colors[a], fontsize=9.5)
 
         if not self.density_axis and self.add_1year_1cav_point_to_last_ref:
@@ -780,7 +789,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             magnetic_field = freq/(e/(2*np.pi*me)/gamma)
             sens.MagneticField.nominal_field = magnetic_field
             
-            logger.info("Frequency: {:2e} Hz, Magentic field: {:2e} T".format(freq/Hz, magnetic_field/T))
+            logger.info("Frequency: {:2e} Hz, Magnetic field: {:2e} T".format(freq/Hz, magnetic_field/T))
             
             # calcualte new cavity properties
             sens.CavityRadius()
