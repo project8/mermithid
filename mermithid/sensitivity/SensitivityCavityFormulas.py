@@ -199,10 +199,15 @@ class CavitySensitivity(Sensitivity):
     def CavityPower(self):
         # from Hamish's atomic calculator
         #Jprime_0 = 3.8317
-        
+        max_ax_freq, mean_field, z_t = axial_motion(self.MagneticField.nominal_field,
+                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth/deg,
+                                                  self.Experiment.L_over_D*self.CavityRadius()*2,
+                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, 
+                                                  self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction, trajectory = 1000)
+
         #self.signal_power = self.FrequencyExtraction.mode_coupling_efficiency * self.CavityLoadedQ() * self.FrequencyExtraction.hanneke_factor * self.T_endpoint/eV * e/C * Jprime_0**2 / (2*np.pi**2*self.Experiment.L_over_D*2*self.cavity_radius**3/m**3 * frequency(self.T_endpoint, self.MagneticField.nominal_field)*s)*W
-        self.signal_power = np.mean(larmor_orbit_averaged_hanneke_power_box(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=2000), 
-                                                                            self.CavityLoadedQ(), 
+        self.signal_power = np.mean(larmor_orbit_averaged_hanneke_power(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=2000),
+                                                                            z_t, self.CavityLoadedQ(), 
                                                                             2*self.Experiment.L_over_D*self.cavity_radius, 
                                                                             self.cavity_radius, 
                                                                             frequency(self.T_endpoint, self.MagneticField.nominal_field)))

@@ -72,6 +72,45 @@ def larmor_orbit_averaged_hanneke_power(r_position, z_position, loaded_Q, l_cav,
     random_angles = (np.linspace(0,1,n_points)+np.random.rand())*2*np.pi # equally spaced ponts on a circle with random offset
     x_random = electron_orbit_r*np.cos(random_angles)
     y_random = electron_orbit_r*np.sin(random_angles)
+
+    r_scalar = False
+    if not hasattr(r_position, "__len__"):
+        r_scalar = True
+        r_position = np.array([r_position])
+    if hasattr(z_position, "__len__"):
+        hanneke_powers = np.empty((len(r_position),len(z_position)))
+    else:
+        hanneke_powers = np.empty(len(r_position))
+
+    for i,r_pos_center in enumerate(r_position):
+        r_pos_orbit = np.sqrt((x_random+r_pos_center)**2 + y_random**2)
+        # Check for points outside the cavity
+        if np.any(np.abs(r_pos_orbit) > r_cav):
+            if hasattr(z_position, "__len__"):
+                hanneke_powers[i] = np.zeros(len(z_position))
+            else:
+                hanneke_powers[i] = 0
+        else:
+            hanneke_power = hanneke_radiated_power(r_pos_orbit, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, tranverse_kinetic_energy, mode_frequency=mode_frequency)
+            hanneke_powers[i] = np.mean(hanneke_power.T, axis=-1)
+    if r_scalar:
+        hanneke_powers = hanneke_powers[0]
+
+    return hanneke_powers
+"""
+def larmor_orbit_averaged_hanneke_power(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, 
+                                        kinetic_energy=endpoint, pitch=np.pi/2, mode_frequency=None, n_points=100):
+    if mode_frequency is None:
+        # Assume that the center of the mode and the cyclotron frequency are identical
+        mode_frequency = cyclotron_frequency
+    tranverse_kinetic_energy = kinetic_energy*np.sin(pitch)**2
+
+    magnetic_field = magneticfield_from_frequency(cyclotron_frequency, kinetic_energy)
+    electron_orbit_r = larmor_radius(magnetic_field, kin_energy=kinetic_energy, pitch=pitch)
+    
+    random_angles = (np.linspace(0,1,n_points)+np.random.rand())*2*np.pi # equally spaced ponts on a circle with random offset
+    x_random = electron_orbit_r*np.cos(random_angles)
+    y_random = electron_orbit_r*np.sin(random_angles)
     if hasattr(z_position, "__len__"):
         hanneke_powers = np.empty((len(r_position),len(z_position)))
     else:
@@ -89,7 +128,8 @@ def larmor_orbit_averaged_hanneke_power(r_position, z_position, loaded_Q, l_cav,
             hanneke_power = hanneke_radiated_power(r_pos_orbit, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, tranverse_kinetic_energy, mode_frequency=mode_frequency)
             hanneke_powers[i] = np.mean(hanneke_power.T, axis=-1)
     return hanneke_powers
-
+"""
+    
 # Calculate the average radiated power for an electron with radius r_position in a box trap:
 def larmor_orbit_averaged_hanneke_power_box(r_position, loaded_Q, l_cav, r_cav, cyclotron_frequency,
                                             kinetic_energy=endpoint, pitch=np.pi/2, mode_frequency=None, n_points=100):
