@@ -20,6 +20,8 @@ logger = morphologging.getLogger(__name__)
 from mermithid.misc.Constants import *
 from mermithid.misc.ConversionFunctions import *
 
+import matplotlib.pyplot as plt
+
 """
 Constants and functions used by processors/TritiumSpectrum/FakeDataGenerator.py
 """
@@ -272,14 +274,29 @@ def convolved_bkgd_rate(K, Kmin, Kmax, lineshape, ls_params, min_energy, max_ene
         return 0.
 
 
+
 #Convolution of signal and lineshape using scipy.signal.convolve
 def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
-                                   lineshape, ls_params, min_energy, max_energy,
-                                   complexLineShape, final_state_array):
+                                   lineshape, ls_params, scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, min_energy, max_energy,
+                                   complexLineShape, final_state_array, resolution_function, ins_res_width_bounds, ins_res_width_factors, p_factors, q_factors):
     """K is an array-like object
     """
     logger.info('Using scipy convolve')
+    logger.info('Lineshape is {} with {}'.format(lineshape, resolution_function))
     energy_half_range = max(max_energy, abs(min_energy))
+
+    #logger.info('Using {} frequency regions. Mean and std of p are {} and {}. For q its {} and {}'.format(len(ins_res_width_bounds)-1,
+    #                                                                                                        np.mean(p_factors), np.std(p_factors),
+    #                                                                                                        np.mean(q_factors), np.std(q_factors)))
+
+    if ins_res_width_bounds != None:
+        Kbounds = [np.min(K)] + ins_res_width_bounds + [np.max(K)]
+    else:
+        Kbounds = [np.min(K), np.max(K)]
+
+    K_segments = []
+    for i in range(len(Kbounds)-1):
+        K_segments.append(K[np.logical_and(Kbounds[i]<=K, K<=Kbounds[i+1])])
 
     dE = K[1] - K[0]
     n_dE_pos = round(energy_half_range/dE) #Number of steps for the lineshape for energies > 0
@@ -293,23 +310,53 @@ def convolved_spectral_rate_arrays(K, Q, mnu, Kmin,
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
+        if resolution_function == 'simulated_resolution' or resolution_function == 'simulated':
+            lineshape_rates = []
+            scale_factors = [ls_params[0]*f for f in ins_res_width_factors]
+            for i in range(len(scale_factors)):
+                lineshape_rates.append(np.flipud(complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(scale_factors[i], ls_params[1], scatter_peak_ratio_p*p_factors[i], scatter_peak_ratio_q*q_factors[i], scatter_fraction, emitted_peak='dirac')))
+        elif resolution_function == 'gaussian_resolution' or resolution_function == 'gaussian':
+            logger.warn("Scatter peak ratio function for lineshape with Gaussian resolution may not be up-to-date!")
+            gaussian_widths = [ls_params[0]*f for f in ins_res_width_factors]
+            lineshape_rates = [np.flipud(complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(gaussian_widths[i], ls_params[1], scatter_peak_ratio_p*p_factors[i], scatter_peak_ratio_q*q_factors[i], scatter_fraction, emitted_peak='dirac')) for i in range(len(gaussian_widths))]
+        else:
+            logger.warn('{} is not a resolution function that has been implemented in the FakeDataGenerator'.format(resolution_function))
 
-        lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., ls_params[0], 0, 1, ls_params[1])
-
-    beta_rates = spectral_rate(K, Q, mnu, final_state_array) #np.zeros(len(K))
-    #for i,ke in enumerate(K):
-    #    beta_rates[i] = spectral_rate(ke, Q, mnu, final_state_array)
+    below_Kmin = np.where(K < Kmin)
 
     #Convolving
-    convolved = convolve(beta_rates, lineshape_rates, mode='same')
-    below_Kmin = np.where(K < Kmin)
-    np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
+    if (lineshape=='detailed_scattering' or lineshape=='detailed'):# and (resolution_function == 'simulated_resolution' or resolution_function == 'simulated'):
+        convolved_segments = []
+        beta_rates = spectral_rate(K, Q, mnu, final_state_array)
+        plt.figure(figsize=(7,5))
+        for j in range(len(lineshape_rates)):
+            plt.plot(lineshape_rates[j])
+            #beta_rates = spectral_rate(K_segments[j], Q, mnu, final_state_array)
+            plt.plot(lineshape_rates[j])
+            convolved_j = convolve(beta_rates, lineshape_rates[j], mode='same')
+            np.put(convolved_j, below_Kmin, np.zeros(len(below_Kmin)))
+            #Only including the part of convolved_j that corresponds to the right values of K
+            convolved_segments.append(convolved_j[np.logical_and(Kbounds[j]<=K, K<=Kbounds[j+1])])
+            #convolved.append(convolved_j)
+        convolved = np.concatenate(convolved_segments, axis=None)
+        plt.savefig('varied_lineshapes.png', dpi=200)
+    """elif resolution_function=='gaussian':
+        lineshape_rates = np.flipud(lineshape_rates)
+        beta_rates = spectral_rate(K, Q, mnu, final_state_array)
+        convolved = convolve(beta_rates, lineshape_rates, mode='same')
+        np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))"""
+
+    if (lineshape=='gaussian' or lineshape=='simplified_scattering' or lineshape=='simplified'):
+        beta_rates = spectral_rate(K, Q, mnu, final_state_array)
+        convolved = convolve(beta_rates, lineshape_rates, mode='same')
+        np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
+
     return convolved
 
 
 
 #Convolution of background and lineshape using scipy.signal.convolve
-def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, max_energy, complexLineShape):
+def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, min_energy, max_energy, complexLineShape, resolution_function):
     """K is an array-like object
     """
     energy_half_range = max(max_energy, abs(min_energy))
@@ -325,7 +372,13 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
     elif lineshape=='simplified_scattering' or lineshape=='simplified':
         lineshape_rates = simplified_ls(K_lineshape, 0, ls_params[0], ls_params[1], ls_params[2], ls_params[3], ls_params[4], ls_params[5])
     elif lineshape=='detailed_scattering' or lineshape=='detailed':
-        lineshape_rates = complexLineShape.spectrum_func_1(K_lineshape/1000., ls_params[0], 0, 1, ls_params[1])
+        if resolution_function == 'simulated_resolution' or resolution_function == 'simulated':
+            lineshape_rates = complexLineShape.make_spectrum_simulated_resolution_scaled_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_p, scatter_peak_ratio_p, scatter_fraction, emitted_peak='dirac')
+        elif resolution_function == 'gaussian_resolution' or resolution_function == 'gaussian':
+            lineshape_rates = complexLineShape.make_spectrum_gaussian_resolution_fit_scatter_peak_ratio(ls_params[0], ls_params[1], scatter_peak_ratio_p, scatter_peak_ratio_q, scatter_fraction, emitted_peak='dirac')
+        else:
+            logger.warn('{} is not a resolution function that has been implemented in the FakeDataGenerator'.format(resolution_function))
+        lineshape_rates = np.flipud(lineshape_rates)
 
     bkgd_rates = np.full(len(K), bkgd_rate())
     if len(K) < len(K_lineshape):
@@ -335,22 +388,32 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
     convolved = convolve(bkgd_rates, lineshape_rates, mode='same')
     below_Kmin = np.where(K < Kmin)
     np.put(convolved, below_Kmin, np.zeros(len(below_Kmin)))
+
     return convolved
 
 
 
-##Fraction of events near the endpoint
-##Currently, this only holds for the last 13.6 eV of the spectrum
-#def frac_near_endpt(Kmin, Q, mass, atom_or_mol='atom'):
-#    A = integrate.quad(spectral_rate, Kmin, Q-mass, args=(Q,mass))
-#    B = integrate.quad(spectral_rate, V0, Q-mass, args=(Q,mass)) #Minimum at V0 because electrons with energy below screening barrier do not escape
-#    f = (A[0])/(B[0])
-#    if atom_or_mol=='atom':
-#        return 0.7006*f
-#    elif atom_or_mol=='mol' or atom_or_mol=='molecule':
-#        return 0.57412*f
-#    else:
-#        print("Choose 'atom' or 'mol'.")
+#Fraction of events near the endpoint
+def frac_near_endpt(Kmin, Q, mass, final_state_array, atom_or_mol='mol', range='wide'):
+    """
+    Options for range:
+        - 'narrow': Only extends ~18 eV (or less) below the endpoint, so that all decays are to the ground state
+        - 'wide': Wide enough that the probability of decay to a 3He electronic energy level that would shift Q below the ROI is very low
+    """
+    A = integrate.quad(spectral_rate, Kmin, Q-mass, args=(Q, mass, final_state_array))
+    B = integrate.quad(spectral_rate, V0, Q-mass, args=(Q, mass, final_state_array)) #Minimum at V0 because electrons with energy below screening barrier do not escape
+    f = (A[0])/(B[0])
+    if range=='narrow':
+        if atom_or_mol=='atom':
+            return 0.7006*f
+        elif atom_or_mol=='mol' or atom_or_mol=='molecule':
+            return 0.57412*f
+        else:
+            logger.warn("Choose 'atom' or 'mol'.")
+    elif range=='wide':
+        return f
+    else:
+        logger.warn("Choose range 'narrow' or 'wide'")
 
 
 #Convert [number of particles]=(density*volume*efficiency) to a signal activity A_s, measured in events/second.
@@ -358,7 +421,7 @@ def find_signal_activity(Nparticles, m, Q, Kmin, atom_or_mol='atom', nTperMolecu
     """
     Functions to calculate number of events to generate
     """
-    br = frac_near_endpt(Kmin, Q, m, atom_or_mol)
+    br = frac_near_endpt(Kmin, Q, m, final_state_array, atom_or_mol)
     Thalflife = 3.8789*10**8
     A_s = Nparticles*np.log(2)/(Thalflife)*br
     if atom_or_mol=='atom':
@@ -383,3 +446,17 @@ def efficiency_from_interpolation(x, efficiency_dict, B=0.9578186017836624):
 
 
 
+def random_efficiency_from_interpolation(x, efficiency_dict, B=0.9578186017836624):
+    """
+    Function to calculate efficiency
+    """
+    logger.info('Sampling efficiencies before interpolation')
+    f = Frequency(x, B)
+
+    efficiency_mean = efficiency_dict['eff interp with slope correction']
+    efficiency_error = np.mean(efficiency_dict['error interp with slope correction'], axis=0)
+    random_efficiencies = np.random.normal(efficiency_mean, efficiency_error)
+    random_efficiencies[random_efficiencies<0] = 0.
+    interp_efficiency = interp1d(efficiency_dict['frequencies'], random_efficiencies, fill_value='0', bounds_error=False)
+
+    return interp_efficiency(f)

@@ -39,9 +39,12 @@ def read_oscillator_str_file(filename):
 
     for line in lines:
         if line != "" and line[0]!="#":
-            raw_data = [float(i) for i in line.split("\t")]
-            energyOsc[0].append(raw_data[0])
-            energyOsc[1].append(raw_data[1])
+            try:
+                raw_data = [float(i) for i in line.split("\t")]
+                energyOsc[0].append(raw_data[0])
+                energyOsc[1].append(raw_data[1])
+            except:
+                continue
 
     energyOsc = np.array(energyOsc)
     ### take data and sort by energy
@@ -62,14 +65,21 @@ def aseev_func_tail(energy_loss_array, gas_type):
         A2, omeg2, eps2 = 0.1187, 33.40, 10.43
     elif gas_type=="Ar":
         A2, omeg2, eps2 = 0.3344, 21.91, 21.14
+    elif gas_type=="N2":
+        A2, omeg2, eps2 = 0.21754816, 44.99897054, 20.43916114
+    elif gas_type=="CO":
+        A2, omeg2, eps2 = 0.19583454, 55.21888452, 16.44972596
+    elif gas_type=="C2H4":
+        A2, omeg2, eps2 = 0.57492182, 23.77501391, 14.33107345
     return A2*omeg2**2./(omeg2**2.+4*(energy_loss_array-eps2)**2.)
 
 #convert oscillator strength into energy loss spectrum
 def get_eloss_spec(e_loss, oscillator_strength, kr_17keV_line): #energies in eV
-    kinetic_en = kr_17keV_line * 1000
+    kinetic_en = kr_17keV_line
     e_rydberg = 13.605693009 #rydberg energy (eV)
     a0 = 5.291772e-11 #bohr radius
-    return np.where(e_loss>0 , 4.*np.pi*a0**2 * e_rydberg / (kinetic_en * e_loss) * oscillator_strength * np.log(4. * kinetic_en * e_loss / (e_rydberg**3.) ), 0)
+    argument_of_log = np.where(e_loss > 0, 4. * kinetic_en * e_rydberg / (e_loss**2.) , 1e-5)
+    return np.where(e_loss>0 , 1./(e_loss) * oscillator_strength* np.log(argument_of_log), 0)
 
 # Takes only the nonzero bins of a histogram
 def get_only_nonzero_bins(bins,hist):
@@ -108,12 +118,11 @@ def energy_guess_to_frequency(energy_guess, energy_guess_err, B_field_guess):
     frequency_err = const/(1+energy_guess/mass_energy_electron)**2*energy_guess_err/mass_energy_electron
     return frequency , frequency_err
 
-# Given a frequency and error, converts those to B field values assuming the line is the 17.8 keV line
-def central_frequency_to_B_field(central_freq,central_freq_err):
+# Given a frequency, converts it to a B field value assuming the line is the 17.8 keV line
+def central_frequency_to_B_field(central_freq):
     const = (2.*np.pi*m_e)*(1+kr_17keV_line/mass_energy_electron)/e_charge
     B_field = const*central_freq
-    B_field_err = const*central_freq_err
-    return B_field , B_field_err
+    return B_field
 
 # given a FWHM for the lorentian component and the FWHM for the gaussian component,
 # this function estimates the FWHM of the resulting voigt distribution
