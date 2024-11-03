@@ -140,7 +140,10 @@ def ephasespace(K, Q):
 Tritium beta spectrum definition
 """
 
-#Beta spectrum with a lower energy bound Kmin
+#spectral_rate_in_window: Beta spectrum with a lower energy bound Kmin
+#This function only is exact for the atomic case, or for a molecular case in the last
+# ~18 eV of the spectrum (where molecular final states can be included later as a small
+# gaussian broadening). 
 def spectral_rate_in_window(K, Q, mnu, Kmin):
     if Q-mnu > K > Kmin:
         return GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*ephasespace(K, Q)*(Q - K)*np.sqrt((Q - K)**2 - (mnu)**2)

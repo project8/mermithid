@@ -24,7 +24,7 @@ def larmor_radius(magnetic_field, kin_energy=endpoint, pitch=np.pi/2):
     return gamma(kin_energy)*me*transverse_speed/(e*magnetic_field)
 
 # Hanneke factor for TE011 mode, for an electron at fixed location (r_position, z_position).
-def hanneke_factor(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, mode_frequency):
+def hanneke_factor_TE011(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, mode_frequency):
     global bessel_derivative_zero
     # Calculate the lambda_mnp_squared factor
     mode_p = 1 # TE011 mode
@@ -35,7 +35,7 @@ def hanneke_factor(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotron_fre
     constant_factor = - 2 * lambda_bessel_part * classical_electron_radius_c_squared
     #constant_factor_unitless = constant_factor/m**3/Hz**2
     #print("Hanneke prefactor [units /m**3/Hz**2]", constant_factor_unitless)
-    lambda_mnp_squared = constant_factor / (z_L * r_cav**2) # This should be in units of Hz^2
+    lambda_mnp_squared = constant_factor / (z_L * r_cav**2) / 2. # This should be in units of Hz^2
     angular_part = special.jvp(0, bessel_derivative_zero * r_position/r_cav)**2
     axial_part = np.sin(mode_p * np.pi/2 * (z_position/z_L + 1))**2
 
@@ -54,7 +54,7 @@ def hanneke_radiated_power(r_position, z_position, loaded_Q, l_cav, r_cav, cyclo
         # Assume that the center of the mode and the cyclotron frequency are identical
         mode_frequency = cyclotron_frequency
 
-    lambda_mnp_squared, delta = hanneke_factor(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, mode_frequency=mode_frequency)
+    lambda_mnp_squared, delta = hanneke_factor_TE011(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, mode_frequency=mode_frequency)
     return tranverse_kinetic_energy*(2*loaded_Q/(1+delta**2))*lambda_mnp_squared/(mode_frequency*np.pi*2)
 
 # Calculate the radiated power for an electron at fixed location (r_position, z_position) with energy tranverse_kinetic_energy.
