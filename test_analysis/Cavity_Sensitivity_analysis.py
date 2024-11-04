@@ -180,9 +180,9 @@ sens_config_dict = {
     "goals_x_position": 3e13, #0.0002
     "plot_key_parameters": True
     }
-sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-sens_curve.Configure(sens_config_dict)
-sens_curve.Run()
+#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+#sens_curve.Configure(sens_config_dict)
+#sens_curve.Run()
 
 
 sens_config_dict = {
@@ -371,8 +371,8 @@ sens_config_dict = {
 # Configuration for CCA Sensitivity vs. density plot
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/Config_CCA_Experiment.cfg",
-    "plot_path": "./cca_sensitivity_vs_density_curve.pdf",
+    "config_file_path": "/termite/sensitivity_config_files/Config_CCA_pitchAngUncertVerification.cfg",
+    "plot_path": "./cca_sensitivity_vs_density_curve_new_config.pdf",
     # optional
     "figsize": (7.0,6),
     "track_length_axis": True,
@@ -404,9 +404,9 @@ sens_config_dict = {
     "goals_x_position": 1.2e12, #0.0002
     "plot_key_parameters": True
     }
-#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-#sens_curve.Configure(sens_config_dict)
-#sens_curve.Run()
+sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+sens_curve.Configure(sens_config_dict)
+sens_curve.Run()
 
 
 
