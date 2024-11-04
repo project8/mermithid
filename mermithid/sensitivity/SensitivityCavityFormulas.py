@@ -453,7 +453,7 @@ class CavitySensitivity(Sensitivity):
         logger.info("SNR for 1 ms: {}".format(SNR_1ms))
         
         
-        logger.info("Opimtum energy window: {} eV".format(self.DeltaEWidth()/eV))
+        logger.info("Optimum energy window: {} eV".format(self.DeltaEWidth()/eV))
         
         logger.info("CRLB if slope is nonzero and needs to be fitted: {} Hz".format(self.sigma_f_CRLB_slope_fitted/Hz))
         logger.info("CRLB constant: {}".format(self.CRLB_constant))
