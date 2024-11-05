@@ -27,7 +27,7 @@ except:
 def db_to_pwr_ratio(q_db):
     return 10**(q_db/10)
 
-def axial_motion(magnetic_field, pitch, cavity_length, minimum_trapped_pitch, kin_energy, flat_fraction=0.5, trajectory = None):
+def axial_motion(magnetic_field, pitch, trap_length, minimum_trapped_pitch, kin_energy, flat_fraction=0.5, trajectory = None):
     # returns the axial motion frequency and a trajectory of point along the axial motion 
     # also return the average magnetic field seen by the electron
     # from z=0 to z=cavity_length/2 with npoints set by the trajectory variable
@@ -36,7 +36,7 @@ def axial_motion(magnetic_field, pitch, cavity_length, minimum_trapped_pitch, ki
     minimum_trapped_pitch/180*np.pi
 
     # Axial motion:
-    z_w = cavity_length/2
+    z_w = trap_length/2
     speed = beta(kin_energy)*c0
     transverse_speed = speed*np.cos(pitch)
     tan_min = np.tan(minimum_trapped_pitch)
@@ -201,7 +201,7 @@ class CavitySensitivity(Sensitivity):
         #Jprime_0 = 3.8317
         max_ax_freq, mean_field, z_t = axial_motion(self.MagneticField.nominal_field,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth/deg,
-                                                  self.Experiment.L_over_D*self.CavityRadius()*2,
+                                                  self.Experiment.trap_L_over_D*self.CavityRadius()*2 if self.Experiment.trap_L_over_D else self.Experiment.L_over_D*self.CavityRadius()*2,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, 
                                                   self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction, trajectory = 1000)
 
@@ -227,7 +227,7 @@ class CavitySensitivity(Sensitivity):
         #                                             self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
         max_ax_freq, mean_field, _ = axial_motion(self.MagneticField.nominal_field,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth/deg,
-                                                  self.Experiment.L_over_D*self.CavityRadius()*2,
+                                                  self.Experiment.trap_L_over_D*self.CavityRadius()*2 if self.Experiment.trap_L_over_D else self.Experiment.L_over_D*self.CavityRadius()*2,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, 
                                                   self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
         required_bw_axialfrequency = max_ax_freq
@@ -373,7 +373,12 @@ class CavitySensitivity(Sensitivity):
             
             # calculate uncertainty of energy correction for pitch angle
             var_f0_reconstruction = (sigma_f_sideband_crlb**2+sigma_f_CRLB**2)/self.FrequencyExtraction.sideband_order**2 
-            max_ax_freq, mean_field, _ = axial_motion(self.MagneticField.nominal_field, self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, self.Experiment.L_over_D*self.CavityRadius()*2, self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
+            max_ax_freq, mean_field, _ = axial_motion(self.MagneticField.nominal_field, 
+                                                      self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, 
+                                                      self.Experiment.trap_L_over_D*self.CavityRadius()*2 if self.Experiment.trap_L_over_D else self.Experiment.L_over_D*self.CavityRadius()*2, 
+                                                      self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, 
+                                                      self.T_endpoint, 
+                                                      flat_fraction=self.MagneticField.trap_flat_fraction)
             #max_ax_freq = axial_frequency(self.Experiment.L_over_D*self.CavityRadius()*2, 
             #                              self.T_endpoint, 
             #                              self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
