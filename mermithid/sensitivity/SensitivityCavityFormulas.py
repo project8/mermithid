@@ -60,8 +60,8 @@ def axial_motion(magnetic_field, pitch, trap_length, minimum_trapped_pitch, kin_
   
     return axial_frequency, magnetic_field_avg, z_t
 
-def magnetic_field_flat_harmonic(z,magnetic_field, cavity_length,minimum_trapped_pitch, flat_fraction=0.5):
-    z_w = cavity_length/2
+def magnetic_field_flat_harmonic(z, magnetic_field, trap_length, minimum_trapped_pitch, flat_fraction=0.5):
+    z_w = trap_length/2
     a = z_w*(1-flat_fraction)*np.tan(minimum_trapped_pitch)
     return magnetic_field*(1+np.heaviside(np.abs(z)-z_w*flat_fraction, 0.5)*(np.abs(z)-z_w*flat_fraction)**2/a**2)
 
