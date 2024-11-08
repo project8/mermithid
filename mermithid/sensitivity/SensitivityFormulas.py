@@ -3,7 +3,7 @@ Class calculating neutrino mass sensitivities based on analytic formulas from CD
 Author: R. Reimann, C. Claessens
 Date:11/17/2020
 
-The statistical method and formulars are described in
+The statistical method and formulas are described in
 CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc673d862fa923d53.
 '''
 import numpy as np

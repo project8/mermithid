@@ -33,7 +33,7 @@ def axial_motion(magnetic_field, pitch, cavity_length, minimum_trapped_pitch, ki
     # from z=0 to z=cavity_length/2 with npoints set by the trajectory variable
     # See LUCKEY write-up for a little more on Talia's "flat fraction" trap model
     pitch = pitch/180*np.pi
-    minimum_trapped_pitch/180*np.pi
+    minimum_trapped_pitch = minimum_trapped_pitch/180*np.pi
 
     # Axial motion:
     z_w = cavity_length/2
