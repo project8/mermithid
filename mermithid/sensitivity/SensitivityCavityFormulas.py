@@ -134,7 +134,7 @@ class CavitySensitivity(Sensitivity):
     """
     Documentation:
         * Phase IV sensitivity document: https://www.overleaf.com/project/5de3e02edd267500011b8cc4
-        * Talias sensitivity script: https://3.basecamp.com/3700981/buckets/3107037/documents/2388170839
+        * Talia's sensitivity script: https://3.basecamp.com/3700981/buckets/3107037/documents/2388170839
         * Nicks CRLB for frequency resolution: https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398
         * Molecular contamination in atomic tritium: https://3.basecamp.com/3700981/buckets/3107037/documents/3151077016
     """
