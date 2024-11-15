@@ -320,6 +320,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             logger.info("NUMBERS BELOW ARE FOR THE HIGHEST-EXPOSURE POINT ON THE CURVE:")
         logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
         logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.effective_volume))
+        logger.info('Total background: {}/eV/s'.format(self.sens_main.background_rate*eV*s))
         logger.info('Total signal: {}'.format(rho_opt*self.sens_main.effective_volume*
                                                    self.sens_main.Experiment.LiveTime/
                                                    self.sens_main.tau_tritium*2))
@@ -354,6 +355,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                     logger.info("NUMBERS BELOW ARE FOR THE HIGHEST-EXPOSURE POINT ON THE CURVE:")
                 logger.info('CL90 limit: {}'.format(self.sens_ref[i].CL90(Experiment={"number_density": rho_opt_ref})/eV))
                 logger.info('T2 in Veff: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume))
+                logger.info('Total background: {}/eV/s'.format(self.sens_ref[i].background_rate*eV*s))
                 logger.info('Total signal: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume*
                                                    self.sens_ref[i].Experiment.LiveTime/
                                                    self.sens_ref[i].tau_tritium*2))

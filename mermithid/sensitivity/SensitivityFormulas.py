@@ -3,7 +3,7 @@ Class calculating neutrino mass sensitivities based on analytic formulas from CD
 Author: R. Reimann, C. Claessens
 Date:11/17/2020
 
-The statistical method and formulars are described in
+The statistical method and formulas are described in
 CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc673d862fa923d53.
 '''
 import numpy as np
@@ -101,8 +101,11 @@ class Sensitivity(object):
 
     def BackgroundRate(self):
         """background rate, can be calculated from multiple components.
+        Current, RF noise and cosmic ray backgrounds are included.
         Assumes that background rate is constant over considered energy / frequency range."""
-        return self.Experiment.background_rate_per_eV
+        self.cosmic_ray_background = self.Experiment.cosmic_ray_bkgd_per_tritium_particle*self.Experiment.number_density*self.effective_volume
+        self.background_rate = self.Experiment.RF_background_rate_per_eV + self.cosmic_ray_background
+        return self.background_rate
 
     def SignalEvents(self):
         """Number of signal events."""

@@ -33,7 +33,7 @@ def axial_motion(magnetic_field, pitch, trap_length, minimum_trapped_pitch, kin_
     # from z=0 to z=cavity_length/2 with npoints set by the trajectory variable
     # See LUCKEY write-up for a little more on Talia's "flat fraction" trap model
     pitch = pitch/180*np.pi
-    minimum_trapped_pitch/180*np.pi
+    minimum_trapped_pitch = minimum_trapped_pitch/180*np.pi
 
     # Axial motion:
     z_w = trap_length/2
@@ -134,7 +134,7 @@ class CavitySensitivity(Sensitivity):
     """
     Documentation:
         * Phase IV sensitivity document: https://www.overleaf.com/project/5de3e02edd267500011b8cc4
-        * Talias sensitivity script: https://3.basecamp.com/3700981/buckets/3107037/documents/2388170839
+        * Talia's sensitivity script: https://3.basecamp.com/3700981/buckets/3107037/documents/2388170839
         * Nicks CRLB for frequency resolution: https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398
         * Molecular contamination in atomic tritium: https://3.basecamp.com/3700981/buckets/3107037/documents/3151077016
     """
