@@ -142,6 +142,8 @@ class CavitySensitivity(Sensitivity):
         Sensitivity.__init__(self, config_path)
         self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
         
+        if self.Experiment.trap_L_over_D == 0:
+            self.Experiment.trap_L_over_D = self.Experiment.L_over_D
 
         self.CRLB_constant = 12
         #self.CRLB_constant = 90
@@ -163,19 +165,33 @@ class CavitySensitivity(Sensitivity):
     
     def CavityVolume(self):
         #radius = 0.5*wavelength(self.T_endpoint, self.MagneticField.nominal_field)
-        self.total_volume = 2*self.cavity_radius*self.Experiment.L_over_D*np.pi*(self.cavity_radius)**2*self.Experiment.n_cavities
+        self.total_cavity_volume = 2*self.cavity_radius*self.Experiment.L_over_D*np.pi*(self.cavity_radius)**2*self.Experiment.n_cavities
         
         logger.info("Frequency: {} MHz".format(round(frequency(self.T_endpoint, self.MagneticField.nominal_field)/MHz, 3)))
         logger.info("Wavelength: {} cm".format(round(wavelength(self.T_endpoint, self.MagneticField.nominal_field)/cm, 3)))
-        logger.info("Radius: {} cm".format(round(self.cavity_radius/cm, 3)))
-        logger.info("Length: {} cm".format(round(2*self.cavity_radius*self.Experiment.L_over_D/cm, 3)))
-        logger.info("Total volume {} m^3".format(round(self.total_volume/m**3)))
+        logger.info("Cavity radius: {} cm".format(round(self.cavity_radius/cm, 3)))
+        logger.info("Cavity length: {} cm".format(round(2*self.cavity_radius*self.Experiment.L_over_D/cm, 3)))
+        logger.info("Total cavity volume {} m^3".format(round(self.total_cavity_volume/m**3)))\
         
-        return self.total_volume
+        return self.total_cavity_volume
+    
+
+    # ELECTRON TRAP
+    def TrapVolume(self):
+        # Total volume of the electron traps in all cavities
+        self.total_trap_volume = 2*self.cavity_radius*self.Experiment.trap_L_over_D*np.pi*(self.cavity_radius)**2*self.Experiment.n_cavities
+    
+        logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3)))
+        logger.info("Trap length: {} cm".format(round(2*self.cavity_radius*self.Experiment.trap_L_over_D/cm, 3)))
+        logger.info("Total trap volume {} m^3 ()".format(round(self.total_trap_volume/m**3)))
+        
+        return self.total_trap_volume
+
+
     
     def EffectiveVolume(self):
         if self.Efficiency.usefixedvalue:
-            self.effective_volume = self.total_volume * self.Efficiency.fixed_efficiency
+            self.effective_volume = self.total_trap_volume * self.Efficiency.fixed_efficiency
         else:
             # radial and detection efficiency are configured in the config file
             #logger.info("Radial efficiency: {}".format(self.Efficiency.radial_efficiency))
@@ -183,7 +199,7 @@ class CavitySensitivity(Sensitivity):
             #logger.info("Pitch angle efficiency: {}".format(self.PitchDependentTrappingEfficiency()))
             #logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
             
-            self.effective_volume = self.total_volume*self.Efficiency.radial_efficiency*self.Efficiency.detection_efficiency*self.PitchDependentTrappingEfficiency()   
+            self.effective_volume = self.total_trap_volume*self.Efficiency.radial_efficiency*self.Efficiency.detection_efficiency*self.PitchDependentTrappingEfficiency()   
         #logger.info("Total efficiency: {}".format(self.effective_volume/self.total_volume))        
         self.effective_volume*=self.Experiment.sri_factor
         
@@ -201,7 +217,7 @@ class CavitySensitivity(Sensitivity):
         #Jprime_0 = 3.8317
         max_ax_freq, mean_field, z_t = axial_motion(self.MagneticField.nominal_field,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth/deg,
-                                                  self.Experiment.trap_L_over_D*self.CavityRadius()*2 if self.Experiment.trap_L_over_D else self.Experiment.L_over_D*self.CavityRadius()*2,
+                                                  self.Experiment.trap_L_over_D*self.CavityRadius()*2,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, 
                                                   self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction, trajectory = 1000)
 
@@ -227,7 +243,7 @@ class CavitySensitivity(Sensitivity):
         #                                             self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
         max_ax_freq, mean_field, _ = axial_motion(self.MagneticField.nominal_field,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth/deg,
-                                                  self.Experiment.trap_L_over_D*self.CavityRadius()*2 if self.Experiment.trap_L_over_D else self.Experiment.L_over_D*self.CavityRadius()*2,
+                                                  self.Experiment.trap_L_over_D*self.CavityRadius()*2,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, 
                                                   self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
         required_bw_axialfrequency = max_ax_freq
@@ -375,7 +391,7 @@ class CavitySensitivity(Sensitivity):
             var_f0_reconstruction = (sigma_f_sideband_crlb**2+sigma_f_CRLB**2)/self.FrequencyExtraction.sideband_order**2 
             max_ax_freq, mean_field, _ = axial_motion(self.MagneticField.nominal_field, 
                                                       self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, 
-                                                      self.Experiment.trap_L_over_D*self.CavityRadius()*2 if self.Experiment.trap_L_over_D else self.Experiment.L_over_D*self.CavityRadius()*2, 
+                                                      self.Experiment.trap_L_over_D*self.CavityRadius()*2, 
                                                       self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, 
                                                       self.T_endpoint, 
                                                       flat_fraction=self.MagneticField.trap_flat_fraction)
