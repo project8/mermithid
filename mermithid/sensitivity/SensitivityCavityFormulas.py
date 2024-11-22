@@ -158,8 +158,7 @@ class CavitySensitivity(Sensitivity):
         #Get trap length from cavity length if not specified
         if self.Experiment.trap_length == 0:
             self.Experiment.trap_length = 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
-    #    else:
-     #       self.Experiment.trap_length = self.Experiment.trap_length/cm
+    
 
     # CAVITY
     def CavityRadius(self):
