@@ -149,8 +149,8 @@ sens_config_dict = {
 # Currently comparing conservative atomic vs. scenario that reaches target without statistics boost
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
-    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_with-cosmic-ray-bkgd_Nov-11-2024.pdf",
+    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
+    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_fa-uncertainty-comparison_Nov-15-2024.pdf",
     # optional
     "figsize": (7.0,6),
     "fontsize": 15,
@@ -163,14 +163,13 @@ sens_config_dict = {
     "cavity": True,
     "y_limits": [2e-2, 4],
     "density_range": [1e13,1e19],
-    "main_curve_upper_label":  r"Phase III scenario: 1 GHz",
+    "main_curve_upper_label":  r"Phase III scenario: 560 MHz", #Phase III scenario: 1 GHz",
     "goals": {"Phase III (0.4 eV)": 0.4, "Phase IV (0.04 eV)": 0.04}, #"Pilot T goal (0.1 eV)": 0.1,
     "comparison_curve": True,
     "main_curve_color": "blue",
-    "comparison_curve_colors": ["red", "black"],
-    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg",
-                                    "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"], 
-    "comparison_curve_label": [r"Phase III scenario: 560 MHz", r"Phase IV scenario: 150 MHz"],
+    "comparison_curve_colors": ["red"], # "black"],
+    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"], 
+    "comparison_curve_label": [r"Phase IV scenario: 150 MHz"],
     "comparison_label_y_position": [2, 0.105, 0.046], #[2, 0.105, 0.046],
     "comparison_label_x_position": [4.5e15, 7e14, 7e14], #[4.5e15, 2.2e16, 1e15],
     #"sigmae_theta_r": 0.159,
@@ -180,9 +179,9 @@ sens_config_dict = {
     "goals_x_position": 3e13, #0.0002
     "plot_key_parameters": True
     }
-sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-sens_curve.Configure(sens_config_dict)
-sens_curve.Run()
+#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+#sens_curve.Configure(sens_config_dict)
+#sens_curve.Run()
 
 
 sens_config_dict = {
@@ -404,9 +403,9 @@ sens_config_dict = {
     "goals_x_position": 1.2e12, #0.0002
     "plot_key_parameters": True
     }
-#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-#sens_curve.Configure(sens_config_dict)
-#sens_curve.Run()
+sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+sens_curve.Configure(sens_config_dict)
+sens_curve.Run()
 
 
 

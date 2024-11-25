@@ -373,7 +373,7 @@ class CavitySensitivity(Sensitivity):
             
             # calculate uncertainty of energy correction for pitch angle
             var_f0_reconstruction = (sigma_f_sideband_crlb**2+sigma_f_CRLB**2)/self.FrequencyExtraction.sideband_order**2 
-            max_ax_freq, mean_field, _ = axial_motion(self.MagneticField.nominal_field, self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, self.Experiment.L_over_D*self.CavityRadius()*2, self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
+            max_ax_freq, mean_field, _ = axial_motion(self.MagneticField.nominal_field, self.FrequencyExtraction.pitch_angle/deg, self.Experiment.L_over_D*self.CavityRadius()*2, self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
             #max_ax_freq = axial_frequency(self.Experiment.L_over_D*self.CavityRadius()*2, 
             #                              self.T_endpoint, 
             #                              self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
