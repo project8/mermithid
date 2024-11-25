@@ -186,13 +186,14 @@ class CavitySensitivity(Sensitivity):
     
         logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3)))
         logger.info("Trap length: {} cm".format(round(self.Experiment.trap_length/cm, 3)))
-        logger.info("Total trap volume {} m^3 ()".format(round(self.total_trap_volume/m**3)))
+        logger.info("Total trap volume {} m^3".format(round(self.total_trap_volume/m**3)))
         
         return self.total_trap_volume
 
 
     
     def EffectiveVolume(self):
+        self.total_trap_volume = self.TrapVolume()
         if self.Efficiency.usefixedvalue:
             self.effective_volume = self.total_trap_volume * self.Efficiency.fixed_efficiency
         else:
@@ -496,4 +497,4 @@ class CavitySensitivity(Sensitivity):
             logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
             
         logger.info("Effective volume: {} mm^3".format(round(self.effective_volume/mm**3, 3)))
-        logger.info("Total efficiency: {}".format(self.effective_volume/self.total_volume))  
+        logger.info("Total efficiency: {}".format(self.effective_volume/self.total_trap_volume))  
