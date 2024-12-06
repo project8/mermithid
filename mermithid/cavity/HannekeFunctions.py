@@ -24,11 +24,7 @@ def larmor_radius(magnetic_field, kin_energy=endpoint, pitch=np.pi/2):
     return gamma(kin_energy)*me*transverse_speed/(e*magnetic_field)
 
 # Hanneke factor for TE011 mode, for an electron at fixed location (r_position, z_position).
-# Note: This does not exactly match Hanneke, because it includes Rick Mueller's finding that
-# the power in the TE011 mode is half of that in Hanneke's work. (Pozar also missed this
-# factor!) For more on Rick's work, see:
-# https://3.basecamp.com/3700981/buckets/3107037/documents/7796088022
-# https://3.basecamp.com/3700981/buckets/3107037/uploads/7834409442 
+# Note: We don't "halve the power," given this from Rick: https://3.basecamp.com/3700981/buckets/3107037/uploads/8101664058. 
 def hanneke_factor_TE011(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, mode_frequency):
     global bessel_derivative_zero
     # Calculate the lambda_mnp_squared factor
@@ -41,8 +37,7 @@ def hanneke_factor_TE011(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotr
     #constant_factor_unitless = constant_factor/m**3/Hz**2
     #print("Hanneke prefactor [units /m**3/Hz**2]", constant_factor_unitless)
     
-    # "Rick's factor of 1/2" is in the line below! 
-    lambda_mnp_squared = constant_factor / (z_L * r_cav**2) / 2. # This should be in units of Hz^2
+    lambda_mnp_squared = constant_factor / (z_L * r_cav**2) # This should be in units of Hz^2
     angular_part = special.jvp(0, bessel_derivative_zero * r_position/r_cav)**2
     axial_part = np.sin(mode_p * np.pi/2 * (z_position/z_L + 1))**2
 

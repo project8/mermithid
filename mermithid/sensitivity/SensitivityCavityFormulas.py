@@ -267,8 +267,11 @@ class CavitySensitivity(Sensitivity):
     # SYSTEMATICS
     # Generic systematics are implemented in the parent class in SensitivityFormulas.py
 
-    def calculate_tau_snr(self, time_window, sideband_power_fraction=1):
-        
+    def calculate_tau_snr(self, time_window, power_fraction=1):
+        """
+        power_fraction may be used as a carrier or a sideband power fraction,
+        relative to the power of a 90 degree carrier.
+        """
         endpoint_frequency = frequency(self.T_endpoint, self.MagneticField.nominal_field)
     
         # Cavity coupling
@@ -298,7 +301,7 @@ class CavitySensitivity(Sensitivity):
         
         # Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
         # logger.info("Power: {}".format(Pe/W))
-        Pe = self.signal_power * sideband_power_fraction
+        Pe = self.signal_power * power_fraction
         
         P_signal_received = Pe*db_to_pwr_ratio(att_cir_db_freq+att_line_db_freq)
         self.received_power = P_signal_received
@@ -349,8 +352,8 @@ class CavitySensitivity(Sensitivity):
         
         self.time_window_slope_zero = abs(frequency(self.T_endpoint, self.MagneticField.nominal_field)-frequency(self.T_endpoint+20*meV, self.MagneticField.nominal_field))/self.slope
         
-        tau_snr_full_length = self.calculate_tau_snr(self.time_window)
-        tau_snr_part_length = self.calculate_tau_snr(self.time_window_slope_zero)
+        tau_snr_full_length = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.carrier_power_fraction)
+        tau_snr_part_length = self.calculate_tau_snr(self.time_window_slope_zero, self.FrequencyExtraction.carrier_power_fraction)
         
         
         # use different crlb based on slope
@@ -457,26 +460,33 @@ class CavitySensitivity(Sensitivity):
             logger.warning("Deprecation warning: This function does not modify the number density in the Experiment namespace. Values printed are for pre-set number density.")
         
         track_duration = self.time_window 
-        tau_snr = self.calculate_tau_snr(track_duration, sideband_power_fraction=1)
+        tau_snr_90deg = self.calculate_tau_snr(track_duration, power_fraction=1)
+        #For an example carrier:
+        tau_snr_ex_carrier = self.calculate_tau_snr(track_duration, self.FrequencyExtraction.carrier_power_fraction)
         
         
         eV_bandwidth = np.abs(frequency(self.T_endpoint, self.MagneticField.nominal_field) - frequency(self.T_endpoint + 1*eV, self.MagneticField.nominal_field))
-        SNR_1eV = 1/eV_bandwidth/tau_snr
-        SNR_track_duration = track_duration/tau_snr
-        SNR_1ms = 0.001*s/tau_snr
+        SNR_1eV_90deg = 1/eV_bandwidth/tau_snr_90deg
+        SNR_track_duration_90deg = track_duration/tau_snr_90deg
+        SNR_1ms_90deg = 0.001*s/tau_snr_90deg
+
+        SNR_1eV_ex_carrier = 1/eV_bandwidth/tau_snr_ex_carrier
+        SNR_track_duration_ex_carrier = track_duration/tau_snr_ex_carrier
+        SNR_1ms_ex_carrier = 0.001*s/tau_snr_ex_carrier
         
         logger.info("Number density: {} m^-3".format(self.Experiment.number_density*m**3))
         logger.info("Track duration: {}ms".format(track_duration/ms))
-        logger.info("tau_SNR: {}s".format(tau_snr/s))
+        logger.info("tau_SNR for 90° carrier: {}s".format(tau_snr_90deg/s))
+        logger.info("tau_SNR for carrier used in calculation (see config file): {}s".format(tau_snr_ex_carrier/s))
         logger.info("Sampling duration for 1eV: {}ms".format(1/eV_bandwidth/ms))
         
-        logger.info("Received power: {}W".format(self.received_power/W))
+        logger.info("Received power for 90° carrier: {}W".format(self.received_power/W))
         logger.info("Noise temperature: {}K".format(self.noise_temp/K))
         logger.info("Noise power in 1eV: {}W".format(self.noise_energy*eV_bandwidth/W))
-        logger.info("SNR for 1eV bandwidth: {}".format(SNR_1eV))
-        logger.info("SNR 1 eV from temperatures:{}".format(self.received_power/(self.noise_energy*eV_bandwidth)))
-        logger.info("SNR for track duration: {}".format(SNR_track_duration))
-        logger.info("SNR for 1 ms: {}".format(SNR_1ms))
+        logger.info("SNRs of carriers (90°, used in calc) for 1eV bandwidth: {}, {}".format(SNR_1eV_90deg, SNR_1eV_ex_carrier))
+        #logger.info("SNR 1 eV from temperatures:{}".format(self.received_power/(self.noise_energy*eV_bandwidth)))
+        logger.info("SNRs of carriers (90°, used in calc) for track duration: {}, {}".format(SNR_track_duration_90deg, SNR_track_duration_ex_carrier))
+        logger.info("SNR of carriers (90°, used in calc) for 1 ms: {}, {}".format(SNR_1ms_90deg, SNR_1ms_ex_carrier))
         
         
         logger.info("Optimum energy window: {} eV".format(self.DeltaEWidth()/eV))
@@ -484,7 +494,7 @@ class CavitySensitivity(Sensitivity):
         logger.info("CRLB if slope is nonzero and needs to be fitted: {} Hz".format(self.sigma_f_CRLB_slope_fitted/Hz))
         logger.info("CRLB constant: {}".format(self.CRLB_constant))
         
-        return self.noise_temp, SNR_1eV, track_duration
+        return self.noise_temp, SNR_1eV_90deg, track_duration
     
     
     def print_Efficiencies(self):
