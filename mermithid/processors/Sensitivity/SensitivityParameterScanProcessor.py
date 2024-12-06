@@ -281,7 +281,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         results_array = [np.array(self.scan_parameter_values/self.scan_parameter_unit),np.array(self.noise_temp),np.array(self.SNR),
                          np.array(self.optimum_rhos)*(m**3),np.array(self.track_duration),np.array(self.total_sigma),
                          1000*np.array(self.optimum_limits)/eV,np.array(self.sys_lim)]
-        fmt_array = '%.2f','%.3f','%.1f','%.2E','%.2f','%.1f','%.1f','%.1f'
+        fmt_array = '%.2g','%.3f','%.1f','%.2E','%.2f','%.1f','%.1f','%.1f'
         header_string = 'Param Value, Noise temperature /K, SNR, Gas Density /m3, Track Length /ms, Resolution, Sensitivity /meV, Systematic Limit /meV'
         np.savetxt("results_array_{}.csv".format(param),np.array(results_array).T,delimiter=',',fmt=fmt_array,header=header_string)        
         logger.info("Scan parameter: {}".format(self.scan_parameter_name))
