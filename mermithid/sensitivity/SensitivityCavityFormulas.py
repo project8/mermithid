@@ -188,7 +188,7 @@ def trapping_efficiency(z_range, percent_radial_field_increase, bg_magnetic_fiel
 
 
 
-###############################################################################
+###############################################################################cd
 class CavitySensitivity(Sensitivity):
     """
     Documentation:
