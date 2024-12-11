@@ -7,6 +7,8 @@ The statistical method and formulas are described in
 CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc673d862fa923d53.
 '''
 import numpy as np
+from scipy.stats import ncx2, chi2
+from scipy.integrate import quad
 
 from mermithid.misc.Constants_numericalunits import *
 from mermithid.misc.CRESFunctions_numericalunits import *
