@@ -453,9 +453,9 @@ class CavitySensitivity(Sensitivity):
             return 0, 0
 
     def det_efficiency_tau(self, threshold):
-       tau_snr_ex_carrier = self.calculate_tau_snr(track_duration, self.FrequencyExtraction.carrier_power_fraction)
-       track_duration = self.time_window
-       return quad(lambda tau: ncx2(df=2, nc= tau_snr_ex_carrier).sf(threshold)*1/track_duration*np.exp(-tau/track_duration), 0, np.infty)[0]
+        tau_snr_ex_carrier = self.calculate_tau_snr(track_duration, self.FrequencyExtraction.carrier_power_fraction)
+        track_duration = self.time_window
+        return quad(lambda tau: ncx2(df=2, nc= tau_snr_ex_carrier).sf(threshold)*1/track_duration*np.exp(-tau/track_duration), 0, np.infty)[0]
         
     
     # PRINTS
