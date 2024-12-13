@@ -454,14 +454,17 @@ class CavitySensitivity(Sensitivity):
         else:
             return 0, 0
 
-    def det_efficiency_tau(self, threshold):
+    def det_efficiency_tau(self):
         tau_snr_ex_carrier = self.calculate_tau_snr(track_duration, self.FrequencyExtraction.carrier_power_fraction)
         track_duration = self.time_window
-        return quad(lambda tau: ncx2(df=2, nc= tau_snr_ex_carrier).sf(threshold)*1/track_duration*np.exp(-tau/track_duration), 0, np.infty)[0]
+        return quad(lambda tau: ncx2(df=2, nc= tau_snr_ex_carrier).sf(self.threshold)*1/track_duration*np.exp(-tau/track_duration), 0, np.infty)[0]
 
-    def background_rate(self, threshold):
-        return chi2(df=2).sf(threshold)
-        
+    def rf_background_rate_cavity(self):
+        return chi2(df=2).sf(self.threshold)
+
+    def assign_background_rate(self):
+        self.Experiment.RF_background_rate_per_eV = rf_background_rate_cavity(self)
+        return None
     
     # PRINTS
     def print_SNRs(self, rho=None):
