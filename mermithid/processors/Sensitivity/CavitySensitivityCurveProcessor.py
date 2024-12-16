@@ -1,10 +1,9 @@
 '''
-Calculate sensitivity curve and plot vs. pressure
-function.
-Author: C. Claessens, T. Weiss
-Date:06/07/2023
+Calculate sensitivity curve and plot vs. number density, exposure, livetime, or frequency.
 
-More description
+Author: C. Claessens, T. Weiss
+Date: 06/07/2023
+Updated: 12/16/2024
 '''
 
 from __future__ import absolute_import
@@ -58,7 +57,6 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.plot_path = reader.read_param(params, 'plot_path', "required")
         self.PhaseII_path = reader.read_param(params, 'PhaseII_config_path', '')
 
-
         # labels
         self.main_curve_upper_label = reader.read_param(params, 'main_curve_upper_label', r"molecular"+"\n"+r"$V_\mathrm{eff} = 2\, \mathrm{cm}^3$"+"\n"+r"$\sigma_B = 7\,\mathrm{ppm}$")
         self.main_curve_lower_label = reader.read_param(params, 'main_curve_lower_label', r"$\sigma_B = 1\,\mathrm{ppm}$")
@@ -69,6 +67,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         # options
         #self.optimize_main_density = reader.read_param(params, 'optimize_main_density', True)
         self.optimize_comparison_density = reader.read_param(params, 'optimize_comparison_density', True)
+        self.verbose = reader.read_param(params, 'verbose', True)
         self.comparison_curve = reader.read_param(params, 'comparison_curve', False)
         self.B_error = reader.read_param(params, 'B_inhomogeneity', 7e-6)
         self.B_error_uncertainty = reader.read_param(params, 'B_inhom_uncertainty', 0.05)
@@ -83,13 +82,14 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.density_axis = reader.read_param(params, "density_axis", True)
         self.frequency_axis = reader.read_param(params, "frequency_axis", False)
         self.exposure_axis = reader.read_param(params, "exposure_axis", False)
+        self.livetime_axis = reader.read_param(params, "livetime_axis", False)
         self.track_length_axis = reader.read_param(params, 'track_length_axis', True)
         self.atomic_axis = reader.read_param(params, 'atomic_axis', False)
         self.molecular_axis = reader.read_param(params, 'molecular_axis', False)
         self.magnetic_field_axis = reader.read_param(params, 'magnetic_field_axis', False)
         
         self.density_range = reader.read_param(params, 'density_range', [1e14,1e21])
-        self.year_range = reader.read_param(params, "years_range", [0.1, 10])
+        self.year_range = reader.read_param(params, "year_range", [0.1, 20])
         self.exposure_range = reader.read_param(params, "exposure_range", [1e-10, 1e3])
         self.frequency_range = reader.read_param(params, "frequency_range", [1e6, 1e9])
         
@@ -114,13 +114,16 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
         if self.density_axis:
             self.add_sens_line = self.add_density_sens_line
-            logger.info("Doing density lines")
+            logger.info("Plotting sensitivity vs. density")
         elif self.frequency_axis:
             self.add_sens_line = self.add_frequency_sens_line
-            logger.info("Doing frequency lines")
-        elif self.exposure_axis:
+            logger.info("Plotting sensitivity vs. frequency")
+        elif self.exposure_axis or self.livetime_axis:
             self.add_sens_line = self.add_exposure_sens_line
-            logger.info("Doing exposure lines")
+            logger.info("Plotting sensitivity vs. exposure or livetime")
+        #elif self.livetime_axis:
+        #    self.add_sens_line = self.add_exposure_sens_line(livetime_plot=True)
+        #    logger.info("Plotting sensitivity vs. livetime")
         else: raise ValueError("No axis specified")
 
 
@@ -181,8 +184,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
 
     def InternalRun(self):
-
-        
+        logger.info("Systematics before density optimization:")
+        self.sens_main.print_systematics()
+        logger.info("Number density: {} \m^3".format(self.sens_main.Experiment.number_density*m**3))
+        logger.info("Corresponding track length: {} s".format(self.sens_main.track_length(self.sens_main.Experiment.number_density)/s))
                 
         if self.make_key_parameter_plots:
             
@@ -253,7 +258,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 #self.sens_main.MagneticField.default_systematic_uncertainty = 0.05*sig
                 self.sens_main.MagneticField.sigmae_r = self.sigmae_theta_r[a] * eV
                 self.sens_main.MagneticField.sigmae_theta = 0 * eV
-                self.add_sens_line(self.sens_main, color=color)
+                if self.livetime_axis:
+                    self.add_sens_line(self.sens_main, livetime_plot=True, color=color)
+                else:
+                    self.add_sens_line(self.sens_main, color=color)
                 #print("sigmae_theta_r:", self.sens_main.MagneticField.sigmae_r/eV)
                 self.sens_main.print_systematics()
             self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label, color="darkblue")
@@ -267,11 +275,12 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             if self.configure_sigma_theta_r:
                 self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
                 self.sens_main.MagneticField.sigmae_theta = 0 * eV
-            self.add_sens_line(self.sens_main, color=self.main_curve_color, label=self.main_curve_upper_label)
+            if self.livetime_axis:
+                    self.add_sens_line(self.sens_main, livetime_plot=True, color=self.main_curve_color, label=self.main_curve_upper_label)
+            else:
+                self.add_sens_line(self.sens_main, color=self.main_curve_color, label=self.main_curve_upper_label)
             #self.add_text(self.label_x_position, self.upper_label_y_position, self.main_curve_upper_label, color='blue')
 
-        
-        
         
         # PRINT OPTIMUM RESULTS
             
@@ -299,8 +308,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
        
         self.sens_main.print_Efficiencies()
         self.sens_main.print_SNRs(rho_opt)
+        if self.exposure_axis or self.livetime_axis:
+            logger.info("NUMBERS BELOW ARE FOR THE HIGHEST-EXPOSURE POINT ON THE CURVE:")
         logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
         logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.effective_volume))
+        logger.info('Total background: {}/eV/s'.format(self.sens_main.background_rate*eV*s))
         logger.info('Total signal: {}'.format(rho_opt*self.sens_main.effective_volume*
                                                    self.sens_main.Experiment.LiveTime/
                                                    self.sens_main.tau_tritium*2))
@@ -338,8 +350,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
     
                 self.sens_ref[i].print_SNRs(rho_opt_ref)
                 self.sens_ref[i].print_Efficiencies()
+                if self.exposure_axis or self.livetime_axis:
+                    logger.info("NUMBERS BELOW ARE FOR THE HIGHEST-EXPOSURE POINT ON THE CURVE:")
                 logger.info('CL90 limit: {}'.format(self.sens_ref[i].CL90(Experiment={"number_density": rho_opt_ref})/eV))
                 logger.info('T2 in Veff: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume))
+                logger.info('Total background: {}/eV/s'.format(self.sens_ref[i].background_rate*eV*s))
                 logger.info('Total signal: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume*
                                                    self.sens_ref[i].Experiment.LiveTime/
                                                    self.sens_ref[i].tau_tritium*2))
@@ -359,9 +374,36 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         # save plot
         self.save(self.plot_path)
 
+        if self.verbose:
+            self.print_disclaimers()
+
         return True
 
 
+    def print_disclaimers(self):
+        logger.info("Disclaimers / assumptions:")
+        logger.info("1. Often, in practice, 'sigmae_r' is used to stand-in for combined radial, \
+                    azimuthal, and temporal magnetic field spectral broadening effects. Check \
+                    your experiment config file *and* your processor config dictionary to see \
+                    if that is the case.")
+        logger.info("2. Trap design is not yet linked to cavity L/D in the sensitivity model. So, \
+                    the model does *not* capture how reducing L/D worsens the resolution.")
+        logger.info("3. In reality, the frequency resolution could be worse or somewhat better \
+                    than predicted by the general CRLB calculation used here. See work by Florian.")
+        logger.info("4. The analytic sensitivity formula oaccounts for energy resolution contributions \
+                    that are *normally distributed*. (Energy resolution = std of the response fn \
+                    that broadens the spectrum.) To account for asymmetric contributions, generate \
+                    spectra with MC sampling and then analyze them. This can be done in mermithid.")
+        logger.info("5. The best-fit mbeta is assumed to be zero when converting to a 90\% limit.")
+        if self.density_axis:
+            logger.info("6. This sensitivity formula does not work for very small numbers of counts, \
+                        because the analytic formula assumes Gaussian statistics. In typical Phase IV \
+                        scenarios, if the minimum allowed density is 1e-20 atoms/m^3, the optimization \
+                        over density still works.")
+        logger.info("Once you have read these disclaimers and are familiar with them, you can set \
+                    verbose==False in your config dictionary to stop seeing them.")
+
+    
     def create_plot(self):
         # setup axis
         plt.rcParams.update({'font.size': self.fontsize})
@@ -400,15 +442,29 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.ax2.set_yscale("log")
             self.ax2.set_ylim(self.ylim)
             
-        else:
+        elif self.exposure_axis:
             logger.info("Adding exposure axis")
             ax.set_xlim(self.exposure_range[0], self.exposure_range[-1])
             #ax.tick_params(axis='x', which='minor', bottom=True)
             #ax.tick_params(axis='y', which='minor', left=True)
-            axis_label = r"Efficiency $\times$ Volume $\times$ Time (m$^3$y)"
+            axis_label = r"Effective Volume $\times$ Time (m$^3$y)" #r"Efficiency $\times$ Volume $\times$ Time (m$^3$y)"
             
             ax.set_xlabel(axis_label)
             #ax.set_ylim((np.array(self.ylim)**2/np.sqrt(1.64)))
+            ax.set_ylim((np.array(self.ylim)**2/1.64))
+            ax.set_ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
+            
+            self.ax2 = ax.twinx()
+            self.ax2.set_ylabel(r"90% CL $m_\beta$ (eV)")
+            self.ax2.set_yscale("log")
+            self.ax2.set_ylim(self.ylim)
+
+        else:
+            logger.info("Adding livetime axis")
+            ax.set_xlim(self.year_range[0], self.year_range[-1])
+            axis_label = r"Livetime (years)"
+            
+            ax.set_xlabel(axis_label)
             ax.set_ylim((np.array(self.ylim)**2/1.64))
             ax.set_ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
             
@@ -508,7 +564,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
     def add_comparison_curve(self, label, color='k'):
     
         for a in range(len(self.sens_ref)):
-            limits = self.add_sens_line(self.sens_ref[a], plot_key_params=True, color=self.comparison_curve_colors[a], label=label[a])
+            if self.livetime_axis == True:
+                limits = self.add_sens_line(self.sens_ref[a], livetime_plot=True, plot_key_params=True, color=self.comparison_curve_colors[a], label=label[a])
+            else:
+                limits = self.add_sens_line(self.sens_ref[a], plot_key_params=True, color=self.comparison_curve_colors[a], label=label[a])
             #self.ax.text(self.comparison_label_x_position[a], self.comparison_label_y_position[a], label[a], color=colors[a], fontsize=9.5)
 
         if not self.density_axis and self.add_1year_1cav_point_to_last_ref:
@@ -611,14 +670,17 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         #sens.Experiment.livetime = lt
         limit = sens.sensitivity()/eV**2
             
-        
-        self.ax.scatter([standard_exposure], [limit], marker="s", s=25, color=color, label=label, zorder=10)
-        
-        logger.info("Exposure and mass limit for single point: {}, {}".format(standard_exposure, np.sqrt(1.64*limit)))
+        if self.exposure_axis:
+            self.ax.scatter([standard_exposure], [limit], marker="s", s=25, color=color, label=label, zorder=10)
+            logger.info("Exposure and mass limit for single point: {}, {}".format(standard_exposure, np.sqrt(1.64*limit)))
+        if self.livetime_axis:
+            self.ax.scatter([sens.Experiment.livetime/year], [limit], marker="s", s=25, color=color, label=label, zorder=10)
+            logger.info("Livetime and mass limit for single point: {}, {}".format(sens.Experiment.livetime/year, np.sqrt(1.64*limit)))
+
         sens.print_statistics()
         sens.print_systematics()
              
-    def add_exposure_sens_line(self, sens, plot_key_params=False, **kwargs):
+    def add_exposure_sens_line(self, sens, livetime_plot=False, plot_key_params=False, **kwargs):
         
         sigma_mbeta = [sens.sensitivity(Experiment={"number_density": rho})/eV**2 for rho in self.rhos]
         opt = np.argmin(sigma_mbeta)
@@ -628,28 +690,26 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         #logger.info("Optimum density: {} /m^3".format(rho_opt*m**3))
         logger.info("Years: {}".format(sens.Experiment.livetime/year))
         
-        standard_exposure = sens.EffectiveVolume()*sens.Experiment.livetime/m**3/year
-    
-        
-        self.ax.scatter([standard_exposure], [np.min(sigma_mbeta)], s=40, marker="d", zorder=20, **kwargs)
-        
         sigma_mbetas = []
         years = []
-        temp_lt = deepcopy(sens.Experiment.livetime)
-        for ex in self.exposures:
-            lt = ex/sens.EffectiveVolume()
-            years.append(lt/year)
-            sens.Experiment.livetime = lt
-            sigma_mbetas.append(sens.sensitivity()/eV**2)
-            #exposures.append(sens.EffectiveVolume()/m**3*sens.Experiment.livetime/year)
-            
-        """if sens.Experiment.atomic:
-            gas = "T"
+        if livetime_plot:
+            self.ax.scatter([sens.Experiment.livetime/year], [np.min(sigma_mbeta)], s=40, marker="d", zorder=20, **kwargs)
+            for lt in self.years:
+                sens.Experiment.livetime = lt
+                sigma_mbetas.append(sens.sensitivity()/eV**2)
+            self.ax.plot(self.years/year, sigma_mbetas, color=kwargs["color"])
         else:
-            gas = r"T$_2$"
-        unit = r"m$^{-3}$"""
-        self.ax.plot(self.exposures/m**3/year, sigma_mbetas, color=kwargs["color"]) #label="{} density = {:.1e} {}".format(gas, rho_opt*m**3, unit))
-        
+            standard_exposure = sens.EffectiveVolume()*sens.Experiment.livetime/m**3/year
+            self.ax.scatter([standard_exposure], [np.min(sigma_mbeta)], s=40, marker="d", zorder=20, **kwargs)
+            for ex in self.exposures:
+                lt = ex/sens.EffectiveVolume()
+                years.append(lt/year)
+                sens.Experiment.livetime = lt
+                sigma_mbetas.append(sens.sensitivity()/eV**2)
+            self.ax.plot(self.exposures/m**3/year, sigma_mbetas, color=kwargs["color"]) #label="{} density = {:.1e} {}".format(gas, rho_opt*m**3, unit))
+ 
+
+
     def add_Phase_II_exposure_sens_line(self, sens):
         logger.warning("Adding Phase II sensitivity")
         sens.Experiment.number_density = 2.09e17/m**3
@@ -738,7 +798,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             magnetic_field = freq/(e/(2*np.pi*me)/gamma)
             sens.MagneticField.nominal_field = magnetic_field
             
-            logger.info("Frequency: {:2e} Hz, Magentic field: {:2e} T".format(freq/Hz, magnetic_field/T))
+            logger.info("Frequency: {:2e} Hz, Magnetic field: {:2e} T".format(freq/Hz, magnetic_field/T))
             
             # calcualte new cavity properties
             sens.CavityRadius()

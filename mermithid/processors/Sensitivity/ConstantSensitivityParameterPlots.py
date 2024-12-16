@@ -56,7 +56,7 @@ class ConstantSensitivityParameterPlots(AnalyticSensitivityEstimation):
         '''
         # file paths
         self.config_file_path = reader.read_param(params, 'config_file_path', "required")
-        self.sensitivity_target = reader.read_param(params, 'sensitivity_target', [0.4**2/np.sqrt(1.64), 0.7**2/np.sqrt(1.64), 1**2/np.sqrt(1.64)] )
+        self.sensitivity_target = reader.read_param(params, 'sensitivity_target', [0.4**2/1.64, 0.7**2/1.64, 1**2/1.64] )
         self.initialInhomogeneity = reader.read_param(params, 'initial_Inhomogeneity', 1e-8)
 
         self.veff_range = reader.read_param(params, 'veff_range', [0.001, 1])
@@ -138,7 +138,7 @@ class ConstantSensitivityParameterPlots(AnalyticSensitivityEstimation):
 
 
 
-            index.append(np.where((self.CLs[j]/eV<np.sqrt(1.1*self.sensitivity_target[j]*np.sqrt(1.64))) & (self.needed_Bs[j]>self.Berrors[1])))
+            index.append(np.where((self.CLs[j]/eV<np.sqrt(1.1*self.sensitivity_target[j]*1.64)) & (self.needed_Bs[j]>self.Berrors[1])))
             logger.info('Achieved 90CL limits: {}'.format(self.CLs[j]/eV))
             time.sleep(1)
 
@@ -148,7 +148,7 @@ class ConstantSensitivityParameterPlots(AnalyticSensitivityEstimation):
         plt.subplot(121)
 
         for j in range(len(self.sensitivity_target)):
-            plt.plot(self.veffs[index[j]]/(m**3), self.needed_Bs[j][index[j]], label='90% CL = {} eV'.format(np.round(np.sqrt(np.sqrt(1.64)*self.sensitivity_target[j]),1)))
+            plt.plot(self.veffs[index[j]]/(m**3), self.needed_Bs[j][index[j]], label='90% CL = {} eV'.format(np.round(np.sqrt(1.64*self.sensitivity_target[j]),1)))
             #plt.scatter(self.veffs/(m**3), self.needed_Bs, c=self.CLs/eV, marker='.')
         #plt.colorbar()
         plt.xlabel('Effective Volume (m³)')
@@ -161,7 +161,7 @@ class ConstantSensitivityParameterPlots(AnalyticSensitivityEstimation):
 
         plt.subplot(122)
         for j in range(len(self.sensitivity_target)):
-            plt.plot(self.veffs[index[j]]/(m**3), self.rho_opts[j][index[j]]*m**3, label='90% CL = {} eV'.format(np.round(np.sqrt(np.sqrt(1.64)*self.sensitivity_target[j]),1)))
+            plt.plot(self.veffs[index[j]]/(m**3), self.rho_opts[j][index[j]]*m**3, label='90% CL = {} eV'.format(np.round(np.sqrt(1.64*self.sensitivity_target[j]),1)))
         plt.xlabel('Effective Volume (m³)')
         plt.ylabel('Optimum number density (1/m³)')
         plt.xscale('log')
@@ -176,7 +176,7 @@ class ConstantSensitivityParameterPlots(AnalyticSensitivityEstimation):
 
         plt.subplot(121)
         for j in range(len(self.sensitivity_target)):
-            plt.plot(self.veffs[index[j]]/(m**3), self.needed_res[j][index[j]]/eV, label='90% CL = {} eV'.format(np.round(np.sqrt(np.sqrt(1.64)*self.sensitivity_target[j]),1)))
+            plt.plot(self.veffs[index[j]]/(m**3), self.needed_res[j][index[j]]/eV, label='90% CL = {} eV'.format(np.round(np.sqrt(1.64*self.sensitivity_target[j]),1)))
         plt.xlabel('Effective Volume (m³)')
         plt.ylabel('Total energy resolution (eV)')
         plt.xscale('log')
@@ -186,7 +186,7 @@ class ConstantSensitivityParameterPlots(AnalyticSensitivityEstimation):
 
         plt.subplot(122)
         for j in range(len(self.sensitivity_target)):
-            plt.plot(self.veffs[index[j]]/(m**3), self.needed_res_sigma[j][index[j]]/eV, label='90% CL = {} eV'.format(np.round(np.sqrt(np.sqrt(1.64)*self.sensitivity_target[j]),1)))
+            plt.plot(self.veffs[index[j]]/(m**3), self.needed_res_sigma[j][index[j]]/eV, label='90% CL = {} eV'.format(np.round(np.sqrt(1.64*self.sensitivity_target[j]),1)))
         plt.xlabel('Effective Volume (m³)')
         plt.ylabel('Uncertainty on total energy resolution (eV)')
         plt.xscale('log')

@@ -22,7 +22,7 @@ class SensitivityTest(unittest.TestCase):
 
         sens_config_dict = {
             # required
-            "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment_conservative.cfg",
+            "config_file_path": "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg",
             "plot_path": "./sensitivity_vs_exposure_curve.pdf",
             # optional
             "figsize": (10,6),
@@ -41,12 +41,12 @@ class SensitivityTest(unittest.TestCase):
             "exposure_range": [1e-11, 1e4],
             "main_curve_upper_label": r"Molecular, conservative",
             "main_curve_lower_label": r"$\sigma^\bar{B}_\mathrm{reco} = 0.07\,\mathrm{eV}$",
-            "goals": {"Phase III (0.2 eV)": (0.2**2/np.sqrt(1.64)), "Phase IV (0.04 eV)": (0.04**2/np.sqrt(1.64))},
+            "goals": {"Phase III (0.2 eV)": (0.2**2/1.64), "Phase IV (0.04 eV)": (0.04**2/1.64)},
             "comparison_curve": True,
-            "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg", 
+            "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg", 
                                             "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg", 
                                             "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"],
-            "comparison_curve_label": [r"Molecular, reaching PIII target", "Atomic, conservative", "Atomic, reaching PIV target"],
+            "comparison_curve_label": [r"150Hz, PIII 87 degrees", "Atomic, conservative", "Atomic, reaching PIV target"],
             "comparison_curve_colors": ["blue", "darkred", "red"],
             #"B_inhomogeneity": np.linspace(0.1, 2.1, 10)*1e-6,
             #"B_inhom_uncertainty": 0.01,
@@ -84,7 +84,7 @@ class SensitivityTest(unittest.TestCase):
             "goals": {"Phase III (0.2 eV)": 0.2, "Phase IV (0.04 eV)": 0.04},
             "comparison_curve": True,
             #"comparison_curve_colors": ["red"],
-            "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment.cfg", 
+            "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg", 
                                             "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment_conservative.cfg",
                                             "/termite/sensitivity_config_files/Config_atomic_325MHz_Experiment.cfg"],
             "goals_x_position": 1.2e12, #0.0002
@@ -104,7 +104,7 @@ class SensitivityTest(unittest.TestCase):
 
         sens_config_dict = {
             # required
-            "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg"
+            "config_file_path": "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"
             }
         # sens = AnalyticSensitivityEstimation("sensitivity_processor")
         # sens.Configure(sens_config_dict)
@@ -124,8 +124,8 @@ class SensitivityTest(unittest.TestCase):
 
         sens_config_dict = {
             # required
-            "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIII_1GHz_Experiment.cfg",
-            "sensitivity_target": [0.4**2/np.sqrt(1.64)]#, 0.7**2/np.sqrt(1.64), 1**2/np.sqrt(1.64)]
+            "config_file_path": "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg",
+            "sensitivity_target": [0.4**2/1.64]#, 0.7**2/1.64, 1**2/1.64]
             }
         #sens = ConstantSensitivityParameterPlots("sensitivity_processor")
         #sens.Configure(sens_config_dict)

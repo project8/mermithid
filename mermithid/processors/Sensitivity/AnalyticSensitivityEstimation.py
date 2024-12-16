@@ -107,10 +107,12 @@ class AnalyticSensitivityEstimation(BaseProcessor, Sensitivity):
         # If integrate gaussian -infinity to 1.28*sigma, the result is 90%.
         # https://www.wolframalpha.com/input?i=1%2F2+%281+%2B+erf%281.281551%2Fsqrt%282%29%29%29
         # So we assume that 1.28*sigma_{m_beta^2} is the 90% upper limit on m_beta^2. 
-        return np.sqrt(1.281551*self.sensitivity(**kwargs))
+        # Note: 1.64 update, to prevent gaining from a sensitivity from a negative mass result
+        ### We now use 1.64 = 1.28**2
+        return np.sqrt(1.281551**2*self.sensitivity(**kwargs))
 
     def sterial_m2_limit(self, Ue4_sq):
-        return np.sqrt(1.281551*np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens()**2))
+        return np.sqrt(1.281551**2*np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens()**2))
 
 
     # print functions

@@ -1,9 +1,10 @@
 '''
 Class calculating neutrino mass sensitivities based on analytic formulas from CDR.
-Author: R. Reimann, C. Claessens
-Date:11/17/2020
+Author: R. Reimann, C. Claessens, T. E. Weiss
+Date: Nov. 17, 2020
+Updated: December 2024
 
-The statistical method and formulars are described in
+The statistical method and formulas are described in
 CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc673d862fa923d53.
 '''
 import numpy as np
@@ -101,8 +102,11 @@ class Sensitivity(object):
 
     def BackgroundRate(self):
         """background rate, can be calculated from multiple components.
+        Currently, RF noise and cosmic ray backgrounds are included.
         Assumes that background rate is constant over considered energy / frequency range."""
-        return self.Experiment.background_rate_per_eV
+        self.cosmic_ray_background = self.Experiment.cosmic_ray_bkgd_per_tritium_particle*self.Experiment.number_density*self.effective_volume
+        self.background_rate = self.Experiment.RF_background_rate_per_eV + self.cosmic_ray_background
+        return self.background_rate
 
     def SignalEvents(self):
         """Number of signal events."""
@@ -156,7 +160,7 @@ class Sensitivity(object):
         return np.sqrt(1.64*self.sensitivity(**kwargs))
 
     def sterial_m2_limit(self, Ue4_sq):
-        return np.sqrt(np.sqrt(1.64)*np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens()**2))
+        return np.sqrt(1.64*np.sqrt((self.StatSens()/Ue4_sq)**2 + self.SystSens()**2))
 
     # PHYSICS Functions
 
@@ -243,6 +247,8 @@ class Sensitivity(object):
             pass
         print("Contribution to sigma_(m_beta^2)", " "*18, "%.2f"%(self.SystSens()/meV**2), "meV^2 ->", "%.2f"%(np.sqrt(self.SystSens())/meV), "meV")
         print("Systematic mass limit", " "*18, "%.2f"%(np.sqrt(1.64*self.SystSens())/meV), "meV")
+        logger.info("f_c uncertainty: {} Hz".format(self.sigma_f_c_CRLB/Hz))
+        return np.sqrt(1.64*self.SystSens())/meV, np.sqrt(np.sum(sigmas**2))/meV
 
     def syst_doppler_broadening(self):
         # estimated standard deviation of Doppler broadening distribution from

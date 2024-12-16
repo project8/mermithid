@@ -54,6 +54,39 @@ sens_curve.Configure(sens_config_dict)
 sens_curve.Run()
 
 
+sens_config_dict = {
+    # required
+    "config_file_path": "/termite/sensitivity_config_files/Config_CCA_Experiment.cfg", #Config_PhaseIII_325MHz_Experiment_conservative.cfg",
+    "plot_path": "./sensitivity_vs_exposure_curve_CCA.pdf",
+    # optional
+    "figsize": (10,6),
+    "fontsize": 15,
+    "legend_location": "upper right",
+    "track_length_axis": False,
+    "molecular_axis": False,
+    "atomic_axis": False,
+    "density_axis": False,
+    "exposure_axis": True,
+    "cavity": True,
+    "add_PhaseII": False,
+    #"add_1year_1cav_point_to_last_ref": True,
+    "y_limits": [10e-3, 500],
+    "density_range": [1e12, 1e19],
+    "exposure_range": [1e-11, 1e10],
+    "main_curve_upper_label": r"CCA", #"Molecular, conservative",
+    #"main_curve_lower_label": r"$\sigma^\bar{B}_\mathrm{reco} = 0.07\,\mathrm{eV}$",
+    "comparison_curve": False,
+    "upper_label_y_position": 0.7,
+    "label_x_position": 0.015, #1.5e15, #0.02, #1e14,
+    "goals_x_position": 0.2e-10, #2e12 #0.0002
+    "goals_y_rel_position": 0.4
+    }
+sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+sens_curve.Configure(sens_config_dict)
+sens_curve.Run()
+
+
+
 
 
 
