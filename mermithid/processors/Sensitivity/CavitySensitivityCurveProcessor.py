@@ -312,6 +312,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         logger.info('Hanneke / Larmor power = {}'.format(self.sens_main.signal_power/self.sens_main.larmor_power))
         
         if self.sens_main.FrequencyExtraction.crlb_on_sidebands:
+            logger.info("Trap p: {}".format(self.sens_main.p))
+            logger.info("Trap q: {}".format(self.sens_main.q))
+            #print(self.sens_main.q_array)
             logger.info("Uncertainty from determination of f_carrier and f_lsb, due to noise: {} eV".format(self.sens_main.sigma_K_noise/eV))
        
         self.sens_main.print_Efficiencies()

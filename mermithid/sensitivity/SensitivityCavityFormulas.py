@@ -149,11 +149,12 @@ class CavitySensitivity(Sensitivity):
         if hasattr(self.FrequencyExtraction, "crlb_constant"):
             self.CRLB_constant = self.FrequencyExtraction.crlb_constant
             logger.info("Using configured CRLB constant")       
- 
-        self.q = 0.16
+
+        """
         if hasattr(self.FrequencyExtraction, "trap_q"):
             self.q = self.FrequencyExtraction.trap_q
             logger.info("Using configured trap q value")  
+        """
 
         self.Jprime_0 = 3.8317
 
@@ -247,7 +248,7 @@ class CavitySensitivity(Sensitivity):
                                                                             frequency(self.T_endpoint, self.MagneticField.nominal_field)))
         return self.signal_power
     
-    
+
     def CavityLoadedQ(self):
         # Using Wouter's calculation:
         # Total required bandwidth is the sum of the endpoint region and the axial frequency. 
@@ -380,13 +381,30 @@ class CavitySensitivity(Sensitivity):
             
             m = self.FrequencyExtraction.sideband_order #For convenience
 
-            #Define the trap parameter p based on the relation between the trap length and the cavity mode
-            #This p is for a box trap
-            self.p = np.pi*beta(self.T_endpoint)*self.cavity_radius/self.Jprime_0/self.Experiment.trap_length
-
             #Define phi_max, corresponding to the minimum pitch angle
             phi_max = np.pi/2 - self.FrequencyExtraction.minimum_angle_in_bandwidth
             phis = np.linspace(0, phi_max, self.pitch_steps)
+
+            #Define the trap parameter p based on the relation between the trap length and the cavity mode
+            #This p is for a box trap
+            self.p_box = np.pi*beta(self.T_endpoint)*self.cavity_radius/self.Jprime_0/self.Experiment.trap_length
+
+            #Now find p for the actual trap that we have
+            ax_freq_array, mean_field_array, z_t = axial_motion(self.MagneticField.nominal_field,
+                                    np.pi/2-phis, self.Experiment.trap_length,
+                                    self.FrequencyExtraction.minimum_angle_in_bandwidth, 
+                                    self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
+            fc0_endpoint = frequency(self.T_endpoint, self.MagneticField.nominal_field)
+            p_array = ax_freq_array/fc0_endpoint/phis
+            self.p = np.mean(p_array[1:]) #Cut out theta=pi/2 (ill defined there)
+
+            #Now calculating q for the trap that we have
+            #Using the q for the minimum trapped pitch angle
+            fc_endpoint_min_theta = frequency(self.T_endpoint, mean_field_array[self.pitch_steps-1])
+            self.q = 1*(fc_endpoint_min_theta/fc0_endpoint - 1)/(phis[self.pitch_steps-1])**2
+            """fc_endpoint_array = frequency(self.T_endpoint, mean_field_array)
+            self.q_array = 1/phis**2*(fc_endpoint_array/fc0_endpoint - 1)
+            self.q = np.mean(self.q_array[1:])"""
 
             #Derivative of f_c0 (frequency corrected to B-field at bottom of the trap) with respect to f_c
             dfc0_dfc_array = 0.5*(1 - (1 - 4*self.q*phis/m/self.p + self.q*phis**2)/(1 - self.q*phis**2))
