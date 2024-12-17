@@ -339,7 +339,7 @@ class CavitySensitivity(Sensitivity):
         endpoint_frequency = frequency(self.T_endpoint, self.MagneticField.nominal_field)
         # using Pe and alpha (aka slope) from above
         Pe = self.signal_power #/self.FrequencyExtraction.mode_coupling_efficiency 
-        self.larmor_power = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field) # currently not used
+        self.larmor_power = rad_power(self.T_endpoint, np.pi/2, self.MagneticField.nominal_field) # currently not used
         
         self.slope = endpoint_frequency * 2 * np.pi * Pe/me/c0**2 # track slope
         self.time_window = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
