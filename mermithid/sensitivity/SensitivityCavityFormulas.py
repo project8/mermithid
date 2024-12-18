@@ -156,6 +156,8 @@ class CavitySensitivity(Sensitivity):
         self.EffectiveVolume()
         self.PitchDependentTrappingEfficiency()
         self.CavityPower()
+        self.assign_background_rate_from_threshold()
+        self.assign_detection_efficiency_from_threshold()
 
         #Get trap length from cavity length if not specified
         if self.Experiment.trap_length == 0:
@@ -462,9 +464,15 @@ class CavitySensitivity(Sensitivity):
     def rf_background_rate_cavity(self):
         return chi2(df=2).sf(self.threshold)
 
-    def assign_background_rate(self):
+    def assign_background_rate_from_threshold(self):
         self.Experiment.RF_background_rate_per_eV = rf_background_rate_cavity(self)
-        return None
+        return self.Experiment.RF_background_rate_per_eV
+
+    def assign_detection_efficiency_from_threshold(self):
+        effective_volume_before_modified = EffectiveVolume(self)
+        self.effective_volume = effective_volume_before_modified*det_efficiency_tau(self)
+        return self.effective_volume
+        
     
     # PRINTS
     def print_SNRs(self, rho=None):
