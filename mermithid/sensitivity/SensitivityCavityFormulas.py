@@ -130,21 +130,19 @@ def t_effective(t_physical, cyclotron_frequency):
        return quantum*(1/2+1/(np.exp(quantum/t_physical)-1))
 
 # Trapping efficiency from axial field variation.
-def trapping_efficiency(z_range, percent_radial_field_increase, bg_magnetic_field, min_pitch_angle, trap_flat_fraction = 0.5, plotting=False):
+def trapping_efficiency(z_range, bg_magnetic_field, min_pitch_angle, trap_flat_fraction = 0.5, plotting=False):
 
     """
     Calculate the trapping efficiency for a given trap length and flat fraction.
 
     The trapping efficiency is computed using the formula:
         epsilon(z) = sqrt(del_B(z)/B_max(z))
-    where B(z) is the magnetic field at position z, and B_max(z) is the maximum magnetic field along the z axis.
+    where del_B(z)=B_max(z)-B(z), B(z) is the magnetic field at position z, and B_max(z) is the maximum magnetic field along the z axis.
 
     Parameters
     ----------
     z_range : float
         The axial range (in z-direction, from trap center) over which electron trapping happens.
-    percent_radial_field_increase : float
-        Predefined percent radial increase of magnetic field due to radial trap profile, same value for all z's, temporary solution for trapping efficiency calculation. 
     bg_magnetic_field : float
         The background magnetic field.
     min_pitch_angle : float
@@ -162,13 +160,9 @@ def trapping_efficiency(z_range, percent_radial_field_increase, bg_magnetic_fiel
     Notes
     -----
     The magnetic field profile is computed using the `magnetic_field_flat_harmonic` function, currently it only produces z-profile of the trap without radial variation. 
-    Radial variation is assumed to be maximum at the edge of the cavity, and only one epsilon_z(r) is calculated at each z (at r = 0), an ideal calculation would evaluate this at different r's. 
-    Maximum percent variation can be set during function call or from configuration.
+    No radial field variation was assumed for this calculation.
     The mean trapping efficiency is averaged over the region where the trapping field exists.
     """
-    #Warn user if no radial variation
-    if percent_radial_field_increase == 0:
-        logger.info("No radial variation given for the electron-trap, try using a fixed efficiency or a non-zero \'percent_radial_variation\'")
 
     zs = np.linspace(-z_range, z_range, 100)
 
@@ -177,12 +171,11 @@ def trapping_efficiency(z_range, percent_radial_field_increase, bg_magnetic_fiel
     for z in zs:
         profiles.append(magnetic_field_flat_harmonic(z, bg_magnetic_field, z_range*2, min_pitch_angle, trap_flat_fraction))
     
-    #Calculate radial variation from trap depth and percent variation
-
-    radial_field_variation = (max(profiles)-min(profiles))*percent_radial_field_increase/100
+    #Calculate maximum trapping field along z (Bz_max)
+    maximum_Bz = max(profiles)
 
     #Calculate mean trapping efficiency using mean of epsilon(z) = sqrt(del_B(z)/B_max(z))
-    mean_efficiency = np.mean(np.array([np.sqrt(radial_field_variation/b_at_z) for b_at_z in profiles]))
+    mean_efficiency = np.mean(np.array([np.sqrt((maximum_Bz-b_at_z)/b_at_z) for b_at_z in profiles]))
 
     return mean_efficiency
 
@@ -210,7 +203,6 @@ class CavitySensitivity(Sensitivity):
 
         #Calculate position dependent trapping efficiency
         self.pos_dependent_trapping_efficiency = trapping_efficiency( z_range = self.Experiment.trap_length /2,
-                                                                    percent_radial_field_increase = self.MagneticField.percent_radial_variation,
                                                                     bg_magnetic_field = self.MagneticField.nominal_field, 
                                                                     min_pitch_angle = self.FrequencyExtraction.minimum_angle_in_bandwidth, 
                                                                     trap_flat_fraction = self.MagneticField.trap_flat_fraction, 
@@ -508,10 +500,10 @@ class CavitySensitivity(Sensitivity):
             frac_uncertainty = self.MagneticField.fraction_uncertainty_on_field_broadening
             sigma_meanB = self.MagneticField.sigma_meanb
             sigmaE_meanB = self.BToKeErr(sigma_meanB*B, B)
-            sigmaE_r_non_trap = self.MagneticField.sigmae_r_non_trap_effects
+            sigmaE_r = self.MagneticField.sigmae_r
             sigmaE_theta = self.MagneticField.sigmae_theta
             sigmaE_phi = self.MagneticField.sigmae_theta
-            sigma = np.sqrt(sigmaE_meanB**2 + sigmaE_r_non_trap**2 + sigmaE_theta**2 + sigmaE_phi**2)
+            sigma = np.sqrt(sigmaE_meanB**2 + sigmaE_r**2 + sigmaE_theta**2 + sigmaE_phi**2)
             return sigma, frac_uncertainty*sigma
         else:
             return 0, 0
