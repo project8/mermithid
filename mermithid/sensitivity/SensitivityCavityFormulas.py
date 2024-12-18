@@ -130,14 +130,14 @@ def t_effective(t_physical, cyclotron_frequency):
        return quantum*(1/2+1/(np.exp(quantum/t_physical)-1))
 
 # Trapping efficiency from axial field variation.
-def trapping_efficiency(z_range, bg_magnetic_field, min_pitch_angle, trap_flat_fraction = 0.5, plotting=False):
+def trapping_efficiency(z_range, bg_magnetic_field, min_pitch_angle, trap_flat_fraction = 0.5):
 
     """
     Calculate the trapping efficiency for a given trap length and flat fraction.
 
     The trapping efficiency is computed using the formula:
-        epsilon(z) = sqrt(del_B(z)/B_max(z))
-    where del_B(z)=B_max(z)-B(z), B(z) is the magnetic field at position z, and B_max(z) is the maximum magnetic field along the z axis.
+        epsilon(z) = sqrt(1 - B(z)/B_max(z))
+    where B(z) is the magnetic field at position z, and B_max(z) is the maximum magnetic field along the z axis.
 
     Parameters
     ----------
@@ -149,8 +149,6 @@ def trapping_efficiency(z_range, bg_magnetic_field, min_pitch_angle, trap_flat_f
         Minimum pitch angle to be trapped.
     trap_flat_fraction : float, optional
         Flat fraction of the trap. Default is 0.5.
-    plotting : bool, optional
-        If True, generates plots of the trapping efficiency. Default is False.
 
     Returns
     -------
@@ -174,8 +172,8 @@ def trapping_efficiency(z_range, bg_magnetic_field, min_pitch_angle, trap_flat_f
     #Calculate maximum trapping field along z (Bz_max)
     maximum_Bz = max(profiles)
 
-    #Calculate mean trapping efficiency using mean of epsilon(z) = sqrt(del_B(z)/B_max(z))
-    mean_efficiency = np.mean(np.array([np.sqrt((maximum_Bz-b_at_z)/b_at_z) for b_at_z in profiles]))
+    #Calculate mean trapping efficiency using mean of epsilon(z) = sqrt(1-B(z)/B_max(z)) at z = 0
+    mean_efficiency = np.mean(np.array([np.sqrt(1-b_at_z/maximum_Bz) for b_at_z in profiles]))
 
     return mean_efficiency
 
@@ -205,8 +203,8 @@ class CavitySensitivity(Sensitivity):
         self.pos_dependent_trapping_efficiency = trapping_efficiency( z_range = self.Experiment.trap_length /2,
                                                                     bg_magnetic_field = self.MagneticField.nominal_field, 
                                                                     min_pitch_angle = self.FrequencyExtraction.minimum_angle_in_bandwidth, 
-                                                                    trap_flat_fraction = self.MagneticField.trap_flat_fraction, 
-                                                                    plotting= True)        
+                                                                    trap_flat_fraction = self.MagneticField.trap_flat_fraction
+                                                                    )        
  
         self.CavityRadius()
         self.CavityVolume()
