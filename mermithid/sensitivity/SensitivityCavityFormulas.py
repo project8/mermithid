@@ -130,7 +130,57 @@ def t_effective(t_physical, cyclotron_frequency):
     else:
        return quantum*(1/2+1/(np.exp(quantum/t_physical)-1))
 
-###############################################################################
+# Trapping efficiency from axial field variation.
+def trapping_efficiency(z_range, bg_magnetic_field, min_pitch_angle, trap_flat_fraction = 0.5):
+
+    """
+    Calculate the trapping efficiency for a given trap length and flat fraction.
+
+    The trapping efficiency is computed using the formula:
+        epsilon(z) = sqrt(1 - B(z)/B_max(z))
+    where B(z) is the magnetic field at position z, and B_max(z) is the maximum magnetic field along the z axis.
+
+    Parameters
+    ----------
+    z_range : float
+        The axial range (in z-direction, from trap center) over which electron trapping happens.
+    bg_magnetic_field : float
+        The background magnetic field.
+    min_pitch_angle : float
+        Minimum pitch angle to be trapped.
+    trap_flat_fraction : float, optional
+        Flat fraction of the trap. Default is 0.5.
+
+    Returns
+    -------
+    mean_efficiency : float
+        The mean trapping efficiency across the trap z-range.
+
+    Notes
+    -----
+    The magnetic field profile is computed using the `magnetic_field_flat_harmonic` function, currently it only produces z-profile of the trap without radial variation. 
+    No radial field variation was assumed for this calculation.
+    The mean trapping efficiency is averaged over the region where the trapping field exists.
+    """
+
+    zs = np.linspace(-z_range, z_range, 500)
+
+    profiles = []
+    #Collect z profile of the magnetic field
+    for z in zs:
+        profiles.append(magnetic_field_flat_harmonic(z, bg_magnetic_field, z_range*2, min_pitch_angle, trap_flat_fraction))
+    
+    #Calculate maximum trapping field along z (Bz_max)
+    maximum_Bz = max(profiles)
+
+    #Calculate mean trapping efficiency using mean of epsilon(z) = sqrt(1-B(z)/B_max(z)) at z = 0
+    mean_efficiency = np.mean(np.array([np.sqrt(1-b_at_z/maximum_Bz) for b_at_z in profiles]))
+    
+    return mean_efficiency
+
+
+
+###############################################################################cd
 class CavitySensitivity(Sensitivity):
     """
     Documentation:
@@ -148,8 +198,14 @@ class CavitySensitivity(Sensitivity):
         #self.CRLB_constant = 90
         if hasattr(self.FrequencyExtraction, "crlb_constant"):
             self.CRLB_constant = self.FrequencyExtraction.crlb_constant
-            logger.info("Using configured CRLB constant")       
+            logger.info("Using configured CRLB constant")   
 
+        #Calculate position dependent trapping efficiency
+        self.pos_dependent_trapping_efficiency = trapping_efficiency( z_range = self.Experiment.trap_length /2,
+                                                                    bg_magnetic_field = self.MagneticField.nominal_field, 
+                                                                    min_pitch_angle = self.FrequencyExtraction.minimum_angle_in_bandwidth, 
+                                                                    trap_flat_fraction = self.MagneticField.trap_flat_fraction
+                                                                    )             
         """
         if hasattr(self.FrequencyExtraction, "trap_q"):
             self.q = self.FrequencyExtraction.trap_q
@@ -173,7 +229,7 @@ class CavitySensitivity(Sensitivity):
         #Get trap length from cavity length if not specified
         if self.Experiment.trap_length == 0:
             self.Experiment.trap_length = 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
-    
+        
 
     # CAVITY
     def CavityRadius(self):
@@ -218,7 +274,7 @@ class CavitySensitivity(Sensitivity):
             #logger.info("Pitch angle efficiency: {}".format(self.PitchDependentTrappingEfficiency()))
             #logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
             
-            self.effective_volume = self.total_trap_volume*self.Efficiency.radial_efficiency*self.Efficiency.detection_efficiency*self.PitchDependentTrappingEfficiency()   
+            self.effective_volume = self.total_trap_volume*self.Efficiency.radial_efficiency*self.Efficiency.detection_efficiency*self.PitchDependentTrappingEfficiency()*self.pos_dependent_trapping_efficiency   
         #logger.info("Total efficiency: {}".format(self.effective_volume/self.total_volume))        
         self.effective_volume*=self.Experiment.sri_factor
         
@@ -274,7 +330,7 @@ class CavitySensitivity(Sensitivity):
         # Cavity coupling
         self.loaded_q = endpoint_frequency/required_bw # FWHM
         return self.loaded_q
-    
+
     # SENSITIVITY
     # see parent class in SensitivityFormulas.py
  
@@ -525,6 +581,7 @@ class CavitySensitivity(Sensitivity):
             # radial and detection efficiency are configured in the config file
             logger.info("Radial efficiency: {}".format(self.Efficiency.radial_efficiency))
             logger.info("Detection efficiency: {}".format(self.Efficiency.detection_efficiency))
+            logger.info("Trapping efficiency: {}".format(self.pos_dependent_trapping_efficiency))
             logger.info("Pitch angle efficiency: {}".format(self.PitchDependentTrappingEfficiency()))
             logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
             
