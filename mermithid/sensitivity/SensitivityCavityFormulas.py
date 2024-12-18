@@ -163,7 +163,7 @@ def trapping_efficiency(z_range, bg_magnetic_field, min_pitch_angle, trap_flat_f
     The mean trapping efficiency is averaged over the region where the trapping field exists.
     """
 
-    zs = np.linspace(-z_range, z_range, 100)
+    zs = np.linspace(-z_range, z_range, 500)
 
     profiles = []
     #Collect z profile of the magnetic field
@@ -175,7 +175,7 @@ def trapping_efficiency(z_range, bg_magnetic_field, min_pitch_angle, trap_flat_f
 
     #Calculate mean trapping efficiency using mean of epsilon(z) = sqrt(1-B(z)/B_max(z)) at z = 0
     mean_efficiency = np.mean(np.array([np.sqrt(1-b_at_z/maximum_Bz) for b_at_z in profiles]))
-
+    
     return mean_efficiency
 
 
@@ -206,7 +206,6 @@ class CavitySensitivity(Sensitivity):
                                                                     min_pitch_angle = self.FrequencyExtraction.minimum_angle_in_bandwidth, 
                                                                     trap_flat_fraction = self.MagneticField.trap_flat_fraction
                                                                     )             
-
         """
         if hasattr(self.FrequencyExtraction, "trap_q"):
             self.q = self.FrequencyExtraction.trap_q
