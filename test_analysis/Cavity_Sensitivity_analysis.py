@@ -150,7 +150,7 @@ sens_config_dict = {
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
-    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_diff_l_over_d_Nov-25-2024.pdf",
+    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_fflat_0.75_Dec-17-2024.pdf",
     # optional
     "figsize": (7.0,6), 
     "fontsize": 15,
@@ -179,9 +179,9 @@ sens_config_dict = {
     "goals_x_position": 3e13, #0.0002
     "plot_key_parameters": True
     }
-#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-#sens_curve.Configure(sens_config_dict)
-#sens_curve.Run()
+sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+sens_curve.Configure(sens_config_dict)
+sens_curve.Run()
 
 
 sens_config_dict = {
@@ -403,9 +403,9 @@ sens_config_dict = {
     "goals_x_position": 1.2e12, #0.0002
     "plot_key_parameters": True
     }
-sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-sens_curve.Configure(sens_config_dict)
-sens_curve.Run()
+#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+#sens_curve.Configure(sens_config_dict)
+#sens_curve.Run()
 
 
 

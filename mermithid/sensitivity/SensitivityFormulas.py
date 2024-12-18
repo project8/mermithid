@@ -212,7 +212,7 @@ class Sensitivity(object):
         sigma_Miss, delta_sigma_Miss = self.syst_missing_tracks()
         sigma_Plasma, delta_sigma_Plasma = self.syst_plasma_effects()
 
-        labels = ["Thermal Doppler Broadening", "Start Frequency Resolution", "Magnetic Field", "Missing Tracks", "Plasma Effects"]
+        labels = ["Thermal Doppler Broadening", "Noise (f_carrier and f_lsb)", "Magnetic Field", "Missing Tracks", "Plasma Effects"]
         sigmas = [sigma_trans, sigma_f, sigma_B, sigma_Miss, sigma_Plasma]
         deltas = [delta_sigma_trans, delta_sigma_f, delta_sigma_B, delta_sigma_Miss, delta_sigma_Plasma]
 
@@ -240,13 +240,13 @@ class Sensitivity(object):
             sigma_squared += sigma**2
         sigma_total = np.sqrt(sigma_squared)
         print("Total sigma", " "*(np.max([len(l) for l in labels])-len("Total sigma")), "%8.2f"%(sigma_total/meV),)
-        try:
-            print("(Contribution from axial variation: ", "%8.2f"%(self.sigma_K_reconstruction/meV)," meV)")
-        except AttributeError:
-            pass
+        #try:
+        #    print("(Contribution from axial variation: ", "%8.2f"%(self.sigma_K_reconstruction/meV)," meV)")
+        #except AttributeError:
+        #    pass
         print("Contribution to sigma_(m_beta^2)", " "*18, "%.2f"%(self.SystSens()/meV**2), "meV^2 ->", "%.2f"%(np.sqrt(self.SystSens())/meV), "meV")
         print("Systematic mass limit", " "*18, "%.2f"%(np.sqrt(1.64*self.SystSens())/meV), "meV")
-        logger.info("f_c uncertainty: {} Hz".format(self.sigma_f_c_CRLB/Hz))
+        logger.info("Carrier frequency uncertainty: {} Hz".format(np.sqrt(self.var_f_c_CRLB)/Hz))
         return np.sqrt(1.64*self.SystSens())/meV, np.sqrt(np.sum(sigmas**2))/meV
 
     def syst_doppler_broadening(self):

@@ -244,7 +244,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             logger.info('Hanneke / Larmor power = {}'.format(self.sens_main.signal_power/self.sens_main.larmor_power))
             
             if self.sens_main.FrequencyExtraction.crlb_on_sidebands:
-                logger.info("Uncertainty of frequency resolution and energy reconstruction (for pitch angle): {} eV, {} eV".format(self.sens_main.sigma_K_f_CRLB/eV, self.sens_main.sigma_K_reconstruction/eV))
+                logger.info("Uncertainty from determination of f_carrier and f_lsb, due to noise: {} eV".format(self.sens_main.sigma_K_noise/eV))
        
             noise_temp, SNR, track_duration = self.sens_main.print_SNRs(rho_opt)
             # Store relevant values
@@ -281,7 +281,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         results_array = [np.array(self.scan_parameter_values/self.scan_parameter_unit),np.array(self.noise_temp),np.array(self.SNR),
                          np.array(self.optimum_rhos)*(m**3),np.array(self.track_duration),np.array(self.total_sigma),
                          1000*np.array(self.optimum_limits)/eV,np.array(self.sys_lim)]
-        fmt_array = '%.2f','%.3f','%.1f','%.2E','%.2f','%.1f','%.1f','%.1f'
+        fmt_array = '%.2g','%.3f','%.1f','%.2E','%.2f','%.1f','%.1f','%.1f'
         header_string = 'Param Value, Noise temperature /K, SNR, Gas Density /m3, Track Length /ms, Resolution, Sensitivity /meV, Systematic Limit /meV'
         np.savetxt("results_array_{}.csv".format(param),np.array(results_array).T,delimiter=',',fmt=fmt_array,header=header_string)        
         logger.info("Scan parameter: {}".format(self.scan_parameter_name))
@@ -392,7 +392,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         
         for rho in self.rhos:
             limits.append(sens.CL90(Experiment={"number_density": rho})/eV)
-            resolutions.append(sens.sigma_K_f_CRLB/meV)
+            resolutions.append(sens.sigma_K_noise/meV)
             crlb_window.append(sens.best_time_window/ms)
             crlb_max_window.append(sens.time_window/ms)
             crlb_slope_zero_window.append(sens.time_window_slope_zero/ms)
