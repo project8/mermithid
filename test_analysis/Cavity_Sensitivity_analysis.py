@@ -168,7 +168,7 @@ sens_config_dict = {
     "comparison_curve": True,
     "main_curve_color": "blue",
     "comparison_curve_colors": ["red"], # "black"],
-    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"], 
+    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg"], 
     "comparison_curve_label": [r"Phase IV scenario: 150 MHz"],
     "comparison_label_y_position": [2, 0.105, 0.046], #[2, 0.105, 0.046],
     "comparison_label_x_position": [4.5e15, 7e14, 7e14], #[4.5e15, 2.2e16, 1e15],
@@ -403,6 +403,7 @@ sens_config_dict = {
     "goals_x_position": 1.2e12, #0.0002
     "plot_key_parameters": True
     }
+
 #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
 #sens_curve.Configure(sens_config_dict)
 #sens_curve.Run()
