@@ -381,7 +381,7 @@ class CavitySensitivity(Sensitivity):
         # end of Wouter's calculation
         return tau_snr
         
-
+    """
     def print_SNRs(self, rho_opt):
         tau_snr = self.calculate_tau_snr(self.time_window, sideband_power_fraction=1)
         logger.info("tau_SNR: {}s".format(tau_snr/s))
@@ -400,7 +400,7 @@ class CavitySensitivity(Sensitivity):
         logger.info("Noise power in 1eV: {}W".format(self.noise_energy*eV_bandwidth/W))
         logger.info("Noise temperature: {}K".format(self.noise_temp/K))
         logger.info("Opimtum energy window: {} eV".format(self.DeltaEWidth()/eV))
-
+    """
 
     def syst_frequency_extraction(self):
         # cite{https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398} (Section 1.2, p 7-9)
@@ -549,11 +549,14 @@ class CavitySensitivity(Sensitivity):
     
     # PRINTS
     def print_SNRs(self, rho=None):
-        logger.info("SNR parameters:")
-        if rho != None:
-            logger.warning("Deprecation warning: This function does not modify the number density in the Experiment namespace. Values printed are for pre-set number density.")
+        #logger.warning("Deprecation warning: This function does not modify the number density in the Experiment namespace. Values printed are for pre-set number density.")
         
-        track_duration = self.time_window 
+        logger.info("SNR parameters:")
+        if rho == None:
+            track_duration = self.time_window
+        else:
+            track_duration = track_length(rho, self.T_endpoint, molecular=(not self.Experiment.atomic))
+        
         tau_snr_90deg = self.calculate_tau_snr(track_duration, power_fraction=1)
         #For an example carrier:
         tau_snr_ex_carrier = self.calculate_tau_snr(track_duration, self.FrequencyExtraction.carrier_power_fraction)
