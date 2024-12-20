@@ -304,7 +304,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         logger.info('Hanneke / Larmor power = {}'.format(self.sens_main.signal_power/self.sens_main.larmor_power))
         
         if self.sens_main.FrequencyExtraction.crlb_on_sidebands:
-            logger.info("Uncertainty of frequency resolution and energy reconstruction (for pitch angle): {} eV, {} eV".format(self.sens_main.sigma_K_f_CRLB/eV, self.sens_main.sigma_K_reconstruction/eV))
+            logger.info("Trap p: {}".format(self.sens_main.p))
+            logger.info("Trap q: {}".format(self.sens_main.q))
+            #print(self.sens_main.q_array)
+            logger.info("Uncertainty from determination of f_carrier and f_lsb, due to noise: {} eV".format(self.sens_main.sigma_K_noise/eV))
        
         self.sens_main.print_Efficiencies()
         self.sens_main.print_SNRs(rho_opt)
@@ -346,8 +349,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 logger.info('Hanneke / Larmor power = {}'.format(self.sens_ref[i].signal_power/self.sens_ref[i].larmor_power))
             
                 if self.sens_ref[i].FrequencyExtraction.crlb_on_sidebands:
-                    logger.info("Uncertainty of frequency resolution and energy reconstruction (for pitch angle): {} eV, {} eV".format(self.sens_ref[i].sigma_K_f_CRLB/eV, self.sens_ref[i].sigma_K_reconstruction/eV))
-    
+                    logger.info("Uncertainty from determination of f_carrier and f_lsb, due to noise: {} eV".format(self.sens_ref[i].sigma_K_noise/eV))
+                        
                 self.sens_ref[i].print_SNRs(rho_opt_ref)
                 self.sens_ref[i].print_Efficiencies()
                 if self.exposure_axis or self.livetime_axis:
@@ -619,7 +622,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         temp_rho = deepcopy(sens.Experiment.number_density)
         for rho in self.rhos:
             limits.append(sens.CL90(Experiment={"number_density": rho})/eV)
-            resolutions.append(sens.sigma_K_f_CRLB/meV)
+            resolutions.append(sens.sigma_K_noise/meV)
             crlb_window.append(sens.best_time_window/ms)
             crlb_max_window.append(sens.time_window/ms)
             crlb_slope_zero_window.append(sens.time_window_slope_zero/ms)

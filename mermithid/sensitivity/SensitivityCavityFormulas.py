@@ -32,8 +32,9 @@ def axial_motion(magnetic_field, pitch, trap_length, minimum_trapped_pitch, kin_
     # also return the average magnetic field seen by the electron
     # from z=0 to z=cavity_length/2 with npoints set by the trajectory variable
     # See LUCKEY write-up for a little more on Talia's "flat fraction" trap model
-    pitch = pitch/180*np.pi
-    minimum_trapped_pitch = minimum_trapped_pitch/180*np.pi
+    
+    #pitch = pitch/180*np.pi
+    #minimum_trapped_pitch = minimum_trapped_pitch/180*np.pi
 
     # Axial motion:
     z_w = trap_length/2
@@ -66,18 +67,18 @@ def magnetic_field_flat_harmonic(z, magnetic_field, trap_length, minimum_trapped
     return magnetic_field*(1+np.heaviside(np.abs(z)-z_w*flat_fraction, 0.5)*(np.abs(z)-z_w*flat_fraction)**2/a**2)
 
 
-def axial_frequency_box(length, kin_energy, max_pitch_angle=86):
-    pitch_max = max_pitch_angle/180*np.pi
-    return (beta(kin_energy)*c0*np.cos(pitch_max)) / (2*length)
+def axial_frequency_box(length, kin_energy, max_pitch_angle=86*np.pi/180):
+    #pitch_max = max_pitch_angle/180*np.pi
+    return (beta(kin_energy)*c0*np.cos(max_pitch_angle)) / (2*length)
 
-def mean_field_frequency_variation(cyclotron_frequency, length_diameter_ratio, max_pitch_angle=86):
+def mean_field_frequency_variation(cyclotron_frequency, length_diameter_ratio, max_pitch_angle=86*np.pi/180, q=0.16):
     # Because of the different electron trajectories in the trap,
     # An electron will see a slightly different magnetic field
     # depending on its position in the trap, especially the pitch angle.
     # This is a rough estimate of the mean field variation, inspired by calcualtion performed by Rene.
     #y = (90-max_pitch_angle)/4
-    phi_rad = (90-max_pitch_angle)/180*np.pi
-    return 0.16*phi_rad**2*cyclotron_frequency*(10/length_diameter_ratio)
+    phi_rad = (np.pi/2-max_pitch_angle)
+    return q*phi_rad**2*cyclotron_frequency*(10/length_diameter_ratio)
     #return 0.002*y**2*cyclotron_frequency*(10/length_diameter_ratio)
 
 # Noise power entering the amplifier, inclding the transmitted noise from the cavity and the reflected noise from the circulator.
@@ -129,41 +130,103 @@ def t_effective(t_physical, cyclotron_frequency):
     else:
        return quantum*(1/2+1/(np.exp(quantum/t_physical)-1))
 
-###############################################################################
+# Trapping efficiency from axial field variation.
+def trapping_efficiency(z_range, bg_magnetic_field, min_pitch_angle, trap_flat_fraction = 0.5):
+
+    """
+    Calculate the trapping efficiency for a given trap length and flat fraction.
+
+    The trapping efficiency is computed using the formula:
+        epsilon(z) = sqrt(1 - B(z)/B_max(z))
+    where B(z) is the magnetic field at position z, and B_max(z) is the maximum magnetic field along the z axis.
+
+    Parameters
+    ----------
+    z_range : float
+        The axial range (in z-direction, from trap center) over which electron trapping happens.
+    bg_magnetic_field : float
+        The background magnetic field.
+    min_pitch_angle : float
+        Minimum pitch angle to be trapped.
+    trap_flat_fraction : float, optional
+        Flat fraction of the trap. Default is 0.5.
+
+    Returns
+    -------
+    mean_efficiency : float
+        The mean trapping efficiency across the trap z-range.
+
+    Notes
+    -----
+    The magnetic field profile is computed using the `magnetic_field_flat_harmonic` function, currently it only produces z-profile of the trap without radial variation. 
+    No radial field variation was assumed for this calculation.
+    The mean trapping efficiency is averaged over the region where the trapping field exists.
+    """
+
+    zs = np.linspace(-z_range, z_range, 500)
+
+    profiles = []
+    #Collect z profile of the magnetic field
+    for z in zs:
+        profiles.append(magnetic_field_flat_harmonic(z, bg_magnetic_field, z_range*2, min_pitch_angle, trap_flat_fraction))
+    
+    #Calculate maximum trapping field along z (Bz_max)
+    maximum_Bz = max(profiles)
+
+    #Calculate mean trapping efficiency using mean of epsilon(z) = sqrt(1-B(z)/B_max(z)) at z = 0
+    mean_efficiency = np.mean(np.array([np.sqrt(1-b_at_z/maximum_Bz) for b_at_z in profiles]))
+    
+    return mean_efficiency
+
+
+
+###############################################################################cd
 class CavitySensitivity(Sensitivity):
     """
     Documentation:
         * Phase IV sensitivity document: https://www.overleaf.com/project/5de3e02edd267500011b8cc4
         * Talia's sensitivity script: https://3.basecamp.com/3700981/buckets/3107037/documents/2388170839
-        * Nicks CRLB for frequency resolution: https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398
+        * Nick's CRLB for frequency resolution: https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398
         * Molecular contamination in atomic tritium: https://3.basecamp.com/3700981/buckets/3107037/documents/3151077016
     """
     def __init__(self, config_path):
         Sensitivity.__init__(self, config_path)
         self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
         
-
+        self.Jprime_0 = 3.8317
         self.CRLB_constant = 12
         #self.CRLB_constant = 90
         if hasattr(self.FrequencyExtraction, "crlb_constant"):
             self.CRLB_constant = self.FrequencyExtraction.crlb_constant
-            logger.info("Using configured CRLB constant")       
- 
+            logger.info("Using configured CRLB constant")   
+
+        #Calculate position dependent trapping efficiency
+        self.pos_dependent_trapping_efficiency = trapping_efficiency( z_range = self.Experiment.trap_length /2,
+                                                                    bg_magnetic_field = self.MagneticField.nominal_field, 
+                                                                    min_pitch_angle = self.FrequencyExtraction.minimum_angle_in_bandwidth, 
+                                                                    trap_flat_fraction = self.MagneticField.trap_flat_fraction
+                                                                    )             
+        
+        #Numbr of steps in pitch angle between min_pitch and pi/2 for the frequency noise uncertainty calculation
+        self.pitch_steps = 100
+        if hasattr(self.FrequencyExtraction, "pitch_steps"):
+            self.pitch_steps = self.FrequencyExtraction.pitch_steps
+            logger.info("Using configured pitch_steps value")  
+
         self.CavityRadius()
         self.CavityVolume()
         self.EffectiveVolume()
-        self.PitchDependentTrappingEfficiency()
         self.CavityPower()
 
         #Get trap length from cavity length if not specified
         if self.Experiment.trap_length == 0:
             self.Experiment.trap_length = 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
-    
+        
 
     # CAVITY
     def CavityRadius(self):
         axial_mode_index = 1
-        self.cavity_radius = c0/(2*np.pi*frequency(self.T_endpoint, self.MagneticField.nominal_field))*np.sqrt(3.8317**2+axial_mode_index**2*np.pi**2/(4*self.Experiment.cavity_L_over_D**2))
+        self.cavity_radius = c0/(2*np.pi*frequency(self.T_endpoint, self.MagneticField.nominal_field))*np.sqrt(self.Jprime_0**2+axial_mode_index**2*np.pi**2/(4*self.Experiment.cavity_L_over_D**2))
         return self.cavity_radius
     
     def CavityVolume(self):
@@ -204,8 +267,12 @@ class CavitySensitivity(Sensitivity):
             #logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
             
             self.radial_efficiency = (self.cavity_radius - self.Efficiency.unusable_dist_from_wall)**2/self.cavity_radius**2
-            self.fa_cut_efficiency = np.cos(self.Efficiency.min_pitch_used_in_analysis)/self.PitchDependentTrappingEfficiency()
-            self.effective_volume = self.total_trap_volume*self.radial_efficiency*self.Efficiency.detection_efficiency*self.fa_cut_efficiency*self.PitchDependentTrappingEfficiency()   
+            self.fa_cut_efficiency = trapping_efficiency( z_range = self.Experiment.trap_length /2,
+                                                                    bg_magnetic_field = self.MagneticField.nominal_field, 
+                                                                    min_pitch_angle = self.Efficiency.min_pitch_used_in_analysis, 
+                                                                    trap_flat_fraction = self.MagneticField.trap_flat_fraction
+                                                                    )/self.pos_dependent_trapping_efficiency 
+            self.effective_volume = self.total_trap_volume*self.radial_efficiency*self.Efficiency.detection_efficiency*self.fa_cut_efficiency*self.pos_dependent_trapping_efficiency   
             
         #logger.info("Total efficiency: {}".format(self.effective_volume/self.total_volume))        
         self.effective_volume*=self.Experiment.sri_factor
@@ -215,17 +282,17 @@ class CavitySensitivity(Sensitivity):
         
         return self.effective_volume
         
-    def PitchDependentTrappingEfficiency(self):
-        self.pitch_angle_efficiency = np.cos(self.FrequencyExtraction.minimum_angle_in_bandwidth)
-        return self.pitch_angle_efficiency
+    def BoxTrappingEfficiency(self):
+        self.box_trapping_efficiency = np.cos(self.FrequencyExtraction.minimum_angle_in_bandwidth)
+        return self.box_trapping_efficiency
 
     def CavityPower(self):
         # from Hamish's atomic calculator
         #Jprime_0 = 3.8317
         max_ax_freq, mean_field, z_t = axial_motion(self.MagneticField.nominal_field,
-                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth/deg,
+                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth,
                                                   self.Experiment.trap_length,
-                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, 
+                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth, 
                                                   self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction, trajectory = 1000)
 
         #self.signal_power = self.FrequencyExtraction.mode_coupling_efficiency * self.CavityLoadedQ() * self.FrequencyExtraction.hanneke_factor * self.T_endpoint/eV * e/C * Jprime_0**2 / (2*np.pi**2*self.Experiment.cavity_L_over_D*2*self.cavity_radius**3/m**3 * frequency(self.T_endpoint, self.MagneticField.nominal_field)*s)*W
@@ -236,7 +303,7 @@ class CavitySensitivity(Sensitivity):
                                                                             frequency(self.T_endpoint, self.MagneticField.nominal_field)))
         return self.signal_power
     
-    
+
     def CavityLoadedQ(self):
         # Using Wouter's calculation:
         # Total required bandwidth is the sum of the endpoint region and the axial frequency. 
@@ -249,9 +316,9 @@ class CavitySensitivity(Sensitivity):
         #                                             self.T_endpoint, 
         #                                             self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
         max_ax_freq, mean_field, _ = axial_motion(self.MagneticField.nominal_field,
-                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth/deg,
+                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth,
                                                   self.Experiment.trap_length,
-                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, 
+                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth, 
                                                   self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
         required_bw_axialfrequency = max_ax_freq
         self.required_bw_axialfrequency = required_bw_axialfrequency
@@ -262,7 +329,7 @@ class CavitySensitivity(Sensitivity):
         # Cavity coupling
         self.loaded_q = endpoint_frequency/required_bw # FWHM
         return self.loaded_q
-    
+
     # SENSITIVITY
     # see parent class in SensitivityFormulas.py
  
@@ -343,32 +410,12 @@ class CavitySensitivity(Sensitivity):
             sigma = self.FrequencyExtraction.Default_Systematic_Smearing
             delta = self.FrequencyExtraction.Default_Systematic_Uncertainty
             return sigma, delta
-
-        """ # Cramer-Rao lower bound / how much worse are we than the lower bound
-        ScalingFactorCRLB = self.FrequencyExtraction.CRLB_scaling_factor
-        ts = self.FrequencyExtraction.track_timestep
-        # "This is apparent in the case of resonant patch antennas and cavities, in which the time scale of the signal onset is set by the Q-factor of the resonant structure."
-        # You can get it from the finite impulse response of the antennas from HFSS
-        Gdot = self.FrequencyExtraction.track_onset_rate
-
-        fEndpoint = frequency(self.T_endpoint, self.MagneticField.nominal_field)
-        betae = beta(self.T_endpoint)
-        Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
-        alpha_approx = fEndpoint * 2 * np.pi * Pe/me/c0**2 # track slope
-        # quantum limited noise
-        sigNoise = np.sqrt((2*pi*fEndpoint*hbar*self.FrequencyExtraction.amplifier_noise_scaling+kB*self.FrequencyExtraction.antenna_noise_temperature)/ts) # noise level
-        Amplitude = np.sqrt(self.FrequencyExtraction.epsilon_collection*Pe)
-        Nsteps = 1 / (self.Experiment.number_density * self.Te_crosssection*betae*c0*ts) # Number of timesteps of length ts
-
-        # sigma_f from Cramer-Rao lower bound in Hz
-        sigma_f_CRLB = (ScalingFactorCRLB /(2*np.pi) * sigNoise/Amplitude * np.sqrt(alpha_approx**2/(2*Gdot)
-                    + 96.*Nsteps/(ts**2*(Nsteps**4-5*Nsteps**2+4))))"""
         
        
         endpoint_frequency = frequency(self.T_endpoint, self.MagneticField.nominal_field)
         # using Pe and alpha (aka slope) from above
         Pe = self.signal_power #/self.FrequencyExtraction.mode_coupling_efficiency 
-        self.larmor_power = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field) # currently not used
+        self.larmor_power = rad_power(self.T_endpoint, np.pi/2, self.MagneticField.nominal_field) # currently not used
         
         self.slope = endpoint_frequency * 2 * np.pi * Pe/me/c0**2 # track slope
         self.time_window = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
@@ -385,64 +432,88 @@ class CavitySensitivity(Sensitivity):
         # logger.info("slope corresponds to {} meV / ms".format(delta_E_slope/meV))
         # if True: #self.time_window_slope_zero >= self.time_window:
         # logger.info("slope is approximately 0: {} meV".format(delta_E_slope/meV))
-        sigma_f_CRLB = np.sqrt((self.CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
+        self.var_f_c_CRLB = self.FrequencyExtraction.CRLB_scaling_factor*(self.CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2
         self.best_time_window = self.time_window
 
         # non constant slope
-        self.sigma_f_CRLB_slope_fitted = np.sqrt((20*(self.slope*tau_snr_full_length)**2 + self.CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
-        if self.CRLB_constant > 10: sigma_f_CRLB = self.sigma_f_CRLB_slope_fitted
-        self.sigma_f_c_CRLB = sigma_f_CRLB
-        """
-        CRLB_constant = 6
-        sigma_CRLB_slope_zero = np.sqrt((CRLB_constant*tau_snr_part_length/self.time_window_slope_zero**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
-        
-        
-    
-        sigma_f_CRLB = np.min([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])
-        
-        # logger.info("CRLB options are: {} , {}".format(sigma_CRLB_slope_zero/Hz, sigma_f_CRLB_slope_fitted/Hz))
-        self.best_time_window=[self.time_window_slope_zero, self.time_window][np.argmin([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])]"""
-        
-        """# uncertainty in alpha
-        delta_alpha = 6*sigNoise/(Amplitude*ts**2) * np.sqrt(10/(Nsteps*(Nsteps**4-5*Nsteps**2+4)))
-        # uncetainty in sigma_f in Hz due to uncertainty in alpha
-        delta_sigma_f_CRLB = delta_alpha * alpha_approx *sigNoise**2/(8*np.pi**2*Amplitude**2*Gdot*sigma_f_CRLB*ScalingFactorCRLB**2)"""
+        self.var_f_CRLB_slope_fitted = self.FrequencyExtraction.CRLB_scaling_factor*(20*(self.slope*tau_snr_full_length)**2 + self.CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2
+        if self.CRLB_constant > 10: self.var_f_c_CRLB = self.var_f_CRLB_slope_fitted
 
+        """
         # sigma_f from Cramer-Rao lower bound in eV
         self.sigma_K_f_CRLB =  e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*sigma_f_CRLB*c0**2
         # delta_sigma_K_f_CRLB = e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*delta_sigma_f_CRLB*c0**2
-        
+        """
+
         # sigma_f from pitch angle reconstruction
         if self.FrequencyExtraction.crlb_on_sidebands:
-            tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.sideband_power_fraction)
-            sigma_f_sideband_crlb = np.sqrt((self.CRLB_constant*tau_snr_full_length_sideband/self.time_window**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
-            
-            # calculate uncertainty of energy correction for pitch angle
-            var_f0_reconstruction = (sigma_f_sideband_crlb**2+sigma_f_CRLB**2)/self.FrequencyExtraction.sideband_order**2 
-            max_ax_freq, mean_field, _ = axial_motion(self.MagneticField.nominal_field, 
-                                                      self.FrequencyExtraction.pitch_angle/deg, 
-                                                      self.Experiment.trap_length, 
-                                                      self.FrequencyExtraction.minimum_angle_in_bandwidth/deg, 
-                                                      self.T_endpoint, 
-                                                      flat_fraction=self.MagneticField.trap_flat_fraction)
-            #max_ax_freq = axial_frequency(self.Experiment.cavity_L_over_D*self.CavityRadius()*2, 
-            #                              self.T_endpoint, 
-            #                              self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
-            # 0.16 is the trap quadratic term. 3.8317 is the first 0 in J'0
-            var_f0_reconstruction *= (8 * 0.16 * (3.8317*self.Experiment.cavity_L_over_D / (np.pi * beta(self.T_endpoint)))**2*max_ax_freq/endpoint_frequency)**2*(1/3.0)
-            sigma_f0_reconstruction = np.sqrt(var_f0_reconstruction)
-            self.sigma_K_reconstruction = e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*sigma_f0_reconstruction*c0**2
-            
-            self.sigma_K_f_CRLB = np.sqrt(self.sigma_K_f_CRLB**2 + self.sigma_K_reconstruction**2)
+            #Calculate noise contribution to uncertainty, including energy correction for pitch angle.
+            #This comes from section 6.1.9 of the CDR.
 
+            tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.sideband_power_fraction)
+            # (sigmaf_lsb)^2:
+            var_f_sideband_crlb = self.FrequencyExtraction.CRLB_scaling_factor*(self.CRLB_constant*tau_snr_full_length_sideband/self.time_window**3)/(2*np.pi)**2
+            
+            m = self.FrequencyExtraction.sideband_order #For convenience
+
+            #Define phi_max, corresponding to the minimum pitch angle
+            phi_max = np.pi/2 - self.FrequencyExtraction.minimum_angle_in_bandwidth
+            phis = np.linspace(0, phi_max, self.pitch_steps)
+
+            #Define the trap parameter p based on the relation between the trap length and the cavity mode
+            #This p is for a box trap
+            self.p_box = np.pi*beta(self.T_endpoint)*self.cavity_radius/self.Jprime_0/self.Experiment.trap_length
+
+            #Now find p for the actual trap that we have
+            #Using the average p across the pitch angle range
+            ax_freq_array, mean_field_array, z_t = axial_motion(self.MagneticField.nominal_field,
+                                    np.pi/2-phis, self.Experiment.trap_length,
+                                    self.FrequencyExtraction.minimum_angle_in_bandwidth, 
+                                    self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
+            fc0_endpoint = frequency(self.T_endpoint, self.MagneticField.nominal_field)
+            p_array = ax_freq_array/fc0_endpoint/phis
+            self.p = np.mean(p_array[1:]) #Cut out theta=pi/2 (ill defined there)
+
+            #Now calculating q for the trap that we have
+            #Using the q for the minimum trapped pitch angle
+            fc_endpoint_min_theta = frequency(self.T_endpoint, mean_field_array[self.pitch_steps-1])
+            self.q = (fc_endpoint_min_theta/fc0_endpoint - 1)/(phis[self.pitch_steps-1])**2
+
+            #Derivative of f_c0 (frequency corrected to B-field at bottom of the trap) with respect to f_c
+            dfc0_dfc_array = 0.5*(1 - (1 - 4*self.q*phis/m/self.p + self.q*phis**2)/(1 - self.q*phis**2))
+
+            #Derivative of f_c0 with respect to f_lsb (lower sideband frequency)
+            dfc0_dlsb_array = 0.5 - 2*self.q*phis/m/self.p/(1 - self.q*phis**2)
+
+            #Noise variance term from the carrier frequency uncertainty
+            var_noise_from_fc_array = dfc0_dfc_array**2*self.var_f_c_CRLB
+
+            #Noise variance term from the lower sideband frequency uncertainty
+            var_noise_from_flsb_array = dfc0_dlsb_array**2*var_f_sideband_crlb
+
+            #Total uncertainty for each pitch angle
+            var_f_noise_array = var_noise_from_fc_array + var_noise_from_flsb_array
+
+            #Next, we average over sigma_noise values.
+            #This is a quadrature sum average,
+            #reflecting that the detector response function could be constructed by sampling
+            #from many normal distributions with different standard deviations (sigma_noise_array),
+            #then finding the standard deviation of the full group of sampled values.
+            self.sigma_f_noise = np.sqrt(np.sum(var_f_noise_array)/self.pitch_steps)
+
+        else:
+            self.sigma_f_noise = np.sqrt(self.var_f_c_CRLB)
+
+        #Convert uncertainty from frequency to energy
+        self.sigma_K_noise = e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*self.sigma_f_noise*c0**2
 
         # combined sigma_f in eV
-        sigma_f = np.sqrt(self.sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_smearing**2)
+        sigma_f = np.sqrt(self.sigma_K_noise**2 + self.FrequencyExtraction.magnetic_field_smearing**2)
         # delta_sigma_f = np.sqrt((delta_sigma_K_f_CRLB**2 + self.FrequencyExtraction.magnetic_field_uncertainty**2)/2)
         if self.FrequencyExtraction.usefixeduncertainty:
             return sigma_f, self.FrequencyExtraction.fixed_relativ_uncertainty*sigma_f
         else:
-            raise NotImplementedError("Unvertainty on CRLB for cavity noise calculation is not implemented.")
+            raise NotImplementedError("Uncertainty on CRLB for cavity noise calculation is not implemented.")
 
     def syst_magnetic_field(self):
         """
@@ -514,7 +585,7 @@ class CavitySensitivity(Sensitivity):
         
         logger.info("Optimum energy window: {} eV".format(self.DeltaEWidth()/eV))
         
-        logger.info("CRLB if slope is nonzero and needs to be fitted: {} Hz".format(self.sigma_f_CRLB_slope_fitted/Hz))
+        logger.info("CRLB if slope is nonzero and needs to be fitted: {} Hz".format(np.sqrt(self.var_f_CRLB_slope_fitted)/Hz))
         logger.info("CRLB constant: {}".format(self.CRLB_constant))
         
         return self.noise_temp, SNR_1eV_90deg, track_duration
@@ -526,9 +597,52 @@ class CavitySensitivity(Sensitivity):
             # radial and detection efficiency are configured in the config file
             logger.info("Radial efficiency: {}".format(self.radial_efficiency))
             logger.info("Detection efficiency: {}".format(self.Efficiency.detection_efficiency))
-            logger.info("Efficiency from axial frquency cut: {}".format(self.fa_cut_efficiency))
-            logger.info("Pitch angle efficiency: {}".format(self.PitchDependentTrappingEfficiency()))
+            logger.info("Trapping efficiency: {}".format(self.pos_dependent_trapping_efficiency))
+            logger.info("Efficiency from axial frequency cut: {}".format(self.fa_cut_efficiency))
             logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
             
         logger.info("Effective volume: {} mm^3".format(round(self.effective_volume/mm**3, 3)))
         logger.info("Total efficiency: {}".format(self.effective_volume/self.total_trap_volume))  
+
+
+
+
+""" # Cramer-Rao lower bound / how much worse are we than the lower bound
+ScalingFactorCRLB = self.FrequencyExtraction.CRLB_scaling_factor
+ts = self.FrequencyExtraction.track_timestep
+# "This is apparent in the case of resonant patch antennas and cavities, in which the time scale of the signal onset is set by the Q-factor of the resonant structure."
+# You can get it from the finite impulse response of the antennas from HFSS
+Gdot = self.FrequencyExtraction.track_onset_rate
+
+fEndpoint = frequency(self.T_endpoint, self.MagneticField.nominal_field)
+betae = beta(self.T_endpoint)
+Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
+alpha_approx = fEndpoint * 2 * np.pi * Pe/me/c0**2 # track slope
+# quantum limited noise
+sigNoise = np.sqrt((2*pi*fEndpoint*hbar*self.FrequencyExtraction.amplifier_noise_scaling+kB*self.FrequencyExtraction.antenna_noise_temperature)/ts) # noise level
+Amplitude = np.sqrt(self.FrequencyExtraction.epsilon_collection*Pe)
+Nsteps = 1 / (self.Experiment.number_density * self.Te_crosssection*betae*c0*ts) # Number of timesteps of length ts
+
+# sigma_f from Cramer-Rao lower bound in Hz
+sigma_f_CRLB = (ScalingFactorCRLB /(2*np.pi) * sigNoise/Amplitude * np.sqrt(alpha_approx**2/(2*Gdot)
++ 96.*Nsteps/(ts**2*(Nsteps**4-5*Nsteps**2+4))))"""
+
+
+"""
+CRLB_constant = 6
+sigma_CRLB_slope_zero = np.sqrt((CRLB_constant*tau_snr_part_length/self.time_window_slope_zero**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
+        
+sigma_f_CRLB = np.min([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])
+        
+# logger.info("CRLB options are: {} , {}".format(sigma_CRLB_slope_zero/Hz, sigma_f_CRLB_slope_fitted/Hz))
+self.best_time_window=[self.time_window_slope_zero, self.time_window][np.argmin([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])]"""
+        
+"""# uncertainty in alpha
+delta_alpha = 6*sigNoise/(Amplitude*ts**2) * np.sqrt(10/(Nsteps*(Nsteps**4-5*Nsteps**2+4)))
+# uncetainty in sigma_f in Hz due to uncertainty in alpha
+delta_sigma_f_CRLB = delta_alpha * alpha_approx *sigNoise**2/(8*np.pi**2*Amplitude**2*Gdot*sigma_f_CRLB*ScalingFactorCRLB**2)"""
+
+
+"""fc_endpoint_array = frequency(self.T_endpoint, mean_field_array)
+self.q_array = 1/phis**2*(fc_endpoint_array/fc0_endpoint - 1)
+self.q = np.mean(self.q_array[1:])"""
