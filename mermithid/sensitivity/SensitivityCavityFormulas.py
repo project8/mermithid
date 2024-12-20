@@ -551,9 +551,10 @@ class CavitySensitivity(Sensitivity):
     def print_SNRs(self, rho=None):
         #logger.warning("Deprecation warning: This function does not modify the number density in the Experiment namespace. Values printed are for pre-set number density.")
         
-        logger.info("SNR parameters:")
+        logger.info("**SNR parameters**:")
         if rho == None:
             track_duration = self.time_window
+            logger.info("SNR-related parameters are printed for pre-set number density.")
         else:
             track_duration = track_length(rho, self.T_endpoint, molecular=(not self.Experiment.atomic))
         
@@ -590,6 +591,7 @@ class CavitySensitivity(Sensitivity):
         
         logger.info("CRLB if slope is nonzero and needs to be fitted: {} Hz".format(np.sqrt(self.var_f_CRLB_slope_fitted)/Hz))
         logger.info("CRLB constant: {}".format(self.CRLB_constant))
+        logger.info("**Done printing SNR parameters.**")
         
         return self.noise_temp, SNR_1eV_90deg, track_duration
     
