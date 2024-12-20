@@ -446,6 +446,7 @@ class CavitySensitivity(Sensitivity):
             self.p_box = np.pi*beta(self.T_endpoint)*self.cavity_radius/self.Jprime_0/self.Experiment.trap_length
 
             #Now find p for the actual trap that we have
+            #Using the average p across the pitch angle range
             ax_freq_array, mean_field_array, z_t = axial_motion(self.MagneticField.nominal_field,
                                     np.pi/2-phis, self.Experiment.trap_length,
                                     self.FrequencyExtraction.minimum_angle_in_bandwidth, 
@@ -457,10 +458,7 @@ class CavitySensitivity(Sensitivity):
             #Now calculating q for the trap that we have
             #Using the q for the minimum trapped pitch angle
             fc_endpoint_min_theta = frequency(self.T_endpoint, mean_field_array[self.pitch_steps-1])
-            self.q = 1*(fc_endpoint_min_theta/fc0_endpoint - 1)/(phis[self.pitch_steps-1])**2
-            """fc_endpoint_array = frequency(self.T_endpoint, mean_field_array)
-            self.q_array = 1/phis**2*(fc_endpoint_array/fc0_endpoint - 1)
-            self.q = np.mean(self.q_array[1:])"""
+            self.q = (fc_endpoint_min_theta/fc0_endpoint - 1)/(phis[self.pitch_steps-1])**2
 
             #Derivative of f_c0 (frequency corrected to B-field at bottom of the trap) with respect to f_c
             dfc0_dfc_array = 0.5*(1 - (1 - 4*self.q*phis/m/self.p + self.q*phis**2)/(1 - self.q*phis**2))
@@ -475,15 +473,14 @@ class CavitySensitivity(Sensitivity):
             var_noise_from_flsb_array = dfc0_dlsb_array**2*var_f_sideband_crlb
 
             #Total uncertainty for each pitch angle
-            sigma_f_noise_array = np.sqrt(var_noise_from_fc_array + var_noise_from_flsb_array)
+            var_f_noise_array = var_noise_from_fc_array + var_noise_from_flsb_array
 
             #Next, we average over sigma_noise values.
             #This is a quadrature sum average,
             #reflecting that the detector response function could be constructed by sampling
             #from many normal distributions with different standard deviations (sigma_noise_array),
             #then finding the standard deviation of the full group of sampled values.
-            self.sigma_f_noise = np.sqrt(np.sum(sigma_f_noise_array**2)/self.pitch_steps)
-            #print(self.sigma_f_noise/Hz)
+            self.sigma_f_noise = np.sqrt(np.sum(var_f_noise_array)/self.pitch_steps)
 
         else:
             self.sigma_f_noise = np.sqrt(self.var_f_c_CRLB)
@@ -625,3 +622,8 @@ self.best_time_window=[self.time_window_slope_zero, self.time_window][np.argmin(
 delta_alpha = 6*sigNoise/(Amplitude*ts**2) * np.sqrt(10/(Nsteps*(Nsteps**4-5*Nsteps**2+4)))
 # uncetainty in sigma_f in Hz due to uncertainty in alpha
 delta_sigma_f_CRLB = delta_alpha * alpha_approx *sigNoise**2/(8*np.pi**2*Amplitude**2*Gdot*sigma_f_CRLB*ScalingFactorCRLB**2)"""
+
+
+"""fc_endpoint_array = frequency(self.T_endpoint, mean_field_array)
+self.q_array = 1/phis**2*(fc_endpoint_array/fc0_endpoint - 1)
+self.q = np.mean(self.q_array[1:])"""
