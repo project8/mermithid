@@ -156,8 +156,9 @@ class CavitySensitivity(Sensitivity):
         self.CavityPower()
         try:
             self.Threshold = NameSpace({opt: eval(self.cfg.get('Threshold', opt)) for opt in self.cfg.options('Threshold')})
-            self.assign_background_rate_from_threshold()
-            self.assign_detection_efficiency_from_threshold()
+            if Threshold.use_threshold == True:
+                self.assign_background_rate_from_threshold()
+                self.assign_detection_efficiency_from_threshold()
         except:
             pass
 
