@@ -193,7 +193,7 @@ class CavitySensitivity(Sensitivity):
         Sensitivity.__init__(self, config_path)
         self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
         
-
+        self.Jprime_0 = 3.8317
         self.CRLB_constant = 12
         #self.CRLB_constant = 90
         if hasattr(self.FrequencyExtraction, "crlb_constant"):
@@ -206,14 +206,7 @@ class CavitySensitivity(Sensitivity):
                                                                     min_pitch_angle = self.FrequencyExtraction.minimum_angle_in_bandwidth, 
                                                                     trap_flat_fraction = self.MagneticField.trap_flat_fraction
                                                                     )             
-        """
-        if hasattr(self.FrequencyExtraction, "trap_q"):
-            self.q = self.FrequencyExtraction.trap_q
-            logger.info("Using configured trap q value")  
-        """
-
-        self.Jprime_0 = 3.8317
-
+        
         #Numbr of steps in pitch angle between min_pitch and pi/2 for the frequency noise uncertainty calculation
         self.pitch_steps = 100
         if hasattr(self.FrequencyExtraction, "pitch_steps"):
@@ -223,7 +216,6 @@ class CavitySensitivity(Sensitivity):
         self.CavityRadius()
         self.CavityVolume()
         self.EffectiveVolume()
-        self.PitchDependentTrappingEfficiency()
         self.CavityPower()
 
         #Get trap length from cavity length if not specified
@@ -274,7 +266,14 @@ class CavitySensitivity(Sensitivity):
             #logger.info("Pitch angle efficiency: {}".format(self.PitchDependentTrappingEfficiency()))
             #logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
             
-            self.effective_volume = self.total_trap_volume*self.Efficiency.radial_efficiency*self.Efficiency.detection_efficiency*self.PitchDependentTrappingEfficiency()*self.pos_dependent_trapping_efficiency   
+            self.radial_efficiency = (self.cavity_radius - self.Efficiency.unusable_dist_from_wall)**2/self.cavity_radius**2
+            self.fa_cut_efficiency = trapping_efficiency( z_range = self.Experiment.trap_length /2,
+                                                                    bg_magnetic_field = self.MagneticField.nominal_field, 
+                                                                    min_pitch_angle = self.Efficiency.min_pitch_used_in_analysis, 
+                                                                    trap_flat_fraction = self.MagneticField.trap_flat_fraction
+                                                                    )/self.pos_dependent_trapping_efficiency 
+            self.effective_volume = self.total_trap_volume*self.radial_efficiency*self.Efficiency.detection_efficiency*self.fa_cut_efficiency*self.pos_dependent_trapping_efficiency   
+            
         #logger.info("Total efficiency: {}".format(self.effective_volume/self.total_volume))        
         self.effective_volume*=self.Experiment.sri_factor
         
@@ -283,9 +282,9 @@ class CavitySensitivity(Sensitivity):
         
         return self.effective_volume
         
-    def PitchDependentTrappingEfficiency(self):
-        self.pitch_angle_efficiency = np.cos(self.FrequencyExtraction.minimum_angle_in_bandwidth)
-        return self.pitch_angle_efficiency
+    def BoxTrappingEfficiency(self):
+        self.box_trapping_efficiency = np.cos(self.FrequencyExtraction.minimum_angle_in_bandwidth)
+        return self.box_trapping_efficiency
 
     def CavityPower(self):
         # from Hamish's atomic calculator
@@ -381,7 +380,27 @@ class CavitySensitivity(Sensitivity):
 
         # end of Wouter's calculation
         return tau_snr
-
+        
+    """
+    def print_SNRs(self, rho_opt):
+        tau_snr = self.calculate_tau_snr(self.time_window, sideband_power_fraction=1)
+        logger.info("tau_SNR: {}s".format(tau_snr/s))
+        eV_bandwidth = np.abs(frequency(self.T_endpoint, self.MagneticField.nominal_field) - frequency(self.T_endpoint + 1*eV, self.MagneticField.nominal_field))
+        SNR_1eV = 1/eV_bandwidth/tau_snr
+        track_duration = track_length(rho_opt, self.T_endpoint, molecular=(not self.Experiment.atomic))
+        SNR_track_duration = track_duration/tau_snr
+        SNR_1ms = 0.001*s/tau_snr
+        logger.info("SNR for 1eV bandwidth: {}".format(SNR_1eV))
+        logger.info("SNR 1 eV from temperatures:{}".format(self.received_power/(self.noise_energy*eV_bandwidth)))
+        logger.info("Track duration: {}ms".format(track_duration/ms))
+        logger.info("Sampling duration for 1eV: {}ms".format(1/eV_bandwidth/ms))
+        logger.info("SNR for track duration: {}".format(SNR_track_duration))
+        logger.info("SNR for 1 ms: {}".format(SNR_1ms))
+        logger.info("Received power: {}W".format(self.received_power/W))
+        logger.info("Noise power in 1eV: {}W".format(self.noise_energy*eV_bandwidth/W))
+        logger.info("Noise temperature: {}K".format(self.noise_temp/K))
+        logger.info("Opimtum energy window: {} eV".format(self.DeltaEWidth()/eV))
+    """
 
     def syst_frequency_extraction(self):
         # cite{https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398} (Section 1.2, p 7-9)
@@ -530,11 +549,15 @@ class CavitySensitivity(Sensitivity):
     
     # PRINTS
     def print_SNRs(self, rho=None):
-        logger.info("SNR parameters:")
-        if rho != None:
-            logger.warning("Deprecation warning: This function does not modify the number density in the Experiment namespace. Values printed are for pre-set number density.")
+        #logger.warning("Deprecation warning: This function does not modify the number density in the Experiment namespace. Values printed are for pre-set number density.")
         
-        track_duration = self.time_window 
+        logger.info("**SNR parameters**:")
+        if rho == None:
+            track_duration = self.time_window
+            logger.info("SNR-related parameters are printed for pre-set number density.")
+        else:
+            track_duration = track_length(rho, self.T_endpoint, molecular=(not self.Experiment.atomic))
+        
         tau_snr_90deg = self.calculate_tau_snr(track_duration, power_fraction=1)
         #For an example carrier:
         tau_snr_ex_carrier = self.calculate_tau_snr(track_duration, self.FrequencyExtraction.carrier_power_fraction)
@@ -568,6 +591,7 @@ class CavitySensitivity(Sensitivity):
         
         logger.info("CRLB if slope is nonzero and needs to be fitted: {} Hz".format(np.sqrt(self.var_f_CRLB_slope_fitted)/Hz))
         logger.info("CRLB constant: {}".format(self.CRLB_constant))
+        logger.info("**Done printing SNR parameters.**")
         
         return self.noise_temp, SNR_1eV_90deg, track_duration
     
@@ -576,10 +600,10 @@ class CavitySensitivity(Sensitivity):
         
         if not self.Efficiency.usefixedvalue:
             # radial and detection efficiency are configured in the config file
-            logger.info("Radial efficiency: {}".format(self.Efficiency.radial_efficiency))
+            logger.info("Radial efficiency: {}".format(self.radial_efficiency))
             logger.info("Detection efficiency: {}".format(self.Efficiency.detection_efficiency))
             logger.info("Trapping efficiency: {}".format(self.pos_dependent_trapping_efficiency))
-            logger.info("Pitch angle efficiency: {}".format(self.PitchDependentTrappingEfficiency()))
+            logger.info("Efficiency from axial frequency cut: {}".format(self.fa_cut_efficiency))
             logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
             
         logger.info("Effective volume: {} mm^3".format(round(self.effective_volume/mm**3, 3)))

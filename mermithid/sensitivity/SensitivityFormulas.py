@@ -1,7 +1,8 @@
 '''
 Class calculating neutrino mass sensitivities based on analytic formulas from CDR.
-Author: R. Reimann, C. Claessens
-Date:11/17/2020
+Author: R. Reimann, C. Claessens, T. E. Weiss
+Date: Nov. 17, 2020
+Updated: December 2024
 
 The statistical method and formulas are described in
 CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc673d862fa923d53.
