@@ -1,5 +1,5 @@
 """
-Script to make Sensitivty plots for cavity experiments
+Script to make sensitivity plots for cavity experiments
 Author: C. Claessens, T. E. Weiss
 Date: October 6, 2023
 """
