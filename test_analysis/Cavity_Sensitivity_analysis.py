@@ -150,7 +150,7 @@ sens_config_dict = {
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
-    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_LFA-sensitivity-branch_Dec-20-2024.pdf",
+    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_linked-bkgd-and-eff_Dec-25-2024.pdf",
     # optional
     "figsize": (7.0,6), 
     "fontsize": 15,
@@ -168,7 +168,7 @@ sens_config_dict = {
     "comparison_curve": True,
     "main_curve_color": "blue",
     "comparison_curve_colors": ["red"], # "black"],
-    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg"], 
+    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"], 
     "comparison_curve_label": [r"Phase IV scenario: 150 MHz"],
     "comparison_label_y_position": [2, 0.105, 0.046], #[2, 0.105, 0.046],
     "comparison_label_x_position": [4.5e15, 7e14, 7e14], #[4.5e15, 2.2e16, 1e15],

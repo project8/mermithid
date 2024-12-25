@@ -1,7 +1,7 @@
 '''
 Calculate sensitivity curve and plot vs. number density, exposure, livetime, or frequency.
 
-Author: C. Claessens, T. Weiss
+Author: C. Claessens, T. E. Weiss
 Date: 06/07/2023
 Updated: 12/16/2024
 '''
@@ -315,6 +315,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             logger.info("NUMBERS BELOW ARE FOR THE HIGHEST-EXPOSURE POINT ON THE CURVE:")
         logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
         logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.effective_volume))
+        logger.info('RF background: {}/eV/s'.format(self.sens_main.RF_background_rate_per_eV*eV*s))
         logger.info('Total background: {}/eV/s'.format(self.sens_main.background_rate*eV*s))
         logger.info('Total signal: {}'.format(rho_opt*self.sens_main.effective_volume*
                                                    self.sens_main.Experiment.LiveTime/
@@ -357,6 +358,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                     logger.info("NUMBERS BELOW ARE FOR THE HIGHEST-EXPOSURE POINT ON THE CURVE:")
                 logger.info('CL90 limit: {}'.format(self.sens_ref[i].CL90(Experiment={"number_density": rho_opt_ref})/eV))
                 logger.info('T2 in Veff: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume))
+                logger.info('RF background: {}/eV/s'.format(self.sens_ref[i].RF_background_rate_per_eV*eV*s))
                 logger.info('Total background: {}/eV/s'.format(self.sens_ref[i].background_rate*eV*s))
                 logger.info('Total signal: {}'.format(rho_opt_ref*self.sens_ref[i].effective_volume*
                                                    self.sens_ref[i].Experiment.LiveTime/
@@ -421,9 +423,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             if self.atomic_axis and self.molecular_axis:
                 axis_label = r"(Atomic / molecular) number density $n\, \, (\mathrm{m}^{-3})$"
             elif self.atomic_axis:
-                axis_label = r"(Atomic) number density $n\, \, (\mathrm{m}^{-3})$"
+                axis_label = r"Atom number density $n\, \, (\mathrm{m}^{-3})$"
             elif self.molecular_axis:
-                axis_label = r"(Molecular) number density $n\, \, (\mathrm{m}^{-3})$"
+                axis_label = r"Molecular number density $n\, \, (\mathrm{m}^{-3})$"
             else:
                 axis_label = r"Number density $n\, \, (\mathrm{m}^{-3})$"
                 
@@ -727,8 +729,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
         sens.print_systematics()
         sens.print_statistics()
-        sens.print_Efficiencies()
         sens.print_SNRs()
+        sens.print_Efficiencies()
         
         logger.info("Phase II sensitivity for exposure {} calculated: {}".format(standard_exposure, sens.sensitivity()/eV**2))
         

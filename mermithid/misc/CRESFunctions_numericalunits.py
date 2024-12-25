@@ -28,6 +28,10 @@ def frequency(kin_energy, magnetic_field):
     # cyclotron frequency
     return e/(2*np.pi*me)/gamma(kin_energy)*magnetic_field
 
+def cyclotron_radius(freq, kin_energy):
+    v = beta(kin_energy)*c0
+    return v/freq/(2*np.pi)
+
 def wavelength(kin_energy, magnetic_field):
     return c0/frequency(kin_energy, magnetic_field)
 
