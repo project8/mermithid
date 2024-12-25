@@ -1,5 +1,5 @@
 """
-Script to make Sensitivty plots for cavity experiments
+Script to make sensitivity plots for cavity experiments
 Author: C. Claessens, T. E. Weiss
 Date: October 6, 2023
 """
@@ -150,7 +150,7 @@ sens_config_dict = {
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
-    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_factor_2_back_and_reduced_carrier_power_frac_Dec-6-2024.pdf",
+    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_LFA-sensitivity-branch_Dec-20-2024.pdf",
     # optional
     "figsize": (7.0,6), 
     "fontsize": 15,
