@@ -199,9 +199,25 @@ class CavitySensitivity(Sensitivity):
         self.Jprime_0 = 3.8317
         self.CRLB_constant = 12
         #self.CRLB_constant = 90
+
         if hasattr(self.FrequencyExtraction, "crlb_constant"):
             self.CRLB_constant = self.FrequencyExtraction.crlb_constant
             logger.info("Using configured CRLB constant")   
+
+        #If use_threshold is either False or not included in the config file, use the inputted detection efficiency and RF background rate from the config file.
+        #If the_threshold is True, calculate the detection efficiency given the SNR of data and the threshold.
+        try:
+            self.Threshold = NameSpace({opt: eval(self.cfg.get('Threshold', opt)) for opt in self.cfg.options('Threshold')})
+            if Threshold.use_threshold:
+                self.assign_background_rate_from_threshold()
+                self.assign_detection_efficiency_from_threshold()
+            else:
+                self.detection_efficiency = self.Efficiency.detection_efficiency
+                self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV
+        except:
+            self.detection_efficiency = self.Efficiency.detection_efficiency
+            self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV
+
 
         #Calculate position dependent trapping efficiency
         self.pos_dependent_trapping_efficiency = trapping_efficiency( z_range = self.Experiment.trap_length /2,
@@ -220,13 +236,6 @@ class CavitySensitivity(Sensitivity):
         self.CavityVolume()
         self.EffectiveVolume()
         self.CavityPower()
-        try:
-            self.Threshold = NameSpace({opt: eval(self.cfg.get('Threshold', opt)) for opt in self.cfg.options('Threshold')})
-            if Threshold.use_threshold == True:
-                self.assign_background_rate_from_threshold()
-                self.assign_detection_efficiency_from_threshold()
-        except:
-            pass
 
         #Get trap length from cavity length if not specified
         if self.Experiment.trap_length == 0:
@@ -277,12 +286,12 @@ class CavitySensitivity(Sensitivity):
             #logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
             
             self.radial_efficiency = (self.cavity_radius - self.Efficiency.unusable_dist_from_wall)**2/self.cavity_radius**2
-            self.fa_cut_efficiency = trapping_efficiency( z_range = self.Experiment.trap_length /2,
+            self.fa_cut_efficiency = trapping_efficiency(z_range = self.Experiment.trap_length /2,
                                                                     bg_magnetic_field = self.MagneticField.nominal_field, 
                                                                     min_pitch_angle = self.Efficiency.min_pitch_used_in_analysis, 
                                                                     trap_flat_fraction = self.MagneticField.trap_flat_fraction
                                                                     )/self.pos_dependent_trapping_efficiency 
-            self.effective_volume = self.total_trap_volume*self.radial_efficiency*self.Efficiency.detection_efficiency*self.fa_cut_efficiency*self.pos_dependent_trapping_efficiency   
+            self.effective_volume = self.total_trap_volume*self.radial_efficiency*self.detection_efficiency*self.fa_cut_efficiency*self.pos_dependent_trapping_efficiency   
             
         #logger.info("Total efficiency: {}".format(self.effective_volume/self.total_volume))        
         self.effective_volume*=self.Experiment.sri_factor
@@ -560,19 +569,19 @@ class CavitySensitivity(Sensitivity):
         self.time_window = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
         track_duration = self.time_window
         tau_snr_ex_carrier = self.calculate_tau_snr(track_duration, self.FrequencyExtraction.carrier_power_fraction)
-        return quad(lambda tau: ncx2(df=2, nc= tau_snr_ex_carrier).sf(self.Threshold.threshold)*1/track_duration*np.exp(-tau/track_duration), 0, np.infty)[0]
+        return quad(lambda tau: ncx2(df=2, nc=tau/tau_snr_ex_carrier).sf(self.Threshold.threshold)*1/track_duration*np.exp(-tau/track_duration), 0, np.infty)[0]
 
     def rf_background_rate_cavity(self):
-        return chi2(df=2).sf(self.Threshold.threshold)
+        #Assuming background rate constant of 1/(eV*s) for now. This constant will need to be determined from Monte Carlo simulations.
+        return chi2(df=2).sf(self.Threshold.threshold)/(eV*s)
 
     def assign_background_rate_from_threshold(self):
-        self.Experiment.RF_background_rate_per_eV = self.rf_background_rate_cavity()
-        return self.Experiment.RF_background_rate_per_eV
+        self.RF_background_rate_per_eV = self.rf_background_rate_cavity()
+        return self.RF_background_rate_per_eV
 
     def assign_detection_efficiency_from_threshold(self):
-        effective_volume_before_modified = self.EffectiveVolume()
-        self.effective_volume = effective_volume_before_modified*self.det_efficiency_tau()
-        return self.effective_volume
+        self.detection_efficiency = self.det_efficiency_tau()
+        return self.detection_efficiency
         
     
     # PRINTS

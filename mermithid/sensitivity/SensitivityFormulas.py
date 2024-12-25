@@ -105,7 +105,7 @@ class Sensitivity(object):
         Currently, RF noise and cosmic ray backgrounds are included.
         Assumes that background rate is constant over considered energy / frequency range."""
         self.cosmic_ray_background = self.Experiment.cosmic_ray_bkgd_per_tritium_particle*self.Experiment.number_density*self.effective_volume
-        self.background_rate = self.Experiment.RF_background_rate_per_eV + self.cosmic_ray_background
+        self.background_rate = self.RF_background_rate_per_eV + self.cosmic_ray_background
         return self.background_rate
 
     def SignalEvents(self):
