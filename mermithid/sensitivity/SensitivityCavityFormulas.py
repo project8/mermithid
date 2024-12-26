@@ -580,6 +580,10 @@ class CavitySensitivity(Sensitivity):
         tau_snr_ex_carrier = self.calculate_tau_snr(track_duration, self.FrequencyExtraction.carrier_power_fraction)
         return quad(lambda tau: ncx2(df=2, nc=tau/tau_snr_ex_carrier).sf(self.Threshold.threshold)*1/track_duration*np.exp(-tau/track_duration), 0, np.infty)[0]
 
+    def assign_detection_efficiency_from_threshold(self):
+        self.detection_efficiency = self.det_efficiency_tau()
+        return self.detection_efficiency
+
     def rf_background_rate_cavity(self):
         #Assuming background rate constant of 1/(eV*s) for now. This constant will need to be determined from Monte Carlo simulations.
         return chi2(df=2).sf(self.Threshold.threshold)/(eV*s)
@@ -588,9 +592,7 @@ class CavitySensitivity(Sensitivity):
         self.RF_background_rate_per_eV = self.rf_background_rate_cavity()
         return self.RF_background_rate_per_eV
 
-    def assign_detection_efficiency_from_threshold(self):
-        self.detection_efficiency = self.det_efficiency_tau()
-        return self.detection_efficiency
+    
         
     
     # PRINTS
