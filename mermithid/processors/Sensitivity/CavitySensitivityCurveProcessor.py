@@ -309,8 +309,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             #print(self.sens_main.q_array)
             logger.info("Uncertainty from determination of f_carrier and f_lsb, due to noise: {} eV".format(self.sens_main.sigma_K_noise/eV))
        
-        self.sens_main.print_Efficiencies()
         self.sens_main.print_SNRs(rho_opt)
+        self.sens_main.print_Efficiencies()
         if self.exposure_axis or self.livetime_axis:
             logger.info("NUMBERS BELOW ARE FOR THE HIGHEST-EXPOSURE POINT ON THE CURVE:")
         logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho_opt})/eV))
