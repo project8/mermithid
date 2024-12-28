@@ -579,10 +579,11 @@ class CavitySensitivity(Sensitivity):
         # Also check the Antenna paper for more details. Especially the section on the signal detection with matched filtering.
         mean_track_duration = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
         tau_snr_ex_carrier = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction)
-        return quad(lambda track_duration: ncx2(df=2, nc=track_duration/tau_snr_ex_carrier).sf(self.Threshold.threshold)*1/mean_track_duration*np.exp(-track_duration/mean_track_duration), 0, np.infty)[0]
+        result, abs_err = quad(lambda track_duration: ncx2(df=2, nc=track_duration/tau_snr_ex_carrier).sf(self.Threshold.threshold)*1/mean_track_duration*np.exp(-track_duration/mean_track_duration), 0, np.inf)
+        return result, abs_err
 
     def assign_detection_efficiency_from_threshold(self):
-        self.detection_efficiency = self.det_efficiency_track_duration()
+        self.detection_efficiency, self.abs_err = self.det_efficiency_track_duration()
         return self.detection_efficiency
 
     def rf_background_rate_cavity(self):
@@ -653,6 +654,7 @@ class CavitySensitivity(Sensitivity):
             # radial and detection efficiency are configured in the config file
             logger.info("Radial efficiency: {}".format(self.radial_efficiency))
             logger.info("Detection efficiency: {}".format(self.detection_efficiency))
+            logger.info("Detection efficiency integration error: {}".format(self.abs_err))
             logger.info("Trapping efficiency: {}".format(self.pos_dependent_trapping_efficiency))
             logger.info("Efficiency from axial frequency cut: {}".format(self.fa_cut_efficiency))
             logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
