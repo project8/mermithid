@@ -217,18 +217,13 @@ class CavitySensitivity(Sensitivity):
         #Detection efficiency:
         #If use_threshold is either False or not included in the config file, use the inputted detection efficiency and RF background rate from the config file.
         #If the_threshold is True, calculate the detection efficiency given the SNR of data and the threshold.
-        try:
-            self.Threshold = NameSpace({opt: eval(self.cfg.get('Threshold', opt)) for opt in self.cfg.options('Threshold')})
-            if self.Threshold.use_threshold:
-                self.assign_background_rate_from_threshold()
-                self.assign_detection_efficiency_from_threshold()
-            else:
-                self.detection_efficiency = self.Efficiency.detection_efficiency
-                self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV
-        except:
-            self.detection_efficiency = self.Efficiency.detection_efficiency
-            self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV
         
+        self.Threshold = NameSpace({opt: eval(self.cfg.get('Threshold', opt)) for opt in self.cfg.options('Threshold')})
+        if self.Threshold.use_detection_threshold:
+            self.assign_background_rate_from_threshold()
+            self.assign_detection_efficiency_from_threshold()
+        self.detection_efficiency = self.Efficiency.detection_efficiency
+        self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV       
         self.EffectiveVolume()
 
 
@@ -579,7 +574,7 @@ class CavitySensitivity(Sensitivity):
         # Also check the Antenna paper for more details. Especially the section on the signal detection with matched filtering.
         mean_track_duration = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
         tau_snr_ex_carrier = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction)
-        result, abs_err = quad(lambda track_duration: ncx2(df=2, nc=track_duration/tau_snr_ex_carrier).sf(self.Threshold.threshold)*1/mean_track_duration*np.exp(-track_duration/mean_track_duration), 0, np.inf)
+        result, abs_err = quad(lambda track_duration: ncx2(df=2, nc=track_duration/tau_snr_ex_carrier).sf(self.Threshold.detection_threshold)*1/mean_track_duration*np.exp(-track_duration/mean_track_duration), 0, np.inf)
         return result, abs_err
 
     def assign_detection_efficiency_from_threshold(self):
@@ -590,7 +585,7 @@ class CavitySensitivity(Sensitivity):
         # Detection efficiency implemented based on René's slides https://3.basecamp.com/3700981/buckets/3107037/documents/8013439062
         # Also check the Antenna paper for more details. Especially the section on the signal detection with matched filtering.
         # Assuming background rate constant of 1/(eV*s) for now. This constant will need to be determined from Monte Carlo simulations.
-        return chi2(df=2).sf(self.Threshold.threshold)/(eV*s)
+        return chi2(df=2).sf(self.Threshold.detection_threshold)/(eV*s)
 
     def assign_background_rate_from_threshold(self):
         self.RF_background_rate_per_eV = self.rf_background_rate_cavity()
