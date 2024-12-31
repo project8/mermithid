@@ -162,9 +162,9 @@ sens_config_dict = {
     "track_length_axis": True,
     "cavity": True,
     "y_limits": [2e-2, 4],
-    "density_range": [1e13,1e19],
-    "main_curve_upper_label":  r"Phase III scenario: 560 MHz", #Phase III scenario: 1 GHz",
-    "goals": {"Phase III (0.4 eV)": 0.4, "Phase IV (0.04 eV)": 0.04}, #"Pilot T goal (0.1 eV)": 0.1,
+    "density_range": [1e14,3e18],
+    "main_curve_upper_label":  r"LFA (Phase III): 560 MHz", #Phase III scenario: 1 GHz",
+    "goals": {"LFA (0.3 eV)": 0.3, "Phase IV (0.04 eV)": 0.04}, #"Pilot T goal (0.1 eV)": 0.1,
     "comparison_curve": True,
     "main_curve_color": "blue",
     "comparison_curve_colors": ["red"], # "black"],
@@ -176,7 +176,7 @@ sens_config_dict = {
     "lower_label_y_position": 0.17,
     "upper_label_y_position": 0.7,
     "label_x_position": 4e14, #4e14, #0.02, #1e14,
-    "goals_x_position": 3e13, #0.0002
+    "goals_x_position": 1.3e14, #0.0002
     "plot_key_parameters": True
     }
 sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")

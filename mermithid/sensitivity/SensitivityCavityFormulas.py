@@ -219,13 +219,13 @@ class CavitySensitivity(Sensitivity):
         #If the_threshold is True, calculate the detection efficiency given the SNR of data and the threshold.
         
         self.Threshold = NameSpace({opt: eval(self.cfg.get('Threshold', opt)) for opt in self.cfg.options('Threshold')})
-        if self.Threshold.use_detection_threshold:
-            self.assign_background_rate_from_threshold()
-            self.assign_detection_efficiency_from_threshold()
-        self.detection_efficiency = self.Efficiency.detection_efficiency
-        self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV       
+   
         self.EffectiveVolume()
-
+        logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3), 2))
+        logger.info("Total trap volume {} m^3".format(round(self.total_trap_volume/m**3), 2))
+        logger.info("Cyclotron radius: {}m".format(self.cyc_rad/m))
+        if self.use_cyc_rad:
+            logger.info("Using cyclotron radius as unusable distance from wall, for radial efficiency calculation")
 
         #Initialization related to the energy resolution:
         self.CRLB_constant = 12
@@ -264,11 +264,6 @@ class CavitySensitivity(Sensitivity):
     def TrapVolume(self):
         # Total volume of the electron traps in all cavities
         self.total_trap_volume = self.Experiment.trap_length*np.pi*(self.cavity_radius)**2*self.Experiment.n_cavities
-    
-        logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3)))
-        logger.info("Trap length: {} cm".format(round(self.Experiment.trap_length/cm, 3)))
-        logger.info("Total trap volume {} m^3".format(round(self.total_trap_volume/m**3)))
-        
         return self.total_trap_volume
 
 
@@ -278,33 +273,39 @@ class CavitySensitivity(Sensitivity):
         if self.Efficiency.usefixedvalue:
             self.effective_volume = self.total_trap_volume * self.Efficiency.fixed_efficiency
         else:
-            # radial and detection efficiency are configured in the config file
-            #logger.info("Radial efficiency: {}".format(self.Efficiency.radial_efficiency))
-            #logger.info("Detection efficiency: {}".format(self.Efficiency.detection_efficiency))
-            #logger.info("Pitch angle efficiency: {}".format(self.PitchDependentTrappingEfficiency()))
-            #logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
-            cyc_rad = cyclotron_radius(self.cavity_freq, self.T_endpoint)
-            logger.info("Cyclotron radius: {}m".format(cyc_rad/m))
-            if self.Efficiency.unusable_dist_from_wall >= cyc_rad:
-                self.radial_efficiency = (self.cavity_radius - self.Efficiency.unusable_dist_from_wall)**2/self.cavity_radius**2
+            #Detection efficiency
+            if self.Threshold.use_detection_threshold:
+                self.assign_background_rate_from_threshold()
+                self.assign_detection_efficiency_from_threshold()
             else:
-                logger.info("Using cyclotron radius as unusable distance from wall, for radial efficiency calculation")
-                self.radial_efficiency = (self.cavity_radius - cyc_rad)**2/self.cavity_radius**2
+                self.detection_efficiency = self.Efficiency.detection_efficiency
+                self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV    
+
+            #print("TEMP detection efficiency: {}".format(self.detection_efficiency))
+            #Radial efficiency
+            self.cyc_rad = cyclotron_radius(self.cavity_freq, self.T_endpoint)
+            if self.Efficiency.unusable_dist_from_wall >= self.cyc_rad:
+                self.radial_efficiency = (self.cavity_radius - self.Efficiency.unusable_dist_from_wall)**2/self.cavity_radius**2
+                self.use_cyc_rad = False
+            else:
+                self.radial_efficiency = (self.cavity_radius - self.cyc_rad)**2/self.cavity_radius**2
+                self.use_cyc_rad = True
+            
+            #Efficiency from a cut during analysis on the axial frequency
             self.fa_cut_efficiency = trapping_efficiency(z_range = self.Experiment.trap_length /2,
                                                                     bg_magnetic_field = self.MagneticField.nominal_field, 
                                                                     min_pitch_angle = self.Efficiency.min_pitch_used_in_analysis, 
                                                                     trap_flat_fraction = self.MagneticField.trap_flat_fraction
                                                                     )/self.pos_dependent_trapping_efficiency 
+            
+            #The effective volume includes the three efficiency factors above, as well as the trapping efficiency
             self.effective_volume = self.total_trap_volume*self.radial_efficiency*self.detection_efficiency*self.fa_cut_efficiency*self.pos_dependent_trapping_efficiency   
             
-        #logger.info("Total efficiency: {}".format(self.effective_volume/self.total_volume))        
+        # The "signal rate improvement" factor can be toggled to test the increase in statistics required to reach some sensitivity
         self.effective_volume*=self.Experiment.sri_factor
-        
-        # for parent SignalRate function
-        # self.Experiment.v_eff = self.effective_volume
-        
         return self.effective_volume
         
+
     def BoxTrappingEfficiency(self):
         self.box_trapping_efficiency = np.cos(self.FrequencyExtraction.minimum_angle_in_bandwidth)
         return self.box_trapping_efficiency

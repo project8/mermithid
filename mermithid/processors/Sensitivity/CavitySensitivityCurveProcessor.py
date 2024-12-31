@@ -174,7 +174,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 logger.warn("No experiment is configured to be atomic")
 
         # densities, exposures, runtimes
-        self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 1000)/m**3
+        self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 150)/m**3
         self.exposures = np.logspace(np.log10(self.exposure_range[0]), np.log10(self.exposure_range[1]), 100)*m**3*year
         self.years = np.logspace(np.log10(self.year_range[0]), np.log10(self.year_range[1]), 100)*year
         self.frequencies = np.logspace(np.log10(self.frequency_range[0]), np.log10(self.frequency_range[1]), 20)*Hz
@@ -494,7 +494,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                     ax.set_xlabel(axis_label)
                     
                 self.kp_ax[0].set_ylabel('Resolution (meV)')
-                self.kp_ax[1].set_ylabel('Track analysis length (ms)')
+                self.kp_ax[1].set_ylabel('Track analysis duration (ms)')
                     
             elif self.frequency_axis:
                 
@@ -521,7 +521,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.atomic_axis:
             ax2 = self.ax.twiny()
             ax2.set_xscale("log")
-            ax2.set_xlabel("(Atomic) track length (s)")
+            #ax2.set_xlabel("(Atomic) track duration (s)")
+            ax2.set_xlabel("Track duration (s)")
             
             if self.sens_main_is_atomic:
                 ax2.set_xlim(self.sens_main.track_length(self.rhos[0])/s,
@@ -535,7 +536,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.molecular_axis:
             ax3 = self.ax.twiny()
             ax3.set_xscale("log")
-            ax3.set_xlabel("(Molecular) track length (s)")
+            ax3.set_xlabel("(Molecular) track duration (s)")
 
             if self.atomic_axis:
                 ax3.spines["top"].set_position(("axes", 1.2))
@@ -620,6 +621,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         crlb_window = []
         crlb_max_window = []
         crlb_slope_zero_window = []
+        det_effs = []
         
         temp_rho = deepcopy(sens.Experiment.number_density)
         for rho in self.rhos:
@@ -628,7 +630,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             crlb_window.append(sens.best_time_window/ms)
             crlb_max_window.append(sens.time_window/ms)
             crlb_slope_zero_window.append(sens.time_window_slope_zero/ms)
-            
+            det_effs.append(self.sens_main.detection_efficiency)
+
+        print(det_effs)   
         sens.Experiment.number_density = temp_rho
         self.ax.plot(self.rhos*m**3, limits, **kwargs)
         logger.info('Minimum limit at {}: {}'.format(self.rhos[np.argmin(limits)]*m**3, np.min(limits)))
