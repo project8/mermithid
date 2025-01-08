@@ -582,8 +582,10 @@ class CavitySensitivity(Sensitivity):
             return 0, 0
 
     def det_efficiency_track_duration(self):
-        # Detection efficiency implemented based on René's slides https://3.basecamp.com/3700981/buckets/3107037/documents/8013439062
-        # Also check the Antenna paper for more details. Especially the section on the signal detection with matched filtering.
+        # Detection efficiency implemented based on René's slides:
+        # https://3.basecamp.com/3700981/buckets/3107037/documents/8013439062
+        # Also check the antenna paper for more details. 
+        # Especially the section on the signal detection with matched filtering.
         mean_track_duration = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
         tau_snr_ex_carrier = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction)
         result, abs_err = quad(lambda track_duration: ncx2(df=2, nc=track_duration/tau_snr_ex_carrier).sf(self.Threshold.detection_threshold)*1/mean_track_duration*np.exp(-track_duration/mean_track_duration), 0, np.inf)
@@ -594,9 +596,12 @@ class CavitySensitivity(Sensitivity):
         return self.detection_efficiency
 
     def rf_background_rate_cavity(self):
-        # Detection efficiency implemented based on René's slides https://3.basecamp.com/3700981/buckets/3107037/documents/8013439062
-        # Also check the Antenna paper for more details. Especially the section on the signal detection with matched filtering.
-        # Assuming background rate constant of 1/(eV*s) for now. This constant will need to be determined from Monte Carlo simulations.
+        # Detection efficiency implemented based on René's slides
+        # https://3.basecamp.com/3700981/buckets/3107037/documents/8013439062
+        # Also check the antenna paper for more details, especially the section
+        # on the signal detection with matched filtering.
+        # Assuming background rate constant of 1/(eV*s) for now. This constant 
+        # will need to be determined from Monte Carlo simulations.
         return chi2(df=2).sf(self.Threshold.detection_threshold)/(eV*s)
 
     def assign_background_rate_from_threshold(self):

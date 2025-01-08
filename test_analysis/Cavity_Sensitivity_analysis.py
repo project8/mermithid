@@ -150,12 +150,13 @@ sens_config_dict = {
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
-    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_linked-bkgd-and-eff_Jan-7-2025.pdf",
+    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_linked-bkgd-and-eff_Jan-8-2025.pdf",
     # optional
     "figsize": (7.0,6), 
     "fontsize": 15,
     "track_length_axis": False,
     "legend_location": "upper left",
+    "legend_bbox_to_anchor": (0.17,-0.01,1.1,0.87),
     "molecular_axis": False,
     "atomic_axis": True,
     "density_axis": True,
@@ -188,12 +189,13 @@ sens_curve.Run()
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
-    "plot_path": "./lfa_and_PhaseIV_sensitivity_vs_livetime_curve_Jan-7-2025.pdf",
+    "plot_path": "./lfa_and_PhaseIV_sensitivity_vs_livetime_curve_Jan-8-2025.pdf",
     "exposure_axis": True,
     # optional
-    "figsize": (10,6),
+    "figsize": (8.5, 6), #(10,6),
     "fontsize": 15,
     "legend_location": "upper right",
+    "legend_bbox_to_anchor": (-0.,0,0.86,0.955),
     "track_length_axis": False,
     "molecular_axis": False,
     "atomic_axis": False,
@@ -221,7 +223,7 @@ sens_config_dict = {
     "upper_label_y_position": 0.7,
     "label_x_position": 0.115, #1.5e15, #0.02, #1e14,
     "goals_x_position": 0.11, #2e12 #0.0002
-    "goals_y_rel_position": 0.785,
+    "goals_y_rel_position": 0.81,
     }
 #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
 #sens_curve.Configure(sens_config_dict)

@@ -77,6 +77,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         # main plot configurations
         self.figsize = reader.read_param(params, 'figsize', (6,6))
         self.legend_location = reader.read_param(params, 'legend_location', 'upper left')
+        self.legend_bbox_to_anchor = reader.read_param(params, 'legend_bbox_to_anchor', (0.15,0,1.1,0.87))
         self.fontsize = reader.read_param(params, 'fontsize', 12)
         
         self.density_axis = reader.read_param(params, "density_axis", True)
@@ -904,23 +905,25 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
     def save(self, savepath, **kwargs):
         logger.info("Saving")
         legend_fontsize = self.fontsize - 2
+        legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=self.legend_bbox_to_anchor, fontsize=legend_fontsize)
         #handles, labels = self.fig.gca().get_legend_handles_labels()
         #print(labels)
         #order = [0,3,1,2]
         #[handles[idx] for idx in order],[labels[idx] for idx in order], 
+        """
         if self.density_axis:
             if self.track_length_axis:
-                legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1.05,0.87), fontsize=legend_fontsize) #(0.15,0,1,0.85)
+                legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1.1,0.87), fontsize=legend_fontsize) #(0.15,0,1,0.85)
             else:
                 legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1.,0.765), fontsize=legend_fontsize)
         elif self.frequency_axis:
             if self.magnetic_field_axis:
-                legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.14,0,1,0.85  ), fontsize=legend_fontsize)
+                legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.14,0,1,0.85), fontsize=legend_fontsize)
             else:
-                legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.14,0,1,0.95  ), fontsize=legend_fontsize)
+                legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.14,0,1,0.95), fontsize=legend_fontsize)
         else:
-            legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(-0.,0,0.88,0.955), fontsize=legend_fontsize) #(-0.,0,0.89,0.97)
-            
+            legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(-0.,0,0.86,0.955), fontsize=legend_fontsize) #(-0.,0,0.88,0.955) #(-0.,0,0.89,0.97)
+        """    
         self.fig.tight_layout()
         #keywords = ", ".join(["%s=%s"%(key, value) for key, value in kwargs.items()])
         metadata = {"Author": "p8/mermithid",
