@@ -224,10 +224,17 @@ class CavitySensitivity(Sensitivity):
         #Cyclotron radius is sometimes used in the effective volume calculation
         self.cyc_rad = cyclotron_radius(self.cavity_freq, self.T_endpoint) 
 
+        #Assigning the background constant if it's not in the config file
+        if hasattr(self.Experiment, "bkgd_constant"):
+            self.bkgd_constant = self.Experiment.bkgd_constant
+        else:
+            self.bkgd_constant = 1
+            logger.info("Using background rate constant of 1/eV/s") 
+        
         #Calculate the effective volume and print out related quantities
         self.EffectiveVolume()
         logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3), 2))
-        logger.info("Total trap volume: {} m^3".format(round(self.total_trap_volume/m**3), 2))
+        logger.info("Total trap volume: {} m^3".format(round(self.total_trap_volume/m**3), 3))
         logger.info("Cyclotron radius: {}m".format(self.cyc_rad/m))
         if self.use_cyc_rad:
             logger.info("Using cyclotron radius as unusable distance from wall, for radial efficiency calculation")
@@ -241,7 +248,7 @@ class CavitySensitivity(Sensitivity):
             self.CRLB_constant = self.FrequencyExtraction.crlb_constant
             logger.info("Using configured CRLB constant")      
         
-        #Numbr of steps in pitch angle between min_pitch and pi/2 for the frequency noise uncertainty calculation
+        #Number of steps in pitch angle between min_pitch and pi/2 for the frequency noise uncertainty calculation
         self.pitch_steps = 100
         if hasattr(self.FrequencyExtraction, "pitch_steps"):
             self.pitch_steps = self.FrequencyExtraction.pitch_steps
@@ -600,9 +607,8 @@ class CavitySensitivity(Sensitivity):
         # https://3.basecamp.com/3700981/buckets/3107037/documents/8013439062
         # Also check the antenna paper for more details, especially the section
         # on the signal detection with matched filtering.
-        # Assuming background rate constant of 1/(eV*s) for now. This constant 
-        # will need to be determined from Monte Carlo simulations.
-        return chi2(df=2).sf(self.Threshold.detection_threshold)/(eV*s)
+        # The background constant will need to be determined from Monte Carlo simulations.
+        return chi2(df=2).sf(self.Threshold.detection_threshold)*self.bkgd_constant/(eV*s)
 
     def assign_background_rate_from_threshold(self):
         self.RF_background_rate_per_eV = self.rf_background_rate_cavity()

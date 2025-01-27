@@ -124,9 +124,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             logger.info("Plotting sensitivity vs. frequency")
             if self.optimize_main_density==False or self.optimize_comparison_density==False:
                 logger.warning("You told me not to optimize the density, but I am doing so anyway! We need to fix this.")
-        elif self.exposure_axis or self.livetime_axis or self.ncavities_livetime_axis:
+        elif self.exposure_axis or self.livetime_axis or self.ncavities_livetime_axis or self.ncav_eff_time_axis:
             self.add_sens_line = self.add_exposure_sens_line
-            logger.info("Plotting sensitivity vs. exposure or livetime")
+            logger.info("Plotting sensitivity vs. some exposure (e.g., livetime or ncavities*efficiency*livetime)")
         else: raise ValueError("No axis specified")
 
 
@@ -184,7 +184,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
         ncav_temp = self.sens_main.Experiment.n_cavities
         self.ncavities_livetime_range = [ncav_temp*self.year_range[0], ncav_temp*self.year_range[1]]
-        self.ncav_eff_time_range = [ncav_temp*self.year_range[0]*0.001, ncav_temp*self.year_range[1]*0.1]
+        self.ncav_eff_time_range = [ncav_temp*self.year_range[0]*0.01, ncav_temp*self.year_range[1]*0.1]
+        self.ncav_eff_times = np.logspace(np.log10(self.ncav_eff_time_range[0]), np.log10(self.ncav_eff_time_range[1]), 100)*year
 
         return True
 
@@ -195,8 +196,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.sens_main.print_systematics()
         self.sens_with_configured_density = self.sens_main.CL90()
         logger.info("Sensitivity before density optimization: {} eV".format(self.sens_with_configured_density/eV))
-        logger.info("Number density: {} \m^3".format(self.sens_main.Experiment.number_density*m**3))
-        logger.info("Corresponding track length: {} s".format(self.sens_main.track_length(self.sens_main.Experiment.number_density)/s))
+        logger.info("Number density before optimization: {} \m^3".format(self.sens_main.Experiment.number_density*m**3))
+        logger.info("Corresponding track length before density optimization: {} s".format(self.sens_main.track_length(self.sens_main.Experiment.number_density)/s))
+        logger.info("***Efficiencies before density optimization:***")
+        self.sens_main.print_Efficiencies()
+        logger.info("***Done printing pre-optimization***")
 
         # create main plot
         self.create_plot()
@@ -300,7 +304,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         if self.exposure_axis or self.livetime_axis or self.ncavities_livetime_axis or self.ncav_eff_time_axis:
             logger.info("NUMBERS BELOW ARE FOR THE HIGHEST-EXPOSURE POINT ON THE CURVE:")
         logger.info('CL90 limit: {}'.format(self.sens_main.CL90(Experiment={"number_density": rho})/eV))
-        logger.info('T2 in Veff: {}'.format(rho*self.sens_main.effective_volume))
+        logger.info('Tritium in Veff: {}'.format(rho*self.sens_main.effective_volume))
         logger.info('RF background: {}/eV/s'.format(self.sens_main.RF_background_rate_per_eV*eV*s))
         logger.info('Total background: {}/eV/s'.format(self.sens_main.background_rate*eV*s))
         logger.info('Total signal: {}'.format(rho*self.sens_main.effective_volume*
@@ -373,7 +377,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 if self.exposure_axis or self.livetime_axis or self.ncavities_livetime_axis or self.ncav_eff_time_axis:
                     logger.info("NUMBERS BELOW ARE FOR THE HIGHEST-EXPOSURE POINT ON THE CURVE:")
                 logger.info('CL90 limit: {}'.format(limit2))
-                logger.info('T2 in Veff: {}'.format(rho2*self.sens_ref[i].effective_volume))
+                logger.info('Tritium in Veff: {}'.format(rho2*self.sens_ref[i].effective_volume))
                 logger.info('RF background: {}/eV/s'.format(self.sens_ref[i].RF_background_rate_per_eV*eV*s))
                 logger.info('Total background: {}/eV/s'.format(self.sens_ref[i].background_rate*eV*s))
                 logger.info('Total signal: {}'.format(rho2*self.sens_ref[i].effective_volume*
@@ -669,7 +673,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             
         if sens.Experiment.atomic:
             #label="Atomic, reaching pilot-T target".format(n_cavities, livetime_for_label)
-            label="1 Phase IV cavity, 1 year of livetime".format(n_cavities, livetime_for_label)
+            label="{} Phase IV cavity, {} year of livetime".format(n_cavities, livetime_for_label)
         else:
             label="Molecular, {} cavity, {} year".format(n_cavities, livetime_for_label)
         
@@ -701,11 +705,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             logger.info("Livetime and mass limit for single point: {}, {}".format(sens.Experiment.livetime/year, limit))
         elif self.ncavities_livetime_axis:
             ncav_time = sens.Experiment.n_cavities*sens.Experiment.livetime/year
-            self.ax.scatter([ncav_time], [limit], marker="s", s=25, color=color, label=label, zorder=10)
+            self.ax.scatter([ncav_time], [limit], marker="d", s=25, color='k', label=label, zorder=10)
             logger.info("Ncavities*livetime and mass limit for single point: {}, {}".format(ncav_time, limit))
         elif self.ncav_eff_time_axis:
-            ncav_eff_time = sens.effective_volume/sens.total_trap_volume*sens.Experiment.livetime/year
-            self.ax.scatter([ncav_eff_time], [limit], marker="s", s=25, color=color, label=label, zorder=10)
+            ncav_eff_time = sens.EffectiveVolume()/sens.TrapVolume()*sens.Experiment.n_cavities*sens.Experiment.livetime/year
+            self.ax.scatter([ncav_eff_time], [limit], marker="d", s=25, color='k', label=label, zorder=10)
             logger.info("Ncavities*efficiency*livetime and mass limit for single point: {}, {}".format(ncav_eff_time, limit))
 
         sens.print_statistics()
@@ -734,13 +738,24 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 limits.append(sens.CL90()/eV)
             self.ax.plot(self.years/year, limits, color=kwargs["color"])
         elif exposure_type=="ncavities_livetime":
+            self.ax.scatter([sens.Experiment.n_cavities*sens.Experiment.livetime/year], [limit_inputted_exposure], s=40, marker="d", zorder=20, **kwargs)
             ncavities_livetime = []
-            for lt in self.years:
+            year_list = self.years/sens.Experiment.n_cavities
+            for lt in year_list:
                 sens.Experiment.livetime = lt
-                ncavities_livetime.append(self.Experiment.n_cavities*lt)
-                #sigma_mbetas.append(sens.sensitivity()/eV**2)
+                ncavities_livetime.append(sens.Experiment.n_cavities*lt/year)
                 limits.append(sens.CL90()/eV)
-            self.ax.plot(ncavities_livetime/year, limits, color=kwargs["color"])
+            self.ax.plot(ncavities_livetime, limits, color=kwargs["color"])
+        elif exposure_type=="ncav_eff_time":
+            ncav_eff = sens.EffectiveVolume()/sens.TrapVolume()*sens.Experiment.n_cavities
+            self.ax.scatter([ncav_eff*sens.Experiment.livetime/year], [limit_inputted_exposure], s=40, marker="d", zorder=20, **kwargs)
+            ncav_eff_time = []
+            year_list = self.ncav_eff_times/ncav_eff
+            for lt in year_list:
+                sens.Experiment.livetime = lt
+                ncav_eff_time.append(ncav_eff*lt/year)
+                limits.append(sens.CL90()/eV)
+            self.ax.plot(ncav_eff_time, limits, color=kwargs["color"])
         else:
             years = []
             standard_exposure = sens.EffectiveVolume()*sens.Experiment.livetime/m**3/year
