@@ -9,7 +9,7 @@ CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc
 '''
 import numpy as np
 from scipy.stats import ncx2, chi2
-from scipy.integrate import quad
+from scipy.special import roots_laguerre
 
 from mermithid.misc.Constants_numericalunits import *
 from mermithid.misc.CRESFunctions_numericalunits import *
@@ -589,14 +589,42 @@ class CavitySensitivity(Sensitivity):
             return 0, 0
 
     def det_efficiency_track_duration(self):
-        # Detection efficiency implemented based on René's slides:
-        # https://3.basecamp.com/3700981/buckets/3107037/documents/8013439062
-        # Also check the antenna paper for more details. 
-        # Especially the section on the signal detection with matched filtering.
+        """
+        Detection efficiency implemented based on René's slides, with faster and stable implementation using Gauss-Laguerre quadrature:
+        https://3.basecamp.com/3700981/buckets/3107037/documents/8013439062
+        Gauss-Laguerre Quadrature: https://en.wikipedia.org/wiki/Gauss%E2%80%93Laguerre_quadrature
+        
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        detection_efficiency : float
+            SNR and threshold dependent detection efficieny.
+                   
+        Notes
+        -----
+        Also check the antenna paper for more details. 
+        Especially the section on the signal detection with matched filtering.
+        """
+        # Calculate the mean track duration
         mean_track_duration = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
         tau_snr_ex_carrier = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction)
-        result, abs_err = quad(lambda track_duration: ncx2(df=2, nc=track_duration/tau_snr_ex_carrier).sf(self.Threshold.detection_threshold)*1/mean_track_duration*np.exp(-track_duration/mean_track_duration), 0, np.inf)
-        return result, abs_err
+
+        # Roots and weights for the Laguerre polynomial
+        x, w = roots_laguerre(250) #n=250 is the number of quadrature points
+        
+        # Scale the track duration to match the form of Gauss-Laguerre quadrature
+        scaled_x = x * mean_track_duration
+
+        # Evaluate the non-central chi-squared dist values at the scaled quadrature points
+        sf_values = ncx2(df=2, nc=scaled_x / tau_snr_ex_carrier).sf(self.Threshold.detection_threshold)
+        #plt.plot(sf_values)
+
+        # Calculate and return the integration result from weighted sum
+        result = np.sum(w * sf_values)
+        return result
 
     def assign_detection_efficiency_from_threshold(self):
         self.detection_efficiency, self.abs_err = self.det_efficiency_track_duration()
