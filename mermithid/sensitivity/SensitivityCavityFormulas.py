@@ -204,7 +204,8 @@ class CavitySensitivity(Sensitivity):
         
         #Get trap length from cavity length if not specified
         if not hasattr(self.Experiment, 'trap_length'):
-            self.Experiment.trap_length = 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
+            self.Experiment.trap_length = 0.8 * 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
+            logger.info("Calc'd trap length: {} m".format(round(self.Experiment.trap_length/m, 3), 2))
 
         self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
         self.CavityVolume()
@@ -328,6 +329,10 @@ class CavitySensitivity(Sensitivity):
     def BoxTrappingEfficiency(self):
         self.box_trapping_efficiency = np.cos(self.FrequencyExtraction.minimum_angle_in_bandwidth)
         return self.box_trapping_efficiency
+
+    def TrapLength(self):
+        self.Experiment.trap_length = 0.8 * 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
+        logger.info("Calc'd trap length: {} m".format(round(self.Experiment.trap_length/m, 3), 2))
 
     def CavityPower(self):
         # from Hamish's atomic calculator

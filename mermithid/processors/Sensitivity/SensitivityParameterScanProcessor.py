@@ -13,6 +13,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import concurrent.futures
 
 
 
@@ -182,12 +183,20 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             except KeyError as e:
                 logger.error(f"Parameter {param} not found in {category}")
                 raise e
-            
+
             self.sens_main.__dict__[category].__dict__[param] = parameter_value 
             read_back = self.sens_main.__dict__[category].__dict__[param]
             #setattr(self.sens_main, self.scan_parameter_name, parameter_value)
             #read_back = getattr(self.sens_main, self.scan_parameter_name)
             logger.info(f"Setting {self.scan_parameter_name} to {parameter_value/self.scan_parameter_unit} and reading back: {read_back/ self.scan_parameter_unit}")
+           
+            # pitch angle set equal
+            if(param == "min_pitch_used_in_analysis"):
+                self.sens_main.__dict__["FrequencyExtraction"].__dict__["minimum_angle_in_bandwidth"] = parameter_value
+            
+            # If the scanned param isn't trap length, calc trap length for cavity L/D
+            if (param != "trap_length"):
+                self.sens_main.TrapLength() 
             
             logger.info("Calculating cavity experiment radius, volume, effective volume, power") 
             self.sens_main.CavityRadius()  
