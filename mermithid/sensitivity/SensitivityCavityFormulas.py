@@ -489,7 +489,7 @@ class CavitySensitivity(Sensitivity):
         tau_snr_part_length = self.calculate_tau_snr(self.time_window_slope_zero, self.FrequencyExtraction.carrier_power_fraction)
         
         #Calculate the frequency variance from the CRLB
-        self.var_f_c_CRLB = self.frequency_variance_from_CRLB(self, tau_snr_full_length)
+        self.var_f_c_CRLB = self.frequency_variance_from_CRLB(tau_snr_full_length)
 
         # sigma_f from pitch angle reconstruction
         if self.FrequencyExtraction.crlb_on_sidebands:
@@ -498,7 +498,7 @@ class CavitySensitivity(Sensitivity):
 
             tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.sideband_power_fraction)
             # (sigmaf_lsb)^2:
-            var_f_sideband_crlb = self.frequency_variance_from_CRLB(self, tau_snr_full_length_sideband)
+            var_f_sideband_crlb = self.frequency_variance_from_CRLB(tau_snr_full_length_sideband)
             #var_f_sideband_crlb = self.FrequencyExtraction.CRLB_scaling_factor*(self.CRLB_constant*tau_snr_full_length_sideband/self.time_window**3)/(2*np.pi)**2
 
             m = self.FrequencyExtraction.sideband_order #For convenience
