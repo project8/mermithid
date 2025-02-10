@@ -150,9 +150,9 @@ sens_config_dict = {
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
-    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_threshold_Feb-9-2025.pdf",
+    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_threshold_Feb-10-2025.pdf",
     # optional
-    "figsize": (7.0,6), 
+    "figsize": (7.5,6.4), 
     "fontsize": 15,
     "track_length_axis": False,
     "legend_location": "upper left",
@@ -163,10 +163,11 @@ sens_config_dict = {
     "track_length_axis": True,
     "cavity": True,
     "y_limits": [2e-2, 4],
-    "density_range": [5e13,3e18],
+    "density_range": [5e14,3e18], #5e13
+    "det_thresh_range": [15, 135],
     "main_curve_upper_label":  r"LFA (Phase III): 560 MHz", #Phase III scenario: 1 GHz",
-    "goals": {"LFA (0.65 eV)": 0.65, "Phase IV (0.04 eV)": 0.04}, #"Pilot T goal (0.1 eV)": 0.1,
-    "comparison_curve": False,
+    "goals": {"LFA (0.5 eV)": 0.5, "Phase IV (0.04 eV)": 0.04}, #"Pilot T goal (0.1 eV)": 0.1,
+    "comparison_curve": True,
     "main_curve_color": "blue",
     "comparison_curve_colors": ["red", "black"],
     "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg", "/termite/sensitivity_config_files/Config_PIVmodule1_150MHz_minpitch_87deg.cfg"], 

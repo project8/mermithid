@@ -95,7 +95,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.year_range = reader.read_param(params, "year_range", [0.1, 20])
         self.exposure_range = reader.read_param(params, "exposure_range", [1e-10, 1e3])
         self.frequency_range = reader.read_param(params, "frequency_range", [1e6, 1e9])
-        self.det_thresh_range = reader.read_param(params, 'det_thresh_range', [15, 85])
+        self.det_thresh_range = reader.read_param(params, 'det_thresh_range', [1, 160])
         
         self.ylim = reader.read_param(params, 'y_limits', [1e-2, 1e2])
         
@@ -178,11 +178,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 logger.warn("No experiment is configured to be atomic")
 
         # densities, exposures, runtimes
-        self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 40)/m**3
+        self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 100)/m**3
         self.exposures = np.logspace(np.log10(self.exposure_range[0]), np.log10(self.exposure_range[1]), 100)*m**3*year
         self.years = np.logspace(np.log10(self.year_range[0]), np.log10(self.year_range[1]), 100)*year
         self.frequencies = np.logspace(np.log10(self.frequency_range[0]), np.log10(self.frequency_range[1]), 20)*Hz
-        self.thresholds = np.linspace(self.det_thresh_range[0], self.det_thresh_range[1], 10)
+        self.thresholds = np.linspace(self.det_thresh_range[0], self.det_thresh_range[1], 25)
 
         ncav_temp = self.sens_main.Experiment.n_cavities
         self.ncavities_livetime_range = [ncav_temp*self.year_range[0], ncav_temp*self.year_range[1]]
@@ -201,8 +201,6 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         #Optimizing the detection threshold for the main config file
         #Before the density optimization
         self.track_duration_before_opt = self.sens_main.track_length(self.sens_main.Experiment.number_density)
-        tau_snr_before_opt = self.sens_main.calculate_tau_snr(self.track_duration_before_opt, self.sens_main.FrequencyExtraction.carrier_power_fraction)
-        SNR_track_duration = self.track_duration_before_opt/tau_snr_before_opt
         #threshs_before_opt = np.linspace(0.5*SNR_track_duration, 1.0*SNR_track_duration, 10)
         thresh_limits = [self.sens_main.CL90(Threshold={"detection_threshold": th}) for th in self.thresholds]
         index = np.argmin(thresh_limits)
@@ -250,9 +248,6 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             thresh_opt_main = []
             limits = []
             for rho in self.rhos:
-                track_duration = self.sens_main.track_length(rho) #, self.sens_main.T_endpoint, molecular=(not self.Experiment.atomic)
-                tau_snr_ex_carrier = self.sens_main.calculate_tau_snr(track_duration, self.sens_main.FrequencyExtraction.carrier_power_fraction)
-                SNR_track_duration = track_duration/tau_snr_ex_carrier
                 thresh_limits = []
                 for thresh in self.thresholds:
                     self.sens_main.Threshold.detection_threshold = thresh
@@ -261,12 +256,12 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 thresh_opt_main.append(self.thresholds[index])
                 limits.append(thresh_limits[index]) 
             #limit = [self.sens_main.CL90(Experiment={"number_density": rho})/eV for rho in self.rhos]
-            opt = np.argmin(limits)
-            rho_opt = self.rhos[opt]
+            opt_index = np.argmin(limits)
+            rho_opt = self.rhos[opt_index]
             self.sens_main.Experiment.number_density = rho_opt
-            self.sens_main.Threshold.detection_threshold = thresh_opt_main[opt]
+            self.sens_main.Threshold.detection_threshold = thresh_opt_main[opt_index]
             logger.info("Optimized thresholds at each density: {}".format(thresh_opt_main))
-            logger.info("Optimized threshold at optimum n: {}".format(thresh_opt_main[opt]))
+            logger.info("Optimized threshold at optimum n: {}".format(thresh_opt_main[opt_index]))
 
         else:
             #Use the optimized detection threshold even if the density isn't optimized
@@ -312,7 +307,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         # PRINT OPTIMUM RESULTS
         
         self.sens_main.Experiment.number_density = rho_opt
-        self.sens_main.Threshold.detection_threshold = thresh_opt_main[opt]
+        self.sens_main.Threshold.detection_threshold = thresh_opt_main[opt_index]
 
         # if the magnetic field uncertainties were configured above, set them back to the first value in the list    
         if self.configure_sigma_theta_r and (isinstance(self.sigmae_theta_r, list) or isinstance(self.sigmae_theta_r, np.ndarray)):
@@ -413,7 +408,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                     limit2_index = np.argmin(limits_ref)
                     rho_opt_ref = self.rhos[limit2_index]
                     limit2 = limits_ref[limit2_index] #self.sens_ref[i].CL90(Experiment={"number_density": rho_opt_ref})
-                    #logger.info("Optimized thresholds at each density: {}".format(thresh_opt_comparison))
+                    logger.info("Optimized thresholds at each density: {}".format(thresh_opt_comparison))
+                    logger.info("Optimized threshold at optimum n: {}".format(thresh_opt_comparison[limit2_index]))
                 else:
                     limit_ref = [self.sens_ref[i].CL90(Threshold={"detection_threshold": th}) for th in self.thresholds]
                     limit2 = np.min(limit_ref) #self.sens_ref[i].CL90()/eV 
@@ -704,9 +700,6 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         temp_rho = deepcopy(sens.Experiment.number_density)
         thresh_opt = []
         for rho in self.rhos:
-            track_duration = sens.track_length(rho) #, self.sens_main.T_endpoint, molecular=(not self.Experiment.atomic)
-            tau_snr_ex_carrier = sens.calculate_tau_snr(track_duration, sens.FrequencyExtraction.carrier_power_fraction)
-            SNR_track_duration = track_duration/tau_snr_ex_carrier
             thresh_limits = []
             #thresholds = np.linspace(10, 100, 10) #0.3*SNR_track_duration, 0.8*SNR_track_duration, 10)
             for thresh in self.thresholds:
@@ -720,6 +713,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             crlb_max_window.append(sens.time_window/ms)
             crlb_slope_zero_window.append(sens.time_window_slope_zero/ms)
             #det_effs.append(self.sens_main.detection_efficiency)
+        logger.info("Optimized thresholds at each density: {}".format(thresh_opt))
+        logger.info("Optimized threshold at optimum n: {}".format(thresh_opt[index]))
 
         #print(det_effs)   
         sens.Experiment.number_density = temp_rho
