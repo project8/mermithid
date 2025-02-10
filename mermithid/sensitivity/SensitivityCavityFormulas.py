@@ -78,7 +78,7 @@ def mean_field_frequency_variation(cyclotron_frequency, length_diameter_ratio, m
     # Because of the different electron trajectories in the trap,
     # An electron will see a slightly different magnetic field
     # depending on its position in the trap, especially the pitch angle.
-    # This is a rough estimate of the mean field variation, inspired by calcualtion performed by Rene.
+    # This is a rough estimate of the mean field variation, inspired by calculation performed by Rene.
     #y = (90-max_pitch_angle)/4
     phi_rad = (np.pi/2-max_pitch_angle)
     return q*phi_rad**2*cyclotron_frequency*(10/length_diameter_ratio)
@@ -242,8 +242,8 @@ class CavitySensitivity(Sensitivity):
         ####
         #Initialization related to the energy resolution:
         ####
-        self.CRLB_constant = 12
-        #self.CRLB_constant = 90
+        #No longer using this CRLB_constant. If this change sticks, will remove it.
+        self.CRLB_constant = 6
         if hasattr(self.FrequencyExtraction, "crlb_constant"):
             self.CRLB_constant = self.FrequencyExtraction.crlb_constant
             logger.info("Using configured CRLB constant")      
@@ -445,6 +445,22 @@ class CavitySensitivity(Sensitivity):
         logger.info("Opimtum energy window: {} eV".format(self.DeltaEWidth()/eV))
     """
 
+    def frequency_variance_from_CRLB(self, tau_SNR):
+        self.eta = self.slope*self.time_window/(4*self.cavity_freq*np.pi)
+        if self.eta < 1e-6:
+            # This is for the case where the track is flat (almost no slope), and where we
+            # treat it as a pure sinusoid (don't fit the slope when extracting the frequency).
+            # Applies for a complex signal.
+            return self.FrequencyExtraction.CRLB_scaling_factor*(6*tau_SNR/self.time_window**3)/(2*np.pi)**2 
+        else:
+            # Non-zero, fitted slope. Still assumes that alpha*T/2 << omega_c.
+            # The first term relies on the relation delta_t_start = sqrt(20)*tau_snr. This is from Equation 6.40 of Nick's thesis,
+            # derived in Appendix A and verified with an MC study.
+            # Using a factor of 23 instead of 20, from re-calculating Nick's integrals (though this derivation is approximate).
+            # Nick's derivation uses an expression for P_fa - we need to check if it's consistent with what Rene uses now.
+            return self.FrequencyExtraction.CRLB_scaling_factor*(23*(self.slope*tau_SNR)**2 + 96*tau_SNR/self.time_window**3)/(2*np.pi)**2
+
+    
     def syst_frequency_extraction(self):
         # cite{https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398} (Section 1.2, p 7-9)
         # Are we double counting the antenna collection efficiency? We use it here. Does it also impact the effective volume, v_eff ?
@@ -467,25 +483,8 @@ class CavitySensitivity(Sensitivity):
         tau_snr_full_length = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.carrier_power_fraction)
         tau_snr_part_length = self.calculate_tau_snr(self.time_window_slope_zero, self.FrequencyExtraction.carrier_power_fraction)
         
-        
-        # use different crlb based on slope
-        # delta_E_slope = abs(kin_energy(endpoint_frequency, self.MagneticField.nominal_field)-kin_energy(endpoint_frequency+self.slope*ms, self.MagneticField.nominal_field))
-        # logger.info("slope is {} Hz/ms".format(self.slope/Hz*ms))
-        # logger.info("slope corresponds to {} meV / ms".format(delta_E_slope/meV))
-        # if True: #self.time_window_slope_zero >= self.time_window:
-        # logger.info("slope is approximately 0: {} meV".format(delta_E_slope/meV))
-        self.var_f_c_CRLB = self.FrequencyExtraction.CRLB_scaling_factor*(self.CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2
-        self.best_time_window = self.time_window
-
-        # non constant slope
-        self.var_f_CRLB_slope_fitted = self.FrequencyExtraction.CRLB_scaling_factor*(20*(self.slope*tau_snr_full_length)**2 + self.CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2
-        if self.CRLB_constant > 10: self.var_f_c_CRLB = self.var_f_CRLB_slope_fitted
-
-        """
-        # sigma_f from Cramer-Rao lower bound in eV
-        self.sigma_K_f_CRLB =  e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*sigma_f_CRLB*c0**2
-        # delta_sigma_K_f_CRLB = e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*delta_sigma_f_CRLB*c0**2
-        """
+        #Calculate the frequency variance from the CRLB
+        self.var_f_c_CRLB = self.frequency_variance_from_CRLB(self, tau_snr_full_length)
 
         # sigma_f from pitch angle reconstruction
         if self.FrequencyExtraction.crlb_on_sidebands:
@@ -494,8 +493,9 @@ class CavitySensitivity(Sensitivity):
 
             tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.sideband_power_fraction)
             # (sigmaf_lsb)^2:
-            var_f_sideband_crlb = self.FrequencyExtraction.CRLB_scaling_factor*(self.CRLB_constant*tau_snr_full_length_sideband/self.time_window**3)/(2*np.pi)**2
-            
+            var_f_sideband_crlb = self.frequency_variance_from_CRLB(self, tau_snr_full_length_sideband)
+            #var_f_sideband_crlb = self.FrequencyExtraction.CRLB_scaling_factor*(self.CRLB_constant*tau_snr_full_length_sideband/self.time_window**3)/(2*np.pi)**2
+
             m = self.FrequencyExtraction.sideband_order #For convenience
 
             #Define phi_max, corresponding to the minimum pitch angle
@@ -594,12 +594,14 @@ class CavitySensitivity(Sensitivity):
         # Also check the antenna paper for more details. 
         # Especially the section on the signal detection with matched filtering.
         mean_track_duration = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
-        tau_snr_ex_carrier = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction)
-        result, abs_err = quad(lambda track_duration: ncx2(df=2, nc=track_duration/tau_snr_ex_carrier).sf(self.Threshold.detection_threshold)*1/mean_track_duration*np.exp(-track_duration/mean_track_duration), 0, np.inf)
-        return result, abs_err
+        # Using "total power," assumed here to be carrier power + one sideband's power.
+        # This is for a representative pitch angle---not the same as the power of a 90° pitch electron's carrier.
+        tau_snr_ex_total = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction + self.FrequencyExtraction.sideband_power_fraction)
+        result = quad(lambda track_duration: ncx2(df=2, nc=2*track_duration/tau_snr_ex_total).sf(self.Threshold.detection_threshold)*1/mean_track_duration*np.exp(-track_duration/mean_track_duration), 0, np.inf)[0]
+        return result
 
     def assign_detection_efficiency_from_threshold(self):
-        self.detection_efficiency, self.abs_err = self.det_efficiency_track_duration()
+        self.detection_efficiency = self.det_efficiency_track_duration()
         return self.detection_efficiency
 
     def rf_background_rate_cavity(self):
@@ -659,8 +661,8 @@ class CavitySensitivity(Sensitivity):
         
         logger.info("Optimum energy window: {} eV".format(self.DeltaEWidth()/eV))
         
-        logger.info("CRLB if slope is nonzero and needs to be fitted: {} Hz".format(np.sqrt(self.var_f_CRLB_slope_fitted)/Hz))
-        logger.info("CRLB constant: {}".format(self.CRLB_constant))
+        #logger.info("CRLB if slope is nonzero and needs to be fitted: {} Hz".format(np.sqrt(self.var_f_CRLB_slope_fitted)/Hz))
+        #logger.info("CRLB constant: {}".format(self.CRLB_constant))
         logger.info("**Done printing SNR parameters.**")
         
         return self.noise_temp, SNR_1eV_90deg, track_duration
@@ -672,7 +674,7 @@ class CavitySensitivity(Sensitivity):
             # radial and detection efficiency are configured in the config file
             logger.info("Radial efficiency: {}".format(self.radial_efficiency))
             logger.info("Detection efficiency: {}".format(self.detection_efficiency))
-            logger.info("Detection efficiency integration error: {}".format(self.abs_err))
+            #logger.info("Detection efficiency integration error: {}".format(self.abs_err))
             logger.info("Trapping efficiency: {}".format(self.pos_dependent_trapping_efficiency))
             logger.info("Efficiency from axial frequency cut: {}".format(self.fa_cut_efficiency))
             logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
