@@ -150,21 +150,21 @@ sens_config_dict = {
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
-    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_threshold_Feb-10-2025.pdf",
+    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_threshold_test_Feb-10-2025.pdf",
     # optional
     "figsize": (7.5,6.4), 
     "fontsize": 15,
     "track_length_axis": False,
     "legend_location": "upper left",
-    "legend_bbox_to_anchor": (0.17,-0.01,1.1,0.87),
+    "legend_bbox_to_anchor": (0.155,-0.01,1.12,0.885), #(0.17,-0.01,1.1,0.87),
     "molecular_axis": False,
     "atomic_axis": True,
     "density_axis": True,
     "track_length_axis": True,
-    "cavity": True,
+    "effs_for_sampled_radii": True,
     "y_limits": [2e-2, 4],
-    "density_range": [5e14,3e18], #5e13
-    "det_thresh_range": [15, 135],
+    "density_range": [3e14,3e18], #5e13
+    "det_thresh_range": [5, 115],
     "main_curve_upper_label":  r"LFA (Phase III): 560 MHz", #Phase III scenario: 1 GHz",
     "goals": {"LFA (0.5 eV)": 0.5, "Phase IV (0.04 eV)": 0.04}, #"Pilot T goal (0.1 eV)": 0.1,
     "comparison_curve": True,
@@ -178,9 +178,9 @@ sens_config_dict = {
     "lower_label_y_position": 0.17,
     "upper_label_y_position": 0.7,
     "label_x_position": 4e14, #4e14, #0.02, #1e14,
-    "goals_x_position": 5.5e13, #0.0002
+    "goals_x_position": 3.3e14, #5.5e13, 
     "plot_key_parameters": True,
-    "goals_y_rel_position": 0.755
+    "goals_y_rel_position": 0.78 #0.755
     }
 sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
 sens_curve.Configure(sens_config_dict)

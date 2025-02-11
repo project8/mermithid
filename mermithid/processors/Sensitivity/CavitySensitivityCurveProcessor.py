@@ -3,7 +3,7 @@ Calculate sensitivity curve and plot vs. number density, exposure, livetime, or 
 
 Author: C. Claessens, T. E. Weiss
 Date: 06/07/2023
-Updated: January 2025
+Updated: February 2025
 '''
 
 from __future__ import absolute_import
@@ -178,11 +178,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 logger.warn("No experiment is configured to be atomic")
 
         # densities, exposures, runtimes
-        self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 100)/m**3
+        self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 50)/m**3
         self.exposures = np.logspace(np.log10(self.exposure_range[0]), np.log10(self.exposure_range[1]), 100)*m**3*year
         self.years = np.logspace(np.log10(self.year_range[0]), np.log10(self.year_range[1]), 100)*year
         self.frequencies = np.logspace(np.log10(self.frequency_range[0]), np.log10(self.frequency_range[1]), 20)*Hz
-        self.thresholds = np.linspace(self.det_thresh_range[0], self.det_thresh_range[1], 25)
+        self.thresholds = np.linspace(self.det_thresh_range[0], self.det_thresh_range[1], 40)
 
         ncav_temp = self.sens_main.Experiment.n_cavities
         self.ncavities_livetime_range = [ncav_temp*self.year_range[0], ncav_temp*self.year_range[1]]
@@ -308,6 +308,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
         self.sens_main.Experiment.number_density = rho_opt
         self.sens_main.Threshold.detection_threshold = thresh_opt_main[opt_index]
+        self.sens_main.EffectiveVolume()
 
         # if the magnetic field uncertainties were configured above, set them back to the first value in the list    
         if self.configure_sigma_theta_r and (isinstance(self.sigmae_theta_r, list) or isinstance(self.sigmae_theta_r, np.ndarray)):
@@ -338,7 +339,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             logger.info("Uncertainty from determination of f_carrier and f_lsb, due to noise: {} eV".format(self.sens_main.sigma_K_noise/eV))
        
         self.sens_main.print_SNRs(rho)
-        self.sens_main.print_Efficiencies()
+        self.sens_main.print_Efficiencies() 
 
         if self.exposure_axis or self.livetime_axis or self.ncavities_livetime_axis or self.ncav_eff_time_axis:
             logger.info("NUMBERS BELOW ARE FOR THE HIGHEST-EXPOSURE POINT ON THE CURVE:")
@@ -417,9 +418,13 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 if self.optimize_comparison_density:
                     logger.info('COMPARISON CURVE at optimum density:')
                     rho2 = rho_opt_ref
+                    self.sens_ref[i].Experiment.number_density = rho2
+                    self.sens_ref[i].Threshold.detection_threshold = thresh_opt_comparison[limit2_index]
+                    self.sens_main.EffectiveVolume()
                 else:
                     logger.info('COMPARISON CURVE at configured density (not optimum):')
                     rho2 = self.sens_main.Experiment.number_density
+
                 logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_ref[i].effective_volume/(m**3), rho2*(m**3)))
                 logger.info("Loaded Q: {}".format(self.sens_ref[i].loaded_q))
                 logger.info('Larmor power = {} W, Hanneke power = {} W'.format(self.sens_ref[i].larmor_power/W, self.sens_ref[i].signal_power/W))
@@ -432,7 +437,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 self.sens_ref[i].print_Efficiencies()
                 if self.exposure_axis or self.livetime_axis or self.ncavities_livetime_axis or self.ncav_eff_time_axis:
                     logger.info("NUMBERS BELOW ARE FOR THE HIGHEST-EXPOSURE POINT ON THE CURVE:")
-                logger.info('CL90 limit: {}'.format(limit2/eV))
+                logger.info('CL90 limit: {} eV'.format(limit2/eV))
                 logger.info('Tritium in Veff: {}'.format(rho2*self.sens_ref[i].effective_volume))
                 logger.info('RF background: {}/eV/s'.format(self.sens_ref[i].RF_background_rate_per_eV*eV*s))
                 logger.info('Total background: {}/eV/s'.format(self.sens_ref[i].background_rate*eV*s))
@@ -468,8 +473,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         logger.info("2. Trap design is not yet linked to cavity L/D in the sensitivity model. So, \
                     the model does *not* capture how reducing L/D worsens the resolution.")
         logger.info("3. In reality, the frequency resolution could be worse or somewhat better \
-                    than predicted by the general CRLB calculation used here. See work by Florian.")
-        logger.info("4. The analytic sensitivity formula oaccounts for energy resolution contributions \
+                    than predicted by the chirp CRLB calculation used here. See work by Florian.")
+        logger.info("4. The analytic sensitivity formula accounts for energy resolution contributions \
                     that are *normally distributed*. (Energy resolution = std of the response fn \
                     that broadens the spectrum.) To account for asymmetric contributions, generate \
                     spectra with MC sampling and then analyze them. This can be done in mermithid.")
@@ -713,8 +718,6 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             crlb_max_window.append(sens.time_window/ms)
             crlb_slope_zero_window.append(sens.time_window_slope_zero/ms)
             #det_effs.append(self.sens_main.detection_efficiency)
-        logger.info("Optimized thresholds at each density: {}".format(thresh_opt))
-        logger.info("Optimized threshold at optimum n: {}".format(thresh_opt[index]))
 
         #print(det_effs)   
         sens.Experiment.number_density = temp_rho

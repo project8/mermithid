@@ -228,6 +228,7 @@ class CavitySensitivity(Sensitivity):
         #Assigning the background constant if it's not in the config file
         if hasattr(self.Experiment, "bkgd_constant"):
             self.bkgd_constant = self.Experiment.bkgd_constant
+            logger.info("Using background rate constant of {}/eV/s".format(self.bkgd_constant))
         else:
             self.bkgd_constant = 1
             logger.info("Using background rate constant of 1/eV/s") 
@@ -258,6 +259,11 @@ class CavitySensitivity(Sensitivity):
         #Just calculated for comparison
         self.larmor_power = rad_power(self.T_endpoint, np.pi/2, self.MagneticField.nominal_field) # currently not used
         
+        if self.Threshold.use_detection_threshold:
+            logger.info("Overriding any detection eff and RF background in the config file; calculating these from the detection_threshold.")
+        else:  
+            logger.info("Using the detection eff and RF background rate from the config file.")
+
 
     # CAVITY
     def CavityRadius(self):
@@ -295,13 +301,15 @@ class CavitySensitivity(Sensitivity):
         else:
             #Detection efficiency
             if self.Threshold.use_detection_threshold:
-                #If the_threshold is True, calculate the detection efficiency given the SNR of data and the threshold.
+                #Calculating the detection efficiency given the SNR of data and the threshold.
+                #If the config file contains a detection effciency or RF background rate, they are overridden.
                 self.assign_background_rate_from_threshold()
                 self.assign_detection_efficiency_from_threshold()
             else:
-                #If use_threshold is False, use the inputted detection efficiency and RF background rate from the config file.
+                #Using the inputted detection efficiency and RF background rate from the config file.
                 self.detection_efficiency = self.Efficiency.detection_efficiency
                 self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV    
+
 
             #Radial efficiency
             if self.Efficiency.unusable_dist_from_wall >= self.cyc_rad:
@@ -335,20 +343,23 @@ class CavitySensitivity(Sensitivity):
         logger.info("Calc'd trap length: {} m".format(round(self.Experiment.trap_length/m, 3), 2))
 
     def CavityPower(self):
-        # from Hamish's atomic calculator
         #Jprime_0 = 3.8317
         max_ax_freq, mean_field, z_t = axial_motion(self.MagneticField.nominal_field,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth,
                                                   self.Experiment.trap_length,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth, 
-                                                  self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction, trajectory = 1000)
+                                                  self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction, trajectory = 1000) #1000
 
-        #self.signal_power = self.FrequencyExtraction.mode_coupling_efficiency * self.CavityLoadedQ() * self.FrequencyExtraction.hanneke_factor * self.T_endpoint/eV * e/C * Jprime_0**2 / (2*np.pi**2*self.Experiment.cavity_L_over_D*2*self.cavity_radius**3/m**3 * frequency(self.T_endpoint, self.MagneticField.nominal_field)*s)*W
-        self.signal_power = np.mean(larmor_orbit_averaged_hanneke_power(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=2000),
+        #The np.random.triangluar function weights the radii, accounting for the fact that there are more electrons at large radii than small ones
+        power_vs_r_with_zeros = np.mean(larmor_orbit_averaged_hanneke_power(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=50),
                                                                             z_t, self.CavityLoadedQ(), 
                                                                             2*self.Experiment.cavity_L_over_D*self.cavity_radius, 
                                                                             self.cavity_radius, 
-                                                                            self.cavity_freq))
+                                                                            self.cavity_freq), axis=1)
+        #Remove zeros, since these represent electrons that hit the cavity wall and are not detected
+        self.signal_power_vs_r = power_vs_r_with_zeros[power_vs_r_with_zeros != 0]
+
+        self.signal_power = np.mean(self.signal_power_vs_r)
         return self.signal_power
     
 
@@ -385,7 +396,7 @@ class CavitySensitivity(Sensitivity):
     # SYSTEMATICS
     # Generic systematics are implemented in the parent class in SensitivityFormulas.py
 
-    def calculate_tau_snr(self, time_window, power_fraction=1):
+    def calculate_tau_snr(self, time_window, power_fraction=1, tau_snr_array_for_radii=False):
         """
         power_fraction may be used as a carrier or a sideband power fraction,
         relative to the power of a 90 degree carrier.
@@ -419,7 +430,10 @@ class CavitySensitivity(Sensitivity):
         
         # Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
         # logger.info("Power: {}".format(Pe/W))
-        Pe = self.signal_power * power_fraction
+        if tau_snr_array_for_radii:
+            Pe = self.signal_power_vs_r * power_fraction
+        else:
+            Pe = self.signal_power * power_fraction
         
         P_signal_received = Pe*db_to_pwr_ratio(att_cir_db_freq+att_line_db_freq)
         self.received_power = P_signal_received
@@ -610,8 +624,11 @@ class CavitySensitivity(Sensitivity):
         Especially the section on the signal detection with matched filtering.
         """
         # Calculate the mean track duration
+        #FIX: Only do the lines below ones for a given density; don't repeat for each threshold being scanned ...
         mean_track_duration = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
-        tau_snr_ex_total = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction + self.FrequencyExtraction.sideband_power_fraction)
+        tau_snr_ex_total = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction + self.FrequencyExtraction.sideband_power_fraction, tau_snr_array_for_radii=self.Efficiency.calculate_det_eff_for_sampled_radii)
+        if isinstance(tau_snr_ex_total, float):
+            tau_snr_ex_total = [tau_snr_ex_total]
 
         # Roots and weights for the Laguerre polynomial
         x, w = roots_laguerre(100) #n=100 is the number of quadrature points
@@ -620,12 +637,14 @@ class CavitySensitivity(Sensitivity):
         scaled_x = x * mean_track_duration
 
         # Evaluate the non-central chi-squared dist values at the scaled quadrature points
-        sf_values = ncx2(df=2, nc=2*scaled_x / tau_snr_ex_total).sf(self.Threshold.detection_threshold)
-        #plt.plot(sf_values)
+        sf_values = np.array([ncx2(df=2, nc=2 * scaled_x / tau_snr).sf(self.Threshold.detection_threshold) for tau_snr in tau_snr_ex_total])
 
         # Calculate and return the integration result from weighted sum
-        result = np.sum(w * sf_values)
-        return result
+        eff_for_each_r = np.sum(w * sf_values, axis=1)
+
+        #Average efficiencies over the sampled electron radii. Weighting for radial distribution is accounted for in sampling, earlier.
+        avg_efficiency = np.mean(eff_for_each_r) 
+        return avg_efficiency
 
     def assign_detection_efficiency_from_threshold(self):
         self.detection_efficiency = self.det_efficiency_track_duration()
@@ -697,6 +716,9 @@ class CavitySensitivity(Sensitivity):
     
     def print_Efficiencies(self):
         
+        logger.info("Effective volume: {} mm^3".format(round(self.effective_volume/mm**3, 3)))
+        logger.info("Total efficiency: {}".format(self.effective_volume/self.total_trap_volume))  
+    
         if not self.Efficiency.usefixedvalue:
             # radial and detection efficiency are configured in the config file
             logger.info("Radial efficiency: {}".format(self.radial_efficiency))
@@ -705,9 +727,6 @@ class CavitySensitivity(Sensitivity):
             logger.info("Trapping efficiency: {}".format(self.pos_dependent_trapping_efficiency))
             logger.info("Efficiency from axial frequency cut: {}".format(self.fa_cut_efficiency))
             logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
-            
-        logger.info("Effective volume: {} mm^3".format(round(self.effective_volume/mm**3, 3)))
-        logger.info("Total efficiency: {}".format(self.effective_volume/self.total_trap_volume))  
 
 
 
