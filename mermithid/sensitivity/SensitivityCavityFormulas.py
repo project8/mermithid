@@ -590,9 +590,35 @@ class CavitySensitivity(Sensitivity):
 
     def det_efficiency_track_duration(self):
         """
-        Detection efficiency implemented based on René's slides, with faster and stable implementation using Gauss-Laguerre quadrature:
+        Detection efficiency implemented based on René's slides, with faster and stable implementation using Gauss-Laguerre quadrature (G-L method):
         https://3.basecamp.com/3700981/buckets/3107037/documents/8013439062
         Gauss-Laguerre Quadrature: https://en.wikipedia.org/wiki/Gauss%E2%80%93Laguerre_quadrature
+
+        
+        The following changes were made to the original integral to fit the G-L method:
+
+        Original integrand: ∫[0 to \inf] ncx2(df=2, nc=t/τ).sf(thres) * (1/μ) * exp(-t/μ) dt
+        
+        Where,
+        t = track_duration
+        μ (\mu) = mean_track_duration
+        τ (\tau) = tau_snr_ex_carrier
+        thres = detection_threshold
+
+        We do the change of variable, x = t / μ
+                so, t = x μ
+                or, dt = μ dx
+
+        Substituting into the original integral: 
+        
+        ∫[0 to \inf] ncx2(df=2, nc=xμ/τ).sf(thres) * (1/μ) * exp(-x) μ dx
+
+        The μ's cancel out, and the integral takes the form:
+        
+        ∫[0 to \inf] f(x) * exp(-x) dx
+
+        where, f(x) = ncx2(df=2, nc=xμ/τ).sf(thres)
+        
         
         Parameters
         ----------
@@ -613,10 +639,10 @@ class CavitySensitivity(Sensitivity):
         tau_snr_ex_carrier = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction)
 
         # Roots and weights for the Laguerre polynomial
-        x, w = roots_laguerre(250) #n=250 is the number of quadrature points
+        x, w = roots_laguerre(100) #n=100 is the number of quadrature points
         
         # Scale the track duration to match the form of Gauss-Laguerre quadrature
-        scaled_x = x * mean_track_duration
+        scaled_x = x * mean_track_duration # scaled_x = xμ
 
         # Evaluate the non-central chi-squared dist values at the scaled quadrature points
         sf_values = ncx2(df=2, nc=scaled_x / tau_snr_ex_carrier).sf(self.Threshold.detection_threshold)
