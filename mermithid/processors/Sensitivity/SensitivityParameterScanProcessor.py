@@ -304,7 +304,9 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         plt.ylabel(r"90% CL $m_\beta$ (eV)", fontsize=self.fontsize)
         if self.plot_sensitivity_scan_on_log_scale:
             plt.yscale("log")
-            
+        # TODO log x here    
+        if(self.scan_parameter_scale == "log"):
+            plt.xscale("log")
         for key, value in self.goals.items():
             logger.info('Adding goal: {} = {}'.format(key, value))
             plt.axhline(value, label=key, color="grey", linestyle="--")
