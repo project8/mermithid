@@ -345,6 +345,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             logger.info("NUMBERS BELOW ARE FOR THE HIGHEST-EXPOSURE POINT ON THE CURVE:")
         logger.info('CL90 limit: {} eV'.format(self.sens_main.CL90(Experiment={"number_density": rho})/eV))
         logger.info('Tritium in Veff: {}'.format(rho*self.sens_main.effective_volume))
+        self.sens_main.assign_background_rate_from_threshold()
+        self.sens_main.BackgroundRate()
         logger.info('RF background: {}/eV/s'.format(self.sens_main.RF_background_rate_per_eV*eV*s))
         logger.info('Total background: {}/eV/s'.format(self.sens_main.background_rate*eV*s))
         logger.info('Total signal: {}'.format(rho*self.sens_main.effective_volume*
@@ -439,6 +441,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                     logger.info("NUMBERS BELOW ARE FOR THE HIGHEST-EXPOSURE POINT ON THE CURVE:")
                 logger.info('CL90 limit: {} eV'.format(limit2/eV))
                 logger.info('Tritium in Veff: {}'.format(rho2*self.sens_ref[i].effective_volume))
+                self.sens_ref[i].assign_background_rate_from_threshold()
+                self.sens_ref[i].BackgroundRate()
                 logger.info('RF background: {}/eV/s'.format(self.sens_ref[i].RF_background_rate_per_eV*eV*s))
                 logger.info('Total background: {}/eV/s'.format(self.sens_ref[i].background_rate*eV*s))
                 logger.info('Total signal: {}'.format(rho2*self.sens_ref[i].effective_volume*

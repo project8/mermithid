@@ -150,7 +150,7 @@ sens_config_dict = {
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
-    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_threshold_test_Feb-10-2025.pdf",
+    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_threshold_Feb-11-2025.pdf",
     # optional
     "figsize": (7.5,6.4), 
     "fontsize": 15,
