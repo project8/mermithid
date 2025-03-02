@@ -146,11 +146,10 @@ sens_config_dict = {
 
 
 # Configuration for Sensitivity vs. density plot
-# Currently comparing conservative atomic vs. scenario that reaches target without statistics boost
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
-    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_threshold_Feb-11-2025.pdf",
+    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_threshold_March-2-2025.pdf",
     # optional
     "figsize": (7.5,6.4), 
     "fontsize": 15,
@@ -190,7 +189,7 @@ sens_curve.Run()
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
-    "plot_path": "./lfa_and_PhaseIV_sensitivity_vs_ncav-eff-time_curve_Jan-8-2025.pdf",
+    "plot_path": "./lfa_and_PhaseIV_sensitivity_vs_livetime_curve_March-2-2025.pdf", #ncav-eff-time
     "exposure_axis": True,
     # optional
     "figsize": (8.5, 6), #(10,6),
@@ -202,7 +201,8 @@ sens_config_dict = {
     "atomic_axis": False,
     "exposure_axis": False,
     "density_axis": False,
-    "ncav_eff_time_axis": True,
+    "ncav_eff_time_axis": False,
+    "livetime_axis": True,
     "cavity": True,
     "add_PhaseII": True,
     "PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg",
@@ -222,8 +222,8 @@ sens_config_dict = {
     "lower_label_y_position": 0.17,
     "upper_label_y_position": 0.7,
     "label_x_position": 0.115, 
-    "goals_x_position": 1.13e-3, #0.11, <-- Number for ncavities*livetime
-    "goals_y_rel_position": 0.84, #0.81, <-- Number for ncavities*livetime
+    "goals_x_position": 1.13e-1, #1.13e-3, <-- Number for ncav*eff*time   #0.11, <-- Number for ncavities*livetime
+    "goals_y_rel_position": 0.84, #0.84, <-- Number for ncav*eff*time   #0.81, <-- Number for ncavities*livetime
     }
 #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
 #sens_curve.Configure(sens_config_dict)
