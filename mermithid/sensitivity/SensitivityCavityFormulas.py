@@ -604,7 +604,7 @@ class CavitySensitivity(Sensitivity):
             sigmaE_meanB = self.BToKeErr(sigma_meanB*B, B)
             sigmaE_r = self.MagneticField.sigmae_r
             sigmaE_theta = self.MagneticField.sigmae_theta
-            sigmaE_phi = self.MagneticField.sigmae_theta
+            sigmaE_phi = self.MagneticField.sigmae_phi
             sigma = np.sqrt(sigmaE_meanB**2 + sigmaE_r**2 + sigmaE_theta**2 + sigmaE_phi**2)
             return sigma, frac_uncertainty*sigma
         else:
