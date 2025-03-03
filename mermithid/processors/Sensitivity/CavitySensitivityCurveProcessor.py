@@ -429,10 +429,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                     rho2 = rho_opt_ref
                     self.sens_ref[i].Experiment.number_density = rho2
                     self.sens_ref[i].Threshold.detection_threshold = thresh_opt_comparison[limit2_index]
-                    self.sens_main.EffectiveVolume()
+                    self.sens_ref[i].EffectiveVolume()
                 else:
                     logger.info('COMPARISON CURVE at configured density (not optimum):')
-                    rho2 = self.sens_main.Experiment.number_density
+                    rho2 = self.sens_ref[i].Experiment.number_density
 
                 logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_ref[i].effective_volume/(m**3), rho2*(m**3)))
                 logger.info("Loaded Q: {}".format(self.sens_ref[i].loaded_q))
