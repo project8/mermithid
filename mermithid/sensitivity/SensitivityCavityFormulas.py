@@ -352,7 +352,7 @@ class CavitySensitivity(Sensitivity):
 
         #The np.random.triangluar function weights the radii, accounting for the fact that there are more electrons at large radii than small ones
         r_sample_size = 50
-        if(not self.Efficiency.calculate_det_eff_for_sampled_radii): r_sample_size = 1000
+        if((not self.Efficiency.calculate_det_eff_for_sampled_radii) or (self.Efficiency.usefixedvalue)): r_sample_size = 1000
         power_vs_r_with_zeros = np.mean(larmor_orbit_averaged_hanneke_power(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=r_sample_size),
                                                                             z_t, self.CavityLoadedQ(), 
                                                                             2*self.Experiment.cavity_L_over_D*self.cavity_radius, 
