@@ -178,7 +178,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 logger.warn("No experiment is configured to be atomic")
 
         # densities, exposures, runtimes
-        self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 50)/m**3
+        self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 80)/m**3
         self.exposures = np.logspace(np.log10(self.exposure_range[0]), np.log10(self.exposure_range[1]), 100)*m**3*year
         self.years = np.logspace(np.log10(self.year_range[0]), np.log10(self.year_range[1]), 100)*year
         self.frequencies = np.logspace(np.log10(self.frequency_range[0]), np.log10(self.frequency_range[1]), 20)*Hz
@@ -216,8 +216,12 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.sens_main.print_systematics()
         logger.info("Number density before optimization: {} \m^3".format(self.sens_main.Experiment.number_density*m**3))
         logger.info("Corresponding track length before density optimization: {} s".format(self.track_duration_before_opt/s))
-        logger.info("***Efficiencies before density optimization, after threshold opt:***")
+        logger.info("***Efficiencies and bkgd before density optimization, after threshold opt:***")
         self.sens_main.print_Efficiencies()
+        self.sens_main.assign_background_rate_from_threshold()
+        self.sens_main.BackgroundRate()
+        logger.info('RF background: {}/eV/s'.format(self.sens_main.RF_background_rate_per_eV*eV*s))
+        logger.info('Total background: {}/eV/s'.format(self.sens_main.background_rate*eV*s))
         logger.info("***Done printing pre-optimization***")
 
         # create main plot
@@ -306,9 +310,12 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
         # PRINT OPTIMUM RESULTS
         
-        self.sens_main.Experiment.number_density = rho_opt
-        self.sens_main.Threshold.detection_threshold = thresh_opt_main[opt_index]
-        self.sens_main.EffectiveVolume()
+        if self.optimize_main_density:
+            #This is done above - should confirm whether it actually needs to be done again, or not
+            self.sens_main.Experiment.number_density = rho_opt
+            self.sens_main.Threshold.detection_threshold = thresh_opt_main[opt_index]
+            self.sens_main.EffectiveVolume()
+        #MAY NEED TO DO THE ABOVE FOR THE SET DENSITY IN THE CONFIG FILE, WHEN NOT OPTIMIZING MAIN DENSITY
 
         # if the magnetic field uncertainties were configured above, set them back to the first value in the list    
         if self.configure_sigma_theta_r and (isinstance(self.sigmae_theta_r, list) or isinstance(self.sigmae_theta_r, np.ndarray)):

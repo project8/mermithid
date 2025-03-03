@@ -259,8 +259,9 @@ class CavitySensitivity(Sensitivity):
         #Just calculated for comparison
         self.larmor_power = rad_power(self.T_endpoint, np.pi/2, self.MagneticField.nominal_field) # currently not used
         
-        if self.Threshold.use_detection_threshold:
-            logger.info("Overriding any detection eff and RF background in the config file; calculating these from the detection_threshold.")
+        if not self.Efficiency.usefixedvalue:
+            if self.Threshold.use_detection_threshold:
+                logger.info("Overriding any detection eff and RF background in the config file; calculating these from the detection_threshold.")
         else:  
             logger.info("Using the detection eff and RF background rate from the config file.")
 
@@ -381,7 +382,7 @@ class CavitySensitivity(Sensitivity):
                                                   self.Experiment.trap_length,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth, 
                                                   self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
-        required_bw_axialfrequency = max_ax_freq
+        required_bw_axialfrequency = max_ax_freq*self.FrequencyExtraction.sideband_order
         self.required_bw_axialfrequency = required_bw_axialfrequency
         required_bw_meanfield = required_bw_meanfield = np.abs(frequency(self.T_endpoint, mean_field) - endpoint_frequency)
         required_bw = np.add(required_bw_axialfrequency,required_bw_meanfield) # Broadcasting
