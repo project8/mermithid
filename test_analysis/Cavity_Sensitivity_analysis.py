@@ -181,15 +181,15 @@ sens_config_dict = {
     "plot_key_parameters": True,
     "goals_y_rel_position": 0.79 #0.755
     }
-sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-sens_curve.Configure(sens_config_dict)
-sens_curve.Run()
+#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+#sens_curve.Configure(sens_config_dict)
+#sens_curve.Run()
 
 
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
-    "plot_path": "./lfa_and_PhaseIV_sensitivity_vs_livetime_curve_target_March-3-2025.pdf", #ncav-eff-time
+    "plot_path": "./lfa_and_PhaseIV_sensitivity_vs_ncav-eff-time_curve_target_March-3-2025.pdf", #ncav-eff-time
     "exposure_axis": True,
     # optional
     "figsize": (8.3, 6.3), #(10,6),
@@ -201,20 +201,21 @@ sens_config_dict = {
     "atomic_axis": False,
     "exposure_axis": False,
     "density_axis": False,
-    "ncav_eff_time_axis": False,
-    "livetime_axis": True,
+    "ncav_eff_time_axis": True,
+    "ncavities_livetime_axis": False,
+    "livetime_axis": False,
     "cavity": True,
     "add_PhaseII": False,
     "PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg",
-    "add_1year_1cav_point_to_last_ref": False,
+    "add_1year_1cav_point_to_last_ref": True,
     "y_limits": [2.5e-2, 1],
     #"density_range": [1e12,1e19],
     "year_range": [0.1,10**3],
     "main_curve_upper_label":  r"LFA (Phase III): 560 MHz, V = 1.7 m$^3$",
     "goals": {"LFA (0.45 eV)": 0.45, "Phase IV (0.04 eV)": 0.04},
     "comparison_curve": True,
-    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg", "/termite/sensitivity_config_files/Config_PIVmodule1_150MHz_minpitch_87deg.cfg"],
-    "comparison_curve_label": [r"Phase IV scenario: 150 MHz, V = 94 m$^3 \times 10$", "One Phase IV cavity"],
+    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"], #"/termite/sensitivity_config_files/Config_PIVmodule1_150MHz_minpitch_87deg.cfg"],
+    "comparison_curve_label": [r"Phase IV scenario: 150 MHz, V = 94 m$^3 \times 10$"], #, "One Phase IV cavity"],
     "main_curve_color": "blue",
     "comparison_curve_colors": ["red", "black"], 
     "optimize_main_density": False,
@@ -222,12 +223,12 @@ sens_config_dict = {
     "lower_label_y_position": 0.17,
     "upper_label_y_position": 0.7,
     "label_x_position": 0.115, 
-    "goals_x_position": 1.0, #1.13e-3, <-- Number for ncav*eff*time   #0.11, <-- Number for ncavities*livetime
+    "goals_x_position": 4e-2, #<-- Number for ncav*eff*time   #0.11, <-- Number for ncavities*livetime
     "goals_y_rel_position": 0.86, #0.84, <-- Number for ncav*eff*time   #0.81, <-- Number for ncavities*livetime
     }
-#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-#sens_curve.Configure(sens_config_dict)
-#sens_curve.Run()
+sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+sens_curve.Configure(sens_config_dict)
+sens_curve.Run()
 
 
 

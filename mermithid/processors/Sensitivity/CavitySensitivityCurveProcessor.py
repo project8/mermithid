@@ -422,7 +422,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                     logger.info("Optimized threshold at optimum n: {}".format(thresh_opt_comparison[limit2_index]))
                 else:
                     limit_ref = [self.sens_ref[i].CL90(Threshold={"detection_threshold": th}) for th in self.thresholds]
-                    limit2 = np.min(limit_ref) #self.sens_ref[i].CL90()/eV 
+                    index2 = np.argmin(thresh_limits)
+                    self.sens_ref[i].Threshold.detection_threshold = self.thresholds[index2]
+                    limit2 = limit_ref[index2]
 
                 if self.optimize_comparison_density:
                     logger.info('COMPARISON CURVE at optimum density:')
@@ -433,6 +435,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 else:
                     logger.info('COMPARISON CURVE at configured density (not optimum):')
                     rho2 = self.sens_ref[i].Experiment.number_density
+                    logger.info("Optimized threshold at configured density: {}".format(self.thresholds[index2]))
 
                 logger.info('veff = {} m**3, rho = {} /m**3:'.format(self.sens_ref[i].effective_volume/(m**3), rho2*(m**3)))
                 logger.info("Loaded Q: {}".format(self.sens_ref[i].loaded_q))
@@ -444,8 +447,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                         
                 self.sens_ref[i].print_SNRs(rho2)
                 self.sens_ref[i].print_Efficiencies()
-                if self.exposure_axis or self.livetime_axis or self.ncavities_livetime_axis or self.ncav_eff_time_axis:
-                    logger.info("NUMBERS BELOW ARE FOR THE HIGHEST-EXPOSURE POINT ON THE CURVE:")
+                #if self.exposure_axis or self.livetime_axis or self.ncavities_livetime_axis or self.ncav_eff_time_axis:
+                #    logger.info("NUMBERS BELOW ARE FOR THE HIGHEST-EXPOSURE POINT ON THE CURVE:")
                 logger.info('CL90 limit: {} eV'.format(limit2/eV))
                 logger.info('Tritium in Veff: {}'.format(rho2*self.sens_ref[i].effective_volume))
                 self.sens_ref[i].assign_background_rate_from_threshold()
@@ -463,7 +466,25 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 self.sens_ref[i].print_statistics()
                 self.sens_ref[i].print_systematics()
                 
-            self.add_comparison_curve(label=self.comparison_curve_label)
+                #Add comparison curves
+                label=self.comparison_curve_label
+                if self.livetime_axis:
+                    limits = self.add_sens_line(self.sens_ref[i], exposure_type="livetime", plot_key_params=False, color=self.comparison_curve_colors[i], label=label[i])
+                elif self.ncavities_livetime_axis:
+                    limits = self.add_sens_line(self.sens_ref[i], exposure_type="ncavities_livetime", plot_key_params=False, color=self.comparison_curve_colors[i], label=label[i])
+                elif self.ncav_eff_time_axis:
+                    limits = self.add_sens_line(self.sens_ref[i], exposure_type="ncav_eff_time", plot_key_params=False, color=self.comparison_curve_colors[i], label=label[i])
+                else:
+                    limits = self.add_sens_line(self.sens_ref[i], plot_key_params=False, color=self.comparison_curve_colors[i], label=label[i], zorder=5)
+                #self.ax.text(self.comparison_label_x_position[a], self.comparison_label_y_position[a], label[a], color=colors[a], fontsize=9.5)
+
+            if self.exposure_axis or self.livetime_axis or self.ncavities_livetime_axis or self.ncav_eff_time_axis:
+                if self.add_1year_1cav_point_to_last_ref:
+                    logger.info("Going to add single exposure point")
+                    self.add_single_exposure_point(self.sens_ref[-1], color=self.comparison_curve_colors[-1])
+            
+            
+            #self.add_comparison_curve(label=self.comparison_curve_label)
             #self.add_arrow(self.sens_main)
                 
         # save plot
@@ -653,23 +674,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         gamma = self.sens_main.T_endpoint/(me*c0**2) + 1
         ax3.set_xlim(self.frequencies[0]/(e/(2*np.pi*me)/gamma)/T, self.frequencies[-1]/(e/(2*np.pi*me)/gamma)/T)
              
-    def add_comparison_curve(self, label, color='k'):
-    
-        for a in range(len(self.sens_ref)):
-            if self.livetime_axis:
-                limits = self.add_sens_line(self.sens_ref[a], exposure_type="livetime", plot_key_params=False, color=self.comparison_curve_colors[a], label=label[a])
-            elif self.ncavities_livetime_axis:
-                limits = self.add_sens_line(self.sens_ref[a], exposure_type="ncavities_livetime", plot_key_params=False, color=self.comparison_curve_colors[a], label=label[a])
-            elif self.ncav_eff_time_axis:
-                limits = self.add_sens_line(self.sens_ref[a], exposure_type="ncav_eff_time", plot_key_params=False, color=self.comparison_curve_colors[a], label=label[a])
-            else:
-                limits = self.add_sens_line(self.sens_ref[a], plot_key_params=False, color=self.comparison_curve_colors[a], label=label[a], zorder=5)
-            #self.ax.text(self.comparison_label_x_position[a], self.comparison_label_y_position[a], label[a], color=colors[a], fontsize=9.5)
-
-        if self.exposure_axis or self.livetime_axis or self.ncavities_livetime_axis or self.ncav_eff_time_axis:
-            if self.add_1year_1cav_point_to_last_ref:
-                logger.info("Going to add single exposure point")
-                self.add_single_exposure_point(self.sens_ref[-1], color=self.comparison_curve_colors[-1])
+    #def add_comparison_curve(self, label, color='k'):
 
     def add_arrow(self, sens):
         #I am not sure why the two line below are here
