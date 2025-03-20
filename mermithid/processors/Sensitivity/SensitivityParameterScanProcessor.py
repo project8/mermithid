@@ -122,6 +122,14 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         self.sens_main_is_atomic = self.sens_main.Experiment.atomic
 
 
+        # Setting natoms_per_particle for atomic and molecular cases, to use later
+        # when calculating and printing event rates
+        if self.sens_main_is_atomic:
+            self.sens_main_natoms_per_particle = 1
+        else:
+            self.sens_main_natoms_per_particle = 2
+
+
         # check atomic and molecular
         if self.molecular_axis:
             if not self.sens_main_is_atomic:
@@ -265,11 +273,11 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.effective_volume))
             logger.info('Total signal: {}'.format(rho_opt*self.sens_main.effective_volume*
                                                     self.sens_main.Experiment.LiveTime/
-                                                    self.sens_main.tau_tritium*2))
+                                                    self.sens_main.tau_tritium*self.sens_main_natoms_per_particle))
             logger.info('Signal in last eV: {}'.format(self.sens_main.last_1ev_fraction*eV**3*
                                                     rho_opt*self.sens_main.effective_volume*
                                                     self.sens_main.Experiment.LiveTime/
-                                                    self.sens_main.tau_tritium*2))
+                                                    self.sens_main.tau_tritium*self.sens_main_natoms_per_particle))
 
             self.sens_main.print_statistics()
             systematic_limit, total_sigma = self.sens_main.print_systematics()
@@ -301,7 +309,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         #plt.title("Sensitivity vs. {}".format(self.scan_parameter_name))
         plt.plot(self.scan_parameter_values/self.scan_parameter_unit, np.array(self.optimum_limits)/eV, marker=".", label="Density optimized scenarios")
         plt.xlabel(f"{param} ({self.scan_parameter_unit_string})", fontsize=self.fontsize)
-        plt.ylabel(r"90% CL $m_\beta$ (eV)", fontsize=self.fontsize)
+        plt.ylabel(r"90% CL on $m_\beta$ (eV)", fontsize=self.fontsize)
         if self.plot_sensitivity_scan_on_log_scale:
             plt.yscale("log")
         # TODO log x here    
@@ -345,7 +353,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
                 
             ax.set_xlabel(axis_label)
             ax.set_ylim(self.ylim)
-            ax.set_ylabel(r"90% CL $m_\beta$ (eV)")
+            ax.set_ylabel(r"90% CL on $m_\beta$ (eV)")
             
         if len(param_range)>4:
             # add colorbar with colors from self.range

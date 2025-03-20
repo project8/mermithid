@@ -167,7 +167,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 #logger.info("Comparison curve is molecular")
             #else:
 
-        #Setting natoms_per_particle for atomic and molcular cases
+        # Setting natoms_per_particle for atomic and molecular cases, to use later
+        # when calculating and printing event rates
         if self.sens_main_is_atomic:
             self.sens_main_natoms_per_particle = 1
         else:
