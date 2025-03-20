@@ -167,6 +167,17 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 #logger.info("Comparison curve is molecular")
             #else:
 
+        #Setting natoms_per_particle for atomic and molcular cases
+        if self.sens_main_is_atomic:
+            self.sens_main_natoms_per_particle = 1
+        else:
+            self.sens_main_natoms_per_particle = 2
+        for i in range(len(self.sens_ref)):
+            if self.sens_ref_is_atomic[i]:
+                self.sens_ref[i].natoms_per_particle = 1
+            else:
+                self.sens_ref[i].natoms_per_particle = 2
+
         if self.atomic_axis:
             if self.sens_main_is_atomic:
                 #self.atomic_sens = self.sens_main
@@ -224,6 +235,14 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         logger.info('Total background: {}/eV/s'.format(self.sens_main.background_rate*eV*s))
         logger.info("***Done printing pre-optimization***")
 
+
+        #Optimizing the detection threshold for the comparison config files
+        #Before the density optimization
+        for i in range(len(self.sens_ref)):
+            thresh_limits = [self.sens_ref[i].CL90(Threshold={"detection_threshold": th}) for th in self.thresholds]
+            self.sens_ref[i].sens_with_configured_density_and_opt_thresh = np.min(thresh_limits)
+
+
         # create main plot
         self.create_plot()
         
@@ -244,9 +263,12 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             logger.info('Adding goal: {} = {}'.format(key, value))
             self.add_goal(value, key)
 
+        #Add point at configured density
         if self.density_axis and self.add_point_at_configured_density:
-            self.ax.scatter([self.sens_main.Experiment.number_density*m**3], [self.sens_with_configured_density_and_opt_thresh/eV], marker="s", s=25, color='b', label="Operating density", zorder=3) #label="Density: {:.{}f}".format(self.Experiment.number_density*m**3, 1)
-        
+            self.ax.scatter([self.sens_main.Experiment.number_density*m**3], [self.sens_with_configured_density_and_opt_thresh/eV], marker="s", s=25, color=self.main_curve_color, label="Operating density", zorder=3) #label="Density: {:.{}f}".format(self.Experiment.number_density*m**3, 1)
+            for i in range(len(self.sens_ref)):
+                self.ax.scatter([self.sens_ref[i].Experiment.number_density*m**3], [self.sens_ref[i].sens_with_configured_density_and_opt_thresh/eV], marker="s", s=25, color=self.comparison_curve_colors[i], zorder=3)
+
         # optimize density
         if self.optimize_main_density:
             thresh_opt_main = []
@@ -358,11 +380,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         logger.info('Total background: {}/eV/s'.format(self.sens_main.background_rate*eV*s))
         logger.info('Total signal: {}'.format(rho*self.sens_main.effective_volume*
                                                    self.sens_main.Experiment.LiveTime/
-                                                   self.sens_main.tau_tritium*2))
+                                                   self.sens_main.tau_tritium*self.sens_main_natoms_per_particle))
         logger.info('Signal in last eV: {}'.format(self.sens_main.last_1ev_fraction*eV**3*
                                                    rho*self.sens_main.effective_volume*
                                                    self.sens_main.Experiment.LiveTime/
-                                                   self.sens_main.tau_tritium*2))
+                                                   self.sens_main.tau_tritium*self.sens_main_natoms_per_particle))
 
         self.sens_main.print_statistics()
         self.sens_main.print_systematics()
@@ -457,11 +479,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 logger.info('Total background: {}/eV/s'.format(self.sens_ref[i].background_rate*eV*s))
                 logger.info('Total signal: {}'.format(rho2*self.sens_ref[i].effective_volume*
                                                    self.sens_ref[i].Experiment.LiveTime/
-                                                   self.sens_ref[i].tau_tritium*2))
+                                                   self.sens_ref[i].tau_tritium*self.sens_ref[i].natoms_per_particle))
                 logger.info('Signal in last eV: {}'.format(self.sens_ref[i].last_1ev_fraction*eV**3*
                                                    rho2*self.sens_ref[i].effective_volume*
                                                    self.sens_ref[i].Experiment.LiveTime/
-                                                   self.sens_ref[i].tau_tritium*2))
+                                                   self.sens_ref[i].tau_tritium*self.sens_ref[i].natoms_per_particle))
 
                 self.sens_ref[i].print_statistics()
                 self.sens_ref[i].print_systematics()
@@ -542,7 +564,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 
             ax.set_xlabel(axis_label)
             ax.set_ylim(self.ylim)
-            ax.set_ylabel(r"90% CL $m_\beta$ (eV)")
+            ax.set_ylabel(r"90% CL on $m_\beta$ (eV)")
 
             
         elif self.frequency_axis:
@@ -554,7 +576,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             ax.set_ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
             
             self.ax2 = ax.twinx()
-            self.ax2.set_ylabel(r"90% CL $m_\beta$ (eV)")
+            self.ax2.set_ylabel(r"90% CL on $m_\beta$ (eV)")
             self.ax2.set_yscale("log")
             self.ax2.set_ylim(self.ylim)
             
@@ -567,6 +589,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 logger.info("Adding livetime axis")
                 ax.set_xlim(self.year_range[0], self.year_range[-1])
                 axis_label = r"Livetime (years)"
+                #The annotations below are temporary, for pre-CDR plots
+                #ax.annotate("1 year", xy=[1, 0.26],xytext=[0.6, 0.16], fontsize=13, arrowprops=dict(arrowstyle="->"), bbox=dict(pad=0, facecolor="none", edgecolor="none"))
+                #ax.annotate("", xy=[1, 0.11],xytext=[0.8, 0.155], fontsize=13, arrowprops=dict(arrowstyle="->"))
+                #ax.annotate("8 years", xy=[8, 0.041],xytext=[4, 0.053], fontsize=13, arrowprops=dict(arrowstyle="->"), bbox=dict(pad=0, facecolor="none", edgecolor="none"))
             elif self.ncavities_livetime_axis:
                 logger.info("Adding ncavities*livetime axis")
                 ax.set_xlim(self.ncavities_livetime_range[0], self.ncavities_livetime_range[-1])
@@ -577,7 +603,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 axis_label = r"Number of Cavities $\times$ Efficiency $\times$ Livetime (years)"
 
             ax.set_xlabel(axis_label)
-            ax.set_ylabel(r"90% CL $m_\beta$ (eV)")
+            ax.set_ylabel(r"90% CL on $m_\beta$ (eV)")
             ax.set_ylim(self.ylim)
             
             self.ax2 = ax.twinx()
@@ -620,7 +646,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 self.kp_ax[1].set_ylabel(r'Optimum desnity (1/m$^3$)')
                 self.kp_ax[2].set_ylabel(r'Total and effective (dashed) Volume (m$^3$)')
                 self.kp_ax[3].set_ylabel('Noise temperature (K)')
-
+            
             self.kp_fig.tight_layout()
                     
     def add_track_length_axis(self):
@@ -664,6 +690,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
         if not self.molecular_axis and not self.atomic_axis:
             logger.warning("No track length axis added since neither atomic nor molecular was requested")
+        
         self.fig.tight_layout()
         
     def add_magnetic_field_axis(self):
