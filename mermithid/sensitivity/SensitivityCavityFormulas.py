@@ -704,7 +704,7 @@ class CavitySensitivity(Sensitivity):
         logger.info("Noise power in 1eV: {}W".format(self.noise_energy*eV_bandwidth/W))
         logger.info("SNRs of carriers (90°, used in calc) for 1eV bandwidth: {}, {}".format(SNR_1eV_90deg, SNR_1eV_ex_carrier))
         #logger.info("SNR 1 eV from temperatures:{}".format(self.received_power/(self.noise_energy*eV_bandwidth)))
-        logger.info("SNRs of carriers (90°, used in calc) for track duration: {}, {}".format(SNR_track_duration_90deg, SNR_track_duration_ex_carrier))
+        logger.info("SNRs of carriers (90°, used in calc) for track duration at optimum density: {}, {}".format(SNR_track_duration_90deg, SNR_track_duration_ex_carrier))
         logger.info("SNR of carriers (90°, used in calc) for 1 ms: {}, {}".format(SNR_1ms_90deg, SNR_1ms_ex_carrier))
         
         

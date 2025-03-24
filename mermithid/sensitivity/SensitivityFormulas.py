@@ -268,7 +268,7 @@ class Sensitivity(object):
         mass_T = self.T_mass
         endpoint = self.T_endpoint
 
-        # these factors are mainly neglidible in the recoil equation below
+        # these factors are mainly negligible in the recoil equation below
         E_rec = 3.409 * eV # maximal value # same for molecular tritium?
         mbeta = 0*eV # term neglidible
         betanu = 1 # neutrinos are fast
