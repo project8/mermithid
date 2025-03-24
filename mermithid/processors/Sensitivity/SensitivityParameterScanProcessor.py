@@ -271,6 +271,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
                                                     self.sens_main.Experiment.LiveTime/
                                                     self.sens_main.tau_tritium*2))
 
+            self.sens_main.print_Efficiencies()
             self.sens_main.print_statistics()
             systematic_limit, total_sigma = self.sens_main.print_systematics()
             self.sys_lim.append(systematic_limit)
