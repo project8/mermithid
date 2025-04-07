@@ -183,7 +183,7 @@ def trapping_efficiency(z_range, bg_magnetic_field, min_pitch_angle, trap_flat_f
 
 
 
-###############################################################################cd
+###############################################################################
 class CavitySensitivity(Sensitivity):
     """
     Documentation:
@@ -194,7 +194,13 @@ class CavitySensitivity(Sensitivity):
     """
     def __init__(self, config_path):
         Sensitivity.__init__(self, config_path)
-        
+
+        # Calc non-config parameters outside of init function:
+        ## Allows re-calcing params if config values changed later, e.g. param scans
+        self.CalcDefaults(overwrite=False)
+
+    # Add any additional initialization to this function, NOT __INIT__!!
+    def CalcDefaults(self, overwrite=False): 
         ###
         #Initialization related to the effective volume:
         ###
@@ -203,7 +209,7 @@ class CavitySensitivity(Sensitivity):
         self.CavityRadius()
         
         #Get trap length from cavity length if not specified
-        if not hasattr(self.Experiment, 'trap_length'):
+        if ((not hasattr(self.Experiment, 'trap_length')) or overwrite):
             self.Experiment.trap_length = 0.8 * 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
             logger.info("Calc'd trap length: {} m".format(round(self.Experiment.trap_length/m, 3), 2))
 
