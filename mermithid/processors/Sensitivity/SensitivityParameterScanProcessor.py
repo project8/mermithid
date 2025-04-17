@@ -192,7 +192,12 @@ class SensitivityParameterScanProcessor(BaseProcessor):
                 logger.error(f"Parameter {param} not found in {category}")
                 raise e
 
+
+            # Set to scan param value
             self.sens_main.__dict__[category].__dict__[param] = parameter_value 
+            # Re-calc the cavity init with the new param
+            self.sens_main.CalcDefaults(overwrite=True)
+            # Ensure param scan value unchanged
             read_back = self.sens_main.__dict__[category].__dict__[param]
             #setattr(self.sens_main, self.scan_parameter_name, parameter_value)
             #read_back = getattr(self.sens_main, self.scan_parameter_name)
@@ -279,6 +284,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
                                                     self.sens_main.Experiment.LiveTime/
                                                     self.sens_main.tau_tritium*self.sens_main_natoms_per_particle))
 
+            self.sens_main.print_Efficiencies()
             self.sens_main.print_statistics()
             systematic_limit, total_sigma = self.sens_main.print_systematics()
             self.sys_lim.append(systematic_limit)
