@@ -236,7 +236,7 @@ class CavitySensitivity(Sensitivity):
         #Calculate the effective volume and print out related quantities
         self.EffectiveVolume()
         logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3), 2))
-        logger.info("Total trap volume: {} m^3".format(round(self.total_trap_volume/m**3), 3))
+        logger.info("Total trap volume: {} m^3".format(self.total_trap_volume/m**3))
         logger.info("Cyclotron radius: {}m".format(self.cyc_rad/m))
         if self.use_cyc_rad:
             logger.info("Using cyclotron radius as unusable distance from wall, for radial efficiency calculation")
@@ -299,6 +299,7 @@ class CavitySensitivity(Sensitivity):
         if self.Efficiency.usefixedvalue:
             self.effective_volume = self.total_trap_volume * self.Efficiency.fixed_efficiency
             self.use_cyc_rad = False
+            self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV    
         else:
             #Detection efficiency
             if self.Threshold.use_detection_threshold:
@@ -479,7 +480,9 @@ class CavitySensitivity(Sensitivity):
             # The first term relies on the relation delta_t_start = sqrt(20)*tau_snr. This is from Equation 6.40 of Nick's thesis,
             # derived in Appendix A and verified with an MC study.
             # Using a factor of 23 instead of 20, from re-calculating Nick's integrals (though this derivation is approximate).
-            # Nick's derivation uses an expression for P_fa - we need to check if it's consistent with what Rene uses now.
+            # Nick's derivation uses an expression for P_fa assuming the phase is known. 
+            # The phase won't be known, but it's more difficult to determine the unknown-phase expression.
+            # Working on that.
             return self.FrequencyExtraction.CRLB_scaling_factor*(23*(self.slope*tau_SNR)**2 + 96*tau_SNR/self.time_window**3)/(2*np.pi)**2
 
     

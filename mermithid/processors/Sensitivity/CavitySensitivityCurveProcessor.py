@@ -3,7 +3,7 @@ Calculate sensitivity curve and plot vs. number density, exposure, livetime, or 
 
 Author: C. Claessens, T. E. Weiss
 Date: 06/07/2023
-Updated: February 2025
+Updated: April 2025
 '''
 
 from __future__ import absolute_import
@@ -61,8 +61,12 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.main_curve_upper_label = reader.read_param(params, 'main_curve_upper_label', r"molecular"+"\n"+r"$V_\mathrm{eff} = 2\, \mathrm{cm}^3$"+"\n"+r"$\sigma_B = 7\,\mathrm{ppm}$")
         self.main_curve_lower_label = reader.read_param(params, 'main_curve_lower_label', r"$\sigma_B = 1\,\mathrm{ppm}$")
         self.comparison_curve_label = reader.read_param(params, 'comparison_curve_label', r"atomic"+"\n"+r"$V_\mathrm{eff} = 5\, \mathrm{m}^3$"+"\n"+r"$\sigma_B = 0.13\,\mathrm{ppm}$")
-        self.comparison_curve_colors = reader.read_param(params,'comparison_curve_colors', ["blue", "darkred", "red"])
         self.main_curve_color = reader.read_param(params, 'main_curve_color', "darkblue")
+        self.comparison_curve_colors = reader.read_param(params,'comparison_curve_colors', ["blue", "darkred", "red"])
+        self.main_curve_linestyle = reader.read_param(params, 'main_curve_linestyle', "solid")
+        self.comparison_curve_linestyles = reader.read_param(params,'comparison_curve_linestyles', ["solid", "solid", "solid"])
+        self.main_curve_marker = reader.read_param(params, 'main_curve_marker', "d")
+        self.comparison_curve_markers = reader.read_param(params,'comparison_curve_markers', ["d", "d", "d"])
 
         # options
         self.optimize_main_density = reader.read_param(params, 'optimize_main_density', True)
@@ -102,7 +106,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.label_x_position = reader.read_param(params, 'label_x_position', 5e19)
         self.upper_label_y_position = reader.read_param(params, 'upper_label_y_position', 5)
         self.lower_label_y_position = reader.read_param(params, 'lower_label_y_position', 2.3)
-        self.goal_x_pos = reader.read_param(params, "goals_x_position", 1e14)
+        self.goal_x_pos = reader.read_param(params, "goals_x_position", {"LFA threshold (0.7 eV)": 0.11, "Phase IV (0.04 eV)": 0.11})
+        self.goals_y_rel_position = reader.read_param(params, "goals_y_rel_position", {"LFA threshold (0.7 eV)": 0.855, "Phase IV (0.04 eV)": 0.855})
         
         self.comparison_label_y_position = reader.read_param(params, 'comparison_label_y_position', 0.044)
         self.comparison_label_x_position = reader.read_param(params, 'comparison_label_x_position', 5e16)
@@ -111,7 +116,6 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
         self.add_PhaseII = reader.read_param(params, "add_PhaseII", False)
         self.add_point_at_configured_density = reader.read_param(params, "add_point_at_configured_density", True)
-        self.goals_y_rel_position = reader.read_param(params, "goals_y_rel_position", 0.75)
         self.add_1year_1cav_point_to_last_ref = reader.read_param(params, "add_1year_1cav_point_to_last_ref", False)
         
         # key parameter plots
@@ -246,7 +250,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
         # create main plot
         self.create_plot()
-        
+
         # optionally add Phase II curve and point to exposure plot
         if self.exposure_axis and self.add_PhaseII:
             self.add_Phase_II_exposure_sens_line(self.sens_PhaseII)
@@ -262,13 +266,13 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         # add goals
         for key, value in self.goals.items():
             logger.info('Adding goal: {} = {}'.format(key, value))
-            self.add_goal(value, key)
+            self.add_goal(value, key, self.goal_x_pos[key], self.goals_y_rel_position[key])
 
         #Add point at configured density
         if self.density_axis and self.add_point_at_configured_density:
-            self.ax.scatter([self.sens_main.Experiment.number_density*m**3], [self.sens_with_configured_density_and_opt_thresh/eV], marker="s", s=25, color=self.main_curve_color, label="Operating density", zorder=3) #label="Density: {:.{}f}".format(self.Experiment.number_density*m**3, 1)
+            self.ax.scatter([self.sens_main.Experiment.number_density*m**3], [self.sens_with_configured_density_and_opt_thresh/eV], marker="s", s=25, color=self.main_curve_color, label="Operating density", zorder=4) #label="Density: {:.{}f}".format(self.Experiment.number_density*m**3, 1)
             for i in range(len(self.sens_ref)):
-                self.ax.scatter([self.sens_ref[i].Experiment.number_density*m**3], [self.sens_ref[i].sens_with_configured_density_and_opt_thresh/eV], marker="s", s=25, color=self.comparison_curve_colors[i], zorder=3)
+                self.ax.scatter([self.sens_ref[i].Experiment.number_density*m**3], [self.sens_ref[i].sens_with_configured_density_and_opt_thresh/eV], marker="s", s=25, color=self.comparison_curve_colors[i], zorder=4)
 
         # optimize density
         if self.optimize_main_density:
@@ -323,13 +327,13 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 self.sens_main.MagneticField.sigmaer = self.sigmae_theta_r * eV
                 self.sens_main.MagneticField.sigmae_theta = 0 * eV
             if self.livetime_axis:
-                self.add_sens_line(self.sens_main, exposure_type="livetime", color=self.main_curve_color, label=self.main_curve_upper_label)
+                self.add_sens_line(self.sens_main, exposure_type="livetime", color=self.main_curve_color, marker=self.main_curve_marker, linestyle=self.main_curve_linestyle, label=self.main_curve_upper_label)
             elif self.ncavities_livetime_axis:
-                self.add_sens_line(self.sens_main, exposure_type="ncavities_livetime", color=self.main_curve_color, label=self.main_curve_upper_label)
+                self.add_sens_line(self.sens_main, exposure_type="ncavities_livetime", color=self.main_curve_color, marker=self.main_curve_marker, linestyle=self.main_curve_linestyle, label=self.main_curve_upper_label)
             elif self.ncav_eff_time_axis:
-                self.add_sens_line(self.sens_main, exposure_type="ncav_eff_time", color=self.main_curve_color, label=self.main_curve_upper_label)
+                self.add_sens_line(self.sens_main, exposure_type="ncav_eff_time", color=self.main_curve_color, marker=self.main_curve_marker, linestyle=self.main_curve_linestyle, label=self.main_curve_upper_label)
             else:
-                self.add_sens_line(self.sens_main, color=self.main_curve_color, label=self.main_curve_upper_label, zorder=2)
+                self.add_sens_line(self.sens_main, color=self.main_curve_color, linestyle=self.main_curve_linestyle, label=self.main_curve_upper_label, zorder=3)
         
         # PRINT OPTIMUM RESULTS
         
@@ -492,13 +496,13 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 #Add comparison curves
                 label=self.comparison_curve_label
                 if self.livetime_axis:
-                    limits = self.add_sens_line(self.sens_ref[i], exposure_type="livetime", plot_key_params=False, color=self.comparison_curve_colors[i], label=label[i])
+                    limits = self.add_sens_line(self.sens_ref[i], exposure_type="livetime", plot_key_params=False, color=self.comparison_curve_colors[i], marker=self.comparison_curve_markers[i], linestyle=self.comparison_curve_linestyles[i], label=label[i])
                 elif self.ncavities_livetime_axis:
-                    limits = self.add_sens_line(self.sens_ref[i], exposure_type="ncavities_livetime", plot_key_params=False, color=self.comparison_curve_colors[i], label=label[i])
+                    limits = self.add_sens_line(self.sens_ref[i], exposure_type="ncavities_livetime", plot_key_params=False, color=self.comparison_curve_colors[i], marker=self.comparison_curve_markers[i], linestyle=self.comparison_curve_linestyles[i], label=label[i])
                 elif self.ncav_eff_time_axis:
-                    limits = self.add_sens_line(self.sens_ref[i], exposure_type="ncav_eff_time", plot_key_params=False, color=self.comparison_curve_colors[i], label=label[i])
+                    limits = self.add_sens_line(self.sens_ref[i], exposure_type="ncav_eff_time", plot_key_params=False, color=self.comparison_curve_colors[i], marker=self.comparison_curve_markers[i], linestyle=self.comparison_curve_linestyles[i], label=label[i])
                 else:
-                    limits = self.add_sens_line(self.sens_ref[i], plot_key_params=False, color=self.comparison_curve_colors[i], label=label[i], zorder=5)
+                    limits = self.add_sens_line(self.sens_ref[i], plot_key_params=False, color=self.comparison_curve_colors[i], linestyle=self.comparison_curve_linestyles[i], label=label[i], zorder=5)
                 #self.ax.text(self.comparison_label_x_position[a], self.comparison_label_y_position[a], label[a], color=colors[a], fontsize=9.5)
 
             if self.exposure_axis or self.livetime_axis or self.ncavities_livetime_axis or self.ncav_eff_time_axis:
@@ -557,7 +561,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             if self.atomic_axis and self.molecular_axis:
                 axis_label = r"(Atomic / molecular) number density $n\, \, (\mathrm{m}^{-3})$"
             elif self.atomic_axis:
-                axis_label = r"Atom number density in electron trap$\, \, (\mathrm{m}^{-3})$"
+                axis_label = r"Average atom number density in electron trap$\, \, (\mathrm{m}^{-3})$"
             elif self.molecular_axis:
                 axis_label = r"Molecular number density $n\, \, (\mathrm{m}^{-3})$"
             else:
@@ -734,9 +738,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                       )
         """
 
-    def add_goal(self, value, label):
-        self.ax.axhline(value, color="gray", ls="--", zorder=1)
-        self.ax.text(self.goal_x_pos, self.goals_y_rel_position*value, label, fontsize=self.fontsize - 3)
+    def add_goal(self, value, label, x_pos, y_rel_position):
+        self.ax.axhline(value, color="darkgray", ls="solid", linewidth="1", zorder=1)
+        self.ax.text(x_pos, y_rel_position*value, label, fontsize=self.fontsize - 3)
 
     def add_density_sens_line(self, sens, plot_key_params=False, **kwargs):
         limits = []
@@ -844,43 +848,43 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         limits = []
         if exposure_type=="livetime":
             #self.ax.scatter([sens.Experiment.livetime/year], [np.min(sigma_mbeta)], s=40, marker="d", zorder=20, **kwargs)
-            self.ax.scatter([sens.Experiment.livetime/year], [limit_inputted_exposure], s=40, marker="d", zorder=20, **kwargs)
+            self.ax.scatter([sens.Experiment.livetime/year], [limit_inputted_exposure], s=40, zorder=20, marker=kwargs["marker"], color=kwargs["color"], label=kwargs["label"])
             for lt in self.years:
                 sens.Experiment.livetime = lt
                 #limits.append(sens.sensitivity()/eV**2)
                 limits.append(sens.CL90()/eV)
-            self.ax.plot(self.years/year, limits, color=kwargs["color"])
+            self.ax.plot(self.years/year, limits, color=kwargs["color"], linestyle=kwargs["linestyle"])
         elif exposure_type=="ncavities_livetime":
-            self.ax.scatter([sens.Experiment.n_cavities*sens.Experiment.livetime/year], [limit_inputted_exposure], s=40, marker="d", zorder=20, **kwargs)
+            self.ax.scatter([sens.Experiment.n_cavities*sens.Experiment.livetime/year], [limit_inputted_exposure], s=40, zorder=20, marker=kwargs["marker"], color=kwargs["color"], label=kwargs["label"])
             ncavities_livetime = []
             year_list = self.years/sens.Experiment.n_cavities
             for lt in year_list:
                 sens.Experiment.livetime = lt
                 ncavities_livetime.append(sens.Experiment.n_cavities*lt/year)
                 limits.append(sens.CL90()/eV)
-            self.ax.plot(ncavities_livetime, limits, color=kwargs["color"])
+            self.ax.plot(ncavities_livetime, limits, color=kwargs["color"], linestyle=kwargs["linestyle"])
         elif exposure_type=="ncav_eff_time":
             ncav_eff = sens.EffectiveVolume()/sens.TrapVolume()*sens.Experiment.n_cavities
-            self.ax.scatter([ncav_eff*sens.Experiment.livetime/year], [limit_inputted_exposure], s=40, marker="d", zorder=20, **kwargs)
+            self.ax.scatter([ncav_eff*sens.Experiment.livetime/year], [limit_inputted_exposure], s=40,  zorder=20, marker=kwargs["marker"], color=kwargs["color"], label=kwargs["label"])
             ncav_eff_time = []
             year_list = self.ncav_eff_times/ncav_eff
             for lt in year_list:
                 sens.Experiment.livetime = lt
                 ncav_eff_time.append(ncav_eff*lt/year)
                 limits.append(sens.CL90()/eV)
-            self.ax.plot(ncav_eff_time, limits, color=kwargs["color"])
+            self.ax.plot(ncav_eff_time, limits, color=kwargs["color"], linestyle=kwargs["linestyle"])
         else:
             years = []
             standard_exposure = sens.EffectiveVolume()*sens.Experiment.livetime/m**3/year
             #self.ax.scatter([standard_exposure], [np.min(sigma_mbeta)], s=40, marker="d", zorder=20, **kwargs)
-            self.ax.scatter([standard_exposure], [limits], s=40, marker="d", zorder=20, **kwargs)
+            self.ax.scatter([standard_exposure], [limits], s=40, zorder=20, marker=kwargs["marker"], color=kwargs["color"], label=kwargs["label"])
             for ex in self.exposures:
                 lt = ex/sens.EffectiveVolume()
                 years.append(lt/year)
                 sens.Experiment.livetime = lt
                 #sigma_mbetas.append(sens.sensitivity()/eV**2)
                 limits.append(sens.CL90()/eV)
-            self.ax.plot(self.exposures/m**3/year, limits, color=kwargs["color"]) #label="{} density = {:.1e} {}".format(gas, rho_opt*m**3, unit))
+            self.ax.plot(self.exposures/m**3/year, limits, color=kwargs["color"], linestyle=kwargs["linestyle"]) #label="{} density = {:.1e} {}".format(gas, rho_opt*m**3, unit))
  
 
 
