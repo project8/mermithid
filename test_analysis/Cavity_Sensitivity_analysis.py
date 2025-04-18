@@ -148,7 +148,7 @@ sens_config_dict = {
 # Configuration for Sensitivity vs. density plot
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
+    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
     "plot_path": "./Correct_LFA_and_PhaseIV_sensitivity_vs_density_target_and_threshold_April-17-2025.pdf",
     # optional
     "figsize": (7.5,6.4), 
@@ -234,9 +234,9 @@ sens_config_dict = {
     #"goals_x_position": 0.12, #4e-2, #<-- Number for ncav*eff*time   #0.11, <-- Number for ncavities*livetime
     #"goals_y_rel_position": 0.86, #0.84, <-- Number for ncav*eff*time   #0.81, <-- Number for ncavities*livetime
     }
-sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-sens_curve.Configure(sens_config_dict)
-sens_curve.Run()
+#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+#sens_curve.Configure(sens_config_dict)
+#sens_curve.Run()
 
 
 sens_config_dict = {
