@@ -148,8 +148,8 @@ sens_config_dict = {
 # Configuration for Sensitivity vs. density plot
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
-    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_target_and_threshold_April-17-2025.pdf",
+    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
+    "plot_path": "./Correct_LFA_and_PhaseIV_sensitivity_vs_density_target_and_threshold_April-17-2025.pdf",
     # optional
     "figsize": (7.5,6.4), 
     "fontsize": 15,
@@ -191,7 +191,7 @@ sens_curve.Run()
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
-    "plot_path": "./lfa_and_PhaseIV_sensitivity_vs_livetime_curve_target_and_threshold_v2_April-17-2025.pdf", #ncav-eff-time
+    "plot_path": "./Correct_lfa_and_PhaseIV_sensitivity_vs_livetime_curve_target_and_threshold_April-17-2025.pdf", #ncav-eff-time
     "exposure_axis": True,
     # optional
     "figsize": (8.3, 6.3), #(10,6),
@@ -215,7 +215,7 @@ sens_config_dict = {
     "year_range": [0.1,35],
     "main_curve_upper_label":  r"LFA, threshold: $1.7\,$m$^3$, 1 yr", # 560 MHz, $V = 1.7\,$m$^3$
     "goals": {"LFA threshold (0.7 eV)": 0.7, "Phase IV (0.04 eV)": 0.04},
-    "goals_x_position": {"LFA threshold (0.7 eV)": 0.108, "Phase IV (0.04 eV)": 0.108}, #6e14, #3.3e14, #5.5e13, 
+    "goals_x_position": {"LFA threshold (0.7 eV)": 4.5, "Phase IV (0.04 eV)": 0.108}, #6e14, #3.3e14, #5.5e13, 
     "goals_y_rel_position": {"LFA threshold (0.7 eV)": 0.83, "Phase IV (0.04 eV)": 0.83}, #6e14, #3.3e14, #5.5e13, 
     "comparison_curve": True,
     "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", "/termite/sensitivity_config_files/Config_PIVmodule1_150MHz_minpitch_87deg.cfg", "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"], #"/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", 
@@ -227,7 +227,7 @@ sens_config_dict = {
     "main_curve_marker": "d",
     "comparison_curve_markers": ["o", "^", "X"],
     "optimize_main_density": False,
-    "optimize_comparison_density": True,
+    "optimize_comparison_density": False,
     "lower_label_y_position": 0.17,
     "upper_label_y_position": 0.7,
     "label_x_position": 0.115, 

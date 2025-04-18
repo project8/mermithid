@@ -418,15 +418,58 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 plt.ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
                 plt.legend()
                 plt.tight_layout()
-                plt.savefig("stat_and_syst_vs_density.pdf")
+                plt.savefig("stat_and_syst_vs_density_LFA_threshold.png", dpi=300)
 
                 fig = plt.figure()
                 plt.loglog(self.rhos*m**3, sigma_startf/eV)
                 plt.xlabel(r"Number density $n\, \, (\mathrm{m}^{-3})$")
                 plt.ylabel(r"Resolution from $f$ reconstruction, axial field (eV)")
                 plt.tight_layout()
-                plt.savefig("resolution_from_CRLB_vs_density.pdf")
-        
+                plt.savefig("resolution_from_CRLB_vs_density_LFA_threshold.png", dpi=300)
+                """
+                sigma_startf, stat_on_mbeta2, syst_on_mbeta2 = [], [], []
+                for i in range(len(self.rhos)):
+                    temp_rho = deepcopy(self.sens_ref[1].Experiment.number_density)
+                    self.sens_ref[1].Experiment.number_density = self.rhos[i]
+                    self.sens_ref[1].Threshold.detection_threshold = thresh_opt_main[i]
+                    labels, sigmas, deltas = self.sens_ref[1].get_systematics()
+                    sigma_startf.append(sigmas[1])
+                    stat_on_mbeta2.append(self.sens_ref[1].StatSens())
+                    syst_on_mbeta2.append(self.sens_ref[1].SystSens())
+                    self.sens_ref[1].Experiment.number_density = temp_rho
+                        
+                sigma_startf, stat_on_mbeta2, syst_on_mbeta2 = np.array(sigma_startf), np.array(stat_on_mbeta2), np.array(syst_on_mbeta2)
+                fig = plt.figure()
+                plt.loglog(self.rhos*m**3, stat_on_mbeta2/eV**2, label='Statistical uncertainty')
+                plt.loglog(self.rhos*m**3, syst_on_mbeta2/eV**2, label='Systematic uncertainty')
+                plt.xlabel(r"Number density $n\, \, (\mathrm{m}^{-3})$")
+                plt.ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
+                plt.legend()
+                plt.tight_layout()
+                plt.savefig("stat_and_syst_vs_density_module1ofPhaseIV.png")
+
+                sigma_startf, stat_on_mbeta2, syst_on_mbeta2 = [], [], []
+                for i in range(len(self.rhos)):
+                    temp_rho = deepcopy(self.sens_ref[2].Experiment.number_density)
+                    self.sens_ref[2].Experiment.number_density = self.rhos[i]
+                    self.sens_ref[2].Threshold.detection_threshold = thresh_opt_main[i]
+                    labels, sigmas, deltas = self.sens_ref[2].get_systematics()
+                    sigma_startf.append(sigmas[1])
+                    stat_on_mbeta2.append(self.sens_ref[2].StatSens())
+                    syst_on_mbeta2.append(self.sens_ref[2].SystSens())
+                    self.sens_ref[2].Experiment.number_density = temp_rho
+                        
+                sigma_startf, stat_on_mbeta2, syst_on_mbeta2 = np.array(sigma_startf), np.array(stat_on_mbeta2), np.array(syst_on_mbeta2)
+                fig = plt.figure()
+                plt.loglog(self.rhos*m**3, stat_on_mbeta2/eV**2, label='Statistical uncertainty')
+                plt.loglog(self.rhos*m**3, syst_on_mbeta2/eV**2, label='Systematic uncertainty')
+                plt.xlabel(r"Number density $n\, \, (\mathrm{m}^{-3})$")
+                plt.ylabel(r"Standard deviation in $m_\beta^2$ (eV$^2$)")
+                plt.legend()
+                plt.tight_layout()
+                plt.savefig("stat_and_syst_vs_density_10PhaseIVcavities.png")
+                """
+
         # Optimize comparison curves over density
         if self.comparison_curve: 
             for i in range(len(self.sens_ref)):
@@ -448,10 +491,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                     logger.info("Optimized thresholds at each density: {}".format(thresh_opt_comparison))
                     logger.info("Optimized threshold at optimum n: {}".format(thresh_opt_comparison[limit2_index]))
                 else:
-                    limit_ref = [self.sens_ref[i].CL90(Threshold={"detection_threshold": th}) for th in self.thresholds]
+                    thresh_limits = [self.sens_ref[i].CL90(Threshold={"detection_threshold": th}) for th in self.thresholds]
                     index2 = np.argmin(thresh_limits)
                     self.sens_ref[i].Threshold.detection_threshold = self.thresholds[index2]
-                    limit2 = limit_ref[index2]
+                    limit2 = thresh_limits[index2]
 
                 if self.optimize_comparison_density:
                     logger.info('COMPARISON CURVE at optimum density:')
