@@ -482,14 +482,16 @@ class CavitySensitivity(Sensitivity):
             # Applies for a complex signal.
             return self.FrequencyExtraction.CRLB_scaling_factor*(6*tau_SNR/self.time_window**3)/(2*np.pi)**2 
         else:
-            # Non-zero, fitted slope. Still assumes that alpha*T/2 << omega_c.
+            # Non-zero, fitted slope. 
+            # Doesn't assume that alpha*T/2 << omega_c, since it includes the 5*eta/(1-eta) term in Eq. 25 of Joe's write-up: https://3.basecamp.com/3700981/buckets/3107037/documents/6331876030.
+            # CODE IMPLEMENTATION NEEDS TO BE DOUBLE-CHECKED BY CONSIDERING AN EXPERIMENT WITH LARGE-ISH ETA.
             # The first term relies on the relation delta_t_start = sqrt(20)*tau_snr. This is from Equation 6.40 of Nick's thesis,
             # derived in Appendix A and verified with an MC study.
             # Using a factor of 23 instead of 20, from re-calculating Nick's integrals (though this derivation is approximate).
             # Nick's derivation uses an expression for P_fa assuming the phase is known. 
             # The phase won't be known, but it's more difficult to determine the unknown-phase expression.
             # Working on that.
-            return self.FrequencyExtraction.CRLB_scaling_factor*(23*(self.slope*tau_SNR)**2 + 96*tau_SNR/self.time_window**3)/(2*np.pi)**2
+            return self.FrequencyExtraction.CRLB_scaling_factor*(23*(self.slope*tau_SNR)**2 + tau_SNR/self.time_window**3*(96 + 6*5*self.eta/(1-self.eta)))/(2*np.pi)**2
 
     
     def syst_frequency_extraction(self):

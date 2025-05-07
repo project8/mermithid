@@ -604,7 +604,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             if self.atomic_axis and self.molecular_axis:
                 axis_label = r"(Atomic / molecular) number density $n\, \, (\mathrm{m}^{-3})$"
             elif self.atomic_axis:
-                axis_label = r"Average atom number density in electron trap$\, \, (\mathrm{m}^{-3})$"
+                axis_label = r"Average atom number density in sensitive volume$\, \, (\mathrm{m}^{-3})$"
             elif self.molecular_axis:
                 axis_label = r"Molecular number density $n\, \, (\mathrm{m}^{-3})$"
             else:
