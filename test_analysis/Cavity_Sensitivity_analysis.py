@@ -146,40 +146,93 @@ sens_config_dict = {
 
 
 # Configuration for Sensitivity vs. density plot
-# Currently comparing conservative atomic vs. scenario that reaches target without statistics boost
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
-    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_threshold_KPPs_Jan-10-2025.pdf",
+    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
+    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_target_and_threshold_April-18-2025.pdf",
     # optional
-    "figsize": (7.0,6), 
+    "figsize": (7.5,6.4), 
     "fontsize": 15,
     "track_length_axis": False,
     "legend_location": "upper left",
-    "legend_bbox_to_anchor": (0.17,-0.01,1.1,0.87),
+    "legend_bbox_to_anchor": (0.155,-0.01,1.12,0.885), #(0.17,-0.01,1.1,0.87),
     "molecular_axis": False,
     "atomic_axis": True,
     "density_axis": True,
     "track_length_axis": True,
-    "cavity": True,
-    "y_limits": [2e-2, 4],
-    "density_range": [5e13,3e18],
-    "main_curve_upper_label":  r"LFA (Phase III): 560 MHz", #Phase III scenario: 1 GHz",
-    "goals": {"LFA (0.4 eV)": 0.4, "Phase IV (0.04 eV)": 0.04}, #"Pilot T goal (0.1 eV)": 0.1,
-    "comparison_curve": False,
+    "effs_for_sampled_radii": True,
+    "y_limits": [2e-2, 6.5],
+    "density_range": [3e14,3e18], #5e13
+    "det_thresh_range": [5, 115],
+    "main_curve_upper_label":  r"LFA, threshold scenario", #560 MHz #Phase III scenario: 1 GHz",
+    "goals": {"LFA threshold (0.7 eV)": 0.7, "Phase IV (0.04 eV)": 0.04}, #"Pilot T goal (0.1 eV)": 0.1,
+    "goals_x_position": {"LFA threshold (0.7 eV)": 2.6e16, "Phase IV (0.04 eV)": 4e14}, #6e14, #3.3e14, #5.5e13, 
+    "goals_y_rel_position": {"LFA threshold (0.7 eV)": 1.1, "Phase IV (0.04 eV)": 0.79}, #0.755
+    "comparison_curve": True,
     "main_curve_color": "blue",
-    "comparison_curve_colors": ["red", "black"],
-    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg", "/termite/sensitivity_config_files/Config_PIVmodule1_150MHz_minpitch_87deg.cfg"], 
-    "comparison_curve_label": [r"Phase IV scenario: 150 MHz", r"One Phase IV cavity"],
+    "comparison_curve_colors": ["blue", "darkred", "black"],
+    "main_curve_linestyle": "dashed",
+    "comparison_curve_linestyles": ["solid", "dotted", "dashdot"], 
+    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", "/termite/sensitivity_config_files/Config_PIVmodule1_150MHz_minpitch_87deg.cfg", "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"], 
+    "comparison_curve_label": [r"LFA, target scenario", r"One full-size module", r"Phase IV: Ten full-size modules"], #: 150 MHz
     "comparison_label_y_position": [2, 0.105, 0.046], #[2, 0.105, 0.046],
     "comparison_label_x_position": [4.5e15, 7e14, 7e14], #[4.5e15, 2.2e16, 1e15],
     #"sigmae_theta_r": 0.159,
     "lower_label_y_position": 0.17,
     "upper_label_y_position": 0.7,
     "label_x_position": 4e14, #4e14, #0.02, #1e14,
-    "goals_x_position": 5.5e13, #0.0002
     "plot_key_parameters": True,
-    "goals_y_rel_position": 0.755
+    }
+#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+#sens_curve.Configure(sens_config_dict)
+#sens_curve.Run()
+
+
+sens_config_dict = {
+    # required
+    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
+    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_livetime_curve_target_and_threshold_April-18-2025.pdf", #ncav-eff-time
+    "exposure_axis": True,
+    # optional
+    "figsize": (8.3, 6.3), #(10,6),
+    "fontsize": 15,
+    "legend_location": "upper right",
+    "legend_bbox_to_anchor": (-0.,0,0.86,0.971), #last entry: 0.955
+    "track_length_axis": False,
+    "molecular_axis": False,
+    "atomic_axis": False,
+    "exposure_axis": False,
+    "density_axis": False,
+    "ncav_eff_time_axis": False,
+    "ncavities_livetime_axis": False,
+    "livetime_axis": True,
+    "cavity": True,
+    "add_PhaseII": False,
+    "PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg",
+    "add_1year_1cav_point_to_last_ref": False,
+    "y_limits": [2e-2, 3],
+    #"density_range": [1e12,1e19],
+    "year_range": [0.1,35],
+    "main_curve_upper_label":  r"LFA, threshold: $1.7\,$m$^3$, 1 yr", # 560 MHz, $V = 1.7\,$m$^3$
+    "goals": {"LFA threshold (0.7 eV)": 0.7, "Phase IV (0.04 eV)": 0.04},
+    "goals_x_position": {"LFA threshold (0.7 eV)": 4.5, "Phase IV (0.04 eV)": 0.108}, #6e14, #3.3e14, #5.5e13, 
+    "goals_y_rel_position": {"LFA threshold (0.7 eV)": 0.83, "Phase IV (0.04 eV)": 0.83}, #6e14, #3.3e14, #5.5e13, 
+    "comparison_curve": True,
+    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", "/termite/sensitivity_config_files/Config_PIVmodule1_150MHz_minpitch_87deg.cfg", "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"], #"/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", 
+    "comparison_curve_label": [r"LFA, target: $1.7\,$m$^3$, 1 yr", r'One full-size module: $94\,$m$^3$, 1 yr', r"Phase IV$-$Ten full-size modules: $940\,$m$^3$, 8 yrs"], #150 MHz, $V = 94\,$m$^3$
+    "main_curve_color": "blue",
+    "comparison_curve_colors": ["blue", "darkred", "black"],
+    "main_curve_linestyle": "dashed", 
+    "comparison_curve_linestyles": ["solid", "dotted", "dashdot"], 
+    "main_curve_marker": "d",
+    "comparison_curve_markers": ["o", "^", "X"],
+    "optimize_main_density": False,
+    "optimize_comparison_density": False,
+    "lower_label_y_position": 0.17,
+    "upper_label_y_position": 0.7,
+    "label_x_position": 0.115, 
+    #"goals_x_position": 0.12, #4e-2, #<-- Number for ncav*eff*time   #0.11, <-- Number for ncavities*livetime
+    #"goals_y_rel_position": 0.86, #0.84, <-- Number for ncav*eff*time   #0.81, <-- Number for ncavities*livetime
     }
 sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
 sens_curve.Configure(sens_config_dict)
@@ -188,11 +241,11 @@ sens_curve.Run()
 
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
-    "plot_path": "./lfa_and_PhaseIV_sensitivity_vs_ncav-eff-time_curve_Jan-8-2025.pdf",
+    "config_file_path": "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
+    "plot_path": "./PhaseIV_scenario_sensitivity_vs_livetime_curve_March-4-2025.pdf", #ncav-eff-time
     "exposure_axis": True,
     # optional
-    "figsize": (8.5, 6), #(10,6),
+    "figsize": (8.3, 6.3), #(10,6),
     "fontsize": 15,
     "legend_location": "upper right",
     "legend_bbox_to_anchor": (-0.,0,0.86,0.955),
@@ -201,28 +254,30 @@ sens_config_dict = {
     "atomic_axis": False,
     "exposure_axis": False,
     "density_axis": False,
-    "ncav_eff_time_axis": True,
+    "ncav_eff_time_axis": False,
+    "ncavities_livetime_axis": False,
+    "livetime_axis": True,
     "cavity": True,
-    "add_PhaseII": True,
+    "add_PhaseII": False,
     "PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg",
-    "add_1year_1cav_point_to_last_ref": True,
-    "y_limits": [1.5e-2, 1],
+    "add_1year_1cav_point_to_last_ref": False,
+    "y_limits": [1e-2, 1.5e-1],
     #"density_range": [1e12,1e19],
-    "year_range": [0.1,10**3],
-    "main_curve_upper_label":  r"LFA (Phase III): 560 MHz, V = 1.7 m$^3$",
-    "goals": {"LFA (0.4 eV)": 0.4, "Phase IV (0.04 eV)": 0.04},
+    "year_range": [0.1,5e2],
+    "main_curve_upper_label":  r"Default Phase IV scenario",
+    "goals": {"Phase IV (0.04 eV)": 0.04},
     "comparison_curve": True,
-    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"], #"/termite/sensitivity_config_files/Config_PIVmodule1_150MHz_minpitch_87deg.cfg",
-    "comparison_curve_label": [r"Phase IV scenario: 150 MHz, V = 94 m$^3 \times 10$"], #"One Phase IV cavity",  
-    "main_curve_color": "blue",
-    "comparison_curve_colors": ["red"], #"black", 
+    "comparison_config_file_path": ["/termite/sensitivity_config_files/P4_scenario_USR_sigmaeR.cfg", "/termite/sensitivity_config_files/P4_scenario_USR_nonexposure.cfg"],
+    "comparison_curve_label": [r"Less field broadening, fewer events", r"Cavity magic"], #, "One Phase IV cavity"],
+    "main_curve_color": "red",
+    "comparison_curve_colors": ["darkorange", "purple"], 
     "optimize_main_density": False,
-    "optimize_comparison_density": False,
+    "optimize_comparison_density": True,
     "lower_label_y_position": 0.17,
     "upper_label_y_position": 0.7,
     "label_x_position": 0.115, 
-    "goals_x_position": 1.13e-3, #0.11, <-- Number for ncavities*livetime
-    "goals_y_rel_position": 0.84, #0.81, <-- Number for ncavities*livetime
+    "goals_x_position": 1.1e-1, #<-- Number for ncav*eff*time   #0.11, <-- Number for ncavities*livetime
+    "goals_y_rel_position": 0.89, #0.84, <-- Number for ncav*eff*time   #0.81, <-- Number for ncavities*livetime
     }
 #sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
 #sens_curve.Configure(sens_config_dict)
