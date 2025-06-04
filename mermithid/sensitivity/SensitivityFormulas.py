@@ -89,6 +89,7 @@ class Sensitivity(object):
     # SENSITIVITY
     def SignalRate(self):
         """signal events in the energy interval before the endpoint, scale with DeltaE**3"""
+        self.EffectiveVolume()
         signal_rate = self.Experiment.number_density*self.effective_volume*self.last_1ev_fraction/self.tau_tritium
         if not self.Experiment.atomic:
             if hasattr(self.Experiment, 'gas_fractions'):
@@ -105,7 +106,7 @@ class Sensitivity(object):
         Currently, RF noise and cosmic ray backgrounds are included.
         Assumes that background rate is constant over considered energy / frequency range."""
         self.cosmic_ray_background = self.Experiment.cosmic_ray_bkgd_per_tritium_particle*self.Experiment.number_density*self.effective_volume
-        self.background_rate = self.Experiment.RF_background_rate_per_eV + self.cosmic_ray_background
+        self.background_rate = self.RF_background_rate_per_eV + self.cosmic_ray_background
         return self.background_rate
 
     def SignalEvents(self):
@@ -123,7 +124,8 @@ class Sensitivity(object):
                               + 8*np.log(2)*(np.sum(sigmas**2)))
 
     def StatSens(self):
-        """Pure statistic sensitivity assuming Poisson count experiment in a single bin"""
+        """Pure statistic sensitivity assuming Poisson count experiment in a single bin
+        As defined, it needs to be squared before being added to the systematic component"""
         sig_rate = self.SignalRate()
         DeltaE = self.DeltaEWidth()
         sens = 2/(3*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*DeltaE
@@ -131,7 +133,8 @@ class Sensitivity(object):
         return sens
 
     def SystSens(self):
-        """Pure systematic componenet to sensitivity"""
+        """Pure systematic component to sensitivity
+        As defined, it needs to be squared before being added to the statistical component"""
         labels, sigmas, deltas = self.get_systematics()
         sens = 4*np.sqrt(np.sum((sigmas*deltas)**2))
         return sens
@@ -265,7 +268,7 @@ class Sensitivity(object):
         mass_T = self.T_mass
         endpoint = self.T_endpoint
 
-        # these factors are mainly neglidible in the recoil equation below
+        # these factors are mainly negligible in the recoil equation below
         E_rec = 3.409 * eV # maximal value # same for molecular tritium?
         mbeta = 0*eV # term neglidible
         betanu = 1 # neutrinos are fast

@@ -13,6 +13,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import concurrent.futures
 
 
 
@@ -121,6 +122,14 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         self.sens_main_is_atomic = self.sens_main.Experiment.atomic
 
 
+        # Setting natoms_per_particle for atomic and molecular cases, to use later
+        # when calculating and printing event rates
+        if self.sens_main_is_atomic:
+            self.sens_main_natoms_per_particle = 1
+        else:
+            self.sens_main_natoms_per_particle = 2
+
+
         # check atomic and molecular
         if self.molecular_axis:
             if not self.sens_main_is_atomic:
@@ -182,12 +191,25 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             except KeyError as e:
                 logger.error(f"Parameter {param} not found in {category}")
                 raise e
-            
+
+
+            # Set to scan param value
             self.sens_main.__dict__[category].__dict__[param] = parameter_value 
+            # Re-calc the cavity init with the new param
+            self.sens_main.CalcDefaults(overwrite=True)
+            # Ensure param scan value unchanged
             read_back = self.sens_main.__dict__[category].__dict__[param]
             #setattr(self.sens_main, self.scan_parameter_name, parameter_value)
             #read_back = getattr(self.sens_main, self.scan_parameter_name)
             logger.info(f"Setting {self.scan_parameter_name} to {parameter_value/self.scan_parameter_unit} and reading back: {read_back/ self.scan_parameter_unit}")
+           
+            # pitch angle set equal
+            if(param == "min_pitch_used_in_analysis"):
+                self.sens_main.__dict__["FrequencyExtraction"].__dict__["minimum_angle_in_bandwidth"] = parameter_value
+            
+            # If the scanned param isn't trap length, calc trap length for cavity L/D
+            if (param != "trap_length"):
+                self.sens_main.TrapLength() 
             
             logger.info("Calculating cavity experiment radius, volume, effective volume, power") 
             self.sens_main.CavityRadius()  
@@ -256,12 +278,13 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             logger.info('T2 in Veff: {}'.format(rho_opt*self.sens_main.effective_volume))
             logger.info('Total signal: {}'.format(rho_opt*self.sens_main.effective_volume*
                                                     self.sens_main.Experiment.LiveTime/
-                                                    self.sens_main.tau_tritium*2))
+                                                    self.sens_main.tau_tritium*self.sens_main_natoms_per_particle))
             logger.info('Signal in last eV: {}'.format(self.sens_main.last_1ev_fraction*eV**3*
                                                     rho_opt*self.sens_main.effective_volume*
                                                     self.sens_main.Experiment.LiveTime/
-                                                    self.sens_main.tau_tritium*2))
+                                                    self.sens_main.tau_tritium*self.sens_main_natoms_per_particle))
 
+            self.sens_main.print_Efficiencies()
             self.sens_main.print_statistics()
             systematic_limit, total_sigma = self.sens_main.print_systematics()
             self.sys_lim.append(systematic_limit)
@@ -292,10 +315,12 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         #plt.title("Sensitivity vs. {}".format(self.scan_parameter_name))
         plt.plot(self.scan_parameter_values/self.scan_parameter_unit, np.array(self.optimum_limits)/eV, marker=".", label="Density optimized scenarios")
         plt.xlabel(f"{param} ({self.scan_parameter_unit_string})", fontsize=self.fontsize)
-        plt.ylabel(r"90% CL $m_\beta$ (eV)", fontsize=self.fontsize)
+        plt.ylabel(r"90% CL on $m_\beta$ (eV)", fontsize=self.fontsize)
         if self.plot_sensitivity_scan_on_log_scale:
             plt.yscale("log")
-            
+        # TODO log x here    
+        if(self.scan_parameter_scale == "log"):
+            plt.xscale("log")
         for key, value in self.goals.items():
             logger.info('Adding goal: {} = {}'.format(key, value))
             plt.axhline(value, label=key, color="grey", linestyle="--")
@@ -334,7 +359,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
                 
             ax.set_xlabel(axis_label)
             ax.set_ylim(self.ylim)
-            ax.set_ylabel(r"90% CL $m_\beta$ (eV)")
+            ax.set_ylabel(r"90% CL on $m_\beta$ (eV)")
             
         if len(param_range)>4:
             # add colorbar with colors from self.range

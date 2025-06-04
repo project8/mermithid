@@ -1,4 +1,3 @@
-
 import numpy as np
 from scipy import special
 from numericalunits import T, kB, hbar, e, me, eV, c0, eps0, m, Hz, MHz

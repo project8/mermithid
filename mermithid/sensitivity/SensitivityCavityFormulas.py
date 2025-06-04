@@ -1,12 +1,15 @@
 '''
 Class calculating neutrino mass sensitivities based on analytic formulas from CDR.
-Author: R. Reimann, C. Claessens, T. Weiss, W. Van De Pontseele
-Date:06/07/2023
+Author: R. Reimann, C. Claessens, T. E. Weiss, W. Van De Pontseele
+Date: 06/07/2023
+Updated: December 2024
 
 The statistical method and formulas are described in
 CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc673d862fa923d53.
 '''
 import numpy as np
+from scipy.stats import ncx2, chi2
+from scipy.special import roots_laguerre
 
 from mermithid.misc.Constants_numericalunits import *
 from mermithid.misc.CRESFunctions_numericalunits import *
@@ -75,7 +78,7 @@ def mean_field_frequency_variation(cyclotron_frequency, length_diameter_ratio, m
     # Because of the different electron trajectories in the trap,
     # An electron will see a slightly different magnetic field
     # depending on its position in the trap, especially the pitch angle.
-    # This is a rough estimate of the mean field variation, inspired by calcualtion performed by Rene.
+    # This is a rough estimate of the mean field variation, inspired by calculation performed by Rene.
     #y = (90-max_pitch_angle)/4
     phi_rad = (np.pi/2-max_pitch_angle)
     return q*phi_rad**2*cyclotron_frequency*(10/length_diameter_ratio)
@@ -180,7 +183,7 @@ def trapping_efficiency(z_range, bg_magnetic_field, min_pitch_angle, trap_flat_f
 
 
 
-###############################################################################cd
+###############################################################################
 class CavitySensitivity(Sensitivity):
     """
     Documentation:
@@ -191,53 +194,99 @@ class CavitySensitivity(Sensitivity):
     """
     def __init__(self, config_path):
         Sensitivity.__init__(self, config_path)
-        self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
-        
+
+        # Calc non-config parameters outside of init function:
+        ## Allows re-calcing params if config values changed later, e.g. param scans
+        self.CalcDefaults(overwrite=False)
+
+    # Add any additional initialization to this function, NOT __INIT__!!
+    def CalcDefaults(self, overwrite=False): 
+        ###
+        #Initialization related to the effective volume:
+        ###
         self.Jprime_0 = 3.8317
-        self.CRLB_constant = 12
-        #self.CRLB_constant = 90
-        if hasattr(self.FrequencyExtraction, "crlb_constant"):
-            self.CRLB_constant = self.FrequencyExtraction.crlb_constant
-            logger.info("Using configured CRLB constant")   
+        self.cavity_freq = frequency(self.T_endpoint, self.MagneticField.nominal_field)
+        self.CavityRadius()
+        
+        #Get trap length from cavity length if not specified
+        if ((not hasattr(self.Experiment, 'trap_length')) or overwrite):
+            self.Experiment.trap_length = 0.8 * 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
+            logger.info("Calc'd trap length: {} m".format(round(self.Experiment.trap_length/m, 3), 2))
+
+        self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
+        self.CavityVolume()
+        self.CavityPower()
 
         #Calculate position dependent trapping efficiency
         self.pos_dependent_trapping_efficiency = trapping_efficiency( z_range = self.Experiment.trap_length /2,
                                                                     bg_magnetic_field = self.MagneticField.nominal_field, 
                                                                     min_pitch_angle = self.FrequencyExtraction.minimum_angle_in_bandwidth, 
                                                                     trap_flat_fraction = self.MagneticField.trap_flat_fraction
-                                                                    )             
+                                                                    )          
         
-        #Numbr of steps in pitch angle between min_pitch and pi/2 for the frequency noise uncertainty calculation
+        #We may decide to remove the "Threshold" section and move the threshold-related parameters to the "Efficiency" section.
+        if not self.Efficiency.usefixedvalue:
+            self.Threshold = NameSpace({opt: eval(self.cfg.get('Threshold', opt)) for opt in self.cfg.options('Threshold')})
+   
+        #Cyclotron radius is sometimes used in the effective volume calculation
+        self.cyc_rad = cyclotron_radius(self.cavity_freq, self.T_endpoint) 
+
+        #Assigning the background constant if it's not in the config file
+        if hasattr(self.Experiment, "bkgd_constant"):
+            self.bkgd_constant = self.Experiment.bkgd_constant
+            logger.info("Using background rate constant of {}/eV/s".format(self.bkgd_constant))
+        else:
+            self.bkgd_constant = 1
+            logger.info("Using background rate constant of 1/eV/s") 
+        
+        #Calculate the effective volume and print out related quantities
+        self.EffectiveVolume()
+        logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3), 2))
+        logger.info("Total trap volume: {} m^3".format(self.total_trap_volume/m**3))
+        logger.info("Cyclotron radius: {}m".format(self.cyc_rad/m))
+        if self.use_cyc_rad:
+            logger.info("Using cyclotron radius as unusable distance from wall, for radial efficiency calculation")
+
+        ####
+        #Initialization related to the energy resolution:
+        ####
+        #No longer using this CRLB_constant. If this change sticks, will remove it.
+        self.CRLB_constant = 6
+        if hasattr(self.FrequencyExtraction, "crlb_constant"):
+            self.CRLB_constant = self.FrequencyExtraction.crlb_constant
+            logger.info("Using configured CRLB constant")      
+        
+        #Number of steps in pitch angle between min_pitch and pi/2 for the frequency noise uncertainty calculation
         self.pitch_steps = 100
         if hasattr(self.FrequencyExtraction, "pitch_steps"):
             self.pitch_steps = self.FrequencyExtraction.pitch_steps
             logger.info("Using configured pitch_steps value")  
 
-        self.CavityRadius()
-        self.CavityVolume()
-        self.EffectiveVolume()
-        self.CavityPower()
-
-        #Get trap length from cavity length if not specified
-        if self.Experiment.trap_length == 0:
-            self.Experiment.trap_length = 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
+        #Just calculated for comparison
+        self.larmor_power = rad_power(self.T_endpoint, np.pi/2, self.MagneticField.nominal_field) # currently not used
         
+        if not self.Efficiency.usefixedvalue:
+            if self.Threshold.use_detection_threshold:
+                logger.info("Overriding any detection eff and RF background in the config file; calculating these from the detection_threshold.")
+        else:  
+            logger.info("Using the detection eff and RF background rate from the config file.")
+
 
     # CAVITY
     def CavityRadius(self):
         axial_mode_index = 1
-        self.cavity_radius = c0/(2*np.pi*frequency(self.T_endpoint, self.MagneticField.nominal_field))*np.sqrt(self.Jprime_0**2+axial_mode_index**2*np.pi**2/(4*self.Experiment.cavity_L_over_D**2))
+        self.cavity_radius = c0/(2*np.pi*self.cavity_freq)*np.sqrt(self.Jprime_0**2+axial_mode_index**2*np.pi**2/(4*self.Experiment.cavity_L_over_D**2))
         return self.cavity_radius
     
     def CavityVolume(self):
         #radius = 0.5*wavelength(self.T_endpoint, self.MagneticField.nominal_field)
         self.total_cavity_volume = 2*self.cavity_radius*self.Experiment.cavity_L_over_D*np.pi*(self.cavity_radius)**2*self.Experiment.n_cavities
         
-        logger.info("Frequency: {} MHz".format(round(frequency(self.T_endpoint, self.MagneticField.nominal_field)/MHz, 3)))
+        logger.info("Frequency: {} MHz".format(round(self.cavity_freq/MHz, 3)))
         logger.info("Wavelength: {} cm".format(round(wavelength(self.T_endpoint, self.MagneticField.nominal_field)/cm, 3)))
         logger.info("Cavity radius: {} cm".format(round(self.cavity_radius/cm, 3)))
         logger.info("Cavity length: {} cm".format(round(2*self.cavity_radius*self.Experiment.cavity_L_over_D/cm, 3)))
-        logger.info("Total cavity volume {} m^3".format(round(self.total_cavity_volume/m**3)))\
+        logger.info("Total cavity volume: {} m^3".format(round(self.total_cavity_volume/m**3, 3)))\
         
         return self.total_cavity_volume
     
@@ -246,61 +295,81 @@ class CavitySensitivity(Sensitivity):
     def TrapVolume(self):
         # Total volume of the electron traps in all cavities
         self.total_trap_volume = self.Experiment.trap_length*np.pi*(self.cavity_radius)**2*self.Experiment.n_cavities
-    
-        logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3)))
-        logger.info("Trap length: {} cm".format(round(self.Experiment.trap_length/cm, 3)))
-        logger.info("Total trap volume {} m^3".format(round(self.total_trap_volume/m**3)))
-        
         return self.total_trap_volume
 
 
     
     def EffectiveVolume(self):
         self.total_trap_volume = self.TrapVolume()
+
         if self.Efficiency.usefixedvalue:
             self.effective_volume = self.total_trap_volume * self.Efficiency.fixed_efficiency
+            self.use_cyc_rad = False
+            self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV    
         else:
-            # radial and detection efficiency are configured in the config file
-            #logger.info("Radial efficiency: {}".format(self.Efficiency.radial_efficiency))
-            #logger.info("Detection efficiency: {}".format(self.Efficiency.detection_efficiency))
-            #logger.info("Pitch angle efficiency: {}".format(self.PitchDependentTrappingEfficiency()))
-            #logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
+            #Detection efficiency
+            if self.Threshold.use_detection_threshold:
+                #Calculating the detection efficiency given the SNR of data and the threshold.
+                #If the config file contains a detection effciency or RF background rate, they are overridden.
+                self.assign_background_rate_from_threshold()
+                self.assign_detection_efficiency_from_threshold()
+            else:
+                #Using the inputted detection efficiency and RF background rate from the config file.
+                self.detection_efficiency = self.Efficiency.detection_efficiency
+                self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV    
+
+
+            #Radial efficiency
+            if self.Efficiency.unusable_dist_from_wall >= self.cyc_rad:
+                self.radial_efficiency = (self.cavity_radius - self.Efficiency.unusable_dist_from_wall)**2/self.cavity_radius**2
+                self.use_cyc_rad = False
+            else:
+                self.radial_efficiency = (self.cavity_radius - self.cyc_rad)**2/self.cavity_radius**2
+                self.use_cyc_rad = True
             
-            self.radial_efficiency = (self.cavity_radius - self.Efficiency.unusable_dist_from_wall)**2/self.cavity_radius**2
-            self.fa_cut_efficiency = trapping_efficiency( z_range = self.Experiment.trap_length /2,
+            #Efficiency from a cut during analysis on the axial frequency
+            self.fa_cut_efficiency = trapping_efficiency(z_range = self.Experiment.trap_length /2,
                                                                     bg_magnetic_field = self.MagneticField.nominal_field, 
                                                                     min_pitch_angle = self.Efficiency.min_pitch_used_in_analysis, 
                                                                     trap_flat_fraction = self.MagneticField.trap_flat_fraction
                                                                     )/self.pos_dependent_trapping_efficiency 
-            self.effective_volume = self.total_trap_volume*self.radial_efficiency*self.Efficiency.detection_efficiency*self.fa_cut_efficiency*self.pos_dependent_trapping_efficiency   
             
-        #logger.info("Total efficiency: {}".format(self.effective_volume/self.total_volume))        
+            #The effective volume includes the three efficiency factors above, as well as the trapping efficiency
+            self.effective_volume = self.total_trap_volume*self.radial_efficiency*self.detection_efficiency*self.fa_cut_efficiency*self.pos_dependent_trapping_efficiency   
+            
+        # The "signal rate improvement" factor can be toggled to test the increase in statistics required to reach some sensitivity
         self.effective_volume*=self.Experiment.sri_factor
-        
-        # for parent SignalRate function
-        # self.Experiment.v_eff = self.effective_volume
-        
         return self.effective_volume
         
+
     def BoxTrappingEfficiency(self):
         self.box_trapping_efficiency = np.cos(self.FrequencyExtraction.minimum_angle_in_bandwidth)
         return self.box_trapping_efficiency
 
+    def TrapLength(self):
+        self.Experiment.trap_length = 0.8 * 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
+        logger.info("Calc'd trap length: {} m".format(round(self.Experiment.trap_length/m, 3), 2))
+
     def CavityPower(self):
-        # from Hamish's atomic calculator
         #Jprime_0 = 3.8317
         max_ax_freq, mean_field, z_t = axial_motion(self.MagneticField.nominal_field,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth,
                                                   self.Experiment.trap_length,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth, 
-                                                  self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction, trajectory = 1000)
+                                                  self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction, trajectory = 1000) #1000
 
-        #self.signal_power = self.FrequencyExtraction.mode_coupling_efficiency * self.CavityLoadedQ() * self.FrequencyExtraction.hanneke_factor * self.T_endpoint/eV * e/C * Jprime_0**2 / (2*np.pi**2*self.Experiment.cavity_L_over_D*2*self.cavity_radius**3/m**3 * frequency(self.T_endpoint, self.MagneticField.nominal_field)*s)*W
-        self.signal_power = np.mean(larmor_orbit_averaged_hanneke_power(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=2000),
+        #The np.random.triangluar function weights the radii, accounting for the fact that there are more electrons at large radii than small ones
+        r_sample_size = 50
+        if((not self.Efficiency.calculate_det_eff_for_sampled_radii) or (self.Efficiency.usefixedvalue)): r_sample_size = 1000
+        power_vs_r_with_zeros = np.mean(larmor_orbit_averaged_hanneke_power(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=r_sample_size),
                                                                             z_t, self.CavityLoadedQ(), 
                                                                             2*self.Experiment.cavity_L_over_D*self.cavity_radius, 
                                                                             self.cavity_radius, 
-                                                                            frequency(self.T_endpoint, self.MagneticField.nominal_field)))
+                                                                            self.cavity_freq), axis=1)
+        #Remove zeros, since these represent electrons that hit the cavity wall and are not detected
+        self.signal_power_vs_r = power_vs_r_with_zeros[power_vs_r_with_zeros != 0]
+
+        self.signal_power = np.mean(self.signal_power_vs_r)
         return self.signal_power
     
 
@@ -311,7 +380,7 @@ class CavitySensitivity(Sensitivity):
         
         #self.loaded_q =1/(0.22800*((90-self.FrequencyExtraction.minimum_angle_in_bandwidth)*np.pi/180)**2+2**2*0.01076**2/(4*0.22800))
 
-        endpoint_frequency = frequency(self.T_endpoint, self.MagneticField.nominal_field)
+        endpoint_frequency = self.cavity_freq
         #required_bw_axialfrequency = axial_frequency(self.Experiment.cavity_L_over_D*self.CavityRadius()*2, 
         #                                             self.T_endpoint, 
         #                                             self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
@@ -320,7 +389,7 @@ class CavitySensitivity(Sensitivity):
                                                   self.Experiment.trap_length,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth, 
                                                   self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
-        required_bw_axialfrequency = max_ax_freq
+        required_bw_axialfrequency = max_ax_freq*self.FrequencyExtraction.sideband_order
         self.required_bw_axialfrequency = required_bw_axialfrequency
         required_bw_meanfield = required_bw_meanfield = np.abs(frequency(self.T_endpoint, mean_field) - endpoint_frequency)
         required_bw = np.add(required_bw_axialfrequency,required_bw_meanfield) # Broadcasting
@@ -337,12 +406,12 @@ class CavitySensitivity(Sensitivity):
     # SYSTEMATICS
     # Generic systematics are implemented in the parent class in SensitivityFormulas.py
 
-    def calculate_tau_snr(self, time_window, power_fraction=1):
+    def calculate_tau_snr(self, time_window, power_fraction=1, tau_snr_array_for_radii=False):
         """
         power_fraction may be used as a carrier or a sideband power fraction,
         relative to the power of a 90 degree carrier.
         """
-        endpoint_frequency = frequency(self.T_endpoint, self.MagneticField.nominal_field)
+        endpoint_frequency = self.cavity_freq
     
         # Cavity coupling
         self.CavityLoadedQ()
@@ -371,7 +440,10 @@ class CavitySensitivity(Sensitivity):
         
         # Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
         # logger.info("Power: {}".format(Pe/W))
-        Pe = self.signal_power * power_fraction
+        if tau_snr_array_for_radii:
+            Pe = self.signal_power_vs_r * power_fraction
+        else:
+            Pe = self.signal_power * power_fraction
         
         P_signal_received = Pe*db_to_pwr_ratio(att_cir_db_freq+att_line_db_freq)
         self.received_power = P_signal_received
@@ -402,6 +474,26 @@ class CavitySensitivity(Sensitivity):
         logger.info("Opimtum energy window: {} eV".format(self.DeltaEWidth()/eV))
     """
 
+    def frequency_variance_from_CRLB(self, tau_SNR):
+        self.eta = self.slope*self.time_window/(4*self.cavity_freq*np.pi)
+        if self.eta < 1e-6:
+            # This is for the case where the track is flat (almost no slope), and where we
+            # treat it as a pure sinusoid (don't fit the slope when extracting the frequency).
+            # Applies for a complex signal.
+            return self.FrequencyExtraction.CRLB_scaling_factor*(6*tau_SNR/self.time_window**3)/(2*np.pi)**2 
+        else:
+            # Non-zero, fitted slope. 
+            # Doesn't assume that alpha*T/2 << omega_c, since it includes the 5*eta/(1-eta) term in Eq. 25 of Joe's write-up: https://3.basecamp.com/3700981/buckets/3107037/documents/6331876030.
+            # CODE IMPLEMENTATION NEEDS TO BE DOUBLE-CHECKED BY CONSIDERING AN EXPERIMENT WITH LARGE-ISH ETA.
+            # The first term relies on the relation delta_t_start = sqrt(20)*tau_snr. This is from Equation 6.40 of Nick's thesis,
+            # derived in Appendix A and verified with an MC study.
+            # Using a factor of 23 instead of 20, from re-calculating Nick's integrals (though this derivation is approximate).
+            # Nick's derivation uses an expression for P_fa assuming the phase is known. 
+            # The phase won't be known, but it's more difficult to determine the unknown-phase expression.
+            # Working on that.
+            return self.FrequencyExtraction.CRLB_scaling_factor*(23*(self.slope*tau_SNR)**2 + tau_SNR/self.time_window**3*(96 + 6*5*self.eta/(1-self.eta)))/(2*np.pi)**2
+
+    
     def syst_frequency_extraction(self):
         # cite{https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398} (Section 1.2, p 7-9)
         # Are we double counting the antenna collection efficiency? We use it here. Does it also impact the effective volume, v_eff ?
@@ -412,38 +504,21 @@ class CavitySensitivity(Sensitivity):
             return sigma, delta
         
        
-        endpoint_frequency = frequency(self.T_endpoint, self.MagneticField.nominal_field)
+        endpoint_frequency = self.cavity_freq
         # using Pe and alpha (aka slope) from above
-        Pe = self.signal_power #/self.FrequencyExtraction.mode_coupling_efficiency 
-        self.larmor_power = rad_power(self.T_endpoint, np.pi/2, self.MagneticField.nominal_field) # currently not used
+        Pe = self.signal_power #/self.FrequencyExtraction.mode_coupling_efficiency
         
         self.slope = endpoint_frequency * 2 * np.pi * Pe/me/c0**2 # track slope
         self.time_window = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
         
-        self.time_window_slope_zero = abs(frequency(self.T_endpoint, self.MagneticField.nominal_field)-frequency(self.T_endpoint+20*meV, self.MagneticField.nominal_field))/self.slope
+        self.time_window_slope_zero = abs(self.cavity_freq-frequency(self.T_endpoint+20*meV, self.MagneticField.nominal_field))/self.slope
         
         tau_snr_full_length = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.carrier_power_fraction)
         tau_snr_part_length = self.calculate_tau_snr(self.time_window_slope_zero, self.FrequencyExtraction.carrier_power_fraction)
         
-        
-        # use different crlb based on slope
-        # delta_E_slope = abs(kin_energy(endpoint_frequency, self.MagneticField.nominal_field)-kin_energy(endpoint_frequency+self.slope*ms, self.MagneticField.nominal_field))
-        # logger.info("slope is {} Hz/ms".format(self.slope/Hz*ms))
-        # logger.info("slope corresponds to {} meV / ms".format(delta_E_slope/meV))
-        # if True: #self.time_window_slope_zero >= self.time_window:
-        # logger.info("slope is approximately 0: {} meV".format(delta_E_slope/meV))
-        self.var_f_c_CRLB = self.FrequencyExtraction.CRLB_scaling_factor*(self.CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2
+        #Calculate the frequency variance from the CRLB
+        self.var_f_c_CRLB = self.frequency_variance_from_CRLB(tau_snr_full_length)
         self.best_time_window = self.time_window
-
-        # non constant slope
-        self.var_f_CRLB_slope_fitted = self.FrequencyExtraction.CRLB_scaling_factor*(20*(self.slope*tau_snr_full_length)**2 + self.CRLB_constant*tau_snr_full_length/self.time_window**3)/(2*np.pi)**2
-        if self.CRLB_constant > 10: self.var_f_c_CRLB = self.var_f_CRLB_slope_fitted
-
-        """
-        # sigma_f from Cramer-Rao lower bound in eV
-        self.sigma_K_f_CRLB =  e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*sigma_f_CRLB*c0**2
-        # delta_sigma_K_f_CRLB = e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*delta_sigma_f_CRLB*c0**2
-        """
 
         # sigma_f from pitch angle reconstruction
         if self.FrequencyExtraction.crlb_on_sidebands:
@@ -452,8 +527,9 @@ class CavitySensitivity(Sensitivity):
 
             tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.sideband_power_fraction)
             # (sigmaf_lsb)^2:
-            var_f_sideband_crlb = self.FrequencyExtraction.CRLB_scaling_factor*(self.CRLB_constant*tau_snr_full_length_sideband/self.time_window**3)/(2*np.pi)**2
-            
+            var_f_sideband_crlb = self.frequency_variance_from_CRLB(tau_snr_full_length_sideband)
+            #var_f_sideband_crlb = self.FrequencyExtraction.CRLB_scaling_factor*(self.CRLB_constant*tau_snr_full_length_sideband/self.time_window**3)/(2*np.pi)**2
+
             m = self.FrequencyExtraction.sideband_order #For convenience
 
             #Define phi_max, corresponding to the minimum pitch angle
@@ -470,7 +546,7 @@ class CavitySensitivity(Sensitivity):
                                     np.pi/2-phis, self.Experiment.trap_length,
                                     self.FrequencyExtraction.minimum_angle_in_bandwidth, 
                                     self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
-            fc0_endpoint = frequency(self.T_endpoint, self.MagneticField.nominal_field)
+            fc0_endpoint = self.cavity_freq
             p_array = ax_freq_array/fc0_endpoint/phis
             self.p = np.mean(p_array[1:]) #Cut out theta=pi/2 (ill defined there)
 
@@ -540,11 +616,102 @@ class CavitySensitivity(Sensitivity):
             sigmaE_meanB = self.BToKeErr(sigma_meanB*B, B)
             sigmaE_r = self.MagneticField.sigmae_r
             sigmaE_theta = self.MagneticField.sigmae_theta
-            sigmaE_phi = self.MagneticField.sigmae_theta
+            sigmaE_phi = self.MagneticField.sigmae_phi
             sigma = np.sqrt(sigmaE_meanB**2 + sigmaE_r**2 + sigmaE_theta**2 + sigmaE_phi**2)
             return sigma, frac_uncertainty*sigma
         else:
             return 0, 0
+
+    def det_efficiency_track_duration(self):
+        """
+        Detection efficiency implemented based on René's slides, with faster and stable implementation using Gauss-Laguerre quadrature (G-L method):
+        https://3.basecamp.com/3700981/buckets/3107037/documents/8013439062
+        Gauss-Laguerre Quadrature: https://en.wikipedia.org/wiki/Gauss%E2%80%93Laguerre_quadrature
+
+        detection_eff_integration
+        -------------------------
+
+        
+        The following changes were made to the original integral to fit the G-L method:
+
+        Original integrand: ∫[0 to \inf] ncx2(df=2, nc=t/τ).sf(thres) * (1/μ) * exp(-t/μ) dt
+        
+        Where,
+        t = track_duration
+        μ (\mu) = mean_track_duration
+        τ (\tau) = tau_snr_ex_carrier
+        thres = detection_threshold
+
+        We do the change of variable, x = t / μ
+                so, t = x μ
+                or, dt = μ dx
+
+        Substituting into the original integral: 
+        
+        ∫[0 to \inf] ncx2(df=2, nc=xμ/τ).sf(thres) * (1/μ) * exp(-x) μ dx
+
+        The μ's cancel out, and the integral takes the form:
+        
+        ∫[0 to \inf] f(x) * exp(-x) dx
+
+        where, f(x) = ncx2(df=2, nc=xμ/τ).sf(thres)
+        
+        
+        Parameters
+        ----------
+        None
+        
+        
+        Returns
+        -------
+        detection_efficiency : float
+            SNR and threshold dependent detection efficieny.
+                   
+        Notes
+        -----
+        Also check the antenna paper for more details. 
+        Especially the section on the signal detection with matched filtering.
+        """
+        # Calculate the mean track duration
+        #FIX: Only do the lines below ones for a given density; don't repeat for each threshold being scanned ...
+        mean_track_duration = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
+        tau_snr_ex_total = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction + self.FrequencyExtraction.sideband_power_fraction, tau_snr_array_for_radii=self.Efficiency.calculate_det_eff_for_sampled_radii)
+        if isinstance(tau_snr_ex_total, float):
+            tau_snr_ex_total = [tau_snr_ex_total]
+
+        # Roots and weights for the Laguerre polynomial
+        x, w = roots_laguerre(100) #n=100 is the number of quadrature points
+        
+        # Scale the track duration to match the form of Gauss-Laguerre quadrature
+        scaled_x = x * mean_track_duration # scaled_x = xμ
+
+        # Evaluate the non-central chi-squared dist values at the scaled quadrature points
+        sf_values = np.array([ncx2(df=2, nc=2 * scaled_x / tau_snr).sf(self.Threshold.detection_threshold) for tau_snr in tau_snr_ex_total])
+
+        # Calculate and return the integration result from weighted sum
+        eff_for_each_r = np.sum(w * sf_values, axis=1)
+
+        #Average efficiencies over the sampled electron radii. Weighting for radial distribution is accounted for in sampling, earlier.
+        avg_efficiency = np.mean(eff_for_each_r) 
+        return avg_efficiency
+
+    def assign_detection_efficiency_from_threshold(self):
+        self.detection_efficiency = self.det_efficiency_track_duration()
+        return self.detection_efficiency
+
+    def rf_background_rate_cavity(self):
+        # Detection efficiency implemented based on René's slides
+        # https://3.basecamp.com/3700981/buckets/3107037/documents/8013439062
+        # Also check the antenna paper for more details, especially the section
+        # on the signal detection with matched filtering.
+        # The background constant will need to be determined from Monte Carlo simulations.
+        return chi2(df=2).sf(self.Threshold.detection_threshold)*self.bkgd_constant/(eV*s)
+
+    def assign_background_rate_from_threshold(self):
+        self.RF_background_rate_per_eV = self.rf_background_rate_cavity()
+        return self.RF_background_rate_per_eV
+
+    
         
     
     # PRINTS
@@ -563,7 +730,7 @@ class CavitySensitivity(Sensitivity):
         tau_snr_ex_carrier = self.calculate_tau_snr(track_duration, self.FrequencyExtraction.carrier_power_fraction)
         
         
-        eV_bandwidth = np.abs(frequency(self.T_endpoint, self.MagneticField.nominal_field) - frequency(self.T_endpoint + 1*eV, self.MagneticField.nominal_field))
+        eV_bandwidth = np.abs(self.cavity_freq - frequency(self.T_endpoint + 1*eV, self.MagneticField.nominal_field))
         SNR_1eV_90deg = 1/eV_bandwidth/tau_snr_90deg
         SNR_track_duration_90deg = track_duration/tau_snr_90deg
         SNR_1ms_90deg = 0.001*s/tau_snr_90deg
@@ -583,14 +750,14 @@ class CavitySensitivity(Sensitivity):
         logger.info("Noise power in 1eV: {}W".format(self.noise_energy*eV_bandwidth/W))
         logger.info("SNRs of carriers (90°, used in calc) for 1eV bandwidth: {}, {}".format(SNR_1eV_90deg, SNR_1eV_ex_carrier))
         #logger.info("SNR 1 eV from temperatures:{}".format(self.received_power/(self.noise_energy*eV_bandwidth)))
-        logger.info("SNRs of carriers (90°, used in calc) for track duration: {}, {}".format(SNR_track_duration_90deg, SNR_track_duration_ex_carrier))
+        logger.info("SNRs of carriers (90°, used in calc) for track duration at optimum density: {}, {}".format(SNR_track_duration_90deg, SNR_track_duration_ex_carrier))
         logger.info("SNR of carriers (90°, used in calc) for 1 ms: {}, {}".format(SNR_1ms_90deg, SNR_1ms_ex_carrier))
         
         
         logger.info("Optimum energy window: {} eV".format(self.DeltaEWidth()/eV))
         
-        logger.info("CRLB if slope is nonzero and needs to be fitted: {} Hz".format(np.sqrt(self.var_f_CRLB_slope_fitted)/Hz))
-        logger.info("CRLB constant: {}".format(self.CRLB_constant))
+        #logger.info("CRLB if slope is nonzero and needs to be fitted: {} Hz".format(np.sqrt(self.var_f_CRLB_slope_fitted)/Hz))
+        #logger.info("CRLB constant: {}".format(self.CRLB_constant))
         logger.info("**Done printing SNR parameters.**")
         
         return self.noise_temp, SNR_1eV_90deg, track_duration
@@ -598,16 +765,17 @@ class CavitySensitivity(Sensitivity):
     
     def print_Efficiencies(self):
         
+        logger.info("Effective volume: {} mm^3".format(round(self.effective_volume/mm**3, 3)))
+        logger.info("Total efficiency: {}".format(self.effective_volume/self.total_trap_volume))  
+    
         if not self.Efficiency.usefixedvalue:
             # radial and detection efficiency are configured in the config file
             logger.info("Radial efficiency: {}".format(self.radial_efficiency))
-            logger.info("Detection efficiency: {}".format(self.Efficiency.detection_efficiency))
+            logger.info("Detection efficiency: {}".format(self.detection_efficiency))
+            #logger.info("Detection efficiency integration error: {}".format(self.abs_err))
             logger.info("Trapping efficiency: {}".format(self.pos_dependent_trapping_efficiency))
             logger.info("Efficiency from axial frequency cut: {}".format(self.fa_cut_efficiency))
             logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
-            
-        logger.info("Effective volume: {} mm^3".format(round(self.effective_volume/mm**3, 3)))
-        logger.info("Total efficiency: {}".format(self.effective_volume/self.total_trap_volume))  
 
 
 

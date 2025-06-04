@@ -61,7 +61,7 @@ sens_config_dict = {
 
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
+    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
     "plot_path": "./lfa_with_BNL_constraints_sensitivity_vs_exposure_curve_PhaseIV.pdf",
     "exposure_axis": True,
     # optional
@@ -81,8 +81,8 @@ sens_config_dict = {
     "main_curve_upper_label":  r"Phase III scenario: 1 GHz, L/D=9",
     #"main_curve_lower_label": r"$\sigma^\bar{B}_\mathrm{reco} = 0.16\,\mathrm{eV}$",
     "goals": {"Phase III (0.4 eV)": (0.4**2/1.64), "Phase IV (0.04 eV)": (0.04**2/1.64)},
-    "comparison_curve": True,
-    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_500MHz.cfg",
+    "comparison_curve": False,
+    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg",
                                     "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg"],
                                    # "/termite/sensitivity_config_files/Config_atomic_find_factor_22_Experiment_conservative.cfg"], 
     #"comparison_config_file_path": ["/termite/sensitivity_config_files/Config_PhaseIII_325MHz_Experiment_conservative.cfg", 
