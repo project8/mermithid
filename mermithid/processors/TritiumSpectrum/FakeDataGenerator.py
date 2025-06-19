@@ -254,6 +254,12 @@ class FakeDataGenerator(BaseProcessor):
                     'survival_prob': self.survival_prob,
                     'use_radiation_loss': self.use_radiation_loss,
                     'sample_ins_res_errors': self.sample_ins_resolution_errors,
+		    # Reviewing this code, I (Talia) see that this 'resolution_function' initialization does nothing, here.
+		    # In the MultiGasComplexLineShape processor, the 'resolution_function' variable is decides which function
+		    # is used when *fitting* Kr data. However, no Kr data is fitted in this FakeDataGenerator, and instead,
+		    # 'make_spectrum' functions from the MultiGasComplexLineShape processor are used.
+		    # (See mermithid.misc.FakeTritiumDataFunctions, which is imported above.) Which make_spectrum function
+		    # is called is *not* decided by line 263 (just below); it's instead decided by line 439 in this file.
                     'resolution_function': self.resolution_function,
                     'scatter_peak_ratio_p': self.scatter_peak_ratio_p,
                     'scatter_peak_ratio_q': self.scatter_peak_ratio_q,
