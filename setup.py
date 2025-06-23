@@ -9,12 +9,15 @@ from setuptools.command.test import test as TestCommand
 verstr = "none"
 try:
     import subprocess
-    verstr = subprocess.check_output(['git','describe', '--long']).decode('utf-8').strip()
+    #Modified this to comply with pip's current PEP requirements (versioning conventions)
+    version_info = subprocess.check_output(['git','describe', '--long']).decode('utf-8').strip() 
+    version_info = version_info.split('-')
+    verstr = version_info[0] + '+' + version_info[1] + '.' + version_info[2]
 except EnvironmentError:
     pass
 except Exception as err:
     print(err)
-    verstr = 'v0.0.0-???'
+    verstr = 'v0.0.0+???'
 
 on_rtd = os.environ.get("READTHEDOCS", None) == 'True'
 
@@ -44,6 +47,6 @@ setup(
     extras_require=extras_require,
     url='http://www.github.com/project8/mermithid',
     author = "M. Guigue",
-    maintainer = "M. Guigue (PNNL)",
-    maintainer_email = "mathieu.guigue@pnnl.gov"
+    maintainer = "T. E. Weiss (Yale)",
+    maintainer_email = "talia.weiss@yale.edu"
 )
