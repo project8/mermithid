@@ -491,7 +491,7 @@ class CavitySensitivity(Sensitivity):
             # Nick's derivation uses an expression for P_fa assuming the phase is known. 
             # The phase won't be known, but it's more difficult to determine the unknown-phase expression.
             # Working on that.
-            return self.FrequencyExtraction.CRLB_scaling_factor*(23*(self.slope*tau_SNR)**2 + tau_SNR/self.time_window**3*(96 + 6*5*self.eta/(1-self.eta)))/(2*np.pi)**2
+            return self.FrequencyExtraction.CRLB_scaling_factor*(23*(self.slope*tau_SNR)**2 + tau_SNR/self.time_window**3*(96 - 6*5*self.eta/(1+self.eta)))/(2*np.pi)**2
 
     
     def syst_frequency_extraction(self):
