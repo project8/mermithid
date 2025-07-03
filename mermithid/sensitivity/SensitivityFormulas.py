@@ -28,7 +28,6 @@ class NameSpace(object):
     def __getattribute__(self, item):
         return object.__getattribute__(self, item.lower())
 
-
 ###############################################################################
 class Sensitivity(object):
     """

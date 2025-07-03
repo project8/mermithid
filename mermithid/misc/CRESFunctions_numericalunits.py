@@ -52,7 +52,7 @@ def track_length(rho, kin_energy=None, molecular=True):
     return 1 / (rho * crosssect * beta(kin_energy) * c0)
 
 def sin2theta_sq_to_Ue4_sq(sin2theta_sq):
-    return 0.5*(1-np.sqrt(1-sin2theta_sq**2))
+    return 0.5*(1-np.sqrt(1-sin2theta_sq))
 
 def Ue4_sq_to_sin2theta_sq(Ue4_sq):
     return 4*Ue4_sq*(1-Ue4_sq)
