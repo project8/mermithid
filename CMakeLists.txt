@@ -9,13 +9,13 @@ include( PackageBuilder )
 
 pbuilder_prepare_project()
 
+set_option( Scarab_BUILD_CODEC_JSON OFF )
+set_option( Scarab_BUILD_CODEC_YAML OFF )
+set_option( Scarab_BUILD_AUTHENTICATION OFF )
+set_option( Scarab_BUILD_CLI OFF )
+set_option( Scarab_BUILD_PARAM OFF )
+set_option( Scarab_ENABLE_EXECUTABLES OFF )
+set_option( Cicada_ENABLE_KATYDID_NAMESPACE OFF )
+
 pbuilder_add_submodule( Cicada Cicada )
 pbuilder_add_submodule( Phylloxera Phylloxera )
-
-set( Scarab_BUILD_CODEC_JSON OFF CACHE BOOL "No coded" FORCE)
-set( Scarab_BUILD_CODEC_YAML OFF CACHE BOOL "No codec" FORCE)
-set( Scarab_BUILD_AUTHENTICATION OFF CACHE BOOL "No auth" FORCE)
-set( Scarab_BUILD_PARAM OFF CACHE BOOL "No param" FORCE)
-
-set( Cicada_ENABLE_KATYDID_NAMESPACE OFF CACHE BOOL "Use Cicada namespace" FORCE)
-
