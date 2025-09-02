@@ -25,19 +25,20 @@ class DataGenerator(BaseProcessor):
     """
 
     def InternalConfigure(self, params):
-        self.Q = reader.read_param(
-            params, "Q", QT2
-        )  # Choose the atomic or molecular tritium endpoint
-        self.m = reader.read_param(params, "neutrino_mass", 0.2)  # Neutrino mass (eV)
-        self.ke_min = reader.read_param(
-            params, "ke_min", self.Q - self.m - 2300
-        )  # Energy corresponding to lower bound of frequency ROI (eV)
-        self.ke_max = reader.read_param(
-            params, "ke_max", self.Q - self.m + 1000
-        )  # Same, for upper bound (eV)
-        self.r_max = reader.read_param(params, "r_max", 0.01)  # maximum radius (m)
+        # Choose the atomic or molecular tritium endpoint
+        self.Q = reader.read_param(params, "Q", QT2)
+        # Neutrino mass (eV)
+        self.m = reader.read_param(params, "neutrino_mass", 0.2)
+        # Energy bounds of frequency ROI (eV)
+        self.ke_min = reader.read_param(params, "ke_min", self.Q - self.m - 2300)
+        self.ke_max = reader.read_param(params, "ke_max", self.Q - self.m + 1000)
+        # Maximum radius (m)
+        self.r_max = reader.read_param(params, "r_max", 0.01)
 
+        # Placeholder for the InternalRun result
         self.results = {}
+
+        return True
 
     def InternalRun(self):
         fake_data = self.test_generate_unbinned_data()

@@ -19,7 +19,13 @@ class DataGeneratorTest(unittest.TestCase):
     def test_data_generation(self):
         from mermithid.processors.DataGenerator import DataGenerator
 
-        specGen_config = {}
+        specGen_config = {
+            "Q": 18573.0,  # eV
+            "m": 0.1,  # eV
+            "ke_min": 18000,  # eV
+            "ke_max": 19000,  # eV
+            "r_max": 0.1,  # m
+        }
 
         specGen = DataGenerator("specGen")
         specGen.Configure(specGen_config)
