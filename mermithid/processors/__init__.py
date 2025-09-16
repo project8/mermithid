@@ -8,4 +8,4 @@ from . import TritiumSpectrum
 from . import plots
 from . import misc
 from . import Fitters
-from . import DataGenerator
+from . import DataGenerator4D
