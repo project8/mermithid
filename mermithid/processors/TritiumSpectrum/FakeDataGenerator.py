@@ -414,12 +414,13 @@ class FakeDataGenerator(BaseProcessor):
         Kmin_eff = Kmin+min_energy #Minimum is slightly below Kmin<Q-m
 
         if not nsteps > 0:
-            raise ValueError('n_steps is not greater zero')
+            raise ValueError('n_steps is not greater than zero')
         step_size = (Kmax_eff-Kmin_eff)/float(nsteps)
         logger.info('Stepsize is {} eV'.format(step_size))
 
         #Options of kinetic energies to be sampled
-        self.Koptions = np.arange(Kmin_eff, Kmax_eff, self.lineshape_stepize)
+        # self.Koptions = np.arange(Kmin_eff, Kmax_eff, self.lineshape_stepize)
+        self.Koptions = np.arange(Kmin_eff, Kmax_eff, step_size)
 
         if efficiency_dict is not None:
             logger.info('Evaluating efficiencies')
