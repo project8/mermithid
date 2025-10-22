@@ -25,9 +25,9 @@ class DataGenerator4DTest(unittest.TestCase):
             "ke_min": 18000,  # eV
             "ke_max": 19000,  # eV
             "ke_bins": 100,
+            "theta_bins": 36,
             "r_max": 0.1,  # m
             "r_bins": 10,
-            "theta_bins": 36,
             "phi_bins": 36,
             # Monoenergetic rate configurations
             "source_types": ["mono"],
@@ -40,8 +40,8 @@ class DataGenerator4DTest(unittest.TestCase):
             "bkgd_flat_binned_mode": False,
             # Spatial model configurations
             "spatial_binned_mode": False,
-            "spatial_model": "uniform_sphere",
-            "uniform_sphere_radius": 0.08,  # (m)
+            "spatial_model": "uniform_cylinder",
+            "uniform_cylinder_radius": 0.08,  # (m)
             # Operational metadata
             "channel_runtimes": [600.0, 1200.0],  # s
         }
@@ -62,9 +62,13 @@ class DataGenerator4DTest(unittest.TestCase):
         fig, axs = plt.subplots(
             2, 4, figsize=(16, 8), gridspec_kw={"width_ratios": [1, 1, 1, 0.3]}
         )
+        ax_ke = axs[0, 0]
+        ax_theta = axs[0, 1]
+        ax_r = axs[1, 0]
+        ax_phi = axs[1, 1]
 
         for i, runtime in enumerate(specGen.runtimes):
-            axs[0, 0].hist(
+            ax_ke.hist(
                 results[i]["ke"],
                 bins=50,
                 range=((specGen_config["ke_min"], specGen_config["ke_max"])),
@@ -72,48 +76,56 @@ class DataGenerator4DTest(unittest.TestCase):
                 label=f"Runtime {i} ({runtime:.1f} s; N={len(results[i]['ke'])})",
             )
 
-        axs[0, 0].set_xlabel("Kinetic Energy [eV]")
-        axs[0, 0].set_xlim(
+        ax_ke.set_xlabel("Kinetic Energy [eV]")
+        ax_ke.set_xlim(
             specGen_config["ke_min"], specGen_config["ke_max"]
         )
-        axs[0, 0].set_ylabel("N")
-        axs[0, 0].legend()
+        ax_ke.set_ylabel("N")
+        ax_ke.legend()
 
         for i, runtime in enumerate(specGen.runtimes):
-            axs[0, 1].hist(
-                results[i]["r"],
-                bins=50,
-                range=(0, specGen_config["r_max"]),
-                alpha=0.5,
-            )
-
-        axs[0, 1].set_xlabel("Radius [m]")
-        axs[0, 1].set_xlim(0, specGen_config["r_max"])
-        axs[0, 1].set_ylabel("N")
-
-        for i, runtime in enumerate(specGen.runtimes):
-            axs[1, 0].hist(
+            ax_theta.hist(
                 results[i]["theta"],
                 bins=50,
                 range=(0, np.pi),
                 alpha=0.5,
             )
 
-        axs[1, 0].set_xlabel("Theta [rad]")
-        axs[1, 0].set_xlim(0, np.pi)
-        axs[1, 0].set_ylabel("N")
+        ax_theta.set_xlabel(r"Pitch angle $\theta$ [rad]")
+        ax_theta.set_xlim(0, np.pi)
+        ax_theta.set_xticks(np.linspace(0, np.pi, 5))
+        ax_theta.set_xticklabels(
+            [r"$0$", r"$\pi/4$", r"$\pi/2$", r"$3\pi/4$", r"$\pi$"]
+        )
+        ax_theta.set_ylabel("N")
 
         for i, runtime in enumerate(specGen.runtimes):
-            axs[1, 1].hist(
+            ax_r.hist(
+                results[i]["r"],
+                bins=50,
+                range=(0, specGen_config["r_max"]),
+                alpha=0.5,
+            )
+
+        ax_r.set_xlabel(r"Radius $r$ [m]")
+        ax_r.set_xlim(0, specGen_config["r_max"])
+        ax_r.set_ylabel("N")
+
+        for i, runtime in enumerate(specGen.runtimes):
+            ax_phi.hist(
                 results[i]["phi"],
                 bins=50,
                 range=(0, 2 * np.pi),
                 alpha=0.5,
             )
 
-        axs[1, 1].set_xlabel("Phi [rad]")
-        axs[1, 1].set_xlim(0, 2 * np.pi)
-        axs[1, 1].set_ylabel("N")
+        ax_phi.set_xlabel(r"Azimuthal angle $\phi$ [rad]")
+        ax_phi.set_xlim(0, 2 * np.pi)
+        ax_phi.set_xticks(np.linspace(0, 2 * np.pi, 5))
+        ax_phi.set_xticklabels(
+            ["0", r"$\pi/2$", r"$\pi$", r"$3\pi/2$", r"$2\pi$"]
+        )
+        ax_phi.set_ylabel("N")
 
         # draw 3D scatter plot on axs[2, 0] and hide axs[2, 1]
         axs[0, 2].axis("off")
@@ -127,14 +139,18 @@ class DataGenerator4DTest(unittest.TestCase):
 
         ax_cbar = [axs[0, 3], axs[1, 3]]
         for i, runtime in enumerate(specGen.runtimes):
-            r = results[i]["r"]
-            theta = results[i]["theta"]
-            phi = results[i]["phi"]
-            x = r * np.sin(theta) * np.cos(phi)
-            y = r * np.sin(theta) * np.sin(phi)
-            z = r * np.cos(theta)
+            n = len(results[i]['ke'])
 
-            ke = results[i]["ke"]
+            r = results[i]["r"][:n//10]
+            phi = results[i]["phi"][:n//10]
+            theta = results[i]["theta"][:n//10]
+            ke = results[i]["ke"][:n//10]
+
+            x = r * np.cos(phi)
+            y = r * np.sin(phi)
+            # z is sampled uniformly from -r to r
+            z = np.random.uniform(-r, r, size=r.shape)
+
             mappable = plt.cm.ScalarMappable(
                 cmap="viridis",
                 norm=plt.Normalize(vmin=ke.min(), vmax=ke.max()),  # type: ignore
@@ -144,15 +160,24 @@ class DataGenerator4DTest(unittest.TestCase):
             cbar = plt.colorbar(mappable, ax=ax_cbar[i])
             cbar.set_label("Kinetic Energy ke [eV]")
 
-            ax_3d[i].scatter(x, y, z, s=1, alpha=0.1, c=mappable.to_rgba(ke))  # type: ignore
-            ax_3d[i].set_xlim([-specGen_config["r_max"], specGen_config["r_max"]])
-            ax_3d[i].set_ylim([-specGen_config["r_max"], specGen_config["r_max"]])
-            ax_3d[i].set_zlim([-specGen_config["r_max"], specGen_config["r_max"]])
+            # draw 3d arrows.
+            scale = 0.3 * specGen_config["r_max"] / np.max(ke)
+            pitch_phi = np.random.uniform(0, 2 * np.pi, size=ke.shape)
+            u = scale * ke * np.sin(theta) * np.cos(pitch_phi)  # scale u
+            v = scale * ke * np.sin(theta) * np.sin(pitch_phi)  # scale v
+            w = scale * ke * np.cos(theta)  # scale w
+
+            ax_3d[i].quiver(x, y, z, u, v, w, color=mappable.to_rgba(ke), alpha=0.1)
+
+            ax_3d[i].set_xlim([-1.3 * specGen_config["r_max"], 1.3 * specGen_config["r_max"]])
+            ax_3d[i].set_ylim([-1.3 * specGen_config["r_max"], 1.3 * specGen_config["r_max"]])
+            ax_3d[i].set_zlim([-1.3 * specGen_config["r_max"], 1.3 * specGen_config["r_max"]])
             ax_3d[i].set_xlabel("X [m]")
             ax_3d[i].set_ylabel("Y [m]")
-            ax_3d[i].set_zlabel("Z [m]")
+            ax_3d[i].set_zlabel("Z (random) [m]")
             ax_3d[i].set_title(
                 f"Runtime {i} ({runtime:.1f} s; N={len(results[i]['ke'])})"
+                + "\n(10% of samples)"
             )
 
         plt.tight_layout()

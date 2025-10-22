@@ -2,7 +2,7 @@
 The data generator class for CCA.
 Author: S. M. Lee
 First Date: August 25, 2025
-Last Update: September 02, 2025
+Last Update: October 22, 2025
 """
 
 from __future__ import absolute_import
@@ -27,7 +27,7 @@ __all__.append(__name__)  # type: ignore
 
 class DataGenerator4D(BaseProcessor):
     """
-    Generate pseudo electrons for CCA. It samples 4D data (E, r, theta, phi)
+    Generate pseudo electrons for CCA. It samples 4D data (E, theta, r, phi)
     from a given source and background model.
 
     Parameters:
@@ -46,7 +46,7 @@ class DataGenerator4D(BaseProcessor):
         TODO: explain parameters
         """
         # Choose the source
-        source_type_menu = ["mono"]  # TODO: ["T", "T2", "e-gun", "Kr"]
+        source_type_menu = ["mono"]  # TODO: ["e-gun", "Kr", "T", "T2"]
         self.source_types: List[str] = reader.read_param(
             params, "source_types", ["mono"]
         )
@@ -70,9 +70,9 @@ class DataGenerator4D(BaseProcessor):
                 return False
 
         # Choose the spatial model
-        spatial_model_menu = ["uniform_sphere"]  # TODO: other models
+        spatial_model_menu = ["uniform_cylinder"]  # TODO: other models
         self.spatial_model: str = reader.read_param(
-            params, "spatial_model", "uniform_sphere"
+            params, "spatial_model", "uniform_cylinder"
         )
         if not self.spatial_model in spatial_model_menu:
             logger.error(
@@ -97,15 +97,15 @@ class DataGenerator4D(BaseProcessor):
         self.ke_edges: Optional[Union[np.ndarray, List[float]]] = reader.read_param(
             params, "ke_edges", None
         )  # (eV)
+        self.theta_bins: int = reader.read_param(params, "theta_bins", 100)
+        self.theta_edges: Optional[Union[np.ndarray, List[float]]] = reader.read_param(
+            params, "theta_edges", None
+        )  # (rad)
         self.r_max: float = reader.read_param(params, "r_max", 0.01)  # (m)
         self.r_bins: int = reader.read_param(params, "r_bins", 100)
         self.r_edges: Optional[Union[np.ndarray, List[float]]] = reader.read_param(
             params, "r_edges", None
         )  # (m)
-        self.theta_bins: int = reader.read_param(params, "theta_bins", 100)
-        self.theta_edges: Optional[Union[np.ndarray, List[float]]] = reader.read_param(
-            params, "theta_edges", None
-        )  # (rad)
         self.phi_bins: int = reader.read_param(params, "phi_bins", 100)
         self.phi_edges: Optional[Union[np.ndarray, List[float]]] = reader.read_param(
             params, "phi_edges", None
@@ -128,22 +128,22 @@ class DataGenerator4D(BaseProcessor):
             params, "bkgd_flat_binned_mode", False
         )  # (bool)
 
-        # TODO: T/T2 source configurations
-        # self.Q = reader.read_param(params, "Q", QT2)  # endpoint (eV)
-        # self.m = reader.read_param(params, "neutrino_mass", 0.2)  # (eV)
-
         # TODO: e-gun source configurations
 
         # TODO: Kr source configurations
+
+        # TODO: T/T2 source configurations
+        # self.Q = reader.read_param(params, "Q", QT2)  # endpoint (eV)
+        # self.m = reader.read_param(params, "neutrino_mass", 0.2)  # (eV)
 
         # Spatial model configurations
         self.spatial_binned_mode: bool = reader.read_param(
             params, "spatial_binned_mode", False
         )  # (bool)
 
-        # UniformSphere spatial model configurations
-        self.uniform_sphere_radius: float = reader.read_param(
-            params, "uniform_sphere_radius", 0.01
+        # UniformCylinder spatial model configurations
+        self.uniform_cylinder_radius: float = reader.read_param(
+            params, "uniform_cylinder_radius", 0.01
         )  # (m)
 
         # Instantiate the samplers
@@ -151,12 +151,12 @@ class DataGenerator4D(BaseProcessor):
         if self.ke_edges is None:
             self.ke_edges = np.linspace(self.ke_min, self.ke_max, self.ke_bins + 1)
         self._edge["ke_edges"] = np.asarray(self.ke_edges)
-        if self.r_edges is None:
-            self.r_edges = np.linspace(0, self.r_max, self.r_bins + 1)
-        self._edge["r_edges"] = np.asarray(self.r_edges)
         if self.theta_edges is None:
             self.theta_edges = np.linspace(0, np.pi, self.theta_bins + 1)
         self._edge["theta_edges"] = np.asarray(self.theta_edges)
+        if self.r_edges is None:
+            self.r_edges = np.linspace(0, self.r_max, self.r_bins + 1)
+        self._edge["r_edges"] = np.asarray(self.r_edges)
         if self.phi_edges is None:
             self.phi_edges = np.linspace(0, 2 * np.pi, self.phi_bins + 1)
         self._edge["phi_edges"] = np.asarray(self.phi_edges)
@@ -202,10 +202,10 @@ class DataGenerator4D(BaseProcessor):
             return False
 
         # spatial sampler
-        if self.spatial_model == "uniform_sphere":
-            self._spatial_sampler = SpatialSampler.UniformSphere(
-                name=self._procName + "_uniform_sphere",
-                sphere_radius=self.uniform_sphere_radius,
+        if self.spatial_model == "uniform_cylinder":
+            self._spatial_sampler = SpatialSampler.UniformCylinder(
+                name=self._procName + "_uniform_cylinder",
+                radius=self.uniform_cylinder_radius,
                 binned_mode=self.spatial_binned_mode,
                 **self._edge,
             )
@@ -247,14 +247,14 @@ class DataGenerator4D(BaseProcessor):
         self,
     ) -> List[Dict[str, np.ndarray]]:
         """
-        Generate unbinned 4-dimensional data (E, r, theta, phi).
+        Generate unbinned 4-dimensional data (E, theta, r, phi).
         First, sample energy from the source and background models.
-        Then, sample r, theta, phi from the spatial model.
+        Then, sample theta, r, phi from the spatial model.
         Lastly, apply the detector responses: energy resolution and efficiency.
 
         Returns:
             A dictionary containing the sampled 4D data arrays for each runtime.
-            Keys: "sampler_id", "ke", "r", "theta", "phi"
+            Keys: "sampler_id", "ke", "theta", "r", "phi"
             Each value is a list of np.ndarray, one for each runtime.
         """
         info_msg = f"{self._procName} is generating pseudo-unbinned electrons"
@@ -267,8 +267,8 @@ class DataGenerator4D(BaseProcessor):
             {
                 "sampler_id": np.zeros(0, dtype=int),
                 "ke": np.zeros(0, dtype=float),
-                "r": np.zeros(0, dtype=float),
                 "theta": np.zeros(0, dtype=float),
+                "r": np.zeros(0, dtype=float),
                 "phi": np.zeros(0, dtype=float),
             }
             for _ in self.runtimes
@@ -294,8 +294,8 @@ class DataGenerator4D(BaseProcessor):
             self._spatial_sampler.result
         )  # List[np.ndarray], (m, rad, rad)
         for i in range(len(self.runtimes)):
-            fake_data[i]["r"] = position_samples[i][:, 0]
-            fake_data[i]["theta"] = position_samples[i][:, 1]
+            fake_data[i]["theta"] = position_samples[i][:, 0]
+            fake_data[i]["r"] = position_samples[i][:, 1]
             fake_data[i]["phi"] = position_samples[i][:, 2]
 
         # TODO: apply the detector response
