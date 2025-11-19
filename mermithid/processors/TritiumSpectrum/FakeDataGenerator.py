@@ -68,7 +68,7 @@ class FakeDataGenerator(BaseProcessor):
         self.m = reader.read_param(params, 'neutrino_mass', 0.2) #Neutrino mass (eV)
         self.Kmin = reader.read_param(params, 'Kmin', self.Q-self.m-2300)  #Energy corresponding to lower bound of frequency ROI (eV)
         self.Kmax = reader.read_param(params, 'Kmax', self.Q-self.m+1000)   #Same, for upper bound (eV)
-        self.minf = reader.read_param(params, 'minf', 25813125000.0) #Minimum frequency
+        self.minf = reader.read_param(params, 'minf', 25.8e+9) #Minimum frequency
         self.maxf = reader.read_param(params, 'maxf', None)
         if self.Kmax <= self.Kmin:
             logger.error("Kmax <= Kmin!")
@@ -120,9 +120,11 @@ class FakeDataGenerator(BaseProcessor):
         # get file content if needed
         # get efficiency dictionary
         if self.apply_efficiency:
+            print("00000")
             self.efficiency_dict = self.load_efficiency_curve()
             np.random.seed()
         else:
+            print("11111")
             self.efficiency_dict = None
 
         # generate data with lineshape
@@ -201,6 +203,7 @@ class FakeDataGenerator(BaseProcessor):
         else:
             ROIbound = [self.Kmin, self.Kmax]
 
+        print(self.efficiency_dict)
         Kgen = self.generate_unbinned_data(self.Q, self.m,
                                            ROIbound,
                                            self.S, self.B_1kev,
@@ -271,10 +274,17 @@ class FakeDataGenerator(BaseProcessor):
             if len(ROIbound)==2:
                 maxf = ROIbound[1]
             else:
+<<<<<<< HEAD
                 if efficiency_dict is not None:
                     maxf = max(efficiency_dict['frequencies'])
                 else:
                     maxf = max(self.load_efficiency_curve()['frequencies'])
+=======
+                if self.maxf is None:
+                    maxf = max(self.load_efficiency_curve()['frequencies'])
+                else:
+                    maxf = self.maxf
+>>>>>>> origin
             Kmax, Kmin = Energy(minf, B_field), Energy(maxf, B_field)
         else:
             Kmin, Kmax = ROIbound[0], ROIbound[1]
