@@ -177,11 +177,12 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.sens_main_natoms_per_particle = 1
         else:
             self.sens_main_natoms_per_particle = 2
-        for i in range(len(self.sens_ref)):
-            if self.sens_ref_is_atomic[i]:
-                self.sens_ref[i].natoms_per_particle = 1
-            else:
-                self.sens_ref[i].natoms_per_particle = 2
+        if self.comparison_curve:
+            for i in range(len(self.sens_ref)):
+                if self.sens_ref_is_atomic[i]:
+                    self.sens_ref[i].natoms_per_particle = 1
+                else:
+                    self.sens_ref[i].natoms_per_particle = 2
 
         if self.atomic_axis:
             if self.sens_main_is_atomic:
@@ -243,9 +244,10 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
         #Optimizing the detection threshold for the comparison config files
         #Before the density optimization
-        for i in range(len(self.sens_ref)):
-            thresh_limits = [self.sens_ref[i].CL90(Threshold={"detection_threshold": th}) for th in self.thresholds]
-            self.sens_ref[i].sens_with_configured_density_and_opt_thresh = np.min(thresh_limits)
+        if self.comparison_curve:
+            for i in range(len(self.sens_ref)):
+                thresh_limits = [self.sens_ref[i].CL90(Threshold={"detection_threshold": th}) for th in self.thresholds]
+                self.sens_ref[i].sens_with_configured_density_and_opt_thresh = np.min(thresh_limits)
 
 
         # create main plot
@@ -271,8 +273,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         #Add point at configured density
         if self.density_axis and self.add_point_at_configured_density:
             self.ax.scatter([self.sens_main.Experiment.number_density*m**3], [self.sens_with_configured_density_and_opt_thresh/eV], marker="s", s=25, color=self.main_curve_color, label="Operating density", zorder=4) #label="Density: {:.{}f}".format(self.Experiment.number_density*m**3, 1)
-            for i in range(len(self.sens_ref)):
-                self.ax.scatter([self.sens_ref[i].Experiment.number_density*m**3], [self.sens_ref[i].sens_with_configured_density_and_opt_thresh/eV], marker="s", s=25, color=self.comparison_curve_colors[i], zorder=4)
+            if self.comparison_curve:
+                for i in range(len(self.sens_ref)):
+                    self.ax.scatter([self.sens_ref[i].Experiment.number_density*m**3], [self.sens_ref[i].sens_with_configured_density_and_opt_thresh/eV], marker="s", s=25, color=self.comparison_curve_colors[i], zorder=4)
 
         # optimize density
         if self.optimize_main_density:
@@ -709,10 +712,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 ax2.set_xlim(self.sens_main.track_length(self.rhos[0])/s,
                             self.sens_main.track_length(self.rhos[-1])/s)
             else:
-                for sens in self.sens_ref:
-                    if sens.Experiment.atomic:
-                        ax2.set_xlim(sens.track_length(self.rhos[0])/s,
-                                    sens.track_length(self.rhos[-1])/s)
+                if self.comparison_curve:
+                    for sens in self.sens_ref:
+                        if sens.Experiment.atomic:
+                            ax2.set_xlim(sens.track_length(self.rhos[0])/s,
+                                        sens.track_length(self.rhos[-1])/s)
 
         if self.molecular_axis:
             ax3 = self.ax.twiny()
@@ -731,10 +735,11 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                 ax3.set_xlim(self.sens_main.track_length(self.rhos[0])/s,
                             self.sens_main.track_length(self.rhos[-1])/s)
             else:
-                for sens in self.sens_ref:
-                    if not sens.Experiment.atomic:
-                        ax3.set_xlim(sens.track_length(self.rhos[0])/s,
-                            sens.track_length(self.rhos[-1])/s)
+                if self.comparison_curve:
+                    for sens in self.sens_ref:
+                        if not sens.Experiment.atomic:
+                            ax3.set_xlim(sens.track_length(self.rhos[0])/s,
+                                sens.track_length(self.rhos[-1])/s)
 
         if not self.molecular_axis and not self.atomic_axis:
             logger.warning("No track length axis added since neither atomic nor molecular was requested")
