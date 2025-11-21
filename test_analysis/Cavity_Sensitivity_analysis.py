@@ -148,8 +148,8 @@ sens_config_dict = {
 # Configuration for Sensitivity vs. density plot
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg", #Config_LFA_Experiment_max_BNL_diam_threshold.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
-    "plot_path": "./PhaseIV_sensitivity_vs_density_no-Bfield-res_fflat99pct_Nov-21-2025.pdf", #"./LFA_and_PhaseIV_sensitivity_vs_density_target_and_threshold_Nov-21-2025.pdf",
+    "config_file_path": "Config_LFA_Experiment_max_BNL_diam_threshold.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
+    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_target_and_threshold_Nov-21-2025.pdf",
     # optional
     "figsize": (7.5,6.4), 
     "fontsize": 15,
@@ -164,12 +164,12 @@ sens_config_dict = {
     "y_limits": [2e-2, 6.5],
     "density_range": [3e14,3e18], #5e13
     "det_thresh_range": [5, 115],
-    "add_point_at_configured_density": False,
+    "add_point_at_configured_density": True,
     "main_curve_upper_label":  r"LFA, threshold scenario", #560 MHz #Phase III scenario: 1 GHz",
     "goals": {"LFA threshold (0.7 eV)": 0.7, "Phase IV (0.04 eV)": 0.04}, #"Pilot T goal (0.1 eV)": 0.1,
     "goals_x_position": {"LFA threshold (0.7 eV)": 2.6e16, "Phase IV (0.04 eV)": 4e14}, #6e14, #3.3e14, #5.5e13, 
     "goals_y_rel_position": {"LFA threshold (0.7 eV)": 1.1, "Phase IV (0.04 eV)": 0.79}, #0.755
-    "comparison_curve": False,
+    "comparison_curve": True,
     "main_curve_color": "blue",
     "comparison_curve_colors": ["blue", "darkred", "black"],
     "main_curve_linestyle": "dashed",
