@@ -5,7 +5,7 @@ The child class must implement `UnbinnedSample()`
 methods.
 Author: S. M. Lee
 First Date: September 15, 2025
-Last Update: October 22, 2025
+Last Update: November 26, 2025
 """
 
 from __future__ import absolute_import
@@ -14,6 +14,8 @@ import six
 from typing import Dict, List, Optional
 
 import numpy as np
+
+from . import CavityField
 
 from morpho.utilities import morphologging
 
@@ -55,6 +57,8 @@ class SpatialSampler:
         phi_min: float = 0.0,  # (rad)
         phi_max: float = 2 * np.pi,  # (rad)
         phi_bins: int = 36,
+        cavity_field_option: str = "none",
+        cavity_field_kwargs: Optional[Dict] = None,
         **kwargs,
     ):
         # Class information
@@ -62,7 +66,7 @@ class SpatialSampler:
         logger.debug("Creating Spectrum <{}>".format(self._samplerName))
 
         self.binned_mode = binned_mode
-        self._sample_position: List[np.ndarray] = (
+        self._sample_geometry: List[np.ndarray] = (
             list()
         )  # (m, rad, rad) shape: [(entries, 3), ...]
 
@@ -97,9 +101,41 @@ class SpatialSampler:
         self._theta_edge: np.ndarray = np.asarray(theta_edges)
         self._r_edge: np.ndarray = np.asarray(r_edges)
         self._phi_edge: np.ndarray = np.asarray(phi_edges)
-        self._theta_bins: int = len(self._theta_edge) - 1
-        self._r_bins: int = len(self._r_edge) - 1
-        self._phi_bins: int = len(self._phi_edge) - 1
+        self._theta_centers: np.ndarray = 0.5 * (
+            self._theta_edge[:-1] + self._theta_edge[1:]
+        )  # (bins_theta,)
+        self._r_centers: np.ndarray = 0.5 * (
+            self._r_edge[:-1] + self._r_edge[1:]
+        )  # (bins_r,)
+        self._phi_centers: np.ndarray = 0.5 * (
+            self._phi_edge[:-1] + self._phi_edge[1:]
+        )  # (bins_phi,)
+        self._theta_bins: int = len(self._theta_centers)
+        self._r_bins: int = len(self._r_centers)
+        self._phi_bins: int = len(self._phi_centers)
+
+        # PDF for binned mode. [i, j] element corresponds to r bin i and theta bin j.
+        self.r_theta_pdf: Optional[np.ndarray] = None  # (bins_r, bins_theta)
+
+        # set the cavity_field object
+        self.cavity_field: Optional[CavityField.CavityField] = None
+        if cavity_field_option == "numeric" and cavity_field_kwargs is not None:
+            self.cavity_field = CavityField.Numeric(
+                name="CavityField_{}".format(self._samplerName),
+                **cavity_field_kwargs,
+            )
+        elif cavity_field_option == "analytic":
+            logger.error("Analytic cavity field option is not implemented yet.")
+            raise NotImplementedError(
+                "Analytic cavity field option is not implemented yet."
+            )
+        elif cavity_field_option == "none":
+            self.cavity_field = None
+        else:
+            logger.error("Invalid cavity_field_option: {}".format(cavity_field_option))
+            raise ValueError(
+                "Invalid cavity_field_option: {}".format(cavity_field_option)
+            )
 
     @property
     def name(self):
@@ -124,6 +160,13 @@ class SpatialSampler:
         return self._phi_edge
 
     @property
+    def cavityField(self) -> Optional[CavityField.CavityField]:
+        """
+        Returns the cavity field object.
+        """
+        return self.cavity_field
+
+    @property
     def result(self) -> List[np.ndarray]:
         """
         Returns the list of sampled position arrays.
@@ -131,7 +174,7 @@ class SpatialSampler:
         runtime, and has shape (N, 3) where N is the number of samples for that
         runtime, and the 3 columns correspond to (theta, r, phi).
         """
-        return self._sample_position
+        return self._sample_geometry
 
     def Sample(
         self,
@@ -147,15 +190,20 @@ class SpatialSampler:
         logger.info("Sampling position for <{}>...".format(self.name))
 
         self.ke = ke
-        self._sample_position = [
+        self._sample_geometry = [
             np.zeros((k.shape[0], 3), dtype="float64") for k in self.ke
         ]  # (rad, m, rad) shape: [(entries, 3), ...]
 
         if self.binned_mode:
-            raise NotImplementedError("Binned mode is not implemented yet.")
-            # if not self.BinnedSample():
-            #     logger.error("Error while <{}> sampling position".format(self.name))
-            #     return False
+            if not self.BuildThetaRPDF():
+                logger.error("Error while <{}> building theta-r PDF".format(self.name))
+                return False
+            if not self.BinnedSampleThetaR():
+                logger.error("Error while <{}> sampling theta and r".format(self.name))
+                return False
+            if not self.BinnedSamplePhi():
+                logger.error("Error while <{}> sampling phi".format(self.name))
+                return False
         else:
             if not self.UnbinnedSampleTheta():
                 logger.error("Error while <{}> sampling theta".format(self.name))
@@ -169,6 +217,38 @@ class SpatialSampler:
 
         logger.info("Done sampling position for <{}>".format(self.name))
         return True
+
+    @abc.abstractmethod
+    def BuildThetaRPDF(self) -> bool:
+        """
+        Build the joint PDF of theta and r. It assumes independence from energy.
+
+        PDF: p(theta, r) dr dtheta = p(r, theta) p(theta) dr dtheta
+
+        Results:
+            True if successful.
+        """
+        raise NotImplementedError("BuildThetaRPDF method is not implemented.")
+
+    @abc.abstractmethod
+    def BinnedSampleThetaR(self) -> bool:
+        """
+        Sample theta and r from the binned joint PDF p(theta, r).
+
+        Results:
+            True if successful.
+        """
+        raise NotImplementedError("BinnedSampleThetaR method is not implemented.")
+
+    @abc.abstractmethod
+    def BinnedSamplePhi(self) -> bool:
+        """
+        Sample phi from the binned pdf p(phi|theta, r).
+
+        Results:
+            True if successful.
+        """
+        raise NotImplementedError("BinnedSamplePhi method is not implemented.")
 
     @abc.abstractmethod
     def UnbinnedSampleTheta(self) -> bool:

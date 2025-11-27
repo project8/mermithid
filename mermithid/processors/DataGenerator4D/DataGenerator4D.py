@@ -2,7 +2,7 @@
 The data generator class for CCA.
 Author: S. M. Lee
 First Date: August 25, 2025
-Last Update: October 22, 2025
+Last Update: November 26, 2025
 """
 
 from __future__ import absolute_import
@@ -46,7 +46,7 @@ class DataGenerator4D(BaseProcessor):
         TODO: explain parameters
         """
         # Choose the source
-        source_type_menu = ["mono"]  # TODO: ["e-gun", "Kr", "T", "T2"]
+        source_type_menu = ["mono"]  # TODO: ["e-gun", "Kr"]
         self.source_types: List[str] = reader.read_param(
             params, "source_types", ["mono"]
         )
@@ -132,10 +132,6 @@ class DataGenerator4D(BaseProcessor):
 
         # TODO: Kr source configurations
 
-        # TODO: T/T2 source configurations
-        # self.Q = reader.read_param(params, "Q", QT2)  # endpoint (eV)
-        # self.m = reader.read_param(params, "neutrino_mass", 0.2)  # (eV)
-
         # Spatial model configurations
         self.spatial_binned_mode: bool = reader.read_param(
             params, "spatial_binned_mode", False
@@ -145,6 +141,38 @@ class DataGenerator4D(BaseProcessor):
         self.uniform_cylinder_radius: float = reader.read_param(
             params, "uniform_cylinder_radius", 0.01
         )  # (m)
+
+        # Cavity field configurations
+        cavity_field_option_menu = ["none", "numeric"]  # TODO: analytic
+        self.cavity_field_option: str = reader.read_param(
+            params, "cavity_field_option", "none"
+        )
+        if not self.cavity_field_option in cavity_field_option_menu:
+            logger.error(
+                f"DataGenerator {self._procName}: invalid cavity field model {self.cavity_field_option}."
+                + f" Available: {', '.join(cavity_field_option_menu)}."
+            )
+            return False
+
+        self.cavity_field_path: Optional[str] = reader.read_param(
+            params, "cavity_field_map_path", None
+        )  # (str)
+        self.cavity_field_r_edges: Optional[Union[np.ndarray, List[float]]] = (
+            reader.read_param(params, "cavity_field_r_edges", None)
+        )  # (m)
+        self.cavity_field_theta_edges: Optional[Union[np.ndarray, List[float]]] = (
+            reader.read_param(params, "cavity_field_theta_edges", None)
+        )  # (rad)
+        self.cavity_field_Bz_map: Optional[Union[np.ndarray, List[float]]] = (
+            reader.read_param(params, "cavity_field_Bz_map", None)
+        )  # (T)
+
+        self.cavity_field_kwargs: Dict = {
+            "r_edges": self.cavity_field_r_edges,
+            "z_edges": self.cavity_field_theta_edges,
+            "Bz_map": self.cavity_field_Bz_map,
+            "path": self.cavity_field_path,
+        }
 
         # Instantiate the samplers
         self._edge: Dict[str, np.ndarray] = dict()
@@ -176,8 +204,6 @@ class DataGenerator4D(BaseProcessor):
 
                 self._energy_samplers[source_type] = sampler
             # TODO: elif self.source_type == "Kr":
-            # TODO: elif self.source_type == "T2":
-            # TODO: elif self.source_type == "T":
             # TODO: elif self.source_type == "e-gun":
             else:
                 logger.error(f"Unknown source type: {source_type}")
@@ -207,6 +233,8 @@ class DataGenerator4D(BaseProcessor):
                 name=self._procName + "_uniform_cylinder",
                 radius=self.uniform_cylinder_radius,
                 binned_mode=self.spatial_binned_mode,
+                cavity_field_option=self.cavity_field_option,
+                cavity_field_kwargs=self.cavity_field_kwargs,
                 **self._edge,
             )
         # TODO: elif self.spatial_model == other models:
@@ -286,17 +314,17 @@ class DataGenerator4D(BaseProcessor):
                 )
                 fake_data[i]["ke"] = np.concatenate((fake_data[i]["ke"], ke_samples[i]))
 
-        # sample position
+        # sample geometry
         if not self._spatial_sampler.Sample([fd["ke"] for fd in fake_data]):
             return fake_data
 
-        position_samples = (
+        geometry_samples = (
             self._spatial_sampler.result
         )  # List[np.ndarray], (m, rad, rad)
         for i in range(len(self.runtimes)):
-            fake_data[i]["theta"] = position_samples[i][:, 0]
-            fake_data[i]["r"] = position_samples[i][:, 1]
-            fake_data[i]["phi"] = position_samples[i][:, 2]
+            fake_data[i]["theta"] = geometry_samples[i][:, 0]
+            fake_data[i]["r"] = geometry_samples[i][:, 1]
+            fake_data[i]["phi"] = geometry_samples[i][:, 2]
 
         # TODO: apply the detector response
         # test_detector = Detector4D.Detector4D(name="test_detector")
