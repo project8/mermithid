@@ -4,7 +4,7 @@ array.
 
 Author: S. M. Lee
 First Date: November 21, 2025
-Last Update: November 26, 2025
+Last Update: December 01, 2025
 """
 
 from __future__ import absolute_import
@@ -17,7 +17,7 @@ import numpy as np
 
 # TODO: scipy is old. Newer version has more interpolation options.
 # TODO: and Rbf is not intuitive. Find an alternative, such as linear interpolation.
-from scipy.interpolate import Rbf
+from scipy.interpolate import Rbf, LinearNDInterpolator
 
 from morpho.utilities import morphologging
 from .CavityField import CavityField
@@ -71,9 +71,9 @@ class Numeric(CavityField):
         self._Bz_map: Optional[np.ndarray] = Bz_map  # (T) (bins_z, bins_r)
 
         # required preprocessed data
-        self._Bz_interp: Optional[Rbf] = None  # Callable interpolator (r, z) -> Bz
+        self._Bz_interp: Optional[Union[Rbf, LinearNDInterpolator]] = None  # Callable interpolator (r, z) -> Bz
         self._Bz_max_binned: Optional[np.ndarray] = None  # (T) (bins_r,)
-        self._Bz_max_interp: Optional[Rbf] = None  # Callable interpolator r -> Bz_max
+        self._Bz_max_interp: Optional[Union[Rbf, LinearNDInterpolator]] = None  # Callable interpolator r -> Bz_max
 
         self.Bz_thr_exceed_count = 0  # count of Bz_thr > Bz_max occurrences
 
@@ -175,14 +175,19 @@ class Numeric(CavityField):
             z_centers = 0.5 * (self._z_edges[:-1] + self._z_edges[1:])  # (m) (bins_z,)
             r_mesh, z_mesh = np.meshgrid(r_centers, z_centers)  # (bins_z, bins_r)
 
-            self._Bz_interp = Rbf(
-                r_mesh.flatten(),
-                z_mesh.flatten(),
+            points = np.vstack([r_mesh.flatten(), z_mesh.flatten()]).T  # (bins_z * bins_r, 2)
+
+            interpolator_kwargs = {"fill_value": self._Bz_map.min(), "rescale": False}
+
+            self._Bz_interp = LinearNDInterpolator(
+                points,
                 self._Bz_map.flatten(),
                 **interpolator_kwargs,
             )
 
-            # B_z_max (r). TODO: does it have to be min(B_max_upper, B_max_lower)?
+            # B_z_max (r)
+            # TODO: does it have to be min(B_max_upper, B_max_lower)?
+            # TODO: It is not being used currently.
             self._Bz_max_binned = np.max(self._Bz_map, axis=0)  # (T) (bins_r,)
             self._Bz_max_interp = Rbf(
                 r_centers,

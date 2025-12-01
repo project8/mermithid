@@ -2,7 +2,7 @@
 To test mermithid.processors.DataGenerator4D.DataGenerator4D.
 Author: S. M. Lee
 First Date: August 26, 2025
-Last Date: November 26, 2025
+Last Date: December 01, 2025
 """
 
 import unittest
@@ -25,9 +25,9 @@ class DataGenerator4DTest(unittest.TestCase):
             "ke_min": 18000,  # eV
             "ke_max": 19000,  # eV
             "ke_bins": 100,
-            "theta_bins": 144,
-            "r_max": 0.06,  # m
-            "r_bins": 30,
+            "theta_bins": 360,
+            "r_max": 0.007,  # m
+            "r_bins": 300,
             "phi_bins": 360,
             # Monoenergetic rate configurations
             "source_types": ["mono"],
@@ -175,23 +175,8 @@ class DataGenerator4DTest(unittest.TestCase):
         for var_x in range(4):
             for var_y in range(4):
                 ax = axs_joint[var_y, var_x]
-                if var_x == 0:
-                    ax.set_ylabel(var_labels[var_y])
-                    if var_ticks[var_y] is not None:
-                        ax.set_yticks(var_ticks[var_y])
-                        ax.set_yticklabels(var_ticklabels[var_y])
-                elif var_x == 3:
-                    # draw y-axis labels on the right side for the last column
-                    ax.yaxis.set_label_position("right")
-                    ax.set_ylabel(var_labels[var_y])
 
-                    ax.yaxis.tick_right()
-                    if var_ticks[var_y] is not None and var_y != 3:
-                        ax.set_yticks(var_ticks[var_y])
-                        ax.set_yticklabels(var_ticklabels[var_y])
-                else:
-                    ax.set_yticklabels([])
-
+                # x-axis labels
                 if var_y == 3:
                     ax.set_xlabel(var_labels[var_x])
                     if var_ticks[var_x] is not None:
@@ -200,17 +185,49 @@ class DataGenerator4DTest(unittest.TestCase):
                 elif var_y == 0:
                     # draw x-axis labels on the top side for the first row
                     ax.xaxis.set_label_position("top")
+                    ax.xaxis.set_ticks_position("top")
                     ax.set_xlabel(var_labels[var_x])
-
-                    ax.xaxis.tick_top()
                     if var_ticks[var_x] is not None:
                         ax.set_xticks(var_ticks[var_x])
                         ax.set_xticklabels(var_ticklabels[var_x])
                 else:
+                    if var_ticks[var_x] is not None:
+                        ax.set_xticks(var_ticks[var_x])
                     ax.set_xticklabels([])
 
-        axs_joint[0, 0].set_ylabel("Counts")
-        axs_joint[3, 3].set_ylabel("Counts")
+                # y-axis labels
+                if var_x == 0:
+                    if var_y != var_x:
+                        ax.set_ylabel(var_labels[var_y])
+                        if var_ticks[var_y] is not None:
+                            ax.set_yticks(var_ticks[var_y])
+                            ax.set_yticklabels(var_ticklabels[var_y])
+                    else:
+                        ax.set_ylabel("Counts")
+                elif var_x == 3:
+                    # draw y-axis labels on the right side for the last column
+                    ax.yaxis.set_label_position("right")
+                    ax.yaxis.set_ticks_position("right")
+                    if var_y != var_x:
+                        ax.set_ylabel(var_labels[var_y])
+                        if var_ticks[var_y] is not None:
+                            ax.set_yticks(var_ticks[var_y])
+                            ax.set_yticklabels(var_ticklabels[var_y])
+                    else:
+                        ax.set_ylabel("Counts")
+                elif var_x == var_y:
+                    ax.set_ylabel("")
+                    ax.set_yticks([])
+                    ax.set_yticklabels([])
+                else:
+                    if var_ticks[var_y] is not None:
+                        ax.set_yticks(var_ticks[var_y])
+                    ax.set_yticklabels([])
+
+                ax.xaxis.set_ticks_position("both")
+                if var_x != var_y:
+                    ax.yaxis.set_ticks_position("both")
+                ax.tick_params(direction="in", which="both")
 
         # 3D plots
         mappable = plt.cm.ScalarMappable(
@@ -218,13 +235,13 @@ class DataGenerator4DTest(unittest.TestCase):
             norm=plt.Normalize(vmin=draw_config["ke_min"], vmax=draw_config["ke_max"]),  # type: ignore
         )
         for i, ax in enumerate(axs_3d):
-            n = len(results[i]['ke'])
+            n = len(results[i]["ke"])
             runtime = draw_config["channel_runtimes"][i]
 
-            r = results[i]["r"][:n//10]
-            phi = results[i]["phi"][:n//10]
-            theta = results[i]["theta"][:n//10]
-            ke = results[i]["ke"][:n//10]
+            r = results[i]["r"][: n // 10]
+            phi = results[i]["phi"][: n // 10]
+            theta = results[i]["theta"][: n // 10]
+            ke = results[i]["ke"][: n // 10]
 
             x = r * np.cos(phi)
             y = r * np.sin(phi)
@@ -249,9 +266,18 @@ class DataGenerator4DTest(unittest.TestCase):
 
             axs_3d[i].quiver(x, y, z, u, v, w, color=mappable.to_rgba(ke), alpha=0.1)
 
-            axs_3d[i].set_xlim([-1.3 * specGen_config["r_max"], 1.3 * specGen_config["r_max"]])
-            axs_3d[i].set_ylim([-1.3 * specGen_config["r_max"], 1.3 * specGen_config["r_max"]])
-            axs_3d[i].set_zlim([-1.3 * specGen_config["r_max"], 1.3 * specGen_config["r_max"]])
+            axs_3d[i].set_xlim(
+                [-1.3 * draw_config["r_max"], 1.3 * draw_config["r_max"]]
+            )
+            axs_3d[i].set_ylim(
+                [-1.3 * draw_config["r_max"], 1.3 * draw_config["r_max"]]
+            )
+            axs_3d[i].set_zlim(
+                [
+                    -1.3 * draw_config["uniform_cylinder_radius"],
+                    1.3 * draw_config["uniform_cylinder_radius"],
+                ]
+            )
             axs_3d[i].set_xlabel("X [m]")
             axs_3d[i].set_ylabel("Y [m]")
             axs_3d[i].set_zlabel("Z (random) [m]")
