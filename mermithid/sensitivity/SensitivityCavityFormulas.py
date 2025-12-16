@@ -35,9 +35,9 @@ def axial_motion(magnetic_field, pitch, trap_length, minimum_trapped_pitch, kin_
     # also return the average magnetic field seen by the electron
     # from z=0 to z=cavity_length/2 with npoints set by the trajectory variable
     # See LUCKEY write-up for a little more on Talia's "flat fraction" trap model
-    
-    #pitch = pitch/180*np.pi
-    #minimum_trapped_pitch = minimum_trapped_pitch/180*np.pi
+
+    # Input parameters:
+    # pitch and minimum_trapped_pitch are in radians
 
     # Axial motion:
     z_w = trap_length/2
@@ -132,6 +132,21 @@ def t_effective(t_physical, cyclotron_frequency):
         return t_physical
     else:
        return quantum*(1/2+1/(np.exp(quantum/t_physical)-1))
+
+
+# Calculate threshold z to trap electrons born at some pitch angle theta_start
+# Electrons are trapped if they start a z values less than this threshold
+# (Considering one axial side of the trap)
+def max_z_to_trap_vs_theta_start(theta_start, trap_length, minimum_trapped_pitch, flat_fraction=0.5):
+    z_w = trap_length/2
+    sec_min = 1/np.cos(minimum_trapped_pitch)
+    sin2_min = np.sin(minimum_trapped_pitch)**2
+    sin2_start = np.sin(theta_start)**2
+    return z_w*flat_fraction + z_w*(1-flat_fraction)*sec_min*np.sqrt(sin2_start - sin2_min)
+
+
+
+
 
 # Trapping efficiency from axial field variation.
 def trapping_efficiency(z_range, bg_magnetic_field, min_pitch_angle, trap_flat_fraction = 0.5):
@@ -239,6 +254,34 @@ class CavitySensitivity(Sensitivity):
             self.bkgd_constant = 1
             logger.info("Using background rate constant of 1/eV/s") 
         
+        # Need to get power fractions before calculating effective volume (given impact on detection efficiency)
+        # Power fractions are relative to the power of a 90° carrier electron
+        # If average_power_fractions==True, use carrier and sideband pitch power fractions averaged over the usable pitch angle range.
+        # If average_power_fractions==False, instead read in a csv file with power fractions vs. pitch angle from simulations.
+        # This file should have three columns: pitch angle (in degrees), carrier power, sideband power.
+        if hasattr(self.FrequencyExtraction, "use_average_power_fractions"):
+            if self.FrequencyExtraction.use_average_power_fractions:
+                logger.info("Using average carrier and sideband power fractions")
+            else:
+                logger.info("Using carrier and sideband (power fractions vs. pitch angle) from file")
+                # Read powers from the file and then scale them by power of maximum
+                # pitch angle to get power fractions.
+                theta_array, carrier_power_array, sideband_power_array = [], [], []
+                power_file = open(self.FrequencyExtraction.powers_vs_theta_file, 'r')
+                for i in power_file.readlines()[1:]: # Skip header line
+                    line = i.strip()
+                    theta_array.append(float(line.split(",")[0])) # In degrees
+                    carrier_power_array.append(float(line.split(",")[1]))
+                    sideband_power_array.append(float(line.split(",")[2]))
+                power_file.close()
+                self.theta_array = np.array(theta_array)*deg # The "*deg" multiplies by np.pi/180
+                carrier_power_array = np.array(carrier_power_array)
+                sideband_power_array = np.array(sideband_power_array)
+                # The calculation below assumes that the file contains a pitch angle very close to 90 degrees:
+                max_theta_index = np.argmax(self.theta_array)
+                self.carrier_power_fraction_array = carrier_power_array / carrier_power_array[max_theta_index]
+                self.sideband_power_fraction_array = sideband_power_array / carrier_power_array[max_theta_index]
+        
         #Calculate the effective volume and print out related quantities
         self.EffectiveVolume()
         logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3), 2))
@@ -256,7 +299,7 @@ class CavitySensitivity(Sensitivity):
             self.CRLB_constant = self.FrequencyExtraction.crlb_constant
             logger.info("Using configured CRLB constant")      
         
-        #Number of steps in pitch angle between min_pitch and pi/2 for the frequency noise uncertainty calculation
+        # Number of steps in pitch angle between min_pitch and pi/2 for the frequency noise uncertainty calculation
         self.pitch_steps = 100
         if hasattr(self.FrequencyExtraction, "pitch_steps"):
             self.pitch_steps = self.FrequencyExtraction.pitch_steps
@@ -513,9 +556,12 @@ class CavitySensitivity(Sensitivity):
         
         self.time_window_slope_zero = abs(self.cavity_freq-frequency(self.T_endpoint+20*meV, self.MagneticField.nominal_field))/self.slope
         
-        tau_snr_full_length = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.carrier_power_fraction)
-        tau_snr_part_length = self.calculate_tau_snr(self.time_window_slope_zero, self.FrequencyExtraction.carrier_power_fraction)
-        
+        if self.FrequencyExtraction.use_average_power_fractions:
+            tau_snr_full_length = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.carrier_power_fraction)
+        else:
+            tau_snr_full_length = self.calculate_tau_snr(self.time_window, self.carrier_power_fraction_array)
+            tau_snr_full_length = tau_snr_full_length[:len(self.theta_array)-1] #Cut out theta=pi/2, since sideband power is 0 there, resulting in infinite tau_snr.
+
         #Calculate the frequency variance from the CRLB
         self.var_f_c_CRLB = self.frequency_variance_from_CRLB(tau_snr_full_length)
         self.best_time_window = self.time_window
@@ -525,16 +571,29 @@ class CavitySensitivity(Sensitivity):
             #Calculate noise contribution to uncertainty, including energy correction for pitch angle.
             #This comes from section 6.1.9 of the CDR.
 
-            tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.sideband_power_fraction)
+            if self.FrequencyExtraction.use_average_power_fractions:
+                tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.sideband_power_fraction)
+            else:
+                tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, self.sideband_power_fraction_array)
+                tau_snr_full_length_sideband = tau_snr_full_length_sideband[:len(self.theta_array)-1] #Cut out theta=pi/2, since sideband power is 0 there, resulting in infinite tau_snr.
+            
             # (sigmaf_lsb)^2:
             var_f_sideband_crlb = self.frequency_variance_from_CRLB(tau_snr_full_length_sideband)
             #var_f_sideband_crlb = self.FrequencyExtraction.CRLB_scaling_factor*(self.CRLB_constant*tau_snr_full_length_sideband/self.time_window**3)/(2*np.pi)**2
 
             m = self.FrequencyExtraction.sideband_order #For convenience
 
-            #Define phi_max, corresponding to the minimum pitch angle
-            phi_max = np.pi/2 - self.FrequencyExtraction.minimum_angle_in_bandwidth
-            phis = np.linspace(0, phi_max, self.pitch_steps)
+            # Defining array of pitch angle complements (pi/2 - theta) used when calculating
+            # the parameters describing the track shape (p and q)
+            thetas_for_p_and_q_calc = np.linspace(self.FrequencyExtraction.minimum_angle_in_bandwidth, 90*deg, self.pitch_steps)
+            pitch_comps_for_p_and_q_calc = np.pi/2 - thetas_for_p_and_q_calc
+            
+            # Defining array of pitch angle complement values over which we calculate the
+            # resolution contribution from noise.
+            if self.FrequencyExtraction.use_average_power_fractions:
+                pitch_comps = pitch_comps_for_p_and_q_calc
+            else:
+                pitch_comps = np.pi/2 - self.theta_array[:len(self.theta_array)-1] #Cut out theta=pi/2 since sideband power is 0 there, resulting in infinite tau_snr.
 
             #Define the trap parameter p based on the relation between the trap length and the cavity mode
             #This p is for a box trap
@@ -543,44 +602,47 @@ class CavitySensitivity(Sensitivity):
             #Now find p for the actual trap that we have
             #Using the average p across the pitch angle range
             ax_freq_array, mean_field_array, z_t = axial_motion(self.MagneticField.nominal_field,
-                                    np.pi/2-phis, self.Experiment.trap_length,
+                                    thetas_for_p_and_q_calc, self.Experiment.trap_length,
                                     self.FrequencyExtraction.minimum_angle_in_bandwidth, 
                                     self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
             fc0_endpoint = self.cavity_freq
-            p_array = ax_freq_array/fc0_endpoint/phis
-            self.p = np.mean(p_array[1:]) #Cut out theta=pi/2 (ill defined there)
+            p_array = ax_freq_array/fc0_endpoint/pitch_comps_for_p_and_q_calc #An array
+            if self.FrequencyExtraction.use_average_power_fractions:
+                p_array = p_array[:1] #Cut out theta=pi/2 (ill defined there)
+            self.p = np.mean(p_array)
 
-            #Now calculating q for the trap that we have
-            #Using the q for the minimum trapped pitch angle
-            fc_endpoint_min_theta = frequency(self.T_endpoint, mean_field_array[self.pitch_steps-1])
-            self.q = (fc_endpoint_min_theta/fc0_endpoint - 1)/(phis[self.pitch_steps-1])**2
+            # Now calculating q for the trap that we have
+            # Using the q for the minimum trapped pitch angle
+            fc_endpoint_min_theta = frequency(self.T_endpoint, mean_field_array[0])
+            self.q = (fc_endpoint_min_theta/fc0_endpoint - 1)/(pitch_comps_for_p_and_q_calc[0])**2
 
-            #Derivative of f_c0 (frequency corrected to B-field at bottom of the trap) with respect to f_c
-            dfc0_dfc_array = 0.5*(1 - (1 - 4*self.q*phis/m/self.p + self.q*phis**2)/(1 - self.q*phis**2))
+            # Derivative of f_c0 (frequency corrected to B-field at bottom of the trap) with respect to f_c
+            dfc0_dfc_array = 0.5*(1 - (1 - 4*self.q*pitch_comps/m/self.p + self.q*pitch_comps**2)/(1 - self.q*pitch_comps**2))
 
-            #Derivative of f_c0 with respect to f_lsb (lower sideband frequency)
-            dfc0_dlsb_array = 0.5 - 2*self.q*phis/m/self.p/(1 - self.q*phis**2)
+            # Derivative of f_c0 with respect to f_lsb (lower sideband frequency)
+            dfc0_dlsb_array = 0.5 - 2*self.q*pitch_comps/m/self.p/(1 - self.q*pitch_comps**2)
 
-            #Noise variance term from the carrier frequency uncertainty
+            # Noise variance term from the carrier frequency uncertainty
             var_noise_from_fc_array = dfc0_dfc_array**2*self.var_f_c_CRLB
 
-            #Noise variance term from the lower sideband frequency uncertainty
+            # Noise variance term from the lower sideband frequency uncertainty
             var_noise_from_flsb_array = dfc0_dlsb_array**2*var_f_sideband_crlb
 
-            #Total uncertainty for each pitch angle
+            # Total uncertainty for each pitch angle
             var_f_noise_array = var_noise_from_fc_array + var_noise_from_flsb_array
 
-            #Next, we average over sigma_noise values.
-            #This is a quadrature sum average,
-            #reflecting that the detector response function could be constructed by sampling
-            #from many normal distributions with different standard deviations (sigma_noise_array),
-            #then finding the standard deviation of the full group of sampled values.
+            # Next, we average over sigma_noise values.
+            # This is a quadrature sum average,
+            # reflecting that the detector response function could be constructed by sampling
+            # from many normal distributions with different standard deviations (sigma_noise_array),
+            # then finding the standard deviation of the full group of sampled values.
+            # CHANGE STILL NEEDED: AVERAGE OVER THE TRAPPED PITCH ANGLE DISTRIBUTION
             self.sigma_f_noise = np.sqrt(np.sum(var_f_noise_array)/self.pitch_steps)
 
         else:
             self.sigma_f_noise = np.sqrt(self.var_f_c_CRLB)
 
-        #Convert uncertainty from frequency to energy
+        # Convert uncertainty from frequency to energy
         self.sigma_K_noise = e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*self.sigma_f_noise*c0**2
 
         # combined sigma_f in eV
@@ -675,7 +737,10 @@ class CavitySensitivity(Sensitivity):
         # Calculate the mean track duration
         #FIX: Only do the lines below ones for a given density; don't repeat for each threshold being scanned ...
         mean_track_duration = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
-        tau_snr_ex_total = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction + self.FrequencyExtraction.sideband_power_fraction, tau_snr_array_for_radii=self.Efficiency.calculate_det_eff_for_sampled_radii)
+        if self.FrequencyExtraction.use_average_power_fractions:
+            tau_snr_ex_total = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction + self.FrequencyExtraction.sideband_power_fraction, tau_snr_array_for_radii=self.Efficiency.calculate_det_eff_for_sampled_radii)
+        else:
+            tau_snr_ex_total = self.calculate_tau_snr(mean_track_duration, self.carrier_power_fraction_array + self.sideband_power_fraction_array, tau_snr_array_for_radii=self.Efficiency.calculate_det_eff_for_sampled_radii)
         if isinstance(tau_snr_ex_total, float):
             tau_snr_ex_total = [tau_snr_ex_total]
 
@@ -689,10 +754,11 @@ class CavitySensitivity(Sensitivity):
         sf_values = np.array([ncx2(df=2, nc=2 * scaled_x / tau_snr).sf(self.Threshold.detection_threshold) for tau_snr in tau_snr_ex_total])
 
         # Calculate and return the integration result from weighted sum
-        eff_for_each_r = np.sum(w * sf_values, axis=1)
+        eff_for_each_r_and_theta = np.sum(w * sf_values, axis=1)
 
-        #Average efficiencies over the sampled electron radii. Weighting for radial distribution is accounted for in sampling, earlier.
-        avg_efficiency = np.mean(eff_for_each_r) 
+        #Average efficiencies over the sampled electron radii and pitch angles. Weighting for radial distribution is accounted for in sampling, earlier.
+        #WEIGHTING FOR PITCH ANGLE DISTRIBUTION NOT YET INCLUDED.
+        avg_efficiency = np.mean(eff_for_each_r_and_theta) 
         return avg_efficiency
 
     def assign_detection_efficiency_from_threshold(self):
@@ -727,9 +793,11 @@ class CavitySensitivity(Sensitivity):
         
         tau_snr_90deg = self.calculate_tau_snr(track_duration, power_fraction=1)
         #For an example carrier:
-        tau_snr_ex_carrier = self.calculate_tau_snr(track_duration, self.FrequencyExtraction.carrier_power_fraction)
-        
-        
+        if self.FrequencyExtraction.use_average_power_fractions:
+            tau_snr_ex_carrier = self.calculate_tau_snr(track_duration, self.FrequencyExtraction.carrier_power_fraction)
+        else:
+            tau_snr_ex_carrier = np.mean(self.calculate_tau_snr(track_duration, self.carrier_power_fraction_array))
+
         eV_bandwidth = np.abs(self.cavity_freq - frequency(self.T_endpoint + 1*eV, self.MagneticField.nominal_field))
         SNR_1eV_90deg = 1/eV_bandwidth/tau_snr_90deg
         SNR_track_duration_90deg = track_duration/tau_snr_90deg
