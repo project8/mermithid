@@ -135,7 +135,7 @@ def t_effective(t_physical, cyclotron_frequency):
 
 
 # Calculate threshold z to trap electrons born at some pitch angle theta_start
-# Electrons are trapped if they start a z values less than this threshold
+# Electrons are trapped if they start at z values less than this threshold
 # (Considering one axial side of the trap)
 def max_z_to_trap_vs_theta_start(theta_start, trap_length, minimum_trapped_pitch, flat_fraction=0.5):
     z_w = trap_length/2
@@ -144,8 +144,58 @@ def max_z_to_trap_vs_theta_start(theta_start, trap_length, minimum_trapped_pitch
     sin2_start = np.sin(theta_start)**2
     return z_w*flat_fraction + z_w*(1-flat_fraction)*sec_min*np.sqrt(sin2_start - sin2_min)
 
+def dist_of_theta_start_after_trapping(theta_start, trap_length, minimum_trapped_pitch, flat_fraction=0.5):
+    # Distribution of theta_start for electrons born uniformly along z
+    # Multiplied by sin(theta_start), to account for the birth pitch angles - is this
+    # correct? Is another normalization needed after multiplying by sin(theta_start)?
+    z_threshold = max_z_to_trap_vs_theta_start(theta_start, trap_length, minimum_trapped_pitch, flat_fraction)
+    return z_threshold/(trap_length/2)*np.sin(theta_start)
 
+def theta_bottom_from_theta_start(theta_start, B_min, B_start):
+    return np.arcsin(np.sin(theta_start)*np.sqrt(B_min/B_start))
 
+def dist_of_theta_bottom_after_trapping(B_min, theta_start_array, trap_length, minimum_trapped_pitch, flat_fraction=0.5, n_z_start=100, n_theta_bottom=10):
+    z_start_array = np.linspace(0, trap_length/2, n_z_start)
+    B_start_array = magnetic_field_flat_harmonic(z_start_array, B_min, trap_length, minimum_trapped_pitch, flat_fraction)
+    theta_bottoms = []
+    for theta_start in theta_start_array:
+        theta_bottoms.append(theta_bottom_from_theta_start(theta_start, B_min, B_start_array))
+    theta_bottoms = np.array(theta_bottoms)
+    theta_bottoms_bin_centers = np.linspace(minimum_trapped_pitch, np.pi/2, n_theta_bottom)
+    bin_size = (np.pi/2 - minimum_trapped_pitch)/n_theta_bottom
+    prob_theta_bottom = np.zeros(len(theta_bottoms_bin_centers))
+    for i in range(len(theta_bottoms)):
+        for j in range(len(theta_bottoms[0])):
+            for k in range(len(theta_bottoms_bin_centers)):
+                if (theta_bottoms[i][j] >= theta_bottoms_bin_centers[k]-bin_size/2) and (theta_bottoms[i][j] < theta_bottoms_bin_centers[k]+bin_size/2):
+                    prob_theta_bottom[k] += dist_of_theta_start_after_trapping(theta_start_array[i], trap_length, minimum_trapped_pitch, flat_fraction)
+    normalization = np.sum(prob_theta_bottom)
+    prob_theta_bottom = prob_theta_bottom/normalization #Is this the correct approach?
+    return theta_bottoms_bin_centers, prob_theta_bottom
+
+# Make the plots below by default? Set up for plots to only be created once when
+# running CavitySensitivityCurveProcessor?
+"""
+import matplotlib.pyplot as plt  
+figure = plt.figure()
+theta_start_array = np.linspace(87*deg, np.pi/2, 1000)
+prob_theta_start = dist_of_theta_start_after_trapping(theta_start_array, 4.05*m, 87*deg, flat_fraction=0.75)
+plt.scatter(theta_start_array/deg, prob_theta_start)
+plt.xlabel("Starting pitch angle $\\theta_{start}$ ($\degree$)", fontsize=14)
+plt.ylabel("Probability (arb. units)", fontsize=14)
+plt.savefig("test_theta_start_dist.png", dpi=300)
+plt.show()
+
+theta_bottoms_bin_centers, prob_theta_bottom = dist_of_theta_bottom_after_trapping(21*mT, theta_start_array, 4.05*m, 87*deg, flat_fraction=0.75, n_z_start=1000, n_theta_bottom=50)
+#print("theta bottoms", theta_bottoms_bin_centers/deg)
+#print("prob theta bottom", prob_theta_bottom)
+figure = plt.figure()
+plt.scatter(theta_bottoms_bin_centers/deg, prob_theta_bottom, s=1)
+plt.xlabel("Pitch angle at bottom of trap $\\theta_{bottom}$ ($\degree$)", fontsize=14)
+plt.ylabel("Probability density", fontsize=14)
+plt.savefig("test_theta_bottom_dist.png", dpi=300)
+plt.show()
+"""
 
 
 # Trapping efficiency from axial field variation.
@@ -207,8 +257,8 @@ class CavitySensitivity(Sensitivity):
         * Nick's CRLB for frequency resolution: https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398
         * Molecular contamination in atomic tritium: https://3.basecamp.com/3700981/buckets/3107037/documents/3151077016
     """
-    def __init__(self, config_path):
-        Sensitivity.__init__(self, config_path)
+    def __init__(self, config_path, verbose=True):
+        Sensitivity.__init__(self, config_path, verbose=verbose)
 
         # Calc non-config parameters outside of init function:
         ## Allows re-calcing params if config values changed later, e.g. param scans

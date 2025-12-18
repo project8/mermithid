@@ -141,16 +141,16 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
 
         # setup sensitivities
         if self.add_PhaseII:
-            self.sens_PhaseII = CavitySensitivity(self.PhaseII_path)
+            self.sens_PhaseII = CavitySensitivity(self.PhaseII_path, verbose=self.verbose)
             
         
-        self.sens_main = CavitySensitivity(self.config_file_path)
+        self.sens_main = CavitySensitivity(self.config_file_path, verbose=self.verbose)
         self.sens_main_is_atomic = self.sens_main.Experiment.atomic
 
         if self.comparison_curve:
             ref = []
             for file in self.comparison_config_file_path:
-                ref.append(CavitySensitivity(file))
+                ref.append(CavitySensitivity(file, verbose=self.verbose))
             
             self.sens_ref = ref
             is_atomic = []
