@@ -45,7 +45,7 @@ Below is a list of the parameters with a short description of what role they pla
 
 **Efficiency**
 
-* ``usefixedvalue``: If true, fixed efficiency is used. If false, the efficiency is the product of radial, detection, and trapping efficienc. The trapping efficiency is calculated from the minimum pitch angle. 
+* ``usefixedvalue``: If true, fixed efficiency is used. If false, the efficiency is the product of radial, detection, and trapping efficiency. The trapping efficiency is calculated from the minimum pitch angle. Most of these are calculated in mermithid now. 
 * ``fixed_efficiency``: For example, set to roughly 2% for a 88deg minimum trapped pitch angle, assuming 100% detection efficiency of the trapped angles.
 * ``radial_efficiency``: Typically set to 0.67 from a calcualtion done for a 325MHz cavity with Halbach bite and radial cut on power of > 0.5 * maximum power.
 * ``detection_efficiency``: Fraction of events that is not detected.
