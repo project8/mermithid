@@ -1,9 +1,21 @@
-version: "3"
 
+#version: "3.9"
+#Check running containers docker ps (detached) -d
+#Attach to container docker attach [name]
 services:
   mermithid:
-    build: .
-    command: "/bin/bash"
+    image: mermithid:sensitivity_branch
+    container_name: mermithid_sensitivity
+    stdin_open: true       # Interactive search
+    tty: true              # Allocate TTY
     volumes:
-      # share a subdirectory from the host to /host in the docker (can be edited)
-      - ~/mermithid_share:/host
+      - ~/repos/mermithid:/mermithid
+      - ~/repos/mermithid_share:/host_data
+      - ~/repos/termite:/termite
+    command: >
+      bash -c "
+        source /usr/local/p8/mermithid/v1.2.3/setup.sh &&
+        source /usr/local/p8/mermithid/v1.2.3/bin/this_phylloxera.sh &&
+        source /usr/local/p8/mermithid/v1.2.3/bin/this_cicada.sh &&
+        exec bash
+      "

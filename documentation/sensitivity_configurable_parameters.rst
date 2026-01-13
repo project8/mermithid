@@ -7,6 +7,7 @@ The sensitivity calculation is configured using a configuration file. The config
 Our main goal is the calcualtion of sensitivity in a cavity experiment. The configurations below are to be used for the CavitySensitivity class in https://github.com/project8/mermithid/blob/feature/sensitivity_curve/mermithid/misc/SensitivityCavityFormulas.py
 This class is used by the CavitySensitivityCurveProcessor and the SensitivityParameterScanProcessor. 
 
+More information regarding parameter choices can be found in the Pre-CDR
 Structure of a config file
 --------------------------
 
@@ -15,6 +16,7 @@ Configuration files have several sections:
 
 * Experiment
 * Efficiency
+* Threshold
 * FrequencyExtraction
 * DopplerBroadening
 * MagneticField
@@ -39,7 +41,7 @@ Below is a list of the parameters with a short description of what role they pla
 * ``number_density``: The gas number density together with the total volume, livetime, and the efficiency determines the statistical power of the experiment. Gas density also determines the track length and therefore the frequency resolution. The sensitivity curve processor can optimize this parameter to maximize the sensitivity. In that case this number is overwritten in the calculation. 
 * ``sri_factor``: The statistical rate increase factor articifially increases the number of observed events (it multiplies the total efficiency). It is highly recommended to set it to 1.
 * ``atomic``: If true, the calculation is done for atomic tritium. If false, moecular tritium is assumed. This affects the number of decays per gas molecule/atom (2 for molecular 1 for atomic), the track length in a given gas density (via electron scattering cross section), and the width of the final ground state.
-
+* ``active gas fraction``: The fraction of the gas within the CRES volume that's tritium. Very high (~1) in at atomic experiment. Lower in a molecular experiment due to presence of HT, H2, DT, and 3He, and possibly other gasses, too.
 
 **Efficiency**
 
@@ -47,6 +49,9 @@ Below is a list of the parameters with a short description of what role they pla
 * ``fixed_efficiency``: For example, set to roughly 2% for a 88deg minimum trapped pitch angle, assuming 100% detection efficiency of the trapped angles.
 * ``radial_efficiency``: Typically set to 0.67 from a calcualtion done for a 325MHz cavity with Halbach bite and radial cut on power of > 0.5 * maximum power.
 * ``detection_efficiency``: Fraction of events that is not detected.
+* ``unusable_dist_from_wall``: Cavity radius taken up by non-uniform field (The greater value between the Larmor radius and ioffe bite distance).
+
+**Threshold**
 
 **FrequencyExtraction**
 
@@ -75,10 +80,9 @@ We use the CRLB for calculating the frequency resolution. The CRLB is calculated
 * ``usefixedvalue``: If True ``default_systematic_smearing`` and ``default_systematic_uncertainty`` are used.
 * ``default_systematic_smearing``: Default systematic broadening for this category. Units must be eV.
 * ``default_systematic_uncertainty``: Default systematic uncertainty for this category. Units must be eV.
-* ``gas_temperature``: Temperature of the source gas. This should only be different from the cavity temperature if the gas is not in thermal equilibrium with the cavity. The gas temperature is used to calculate the Doppler broadening.
+* ``gas_temperature``: Temperature of the source gas. This should only be different from the cavity temperature if the gas is not in thermal equilibrium with the cavity. The gas temperature is used to calculate the Doppler broadening. In the molecular case, the molecules are in thermal equilibrium with the wall (85 K), but in the atomic case they are not, because they are prevented from contacting the wall by the Ioffe trap (4 mK - trapped gas temperature not wall temperature of 4 K)
 * ``gas_temperature_uncertainty``: Absolute uncertainty of the gas temperature.
-* ``fraction_uncertainty_on_doppler_broadening``: Fractional uncertainty on the Doppler broadening.
-
+* ``fraction_uncertainty_on_doppler_broadening``: Fractional uncertainty on the Doppler broadening. 
 
 **MagneticField**
 
