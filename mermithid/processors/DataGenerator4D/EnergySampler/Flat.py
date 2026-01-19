@@ -17,7 +17,7 @@ from .EnergySampler import EnergySampler
 logger = morphologging.getLogger(__name__)
 
 __all__ = []
-__all__.append(__name__)  # type: ignore
+__all__.append(__name__)
 
 
 class Flat(EnergySampler):

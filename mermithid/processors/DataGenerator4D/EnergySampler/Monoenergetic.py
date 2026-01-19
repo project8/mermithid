@@ -17,7 +17,7 @@ from .EnergySampler import EnergySampler
 logger = morphologging.getLogger(__name__)
 
 __all__ = []
-__all__.append(__name__)  # type: ignore
+__all__.append(__name__)
 
 
 class Monoenergetic(EnergySampler):
@@ -38,7 +38,7 @@ class Monoenergetic(EnergySampler):
         self.peak_energy = peak_energy  # (eV)
         self.peak_rate = peak_rate  # (1/s)
 
-    def CalculateRate(self):  # type: ignore
+    def CalculateRate(self):
         """
         Calculate the monoenergetic event rate for the binned sampling.
 

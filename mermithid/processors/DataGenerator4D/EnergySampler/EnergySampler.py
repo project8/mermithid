@@ -17,7 +17,7 @@ from morpho.utilities import morphologging
 logger = morphologging.getLogger(__name__)
 
 __all__ = []
-__all__.append(__name__)  # type: ignore
+__all__.append(__name__)
 
 
 @six.add_metaclass(abc.ABCMeta)

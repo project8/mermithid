@@ -1,11 +1,9 @@
 """
-The spatial sampling class. It samples three spatial variables:
-pitch angle (theta), cylindrical radial position (r), and azimuthal angle (phi).
-The child class must implement `UnbinnedSample()`
-methods.
+The spatial variables sampling class.
+
 Author: S. M. Lee
 First Date: September 15, 2025
-Last Update: November 26, 2025
+Last Update: January 19, 2026
 """
 
 from __future__ import absolute_import
@@ -22,23 +20,24 @@ from morpho.utilities import morphologging
 logger = morphologging.getLogger(__name__)
 
 __all__ = []
-__all__.append(__name__)  # type: ignore
+__all__.append(__name__)
 
 
 @six.add_metaclass(abc.ABCMeta)
 class SpatialSampler:
     """
-    The spatial sampling class. It samples three spatial variables:
-    pitch angle (theta), cylindrical radial position (r), and azimuthal angle (phi).
-    The child class must implement `UnbinnedSample()`
-    methods.
+    The spatial variables sampling class. The goal is to sample three spatial
+    variables: pitch angle at the trap center (theta_center), cylindrical radial
+    position at start (r_start), and azimuthal angle at start (phi_start). This
+    will also sample the pitch angle at start (theta_start) and convert it to
+    theta_center using the cavity field if available.
 
     Parameters:
         name: The name of the instance
     Results:
-        The sampled pitch angle (theta) and positions (r, phi) in rad, m, rad
-        units are accessible via the `result` property, stored in
-        `self._sample_position`.
+        The sampled pitch angle at the trap center (theta_center) and positions
+        at start (r_start, phi_start) in rad, m, rad units are accessible via
+        the `result` property, stored in `self._sample_position`.
     """
 
     def __init__(
@@ -66,9 +65,16 @@ class SpatialSampler:
         logger.debug("Creating Spectrum <{}>".format(self._samplerName))
 
         self.binned_mode = binned_mode
-        self._sample_geometry: List[np.ndarray] = (
+
+        self._sample_r_start: List[np.ndarray] = list()  # (m)
+        self._sample_theta_start: List[np.ndarray] = list()  # (rad)
+        self._sample_theta_center: List[np.ndarray] = list()  # (rad)
+        self._sample_phi_start: List[np.ndarray] = list()  # (rad)
+        self._sample_z_start: List[np.ndarray] = list()  # (m)
+
+        self._sample_geometry: List[Dict[str, np.ndarray]] = (
             list()
-        )  # (m, rad, rad) shape: [(entries, 3), ...]
+        )  # shape: [{"theta_center": (N,), "r_start": (N,), "phi_start": (N,)}, ...]
 
         # ROI properties
         if theta_edges is None:
@@ -116,8 +122,9 @@ class SpatialSampler:
 
         # PDF for binned mode. [i, j] element corresponds to r bin i and theta bin j.
         self.r_theta_pdf: Optional[np.ndarray] = None  # (bins_r, bins_theta)
+        self.z_thr: Optional[np.ndarray] = None  # (bins_r, bins_theta, 2)
 
-        # set the cavity_field object
+        # set the cavity_field object for trapping efficiency and theta conversion
         self.cavity_field: Optional[CavityField.CavityField] = None
         if cavity_field_option == "numeric" and cavity_field_kwargs is not None:
             self.cavity_field = CavityField.Numeric(
@@ -167,12 +174,12 @@ class SpatialSampler:
         return self.cavity_field
 
     @property
-    def result(self) -> List[np.ndarray]:
+    def result(self) -> List[Dict[str, np.ndarray]]:
         """
         Returns the list of sampled position arrays.
-        Each array is 2-dimensional and of dtype float64, corresponds to each
-        runtime, and has shape (N, 3) where N is the number of samples for that
-        runtime, and the 3 columns correspond to (theta, r, phi).
+        Each dictionary corresponds to each runtime and contains four keys:
+        "theta_center", "r_start", "phi_start", and "theta_start", each with
+        shape (N,) where N is the number of samples for that runtime.
         """
         return self._sample_geometry
 
@@ -181,8 +188,8 @@ class SpatialSampler:
         ke: List[np.ndarray],  # (eV) shape: [(entries,), ...]
     ) -> bool:
         """
-        Sample position based on the binned rate or unbinned model and given
-        kinetic energies.
+        Sample position variables based on the binned or unbinned model and
+        given kinetic energies.
 
         Returns:
             True if successful.
@@ -190,9 +197,21 @@ class SpatialSampler:
         logger.info("Sampling position for <{}>...".format(self.name))
 
         self.ke = ke
-        self._sample_geometry = [
-            np.zeros((k.shape[0], 3), dtype="float64") for k in self.ke
-        ]  # (rad, m, rad) shape: [(entries, 3), ...]
+        self._sample_r_start = [
+            np.zeros((k.shape[0],), dtype="float64") for k in self.ke
+        ]  # (m) shape: [(entries,)]
+        self._sample_theta_start = [
+            np.zeros((k.shape[0],), dtype="float64") for k in self.ke
+        ]  # (rad) shape: [(entries,)]
+        self._sample_theta_center = [
+            np.zeros((k.shape[0],), dtype="float64") for k in self.ke
+        ]  # (rad) shape: [(entries,)]
+        self._sample_phi_start = [
+            np.zeros((k.shape[0],), dtype="float64") for k in self.ke
+        ]  # (rad) shape: [(entries,)]
+        self._sample_z_start = [
+            np.zeros((k.shape[0],), dtype="float64") for k in self.ke
+        ]  # (m) shape: [(entries,)]
 
         if self.binned_mode:
             if not self.BuildThetaRPDF():
@@ -205,15 +224,26 @@ class SpatialSampler:
                 logger.error("Error while <{}> sampling phi".format(self.name))
                 return False
         else:
-            if not self.UnbinnedSampleTheta():
-                logger.error("Error while <{}> sampling theta".format(self.name))
-                return False
-            if not self.UnbinnedSampleR():
-                logger.error("Error while <{}> sampling r".format(self.name))
-                return False
-            if not self.UnbinnedSamplePhi():
-                logger.error("Error while <{}> sampling phi".format(self.name))
-                return False
+            raise NotImplementedError("Unbinned sampling is not implemented yet.")
+            # TODO: implement unbinned sampling
+            # if not self.UnbinnedSampleTheta():
+            #     logger.error("Error while <{}> sampling theta".format(self.name))
+            #     return False
+            # if not self.UnbinnedSampleR():
+            #     logger.error("Error while <{}> sampling r".format(self.name))
+            #     return False
+            # if not self.UnbinnedSamplePhi():
+            #     logger.error("Error while <{}> sampling phi".format(self.name))
+            #     return False
+
+        self._sample_geometry = list()
+        for i in range(len(self.ke)):
+            sample_dict = dict()
+            sample_dict["theta_center"] = self._sample_theta_center[i]
+            sample_dict["r_start"] = self._sample_r_start[i]
+            sample_dict["phi_start"] = self._sample_phi_start[i]
+            sample_dict["theta_start"] = self._sample_theta_start[i]
+            self._sample_geometry.append(sample_dict)
 
         logger.info("Done sampling position for <{}>".format(self.name))
         return True
@@ -221,9 +251,11 @@ class SpatialSampler:
     @abc.abstractmethod
     def BuildThetaRPDF(self) -> bool:
         """
-        Build the joint PDF of theta and r. It assumes independence from energy.
+        Build the joint PDF of theta_start and r_start. It assumes independence
+        from energy.
 
-        PDF: p(theta, r) dr dtheta = p(r, theta) p(theta) dr dtheta
+        PDF: p(theta_start, r_start) dr_start dtheta_start
+            = p(r_start, theta_start) p(theta_start) dr_start dtheta_start
 
         Results:
             True if successful.
@@ -233,7 +265,8 @@ class SpatialSampler:
     @abc.abstractmethod
     def BinnedSampleThetaR(self) -> bool:
         """
-        Sample theta and r from the binned joint PDF p(theta, r).
+        Sample theta_start and r_start from the binned joint PDF p(theta, r).
+        Convert theta_start to theta_center using the cavity field if available.
 
         Results:
             True if successful.
@@ -243,45 +276,45 @@ class SpatialSampler:
     @abc.abstractmethod
     def BinnedSamplePhi(self) -> bool:
         """
-        Sample phi from the binned pdf p(phi|theta, r).
+        Sample phi_start from the binned pdf p(phi_start|theta_start, r_start).
 
         Results:
             True if successful.
         """
         raise NotImplementedError("BinnedSamplePhi method is not implemented.")
 
-    @abc.abstractmethod
-    def UnbinnedSampleTheta(self) -> bool:
-        """
-        Method called by `Sample()` to sample the polar angle from the unbinned model.
-        The marginal distribution p(theta|E) should be used.
-        Must be overridden by child class.
+    # @abc.abstractmethod
+    # def UnbinnedSampleTheta(self) -> bool:
+    #     """
+    #     Method called by `Sample()` to sample the polar angle from the unbinned model.
+    #     The marginal distribution p(theta_start|E) should be used.
+    #     Must be overridden by child class.
 
-        Results:
-            True if successful.
-        """
-        raise NotImplementedError("UnbinnedSampleTheta method is not implemented.")
+    #     Results:
+    #         True if successful.
+    #     """
+    #     raise NotImplementedError("UnbinnedSampleTheta method is not implemented.")
 
-    @abc.abstractmethod
-    def UnbinnedSampleR(self) -> bool:
-        """
-        Method called by `Sample()` to sample the radius from the unbinned model.
-        The marginal distribution p(r|E, theta) should be used.
-        Must be overridden by child class.
+    # @abc.abstractmethod
+    # def UnbinnedSampleR(self) -> bool:
+    #     """
+    #     Method called by `Sample()` to sample the radius from the unbinned model.
+    #     The marginal distribution p(r_start|E, theta_start) should be used.
+    #     Must be overridden by child class.
 
-        Results:
-            True if successful.
-        """
-        raise NotImplementedError("UnbinnedSampleR method is not implemented.")
+    #     Results:
+    #         True if successful.
+    #     """
+    #     raise NotImplementedError("UnbinnedSampleR method is not implemented.")
 
-    @abc.abstractmethod
-    def UnbinnedSamplePhi(self) -> bool:
-        """
-        Method called by `Sample()` to sample the azimuthal angle from the unbinned model.
-        The marginal distribution p(phi|E, theta, r) should be used.
-        Must be overridden by child class.
+    # @abc.abstractmethod
+    # def UnbinnedSamplePhi(self) -> bool:
+    #     """
+    #     Method called by `Sample()` to sample the azimuthal angle from the unbinned model.
+    #     The marginal distribution p(phi_start|E, theta_start, r_start) should be used.
+    #     Must be overridden by child class.
 
-        Results:
-            True if successful.
-        """
-        raise NotImplementedError("UnbinnedSamplePhi method is not implemented.")
+    #     Results:
+    #         True if successful.
+    #     """
+    #     raise NotImplementedError("UnbinnedSamplePhi method is not implemented.")

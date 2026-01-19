@@ -2,7 +2,7 @@
 The data generator class for CCA.
 Author: S. M. Lee
 First Date: August 25, 2025
-Last Update: November 26, 2025
+Last Update: January 19, 2026
 """
 
 from __future__ import absolute_import
@@ -22,13 +22,15 @@ logger = morphologging.getLogger(__name__)
 
 
 __all__ = []
-__all__.append(__name__)  # type: ignore
+__all__.append(__name__)
 
 
 class DataGenerator4D(BaseProcessor):
     """
-    Generate pseudo electrons for CCA. It samples 4D data (E, theta, r, phi)
-    from a given source and background model.
+    Generate pseudo electrons for CCA. It samples 4D data
+    (E, theta_center, r_start, phi_start) from a given source and background
+    model. This will sample theta_start together, which is internally used for
+    the detector response simulation.
 
     Parameters:
         name: The name of the instance
@@ -39,7 +41,7 @@ class DataGenerator4D(BaseProcessor):
         The sampled 4D data are stored in `self.results`.
     """
 
-    def InternalConfigure(self, params):  # type: ignore
+    def InternalConfigure(self, params):
         """
         Configure the `DataGenerator4D` instance.
 
@@ -163,14 +165,14 @@ class DataGenerator4D(BaseProcessor):
         self.cavity_field_theta_edges: Optional[Union[np.ndarray, List[float]]] = (
             reader.read_param(params, "cavity_field_theta_edges", None)
         )  # (rad)
-        self.cavity_field_Bz_map: Optional[Union[np.ndarray, List[float]]] = (
-            reader.read_param(params, "cavity_field_Bz_map", None)
+        self.cavity_field_B_map: Optional[Union[np.ndarray, List[float]]] = (
+            reader.read_param(params, "cavity_field_B_map", None)
         )  # (T)
 
         self.cavity_field_kwargs: Dict = {
             "r_edges": self.cavity_field_r_edges,
             "z_edges": self.cavity_field_theta_edges,
-            "Bz_map": self.cavity_field_Bz_map,
+            "B_map": self.cavity_field_B_map,
             "path": self.cavity_field_path,
         }
 
@@ -263,7 +265,7 @@ class DataGenerator4D(BaseProcessor):
         """
         return self._energy_samplers
 
-    def InternalRun(self):  # type: ignore
+    def InternalRun(self):
         """
         Run `self.generate_data()` method.
         """
@@ -275,19 +277,22 @@ class DataGenerator4D(BaseProcessor):
         self,
     ) -> List[Dict[str, np.ndarray]]:
         """
-        Generate unbinned 4-dimensional data (E, theta, r, phi).
+        Generate 4-dimensional data (E, theta_center, r_start, phi_start) from
+        binned/unbinned source and background models.
         First, sample energy from the source and background models.
-        Then, sample theta, r, phi from the spatial model.
-        Lastly, apply the detector responses: energy resolution and efficiency.
+        Then, sample theta_center, r_start, phi_start from the spatial model.
+        The trapping efficiency and the conversion of theta_start -> theta_center
+        are performed internally if a cavity field is set.
+        TODO: Lastly, apply the detector responses: energy resolution and efficiency.
 
         Returns:
             A dictionary containing the sampled 4D data arrays for each runtime.
-            Keys: "sampler_id", "ke", "theta", "r", "phi"
+            Keys: "sampler_id", "ke", "theta_center", "r_start", "phi_start", "theta_start"
             Each value is a list of np.ndarray, one for each runtime.
         """
-        info_msg = f"{self._procName} is generating pseudo-unbinned electrons"
+        info_msg = f"{self._procName} is generating pseudo-data:"
         info_msg += " source from " + ", ".join(self.source_types)
-        info_msg += " | background from " + ", ".join(self.bkgd_types)
+        info_msg += " & background from " + "+".join(self.bkgd_types)
         logger.info(info_msg)
 
         # sample energy
@@ -295,9 +300,10 @@ class DataGenerator4D(BaseProcessor):
             {
                 "sampler_id": np.zeros(0, dtype=int),
                 "ke": np.zeros(0, dtype=float),
-                "theta": np.zeros(0, dtype=float),
-                "r": np.zeros(0, dtype=float),
-                "phi": np.zeros(0, dtype=float),
+                "theta_center": np.zeros(0, dtype=float),
+                "r_start": np.zeros(0, dtype=float),
+                "phi_start": np.zeros(0, dtype=float),
+                "theta_start": np.zeros(0, dtype=float),
             }
             for _ in self.runtimes
         ]
@@ -320,11 +326,12 @@ class DataGenerator4D(BaseProcessor):
 
         geometry_samples = (
             self._spatial_sampler.result
-        )  # List[np.ndarray], (m, rad, rad)
+        )  # List[Dict[str, np.ndarray]], {"theta_center": (N,), "r_start": (N,), "phi_start": (N,), "theta_start": (N,)}
         for i in range(len(self.runtimes)):
-            fake_data[i]["theta"] = geometry_samples[i][:, 0]
-            fake_data[i]["r"] = geometry_samples[i][:, 1]
-            fake_data[i]["phi"] = geometry_samples[i][:, 2]
+            fake_data[i]["theta_center"] = geometry_samples[i]["theta_center"]
+            fake_data[i]["r_start"] = geometry_samples[i]["r_start"]
+            fake_data[i]["phi_start"] = geometry_samples[i]["phi_start"]
+            fake_data[i]["theta_start"] = geometry_samples[i]["theta_start"]
 
         # TODO: apply the detector response
         # test_detector = Detector4D.Detector4D(name="test_detector")
