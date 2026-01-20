@@ -34,6 +34,7 @@ import random
 import time
 import json
 import os
+from tqdm import tqdm
 
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
@@ -113,7 +114,8 @@ class FakeDataGenerator(BaseProcessor):
         """
 
         # Read other parameters
-        self.Q = reader.read_param(params, 'Q', QT2) #Choose the atomic or molecular tritium endpoint
+        # self.Q = reader.read_param(params, 'Q', QT2) #Choose the atomic or molecular tritium endpoint
+        self.Q = reader.read_param(params, 'Q', QT) #Choose the atomic or molecular tritium endpoint
         self.m = reader.read_param(params, 'neutrino_mass', 0.2) #Neutrino mass (eV)
         self.Kmin = reader.read_param(params, 'Kmin', self.Q-self.m-2300)  #Energy corresponding to lower bound of frequency ROI (eV)
         self.Kmax = reader.read_param(params, 'Kmax', self.Q-self.m+1000)   #Same, for upper bound (eV)
@@ -462,7 +464,7 @@ class FakeDataGenerator(BaseProcessor):
             min_energy, max_energy) for K in self.Koptions]
 
         time2 = time.time()
-        logger.info('... background rate took {} s'.format(time2 - time1))
+        logger.info('... TEST background rate took {} s'.format(time2 - time1))
 
         if err_from_B != None and err_from_B != 0.:
             dE = self.Koptions[1] - self.Koptions[0]
@@ -498,6 +500,8 @@ class FakeDataGenerator(BaseProcessor):
         temp_Koptions, temp_probsS, temp_probsB = self.Koptions, probsS, probsB
         split_Koptions, split_probsS, split_probsB = [], [], []
         print(len(temp_Koptions), len(temp_probsS))
+        #print('Looping over channel bounds to split Koptions and probs')
+        logger.info('Looping over channel bounds to split Koptions and probs')
         for i in range(len(self.channel_bounds)):
             split_Koptions.append(temp_Koptions[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
             split_probsS.append(temp_probsS[Frequency(temp_Koptions, self.B_field)<=self.channel_bounds[i]])
@@ -511,18 +515,24 @@ class FakeDataGenerator(BaseProcessor):
         split_probsB.append(temp_probsB)
 
         rates = []
-        for i in range(len(self.channel_runtimes)):
+        logger.info('Looping over channel runtimes')
+        #print('Looping over channel runtimes')
+        for i in tqdm(range(len(self.channel_runtimes))):
             rates.append((S*runtime_ratios[i]*split_probsS[i] + B*split_probsB[i])/(S*runtime_ratios[i]+B))
 
+        #logger.info('Block 1')
         self.Koptions = np.concatenate(split_Koptions)
         rates = np.concatenate(rates)
         self.probs = rates/np.sum(rates)
 
+        #logger.info('Block 2')
         if self.poisson_stats:
+            logger.info('Using Poisson statistics to determine number of events')
             KE = np.random.choice(self.Koptions, np.random.poisson(S+B), p = self.probs)
         else:
+            logger.info('Using fixed statistics to determine number of events')
             KE = np.random.choice(self.Koptions, round(S+B), p = self.probs)
-
+        logger.info('... generated {} events'.format(len(KE)))
         time5 = time.time()
 
         logger.info('... took {} s'.format(time5-time4))
