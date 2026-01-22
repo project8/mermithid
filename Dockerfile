@@ -41,7 +41,7 @@ COPY tests $MERMITHID_BUILD_PREFIX/tests
 
 # repeat the cmake command to get the change of install prefix to set correctly (a package_builder known issue)
 RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
-    pip3 install --upgrade pip &&\
+#    pip3 install --upgrade pip &&\
     cd /tmp_source &&\
     mkdir -p build &&\
     cd build &&\
@@ -55,10 +55,10 @@ RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
     cd /tmp_source &&\
 #    ls -altrh morpho &&\
     pip3 install . ./morpho --prefix $MERMITHID_BUILD_PREFIX &&\
-    pip3 install iminuit &&\
     /bin/true
 
 ########################
 FROM mermithid_common
 
 COPY --from=mermithid_done $MERMITHID_BUILD_PREFIX $MERMITHID_BUILD_PREFIX
+RUN pip3 install seaborn statsmodels

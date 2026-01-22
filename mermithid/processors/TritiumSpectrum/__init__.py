@@ -9,4 +9,5 @@ from .TritiumSpectrumLikelihoodSampler import *
 from .DistortedTritiumSpectrumLikelihoodSampler import *
 from .TritiumSpectrumProcessor import *
 from .FakeDataGenerator import FakeDataGenerator
+from .BinnedTritiumMLFitter import *
 

@@ -53,9 +53,14 @@ def read_oscillator_str_file(filename):
     energyOsc[1] = energyOsc[1][sorted_indices]
     return energyOsc
 
-# A sub function for the scatter function. Found in
+# A sub function for the scatter function. The oscillator strength tails are from
+# this database: https://nl.lxcat.net/home/. 
+# To get the parameters below, the tails are then fitted using the function in:
 # "Energy loss of 18 keV electrons in gaseous T and quench condensed D films"
 # by V.N. Aseev et al. 2000
+# The tails in the LXCAT database sometimes only go out to a certain energy.
+# Sometimes, we need energies extending beyond that value. That is why we
+# need to use this parameterized form of the tail.
 def aseev_func_tail(energy_loss_array, gas_type):
     if gas_type=="H2":
         A2, omeg2, eps2 = 0.195, 14.13, 10.60
