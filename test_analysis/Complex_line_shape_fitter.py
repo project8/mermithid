@@ -1,7 +1,19 @@
 '''
-Reads in data and fits it with complex lineshape model.
-Author: E. Machado, Y.-H. Sun, E. Novitski
+Authors: E. Machado, Y.-H. Sun, E. Novitski
+(File description added by T. E. Weiss.)
 Date: 4/8/20
+
+Reads in krypton CRES data and fits it with complex lineshape model.
+That model can be found in mermithid/processors/misc/MultiGasComplexLineShape.py
+
+This is an early version of the script used to fit krypton data for the Project 8 Phase II
+analyis. The final version can be found on this branch of mermithid: https://github.com/project8/mermithid/tree/yuhao_mermithid_on_Case_cluster.
+Contact Y.-H. Sun to learn more.
+
+To run this script, edit names and paths of input files in the reader_config and the
+complexLineShape_config. Modify other configuration parameters as desired. Install mermithid.
+Then, simply run:
+python3 Complex_line_shape_fitter.py 
 '''
 
 import numpy as np
@@ -22,7 +34,7 @@ class ComplexLineShapeTests(unittest.TestCase):
 
         reader_config = {
             "action": "read",
-            "filename": "/host/march_2020_kr_calibration_channel_b_merged.root",
+            "filename": "/host/october_2019_kr_calibration_channel_b_merged.root",
             "object_type": "TMultiTrackEventData",
             "object_name": "multiTrackEvents:Event",
             "use_katydid": False,
@@ -31,7 +43,11 @@ class ComplexLineShapeTests(unittest.TestCase):
 
         complexLineShape_config = {
             'bins_choice': np.linspace(0e6, 100e6, 1000),
-            'gases': ["H2", "He"], # Ar, Kr
+            'gases': ["H2", "He"], # "Ar", "Kr" # "Kr" for fss
+            'fix_gas_composition': True,
+            'fix_width_scale_factor': True,
+            'factor': 0.4626,
+            'scatter_fractions_for_gases': [0.894],
             'max_scatters': 20,
             'fixed_scatter_proportion': True,
             # When fixed_scatter_proportion is True, set the scatter proportion for the gases below
@@ -40,6 +56,8 @@ class ComplexLineShapeTests(unittest.TestCase):
             'free_gases': ["H2", "He"],
             'fixed_gases': ["Ar", "Kr"],
             'scatter_proportion_for_fixed_gases': [0.018, 0.039],
+            'use_radiation_loss': True,
+            'sample_ins_res_errors': False,
             'fixed_survival_probability': False,
             # When option fixed_survival_probability is True, assign the survival probability below
             'survival_prob': 15/16., # assuming total cross section for elastic scattering is 1/10 of inelastic scattering
@@ -62,8 +80,8 @@ class ComplexLineShapeTests(unittest.TestCase):
             'fixed_parameter_values': [0.8858, 0.896],      
             # This is an important parameter which determines how finely resolved
             # the scatter calculations are. 10000 seems to produce a stable fit, with minimal slowdown
-            'num_points_in_std_array': 10000,
-            'RF_ROI_MIN': 25850000000.0,
+            'num_points_in_std_array': 4000,
+            'RF_ROI_MIN': 25859375000.0, #24.5e9 + 1.40812680e+09 - 50e6, #25850000000.0
             # shake_spectrum_parameters.json and oscillator strength data can be found at https://github.com/project8/scripts/tree/master/yuhao/line_shape_fitting/data
             'shake_spectrum_parameters_json_path': '../mermithid/misc/shake_spectrum_parameters.json',
             'path_to_osc_strengths_files': '/host/',

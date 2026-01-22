@@ -32,8 +32,8 @@ def GF(): return 1.1663787*10**(-23) #Gf/(hc)^3, in eV^(-2)
 def Vud(): return 0.97425 #CKM element
 
 #Beta decay-specific physical constants
-def QT(): return 18563.251 #For atomic tritium (eV), from Bodine et al. (2015)
-def QT2(): return 18573.24 #For molecular tritium (eV), Bodine et al. (2015)
+def QT(): return 18563.251 #SHOULD BE DOUBLE-CHECKED. For atomic tritium (eV), from Bodine et al. (2015) 
+def QT2(): return 18574.01 #For molecular tritium (eV). Calculation here: https://projecteight.slack.com/archives/CG5TY2UE7/p1649963449399179, based on Bodine et al. (2015).
 def Rn(): return 2.8840*10**(-3) #Helium-3 nuclear radius in units of me, from Kleesiek et al. (2018): https://arxiv.org/pdf/1806.00369.pdf
 def M_3He_in_me(): return 5497.885 #Helium-3 mass in units of me, Kleesiek et al. (2018)
 def atomic_num(): return 2. #For helium-3
@@ -41,6 +41,7 @@ def V0(): return 76. #Nuclear screening potential of orbital electron cloud of t
 def mu_diff_hel_trit(): return 5.107 #Difference between magnetic moments of helion and triton, for recoil effects correction
 
 # Kr specific constants
-# Based on Katrin recent paper https://iopscience.iop.org/article/10.1088/1361-6471/ab8480
-def kr_k_line_e(): return 17.8260*1e3
+# Based on paper by  D. Venos, J. Sentkerestiova, O. Dragoun, M. Slezak, M. Rysavy, and A. Spalek: https://iopscience.iop.org/article/10.1088/1748-0221/13/02/T02012
+def kr_k_line_e(): return 17824.2
+# Based on Altenmuller et al.: https://iopscience.iop.org/article/10.1088/1361-6471/ab8480
 def kr_k_line_width(): return 2.774

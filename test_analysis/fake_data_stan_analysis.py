@@ -2,19 +2,28 @@
 # fake_data_stan_analysis.py
 # Author: T. E. Weiss
 # Date modified: June 2, 2020
+# Comments added: July 10, 2024
 #
-# This script generates fake data, then analyzes the data in Stan to infer posteriors.
+# This script generates fake CRES beta spectrum data, then analyzes the data in Stan
+# (Bayesian software package) to infer posteriors.
+#
+# This script was used for an early version of the Project 8 Phase II data analysis.
+# test_analysis/fake_data_stan_analysis_termite.py is a more updated version.
+# The actual version used for the Phase II analysis is in the termite repository.
+#
+# To run this script, install mermithid, then type in command line:
+# python3 fake_data_stan_analysis.py
+#
+# To specify the name of the root file where data will be saved, edit the
+# "if __name__ == '__main__':" section at the bottom of this script.
 # Pathnames configured for running from: scripts/Phase-II-official-analysis/fake-data-study/
 #
 
 """
-To-do:
-    - In FakeExperimentEnsemble, add:
-        1. Tracking of convergence issues, so that a summary of problems can be saved/printed
-        2. An option to parallelize with slurm instead of multiprocessing
-    - Run morpho processor for ensemble-analysis plotting, once it has been tested sufficiently
+Optional to-do (would improve ease of analysis):
+In FakeExperimentEnsemble, add tracking of convergence issues, so that a summary of problems
+can be saved/printed.
 """
-
 
 #import unittest
 from morpho.utilities import morphologging

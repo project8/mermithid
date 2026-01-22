@@ -54,13 +54,12 @@ class BinnedDataFitter(BaseProcessor):
         # Read other parameters
         self.namedata = reader.read_param(params, 'variables', "required")
         self.parameter_names = reader.read_param(params, 'parameter_names', ['A', 'mu', 'sigma'])
-        self.initial_values = reader.read_param(params, 'initial_values', [1, 0, 1])
-        self.limits = reader.read_param(params, 'limits', [[None, None], [None, None], [None, None]])
-        self.fixes = reader.read_param(params, 'fixed', [False, False, False])
+        self.initial_values = reader.read_param(params, 'initial_values', [1]*len(self.parameter_names))
+        self.limits = reader.read_param(params, 'limits', [[None, None]]*len(self.parameter_names))
+        self.fixes = reader.read_param(params, 'fixed', [False]*len(self.parameter_names))
         self.bins = reader.read_param(params, 'bins', np.linspace(-2, 2, 100))
         self.binned_data = reader.read_param(params, 'binned_data', False)
         self.print_level = reader.read_param(params, 'print_level', 1)
-
         self.constrained_parameters = reader.read_param(params, 'constrained_parameter_indices', [])
         self.constrained_means = reader.read_param(params, 'constrained_parameter_means', [])
         self.constrained_widths = reader.read_param(params, 'constrained_parameter_widths', [])
@@ -90,6 +89,7 @@ class BinnedDataFitter(BaseProcessor):
         self.results = {}
         self.results['param_values'] = result_array
         self.results['param_errors'] = error_array
+        self.results['correlation_matrix'] = np.array(self.m_binned.covariance.correlation())
         for i, k in enumerate(self.parameter_names):
             self.results[k] = {'value': result_array[i], 'error': error_array[i]}
 
@@ -138,7 +138,8 @@ class BinnedDataFitter(BaseProcessor):
             m_binned.limits[name] = self.limits[i]
 
         # minimze
-        m_binned.migrad()
+        m_binned.simplex().migrad()
+        m_binned.hesse()
         #self.param_states = m_binned.get_param_states()
         self.m_binned = m_binned
 
@@ -149,6 +150,7 @@ class BinnedDataFitter(BaseProcessor):
         if self.print_level == 1:
             logger.info('Fit results: {}'.format(result_array))
             logger.info('Errors: {}'.format(error_array))
+
         return result_array, error_array
 
 

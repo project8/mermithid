@@ -1,9 +1,13 @@
-FROM project8/p8compute_dependencies:v0.9.0 as mermithid_common
+ARG IMG_USER=project8
+ARG IMG_REPO=p8compute_dependencies
+ARG IMG_TAG=v1.0.0
+
+FROM ${IMG_USER}/${IMG_REPO}:${IMG_TAG} as mermithid_common
 
 ARG build_type=Release
 ENV MERMITHID_BUILD_TYPE=$build_type
 
-ENV MERMITHID_TAG=v1.2.2
+ENV MERMITHID_TAG=v1.2.4
 ENV MERMITHID_BUILD_PREFIX=/usr/local/p8/mermithid/$MERMITHID_TAG
 
 RUN mkdir -p $MERMITHID_BUILD_PREFIX &&\
@@ -15,11 +19,7 @@ RUN mkdir -p $MERMITHID_BUILD_PREFIX &&\
     echo 'ln -sfT $MERMITHID_BUILD_PREFIX $MERMITHID_BUILD_PREFIX/../current' >> setup.sh &&\
     echo 'export PATH=$MERMITHID_BUILD_PREFIX/bin:$PATH' >> setup.sh &&\
     echo 'export LD_LIBRARY_PATH=$MERMITHID_BUILD_PREFIX/lib:$LD_LIBRARY_PATH' >> setup.sh &&\
-    echo 'export PYTHONPATH=$MERMITHID_BUILD_PREFIX/$(python -m site --user-site | sed "s%$(python -m site --user-base)%%"):$PYTHONPATH' >> setup.sh &&\
-    /bin/true
-
-RUN source $COMMON_BUILD_PREFIX/setup.sh &&\
-    pip install iminuit &&\
+    echo 'export PYTHONPATH=$MERMITHID_BUILD_PREFIX/$(python3 -m site --user-site | sed "s%$(python3 -m site --user-base)%%"):$PYTHONPATH' >> setup.sh &&\
     /bin/true
 
 ########################
@@ -41,6 +41,7 @@ COPY tests $MERMITHID_BUILD_PREFIX/tests
 
 # repeat the cmake command to get the change of install prefix to set correctly (a package_builder known issue)
 RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
+    pip3 install --upgrade pip &&\
     cd /tmp_source &&\
     mkdir -p build &&\
     cd build &&\
@@ -54,6 +55,7 @@ RUN source $MERMITHID_BUILD_PREFIX/setup.sh &&\
     cd /tmp_source &&\
 #    ls -altrh morpho &&\
     pip3 install . ./morpho --prefix $MERMITHID_BUILD_PREFIX &&\
+    pip3 install iminuit &&\
     /bin/true
 
 ########################

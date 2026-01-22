@@ -4,6 +4,30 @@ Validation Log
 Log
 ---
 
+Version: v1.2.4
+~~~~~~~~~~~~~~~~
+
+Release Date: Wed May 17 2023
+''''''''''''''''''''''''''''''
+
+Fixes:
+'''''''''''''
+
+* Changed krypton K line energy to value in Venos et al. paper
+
+
+Version: v1.2.3
+~~~~~~~~~~~~~~~~
+
+Release Date: Tues July 20 2021
+''''''''''''''''''''''''''''''
+
+Fixes:
+'''''''''''''
+
+* Updated mermithid and morpho submodule to handle PyROOT updates
+* Changed "python" to "python3" for Dockerfile and tests
+
 
 Version: v1.2.2
 ~~~~~~~~~~~~~~~~

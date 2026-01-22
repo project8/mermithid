@@ -142,7 +142,7 @@ class DistortedTritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
             # Spectrum smearing
             gauss = ROOT.RooGaussian("gauss","gauss",var,meanSmearing,widthSmearing)
             smearedspectrum = pdffactory.GetSmearedPdf(ROOT.RealTritiumFrequencySpectrum)("smearedspectrum", 2, var, shapePdf, meanSmearing, widthSmearing,100000)
-            pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)("pdf",var,smearedspectrum,NEvents,NBkgd)
+            pdf = pdffactory.AddBackground[ROOT.RooAbsPdf]("pdf",var,smearedspectrum,NEvents,NBkgd)
 
 
         if "snr_efficiency" in self.options and self.options["snr_efficiency"]:
@@ -180,12 +180,12 @@ class DistortedTritiumSpectrumLikelihoodSampler(RooFitInterfaceProcessor):
                 # x is Frequency in channel in MHz: (@0*TMath::Power(10, -6)-cf)
                 channelEffFunc = ROOT.RooFormulaVar("channel_efficiency", "channel_efficiency", "c4 * TMath::Sqrt(1/(1 + 1*TMath::Power((@0*TMath::Power(10, -6)-cf)/c0, c1)))* TMath::Sqrt(1/(1 + TMath::Power((@0*TMath::Power(10, -6)-cf)/c2, c3)))", channel_eff_coeff)
                 superDistortedSpectrum = ROOT.RooEffProd("superDistortedSpectrum", "superDistortedSpectrum", distortedSpectrum, channelEffFunc)
-                pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)("pdf",var,superDistortedSpectrum,NEvents,NBkgd)
+                pdf = pdffactory.AddBackground[ROOT.RooAbsPdf]("pdf",var,superDistortedSpectrum,NEvents,NBkgd)
 
             else:
-                pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)("pdf",var,distortedSpectrum,NEvents,NBkgd)
+                pdf = pdffactory.AddBackground[ROOT.RooAbsPdf]("pdf",var,distortedSpectrum,NEvents,NBkgd)
         else:
-            pdf = pdffactory.AddBackground(ROOT.RooAbsPdf)("pdf",var,shapePdf,NEvents,NBkgd)
+            pdf = pdffactory.AddBackground[ROOT.RooAbsPdf]("pdf",var,shapePdf,NEvents,NBkgd)
 
 
 

@@ -15,7 +15,9 @@ You will need to install via a package manager (such as apt-get):
 
 ## Installation
 
-These are two possible ways of installing and working with mermithid.
+After cloning mermithid, run `git submodule update --init --recursive`.
+
+These are two possible ways of installing and working with mermithid: Using a virtual environment, or with docker.
 
 ### Virtual environment installation
 
