@@ -1,0 +1,4 @@
+Saved box.npz
+Total expected efficiency for this box trap should be: 0.2236
+Saved harmonic.npz
+Total expected efficiency for harmonic trap should be: 0.1756

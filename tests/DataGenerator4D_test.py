@@ -26,7 +26,7 @@ class DataGenerator4DTest(unittest.TestCase):
             "ke_min": 18000,  # eV
             "ke_max": 19000,  # eV
             "ke_bins": 100,
-            "theta_bins": 7200,
+            "theta_bins": 720,
             "r_max": 0.007,  # m
             "r_bins": 300,
             "phi_bins": 360,
@@ -45,7 +45,9 @@ class DataGenerator4DTest(unittest.TestCase):
             "uniform_cylinder_radius": 0.06,  # (m)
             # Cavity field configurations
             "cavity_field_option": "numeric",
-            "cavity_field_map_path": "cavity_field_map_CCA_Trap_V45.npz",
+            # "cavity_field_map_path": "cavity_field_maps/box.npz",
+            # "cavity_field_map_path": "cavity_field_maps/harmonic.npz",
+            "cavity_field_map_path": "cavity_field_maps/CCA_Trap_V45.npz",
             # Operational metadata
             "channel_runtimes": [6000.0, 12000.0],  # s
         }
@@ -83,16 +85,14 @@ class DataGenerator4DTest(unittest.TestCase):
                 ],
             }
         )
-        var_items.append(
+        var_items.append(  # NOTE: for CCA trap
             {
                 "name": "theta_center",
                 "equation": r"$\theta_{\mathrm{c}}$",
                 "min": 0.48 * np.pi,
                 "max": 0.52 * np.pi,
                 "bins": int(
-                    draw_config["theta_bins"]
-                    * (0.52 * np.pi - 0.48 * np.pi)
-                    / (2 * np.pi)
+                    draw_config["theta_bins"] * (0.52 * np.pi - 0.48 * np.pi) / np.pi
                 ),
                 "label": r"Pitch angle $\theta_{\mathrm{center}}$ [rad]",
                 "ticks": np.linspace(0.48 * np.pi, 0.52 * np.pi, 5),
@@ -105,6 +105,24 @@ class DataGenerator4DTest(unittest.TestCase):
                 ],
             }
         )
+        # var_items.append(  # NOTE: for box and harmonic traps
+        #     {
+        #         "name": "theta_center",
+        #         "equation": r"$\theta_{\mathrm{c}}$",
+        #         "min": 0 * np.pi,
+        #         "max": np.pi,
+        #         "bins": draw_config["theta_bins"],
+        #         "label": r"Pitch angle $\theta_{\mathrm{center}}$ [rad]",
+        #         "ticks": np.linspace(0 * np.pi, np.pi, 5),
+        #         "ticklabels": [
+        #             r"$0$",
+        #             r"$0.25 \pi$",
+        #             r"$0.5 \pi$",
+        #             r"$0.75 \pi$",
+        #             r"$\pi$",
+        #         ],
+        #     }
+        # )
         var_items.append(
             {
                 "name": "r_start",
@@ -317,7 +335,12 @@ class DataGenerator4DTest(unittest.TestCase):
         ticks_degree_max = np.degrees(theta_config["max"])
         ticks_degree_max = int(np.floor(ticks_degree_max))
 
-        ticks_degree = np.arange(ticks_degree_min, ticks_degree_max + 1, dtype=int)
+        ticks_degree = np.arange(
+            ticks_degree_min, ticks_degree_max + 1, 1, dtype=int
+        )  # NOTE: for CCA trap
+        # ticks_degree = np.arange(
+        #     ticks_degree_min, ticks_degree_max + 1, 30, dtype=int
+        # )  # NOTE: for box and harmonic traps
         ticks_degree_labels = [f"{d:d}" + r"$^\circ$" for d in ticks_degree]
         ticks_degree_positions = np.radians(ticks_degree)
 
@@ -337,16 +360,12 @@ class DataGenerator4DTest(unittest.TestCase):
             alpha=0.01,
         )
 
-        ax_theta_transform.set_xlabel(
-            r"Trapped $\theta_{\mathrm{start}}$ [rad]"
-        )
+        ax_theta_transform.set_xlabel(r"Trapped $\theta_{\mathrm{start}}$ [rad]")
         ax_theta_transform.set_xticks(theta_config["ticks"])
         ax_theta_transform.set_xticklabels(theta_config["ticklabels"])
         ax_theta_transform.set_xlim(theta_config["min"], theta_config["max"])
 
-        ax_theta_transform.set_ylabel(
-            r"Trapped $\theta_{\mathrm{center}}$ [rad]"
-        )
+        ax_theta_transform.set_ylabel(r"Trapped $\theta_{\mathrm{center}}$ [rad]")
         ax_theta_transform.set_yticks(theta_config["ticks"])
         ax_theta_transform.set_yticklabels(theta_config["ticklabels"])
         ax_theta_transform.set_ylim(theta_config["min"], theta_config["max"])
