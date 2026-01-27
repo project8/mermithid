@@ -10,6 +10,7 @@ CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc
 import numpy as np
 from scipy.stats import ncx2, chi2
 from scipy.special import roots_laguerre
+import matplotlib.pyplot as plt  
 
 from mermithid.misc.Constants_numericalunits import *
 from mermithid.misc.CRESFunctions_numericalunits import *
@@ -154,7 +155,7 @@ def dist_of_theta_start_after_trapping(theta_start, trap_length, minimum_trapped
 def theta_bottom_from_theta_start(theta_start, B_min, B_start):
     return np.arcsin(np.sin(theta_start)*np.sqrt(B_min/B_start))
 
-def dist_of_theta_bottom_after_trapping(B_min, theta_start_array, trap_length, minimum_trapped_pitch, flat_fraction=0.5, n_z_start=100, n_theta_bottom=10):
+def dist_of_theta_bottom_after_trapping(B_min, theta_start_array, trap_length, minimum_trapped_pitch, flat_fraction=0.5, n_z_start=1000, n_theta_bottom=10):
     z_start_array = np.linspace(0, trap_length/2, n_z_start)
     B_start_array = magnetic_field_flat_harmonic(z_start_array, B_min, trap_length, minimum_trapped_pitch, flat_fraction)
     theta_bottoms = []
@@ -173,10 +174,7 @@ def dist_of_theta_bottom_after_trapping(B_min, theta_start_array, trap_length, m
     prob_theta_bottom = prob_theta_bottom/normalization #Is this the correct approach?
     return theta_bottoms_bin_centers, prob_theta_bottom
 
-# Make the plots below by default? Set up for plots to only be created once when
-# running CavitySensitivityCurveProcessor?
 """
-import matplotlib.pyplot as plt  
 figure = plt.figure()
 theta_start_array = np.linspace(87*deg, np.pi/2, 1000)
 prob_theta_start = dist_of_theta_start_after_trapping(theta_start_array, 4.05*m, 87*deg, flat_fraction=0.75)
@@ -184,16 +182,6 @@ plt.scatter(theta_start_array/deg, prob_theta_start)
 plt.xlabel("Starting pitch angle $\\theta_{start}$ ($\degree$)", fontsize=14)
 plt.ylabel("Probability (arb. units)", fontsize=14)
 plt.savefig("test_theta_start_dist.png", dpi=300)
-plt.show()
-
-theta_bottoms_bin_centers, prob_theta_bottom = dist_of_theta_bottom_after_trapping(21*mT, theta_start_array, 4.05*m, 87*deg, flat_fraction=0.75, n_z_start=1000, n_theta_bottom=50)
-#print("theta bottoms", theta_bottoms_bin_centers/deg)
-#print("prob theta bottom", prob_theta_bottom)
-figure = plt.figure()
-plt.scatter(theta_bottoms_bin_centers/deg, prob_theta_bottom, s=1)
-plt.xlabel("Pitch angle at bottom of trap $\\theta_{bottom}$ ($\degree$)", fontsize=14)
-plt.ylabel("Probability density", fontsize=14)
-plt.savefig("test_theta_bottom_dist.png", dpi=300)
 plt.show()
 """
 
@@ -331,7 +319,24 @@ class CavitySensitivity(Sensitivity):
                 max_theta_index = np.argmax(self.theta_array)
                 self.carrier_power_fraction_array = carrier_power_array / carrier_power_array[max_theta_index]
                 self.sideband_power_fraction_array = sideband_power_array / carrier_power_array[max_theta_index]
+
+                # Calculating distribution of pitch angles at the bottom of the trap, after trapping
+                theta_start_array = np.linspace(self.FrequencyExtraction.minimum_angle_in_bandwidth, np.pi/2, self.Efficiency.n_theta_start_for_trapped_pitch_dist)
+                self.theta_bottoms_bin_centers, self.prob_theta_bottom = dist_of_theta_bottom_after_trapping(self.MagneticField.nominal_field, theta_start_array, self.Experiment.trap_length, self.FrequencyExtraction.minimum_angle_in_bandwidth, flat_fraction=self.MagneticField.trap_flat_fraction, n_z_start=self.Efficiency.n_z_for_trapped_pitch_dist, n_theta_bottom=self.Efficiency.n_theta_bottom_for_trapped_pitch_dist)
+                
+                # Determining which probability corresponds to each pitch angle in self.theta_array
+                self.prob_theta_array = np.interp(self.theta_array, self.theta_bottoms_bin_centers, self.prob_theta_bottom)
         
+                # Plotting pitch angle distribution
+                figure = plt.figure()
+                plt.scatter(self.theta_bottoms_bin_centers/deg, self.prob_theta_bottom, s=3, label="Binned distribution", color='red')
+                plt.scatter(self.theta_array/deg, self.prob_theta_array, s=2, marker='v', label="Interpolated to $\\theta_{bottom}$ values in simulations", color='blue')
+                plt.xlabel("Pitch angle at bottom of trap $\\theta_{bottom}$ ($\degree$)", fontsize=14)
+                plt.ylabel("Probability density", fontsize=14)
+                plt.legend(fontsize=12, loc='lower center')
+                plt.tight_layout()
+                plt.savefig("theta_bottom_dist_interpolated_{}.png".format(self.Experiment.exp_label), dpi=300)
+
         #Calculate the effective volume and print out related quantities
         self.EffectiveVolume()
         logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3), 2))
@@ -357,7 +362,8 @@ class CavitySensitivity(Sensitivity):
 
         #Just calculated for comparison
         self.larmor_power = rad_power(self.T_endpoint, np.pi/2, self.MagneticField.nominal_field) # currently not used
-        
+
+        # Determining whether to use a fixed detection efficiency or calculate it from the detection threshold
         if not self.Efficiency.usefixedvalue:
             if self.Threshold.use_detection_threshold:
                 logger.info("Overriding any detection eff and RF background in the config file; calculating these from the detection_threshold.")
@@ -629,8 +635,6 @@ class CavitySensitivity(Sensitivity):
             
             # (sigmaf_lsb)^2:
             var_f_sideband_crlb = self.frequency_variance_from_CRLB(tau_snr_full_length_sideband)
-            #var_f_sideband_crlb = self.FrequencyExtraction.CRLB_scaling_factor*(self.CRLB_constant*tau_snr_full_length_sideband/self.time_window**3)/(2*np.pi)**2
-
             m = self.FrequencyExtraction.sideband_order #For convenience
 
             # Defining array of pitch angle complements (pi/2 - theta) used when calculating
@@ -682,12 +686,13 @@ class CavitySensitivity(Sensitivity):
             var_f_noise_array = var_noise_from_fc_array + var_noise_from_flsb_array
 
             # Next, we average over sigma_noise values.
-            # This is a quadrature sum average,
+            # This is a quadrature sum average weighted by the pitch angle distribution,
             # reflecting that the detector response function could be constructed by sampling
             # from many normal distributions with different standard deviations (sigma_noise_array),
             # then finding the standard deviation of the full group of sampled values.
-            # CHANGE STILL NEEDED: AVERAGE OVER THE TRAPPED PITCH ANGLE DISTRIBUTION
-            self.sigma_f_noise = np.sqrt(np.sum(var_f_noise_array)/self.pitch_steps)
+            # IS THE BELOW CORRECT?
+            prob_theta_array_without_pi_over_2 = self.prob_theta_array[:len(self.theta_array)-1] #Cut out theta=pi/2 since sideband power is 0 there, resulting in infinite tau_snr.
+            self.sigma_f_noise = np.sqrt(np.sum(var_f_noise_array*prob_theta_array_without_pi_over_2)/np.sum(self.prob_theta_array))
 
         else:
             self.sigma_f_noise = np.sqrt(self.var_f_c_CRLB)
@@ -740,52 +745,27 @@ class CavitySensitivity(Sensitivity):
         https://3.basecamp.com/3700981/buckets/3107037/documents/8013439062
         Gauss-Laguerre Quadrature: https://en.wikipedia.org/wiki/Gauss%E2%80%93Laguerre_quadrature
 
-        detection_eff_integration
-        -------------------------
-
-        
         The following changes were made to the original integral to fit the G-L method:
-
         Original integrand: ∫[0 to \inf] ncx2(df=2, nc=t/τ).sf(thres) * (1/μ) * exp(-t/μ) dt
         
-        Where,
-        t = track_duration
-        μ (\mu) = mean_track_duration
-        τ (\tau) = tau_snr_ex_carrier
-        thres = detection_threshold
+        Where. t = track_duration, μ (\mu) = mean_track_duration, τ (\tau) = tau_snr_ex_carrier, thres = detection_threshold
 
-        We do the change of variable, x = t / μ
-                so, t = x μ
-                or, dt = μ dx
+        We do the change of variable, x = t / μ. So, t = x μ, or, dt = μ dx
 
         Substituting into the original integral: 
-        
         ∫[0 to \inf] ncx2(df=2, nc=xμ/τ).sf(thres) * (1/μ) * exp(-x) μ dx
-
         The μ's cancel out, and the integral takes the form:
-        
         ∫[0 to \inf] f(x) * exp(-x) dx
-
         where, f(x) = ncx2(df=2, nc=xμ/τ).sf(thres)
         
+        Parameters: None
         
-        Parameters
-        ----------
-        None
-        
-        
-        Returns
-        -------
-        detection_efficiency : float
-            SNR and threshold dependent detection efficieny.
+        Returns: avg_efficiency (float): SNR and threshold dependent detection efficieny.
                    
-        Notes
-        -----
-        Also check the antenna paper for more details. 
-        Especially the section on the signal detection with matched filtering.
+        Notes: Also check the antenna paper for more details. Especially the section on the signal detection with matched filtering.
         """
         # Calculate the mean track duration
-        #FIX: Only do the lines below ones for a given density; don't repeat for each threshold being scanned ...
+        # TO-DO: Only do the lines below ones for a given density; don't repeat for each threshold being scanned ...
         mean_track_duration = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
         if self.FrequencyExtraction.use_average_power_fractions:
             tau_snr_ex_total = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction + self.FrequencyExtraction.sideband_power_fraction, tau_snr_array_for_radii=self.Efficiency.calculate_det_eff_for_sampled_radii)
@@ -806,9 +786,19 @@ class CavitySensitivity(Sensitivity):
         # Calculate and return the integration result from weighted sum
         eff_for_each_r_and_theta = np.sum(w * sf_values, axis=1)
 
-        #Average efficiencies over the sampled electron radii and pitch angles. Weighting for radial distribution is accounted for in sampling, earlier.
-        #WEIGHTING FOR PITCH ANGLE DISTRIBUTION NOT YET INCLUDED.
-        avg_efficiency = np.mean(eff_for_each_r_and_theta) 
+        # Average efficiencies over the sampled electron radii and pitch angles.
+        # Calculation below accounts for trapped pitch angle distribution (self.prob_theta_array).
+        # Weighting for radial distribution is accounted for in sampling, earlier.
+        if self.FrequencyExtraction.use_average_power_fractions:
+            avg_efficiency = np.mean(eff_for_each_r_and_theta)
+        else:
+            if not self.Efficiency.calculate_det_eff_for_sampled_radii:
+                avg_efficiency = np.sum(self.prob_theta_array * eff_for_each_r_and_theta)/sum(self.prob_theta_array)
+            else:
+                #Sum over radii with equal weights, and sum over pitch angles with probability weights
+                #I'm not sure if I get the axes right, below.
+                avg_efficiency = np.sum(eff_for_each_r_and_theta, axis=0)/len(self.signal_power_vs_r)
+                avg_efficiency = np.sum(self.prob_theta_array * avg_efficiency)/sum(self.prob_theta_array)
         return avg_efficiency
 
     def assign_detection_efficiency_from_threshold(self):
