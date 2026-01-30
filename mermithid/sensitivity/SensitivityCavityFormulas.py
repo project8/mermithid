@@ -24,6 +24,30 @@ try:
 except:
     print("Run without morpho!")
 
+# Jins functions - Atomic Calculator
+# [m] - Fiducial distance from the cavity wall between max(ioffe_bite, larmor_radius)
+def ioffe_bite(nominal_field, magnetic_inhomogenity, ioffe_field, ioffe_multipolarity, cavity_radius):
+    return ((2 * nominal_field**2 * magnetic_inhomogenity / (2 * nominal_field**2 * magnetic_inhomogenity + ioffe_field**2))**(1/(ioffe_multipolarity-2)) * cavity_radius * -1) + cavity_radius
+
+# [m^3/s] - The mean speed of the cylinder connected to a perfect pump (Dushman). Uniform source, outputs mean density in cavity.
+# may need to convert tritium mass atomic to eV : eV/amu = 931494100
+def pumping_speed_limit_molecular(cavity_radius, cavity_temperature, cavity_L_over_D):
+    #self.FrequencyExtraction.cavity_temperature
+    #self.Experiment.cavity_L_over_D
+    return (np.pi * cavity_radius**2 * c0 * np.sqrt(kB * cavity_temperature / (4 * np.pi * tritium_mass_atomic)) / (0.5 + cavity_L_over_D / 8))
+# Useful for Atomic and Helium-3
+def pumping_speed_limit_atomic(cavity_radius, cavity_temperature, cavity_L_over_D):
+    return (np.pi * cavity_radius**2 * c0 * np.sqrt(kB * cavity_temperature / (2 * np.pi * tritium_mass_atomic)) / (0.5 + cavity_L_over_D / 8))
+
+def turbopump_speed(number_turbos, pumping_speed_gas):
+    return number_turbos * pumping_speed_gas
+
+# [m^3/s] - Assumed ambient room temperature and a pumping speed of 0.5 L/s
+def cavity_termination_speed_molecular(pumping_speed, cavity_top_plate_temp):
+    return (pumping_speed * np.sqrt(cavity_top_plate_temp * 28 / (293 * 2 * tritium_mass_atomic)))
+def cavity_termination_speed_atomic():
+    return (pumping_speed * np.sqrt(cavity_top_plate_temp * 28 / (293 * tritium_mass_atomic)))
+
 
 
 # Wouters functinos
@@ -231,6 +255,13 @@ class CavitySensitivity(Sensitivity):
         #Cyclotron radius is sometimes used in the effective volume calculation
         self.cyc_rad = cyclotron_radius(self.cavity_freq, self.T_endpoint) 
 
+        #Ioffe bite used in radial efficiency and effective volume calculation
+        self.unusable_dist_from_wall = self.Efficiency.unusable_dist_from_wall
+        if calculate_ioffe_bite and all(hasattr(self.MagneticField, attr) for attr in ("nominal_field", "magnetic_inhomogenity", "ioffe_field", "ioffe_multipolarity")):
+            self.unusable_dist_from_wall = ioffe_bite(self.MagneticField.nominal_field, self.MagneticField.magnetic_inhomogenity, self.MagneticField.ioffe_field, self.MagneticField.ioffe_multipolarity, self.cavity_radius)
+        elif calculate_ioffe_bite:
+            logger.info("Error: Did not specify all attributes for Ioffe bite calculation in config file")
+
         #Assigning the background constant if it's not in the config file
         if hasattr(self.Experiment, "bkgd_constant"):
             self.bkgd_constant = self.Experiment.bkgd_constant
@@ -243,10 +274,12 @@ class CavitySensitivity(Sensitivity):
         self.EffectiveVolume()
         logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3), 2))
         logger.info("Total trap volume: {} m^3".format(self.total_trap_volume/m**3))
-        logger.info("Cyclotron radius: {}m".format(self.cyc_rad/m))
+        logger.info("Ioffe bite: {} m".format(self.unusable_dist_from_wall/m))
+        logger.info("Cyclotron radius: {} m".format(self.cyc_rad/m))
         if self.use_cyc_rad:
-            logger.info("Using cyclotron radius as unusable distance from wall, for radial efficiency calculation")
-
+            logger.info("Using cyclotron (Larmor) radius as unusable distance from wall, for radial efficiency calculation")
+        else:
+            logger.info("Using ioffe bite as unusable distance from wall, for radial efficiency calculation")
         ####
         #Initialization related to the energy resolution:
         ####
@@ -318,10 +351,9 @@ class CavitySensitivity(Sensitivity):
                 self.detection_efficiency = self.Efficiency.detection_efficiency
                 self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV    
 
-
-            #Radial efficiency
-            if self.Efficiency.unusable_dist_from_wall >= self.cyc_rad:
-                self.radial_efficiency = (self.cavity_radius - self.Efficiency.unusable_dist_from_wall)**2/self.cavity_radius**2
+            #Radial efficiency - efficiency hit from Ioffe/Larmor bite
+            if self.unusable_dist_from_wall >= self.cyc_rad:
+                self.radial_efficiency = (self.cavity_radius - self.unusable_dist_from_wall)**2/self.cavity_radius**2
                 self.use_cyc_rad = False
             else:
                 self.radial_efficiency = (self.cavity_radius - self.cyc_rad)**2/self.cavity_radius**2
@@ -777,7 +809,20 @@ class CavitySensitivity(Sensitivity):
             logger.info("Efficiency from axial frequency cut: {}".format(self.fa_cut_efficiency))
             logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
 
-
+    def print_pumping_requirements(self):
+        if self.Efficiency.pumping_calculation:
+            self.turbopump_speed = turbopump_speed(self.Efficiency.number_turbopumps, self.Efficiency.pumping_speed_gas_T2)
+            logger.info("Turbopump Speed: {}".format(self.turbopump_speed * s / m**3))
+            if self.Experiment.atomic:
+                self.pumping_speed_limit_atomic = pumping_speed_limit_atomic(self.cavity_radius, self.FrequencyExtraction.cavity_temperature, self.Experiment.cavity_L_over_D)
+                self.cavity_termination_speed_atomic = cavity_termination_speed_atomic(self.Efficiency.pumping_speed_cavity_termination_air, self.Efficiency.cavity_top_plate_temperature)
+                logger.info("Pumping Speed Limit(Atomic): {}".format(self.pumping_speed_limit_atomic * s / m**3))
+                logger.info("Cavity Termination Speed (Atomic): {}".format(self.cavity_termination_speed_atomic * s / m**3))
+            else:
+	        self.pumping_speed_limit_molecular = pumping_speed_limit_molecular(self.cavity_radius, self.FrequencyExtraction.cavity_temperature, self.Experiment.cavity_L_over_D)
+                self.cavity_termination_speed_molecular = cavity_termination_speed_molecular(self.Efficiency.pumping_speed_cavity_termination_air, self.Efficiency.cavity_top_plate_temperature)
+                logger.info("Pumping Speed Limit(Molecular): {}".format(self.pumping_speed_limit_molecular * s / m**3))
+                logger.info("Cavity Termination Speed (Molecular): {}".format(self.cavity_termination_speed_molecular * s / m**3))
 
 
 """ # Cramer-Rao lower bound / how much worse are we than the lower bound
