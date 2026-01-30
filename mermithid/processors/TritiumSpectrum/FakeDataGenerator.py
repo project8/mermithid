@@ -274,17 +274,10 @@ class FakeDataGenerator(BaseProcessor):
             if len(ROIbound)==2:
                 maxf = ROIbound[1]
             else:
-<<<<<<< HEAD
                 if efficiency_dict is not None:
                     maxf = max(efficiency_dict['frequencies'])
                 else:
                     maxf = max(self.load_efficiency_curve()['frequencies'])
-=======
-                if self.maxf is None:
-                    maxf = max(self.load_efficiency_curve()['frequencies'])
-                else:
-                    maxf = self.maxf
->>>>>>> origin
             Kmax, Kmin = Energy(minf, B_field), Energy(maxf, B_field)
         else:
             Kmin, Kmax = ROIbound[0], ROIbound[1]
