@@ -2,6 +2,8 @@
 #version: "3.9"
 #Check running containers docker ps (detached) -d
 #Attach to container docker attach [name]
+# docker compose up -d 
+# docker attach mermithid_sensitivity
 services:
   mermithid:
     image: mermithid:sensitivity_branch
