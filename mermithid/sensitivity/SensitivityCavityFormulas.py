@@ -257,7 +257,7 @@ class CavitySensitivity(Sensitivity):
 
         #Ioffe bite used in radial efficiency and effective volume calculation
         self.unusable_dist_from_wall = self.Efficiency.unusable_dist_from_wall
-        if calculate_ioffe_bite and all(hasattr(self.MagneticField, attr) for attr in ("nominal_field", "magnetic_inhomogenity", "ioffe_field", "ioffe_multipolarity")):
+        if self.Effficiency.calculate_ioffe_bite and all(hasattr(self.MagneticField, attr) for attr in ("nominal_field", "magnetic_inhomogenity", "ioffe_field", "ioffe_multipolarity")):
             self.unusable_dist_from_wall = ioffe_bite(self.MagneticField.nominal_field, self.MagneticField.magnetic_inhomogenity, self.MagneticField.ioffe_field, self.MagneticField.ioffe_multipolarity, self.cavity_radius)
         elif calculate_ioffe_bite:
             logger.info("Error: Did not specify all attributes for Ioffe bite calculation in config file")
