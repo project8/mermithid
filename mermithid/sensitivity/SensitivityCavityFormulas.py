@@ -818,13 +818,12 @@ class CavitySensitivity(Sensitivity):
                 self.cavity_termination_speed_atomic = cavity_termination_speed_atomic(self.Efficiency.pumping_speed_cavity_termination_air, self.Efficiency.cavity_top_plate_temperature)
                 logger.info("Pumping Speed Limit(Atomic): {}".format(self.pumping_speed_limit_atomic * s / m**3))
                 logger.info("Cavity Termination Speed (Atomic): {}".format(self.cavity_termination_speed_atomic * s / m**3))
-            """
             else:
                 self.pumping_speed_limit_molecular = pumping_speed_limit_molecular(self.cavity_radius, self.FrequencyExtraction.cavity_temperature, self.Experiment.cavity_L_over_D)
                 self.cavity_termination_speed_molecular = cavity_termination_speed_molecular(self.Efficiency.pumping_speed_cavity_termination_air, self.Efficiency.cavity_top_plate_temperature)
                 logger.info("Pumping Speed Limit(Molecular): {}".format(self.pumping_speed_limit_molecular * s / m**3))
                 logger.info("Cavity Termination Speed (Molecular): {}".format(self.cavity_termination_speed_molecular * s / m**3))
-            """
+
 
 """ # Cramer-Rao lower bound / how much worse are we than the lower bound
 ScalingFactorCRLB = self.FrequencyExtraction.CRLB_scaling_factor
