@@ -148,8 +148,8 @@ sens_config_dict = {
 # Configuration for Sensitivity vs. density plot
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg",
-    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_target_and_threshold_Jan-18-2025.pdf",
+    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment_1GHz.cfg", #Config_atomic_325MHz_Experiment_conservative.cfg",
+    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_density_target_and_threshold_Dec-19-2025.pdf",
     # optional
     "figsize": (7.5,6.4), 
     "fontsize": 15,
@@ -164,21 +164,19 @@ sens_config_dict = {
     "y_limits": [2e-2, 6.5],
     "density_range": [3e14,3e18], #5e13
     "det_thresh_range": [5, 115],
+    "add_point_at_configured_density": True,
     "main_curve_upper_label":  r"LFA, threshold scenario", #560 MHz #Phase III scenario: 1 GHz",
     "goals": {"LFA threshold (0.7 eV)": 0.7, "Phase IV (0.04 eV)": 0.04}, #"Pilot T goal (0.1 eV)": 0.1,
     "goals_x_position": {"LFA threshold (0.7 eV)": 2.6e16, "Phase IV (0.04 eV)": 4e14}, #6e14, #3.3e14, #5.5e13, 
     "goals_y_rel_position": {"LFA threshold (0.7 eV)": 1.1, "Phase IV (0.04 eV)": 0.79}, #0.755
     "comparison_curve": True,
-    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_Atomic_Effects.cfg"],
-    #"comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", "/termite/sensitivity_config_files/Config_PIVmodule1_150MHz_minpitch_87deg.cfg", "/termite/sensitivity_config_files/Config_LFA_Experiment_Atomic_Effects.cfg"], 
-    #"comparison_curve_label": [r"LFA, target scenario", r"One full-size module", r"Phase IV: Ten full-size modules"], #: 150 MHz
-    "comparison_curve_label": [r"Atomic Calculator Effects"],
+    "verbose": False,
     "main_curve_color": "blue",
-    #"comparison_curve_colors": ["blue", "darkred", "black"],
-    "comparison_curve_colors": ["black"],
+    "comparison_curve_colors": ["blue", "darkred", "black"],
     "main_curve_linestyle": "dashed",
-    #"comparison_curve_linestyles": ["solid", "dotted", "dashdot"], 
-    "comparison_curve_linestyles": ["solid"], 
+    "comparison_curve_linestyles": ["solid", "dotted", "dashdot"], 
+    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", "/termite/sensitivity_config_files/Config_PIVmodule1_150MHz_minpitch_87deg.cfg", "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"], 
+    "comparison_curve_label": [r"LFA, target scenario", r"One full-size module", r"Phase IV: Ten full-size modules"], #: 150 MHz
     "comparison_label_y_position": [2, 0.105, 0.046], #[2, 0.105, 0.046],
     "comparison_label_x_position": [4.5e15, 7e14, 7e14], #[4.5e15, 2.2e16, 1e15],
     #"sigmae_theta_r": 0.159,
@@ -194,8 +192,8 @@ sens_config_dict = {
 
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg",
-    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_livetime_curve_target_and_threshold_Jan-18-2025.pdf", #ncav-eff-time
+    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
+    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_livetime_curve_target_and_threshold_Dec-19-2025.pdf", #ncav-eff-time
     "exposure_axis": True,
     # optional
     "figsize": (8.3, 6.3), #(10,6),
@@ -222,19 +220,14 @@ sens_config_dict = {
     "goals_x_position": {"LFA threshold (0.7 eV)": 4.5, "Phase IV (0.04 eV)": 0.108}, #6e14, #3.3e14, #5.5e13, 
     "goals_y_rel_position": {"LFA threshold (0.7 eV)": 0.83, "Phase IV (0.04 eV)": 0.83}, #6e14, #3.3e14, #5.5e13, 
     "comparison_curve": True,
-    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_Atomic_Effects.cfg"], 
-    #"comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", "/termite/sensitivity_config_files/Config_PIVmodule1_150MHz_minpitch_87deg.cfg", "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"], #"/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", 
-    "comparison_curve_label": [r"Atomic Calculator Effects"],
-    #"comparison_curve_label": [r"LFA, target: $1.7\,$m$^3$, 1 yr", r'One full-size module: $94\,$m$^3$, 1 yr', r"Phase IV$-$Ten full-size modules: $940\,$m$^3$, 8 yrs"], #150 MHz, $V = 94\,$m$^3$
+    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", "/termite/sensitivity_config_files/Config_PIVmodule1_150MHz_minpitch_87deg.cfg", "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"], #"/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", 
+    "comparison_curve_label": [r"LFA, target: $1.7\,$m$^3$, 1 yr", r'One full-size module: $100\,$m$^3$, 1 yr', r"Phase IV$-$Ten full-size modules: $1000\,$m$^3$, 8 yrs"], #150 MHz, $V = 94\,$m$^3$
     "main_curve_color": "blue",
-    "comparison_curve_colors": ["black"],
-    #"comparison_curve_colors": ["blue", "darkred", "black"],
+    "comparison_curve_colors": ["blue", "darkred", "black"],
     "main_curve_linestyle": "dashed", 
-    #"comparison_curve_linestyles": ["solid", "dotted", "dashdot"], 
-    "comparison_curve_linestyles": ["solid"], 
+    "comparison_curve_linestyles": ["solid", "dotted", "dashdot"], 
     "main_curve_marker": "d",
-    #"comparison_curve_markers": ["o", "^", "X"],
-    "comparison_curve_markers": ["X"],
+    "comparison_curve_markers": ["o", "^", "X"],
     "optimize_main_density": False,
     "optimize_comparison_density": False,
     "lower_label_y_position": 0.17,
