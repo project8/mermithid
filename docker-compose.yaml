@@ -1,10 +1,17 @@
 
 #version: "3.9"
-#Check running containers docker ps (detached) -d
-#Attach to container docker attach [name]
-# docker compose up -d 
-# docker attach mermithid_sensitivity
-# export PYTHONPATH=/mermithid/:$PYTHONPATH &&
+# Check running containers docker ps (detached) -d
+# Attach to container docker attach [name]
+# Mermithid is a bind mount, this guarantees: live code edits on host, Python imports always resolve to your branch & no accidental use of the installed site-packages version
+
+#docker compose up -d 
+#docker attach mermithid_sensitivity
+#export PYTHONPATH=/mermithid/:$PYTHONPATH &&
+
+# /mermithid is on sys.path. Python should import from it but it does not, because mermithid is already imported earlier by ROOT’s import hook. Once a module is loaded, Python never re-resolves it.
+# environment: is already working. It just can’t solve this class of problem. PYTHONPATH is correct; ROOT imports mermithid first and locks it in — only an editable install can override that.
+#environment: #- PYTHONPATH=/mermithid:${PYTHONPATH}
+# Overriding sys for PYTHONPATH
 services:
   mermithid:
     image: mermithid:sensitivity_branch
@@ -15,12 +22,11 @@ services:
       - ~/repos/mermithid:/mermithid
       - ~/repos/mermithid_share:/host_data
       - ~/repos/termite:/termite
-    environment:
-      - PYTHONPATH=/mermithid:${PYTHONPATH}
     command: >
-      bash -c "
+      bash -lic "
         source /usr/local/p8/mermithid/v1.2.3/setup.sh &&
         source /usr/local/p8/mermithid/v1.2.3/bin/this_phylloxera.sh &&
         source /usr/local/p8/mermithid/v1.2.3/bin/this_cicada.sh &&
-        exec bash
+        pip install -e /mermithid &&
+        bash
       "
