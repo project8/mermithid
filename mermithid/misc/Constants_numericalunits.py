@@ -16,7 +16,9 @@ T0 = -273.15*K
 
 tritium_livetime = 5.605e8*s
 tritium_mass_atomic = 3.016* amu *c0**2
-tritium_electron_crosssection_atomic = 9.e-23*m**2 #Hamish extrapolated to 18.6keV using Shah et al. (1987): https://iopscience.iop.org/article/10.1088/0022-3700/20/14/022
+tritium_electron_crosssection_atomic = 9.e-23*m**2 #Inelastic cross-section Hamish extrapolated to 18.6keV using Shah et al. (1987): https://iopscience.iop.org/article/10.1088/0022-3700/20/14/022. Full Bethe formula must be exactly right (down to magnetic and QED corrections) for the hydrogen atom.
+#tritium_electron_crosssection_atomic = 1.32e-22*m**2 #Inelastic cross-section + Elastic cross-section for T
+
 tritium_endpoint_atomic = 18563.251*eV
 last_1ev_fraction_atomic = 2.067914e-13/eV**3
 
