@@ -238,6 +238,8 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         self.sens_main.BackgroundRate()
         logger.info('RF background: {}/eV/s'.format(self.sens_main.RF_background_rate_per_eV*eV*s))
         logger.info('Total background: {}/eV/s'.format(self.sens_main.background_rate*eV*s))
+        logger.info("***Pumping Requirements:***")
+        self.sens_main.print_pumping_requirements()
         logger.info("***Done printing pre-optimization***")
 
 
