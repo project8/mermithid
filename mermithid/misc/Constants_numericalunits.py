@@ -9,7 +9,7 @@ from numericalunits import e, me, c0, eps0, mu0, kB, hbar, Rgas, NA, hPlanck    
 from numericalunits import meV, eV, keV, MeV, nJ, J, mm, cm, m                  # Energy, Length
 from numericalunits import nT, uT, mT, T, mK, K, F, W                           # Magnetic field, Temp, Power
 from numericalunits import hour, year, day, s, ms, ns, kHz, MHz, GHz            # Time, Frequency
-from numericalunits import kg, g, amu                                           # Mass
+from numericalunits import kg, g, amu, mol                                      # Mass
 from numericalunits import C, A, mA, uA, V, mV, nV, kV                          # Charge, Amps, Voltage
 from numericalunits import Pa, bar, mbar, atm, torr, mtorr, L, mL               # Pressure, Volume
 
