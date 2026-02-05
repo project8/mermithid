@@ -5,14 +5,13 @@ The constants here use the numericalunits package. For constants not using this 
 
 import numpy as np
 
-from numericalunits import e, me, c0, eps0, mu0, kB, hbar, Rgas
-from numericalunits import meV, eV, keV, MeV, mm, cm, m
-from numericalunits import nT, uT, mT, T, mK, K,  C, F, g, W, nJ, J
-from numericalunits import hour, year, day, s, ms, ns, kHz, MHz, GHz
-from numericalunits import NA, hPlanck, L, mL
-from numericalunits import kg, amu
-from numericalunits import A, mA, uA, V, mV, nV, kV
-from numericalunits import Pa, bar, mbar, atm, torr, mtorr
+from numericalunits import e, me, c0, eps0, mu0, kB, hbar, Rgas, NA, hPlanck    # Constants
+from numericalunits import meV, eV, keV, MeV, nJ, J, mm, cm, m                  # Energy, Length
+from numericalunits import nT, uT, mT, T, mK, K, F, W                           # Magnetic field, Temp, Power
+from numericalunits import hour, year, day, s, ms, ns, kHz, MHz, GHz            # Time, Frequency
+from numericalunits import kg, g, amu                                           # Mass
+from numericalunits import C, A, mA, uA, V, mV, nV, kV                          # Charge, Amps, Voltage
+from numericalunits import Pa, bar, mbar, atm, torr, mtorr, L, mL               # Pressure, Volume
 
 T0 = -273.15*K
 
