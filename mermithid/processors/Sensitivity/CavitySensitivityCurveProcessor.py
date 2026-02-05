@@ -240,8 +240,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         logger.info('Total background: {}/eV/s'.format(self.sens_main.background_rate*eV*s))
         logger.info("***Pumping Requirements:***")
         self.sens_main.print_pumping_requirements()
+        logger.info("***T2 background in atomic trap:***")
+        self.sens_main.print_T2_background_atomic_trap()
         logger.info("***Done printing pre-optimization***")
-
 
         #Optimizing the detection threshold for the comparison config files
         #Before the density optimization
