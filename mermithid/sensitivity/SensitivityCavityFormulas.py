@@ -28,6 +28,16 @@ except:
 # Jins functions - Atomic Calculator
 # Python decides whether a name is local or global at compile time (not runtime). The name must already exist in the module’s global namespace by the time the function runs, or Python has nowhere to bind it.
 area_loading_aperture = (None)
+'''
+Molecular experiment updated – no change but tidier.
+Add the gravity-temperature scale parameter “b” for magnetogravitational trap
+Add the surface density scale parameter “a/b” for magnetogravitational trap
+Use exponential density vertical gradient, calculate mean density between trap coils.
+Calculate atoms and activity between the trap coils.
+Correct the T2/T ratio for the revised T activity in the trap.
+Evaporation now in detail, separately for up (gravitation) and magnetic.
+Dipolar loss rate.  Calculation with z-dependent density, cylinder & cone.
+'''
 
 # [m] - Fiducial distance from the cavity wall between max(ioffe_bite, larmor_radius)
 def ioffe_bite(nominal_field, magnetic_inhomogenity, ioffe_field, ioffe_multipolarity, cavity_radius):
@@ -548,11 +558,18 @@ class CavitySensitivity(Sensitivity):
         axial_mode_index = 1
         self.cavity_radius = c0/(2*np.pi*self.cavity_freq)*np.sqrt(self.Jprime_0**2+axial_mode_index**2*np.pi**2/(4*self.Experiment.cavity_L_over_D**2))
         return self.cavity_radius
-    
     def CavityVolume(self):
-        #radius = 0.5*wavelength(self.T_endpoint, self.MagneticField.nominal_field)
-        self.total_cavity_volume = 2*self.cavity_radius*self.Experiment.cavity_L_over_D*np.pi*(self.cavity_radius)**2*self.Experiment.n_cavities
-        
+        #Calculate vacuum volume including cone and top service volume
+        if self.Experiment.cavity_cone_flag:
+            self.top_of_cone = 0.60*m
+            self.first_trap_coil_height = 0.75*m
+            self.second_trap_coil_height = 4.80*m
+            self.top_plate_cavity = 5.30*m
+            self.top_vacuum_system = 7.50*m
+            self.total_cavity_volume = np.pi * self.cavity_radius**2 * (self.top_plate_cavity - (2/3) * self.top_of_cone) * self.Experiment.n_cavities
+        else:
+            #radius = 0.5*wavelength(self.T_endpoint, self.MagneticField.nominal_field)
+            self.total_cavity_volume = 2*self.cavity_radius*self.Experiment.cavity_L_over_D*np.pi*(self.cavity_radius)**2*self.Experiment.n_cavities
         logger.info("Frequency: {} MHz".format(round(self.cavity_freq/MHz, 3)))
         logger.info("Wavelength: {} cm".format(round(wavelength(self.T_endpoint, self.MagneticField.nominal_field)/cm, 3)))
         logger.info("Cavity radius: {} cm".format(round(self.cavity_radius/cm, 3)))
@@ -1081,26 +1098,25 @@ class CavitySensitivity(Sensitivity):
             logger.info("Ratio of Turbopump Speed Limit: {}".format(self.ratio_required_theoretical_turbopumping_speed))
             if self.Efficiency.He_heat_leak:
                 self.time_constant_He, self.T_current_He_heat = calculate_He_heat_leak(self.turbopumping_speed_limit,  self.cavity_termination_speed, self.turbopump_speed,  self.FrequencyExtraction.cavity_temperature, self.Experiment.design_density, self.total_cavity_volume, self.Efficiency.wall_activity)
-                #self.time_constant_He, self.T_current_He_heat = calculate_He_heat_leak(9.68*m**3/s,  0.78*m**3/s, 5*m**3/s, self.FrequencyExtraction.cavity_temperature, 1.5e17*m**-3, 1.645*m**3, self.Efficiency.wall_activity)
                 logger.info("He Time Constant: {} s".format(self.time_constant_He/s))
-                logger.info("T atom current required to keep up with He-3 leak: {} atoms/s".format(self.T_current_He_heat*s))
+                logger.info("Atom current required for He-3 leak: {} atoms/s".format(self.T_current_He_heat*s))
             if self.Efficiency.T2_heat_leak:
                 self.time_constant_aperture, self.current_aperture = calculate_aperture_heat_leak(self.DopplerBroadening.gas_temperature, self.Experiment.design_density, self.total_cavity_volume)
                 logger.info("Aperture Time Constant: {} s".format(self.time_constant_aperture/s))
-                logger.info("Current through aperture leak: {} atoms/s".format(self.current_aperture*s))
+                logger.info("Atom current required for aperture leak: {} atoms/s".format(self.current_aperture*s))
                 self.time_constant_rad, self.current_rad = calculate_rad_heat_leak(self.cavity_radius, self.Experiment.number_density, self.Experiment.cavity_L_over_D, self.Experiment.design_density, self.total_cavity_volume, self.Efficiency.net_rad_efficiency)
                 logger.info("Radiation Time Constant: {} s".format(self.time_constant_rad/s))
-                logger.info("Current through radiation leak: {} atoms/s".format(self.current_rad*s))
+                logger.info("Atom current required for radiation leak: {} atoms/s".format(self.current_rad*s))
                 self.time_constant_desorp, self.current_desorp = calculate_T2_desorption_from_wall(self.cavity_radius, self.Experiment.cavity_L_over_D, self.Efficiency.wall_activity, self.Experiment.design_density, self.total_cavity_volume)
                 logger.info("Desorption Time Constant: {} s".format(self.time_constant_desorp/s))
-                logger.info("Current through desorption: {} atoms/s".format(self.current_desorp*s))
+                logger.info("Atom current required for desorption: {} atoms/s".format(self.current_desorp*s))
                 self.time_constant_dipolar, self.current_dipolar = calculate_dipolar_loss(self.MagneticField.nominal_field/T, self.cavity_radius, self.Experiment.design_density, self.total_cavity_volume, self.DopplerBroadening.gas_temperature, self.Experiment.cavity_L_over_D, self.Experiment.pure_magnetic_flag)
                 if not self.Experiment.pure_magnetic_flag:
                     logger.info("***Magnetogravitional Trap***") # 0 is false in python
                 else:
-                    logger.info("***Magnetic Trap***")
+                    logger.info("***Pure Magnetic Trap***")
                 logger.info("Dipolar Time Constant: {} s".format(self.time_constant_dipolar/s))
-                logger.info("Current Dipolar: {} atoms/s".format(self.current_dipolar*s))
+                logger.info("Atom current required for dipolar loss: {} atoms/s".format(self.current_dipolar*s))
 
 """ # Cramer-Rao lower bound / how much worse are we than the lower bound
 ScalingFactorCRLB = self.FrequencyExtraction.CRLB_scaling_factor
