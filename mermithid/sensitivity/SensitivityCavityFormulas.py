@@ -1,6 +1,6 @@
 '''
 Class calculating neutrino mass sensitivities based on analytic formulas from CDR.
-Author: R. Reimann, C. Claessens, T. E. Weiss, W. Van De Pontseele
+Author: R. Reimann, C. Claessens, T. E. Weiss, W. Van De Pontseele, M. Oueslati
 Date: 06/07/2023
 Updated: December 2024
 
@@ -26,73 +26,153 @@ except:
     print("Run without morpho!")
 
 # Jins functions - Atomic Calculator
+# Python decides whether a name is local or global at compile time (not runtime). The name must already exist in the module’s global namespace by the time the function runs, or Python has nowhere to bind it.
+area_loading_aperture = (None)
+
 # [m] - Fiducial distance from the cavity wall between max(ioffe_bite, larmor_radius)
 def ioffe_bite(nominal_field, magnetic_inhomogenity, ioffe_field, ioffe_multipolarity, cavity_radius):
     return ((2 * nominal_field**2 * magnetic_inhomogenity / (2 * nominal_field**2 * magnetic_inhomogenity + ioffe_field**2))**(1/(ioffe_multipolarity-2)) * cavity_radius * -1) + cavity_radius
 '''
-There are two possible methods for pumping away the tritium, all of which is eventually in molecular form.
-One is to keep the tritium in circulation by using turbopumps and avoiding temperatures below 10K in the trap region, and the second is to cool parts of the trap region outside the magnetic wall to < 3K in order to cryopump the tritium. 
+There are two possible methods for pumping away the tritium, all of which is eventually in molecular form. One is to keep the tritium in circulation by using turbopumps and avoiding temperatures below 10K in the trap region, and the second is to cool parts of the trap region outside the magnetic wall to < 3K in order to cryopump the tritium. 
 The mechanical pumping method is impractical because of the pumping speed required, a fraction of a billion L/s, where an achievable upper limit is 4 orders of magnitude smaller.
 The speed requirement is driven by the combination of the input atomic current and the need to maintain the molecular fraction below 10−4.
 The cryopumping method ties up very large amounts of tritium, tens to hundreds of kCi, by the end of a day, and the need to warm up and recycle that tritium on such a short time scale would lead to low statistical precision and instabilities.
 '''
+# C271 - [m/s] Atomic thermal speed of 3T or 3He (C270)
+def calculate_average_velocity(temp):
+    average_velocity = c0 * np.sqrt((8 * 0.025*(eV/K) * temp / 273) / (np.pi * tritium_mass_atomic))
+    return average_velocity
 
-def calculate_T2_background_atomic_trap(cavity_radius, cavity_wall_temp, cavity_L_over_D, max_ratio_T2_T, number_density):
-    # volume of cone
-    top_plate_cavity = 5.30*m
-    top_cone = 0.60*m
-    # C156 [m^3]
-    physical_volume = np.pi * cavity_radius**2 * (top_plate_cavity - 2 * top_cone / 3)
-    # C278 = C271/sqrt(2) [m/s]
-    average_velocity = (c0 / np.sqrt(2)) * np.sqrt((8 * 0.025*(eV/K) * cavity_wall_temp / 273) / (np.pi * tritium_mass_atomic))
-    # C334 [m^2]
+# (Cavity length is cavity top plate - top of cone / 2)
+# C334 - [m^2] Cylinder wall; no endcaps included
+def calculate_trap_wall_area(cavity_radius, cavity_L_over_D):
     trap_wall_area = 2 * np.pi * (2 * cavity_radius**2) * cavity_L_over_D
-    # C118 - Total activity on wall at recyling [s^-1]
-    activity = 100/s # Ci (Bq = 1 decay per second)
-    # C49
-    molecules_desorbed_wall_beta = 1000 # per beta decay
-    # C28
-    Ci_Bq = 3.7*10**10 # 1 Ci = 3.7e10 Bq
-    # C36 [eV]
-    atomic_tritium_recoil_energy = 3.409*eV
-    # C306 - Vapor Pressure of T2 w/ constants for saturated T2 vapor from Souers et al. [mbar]
+    return trap_wall_area
+
+# C204 - [atoms] Inventory in physical volume
+def calculate_inventory(design_density, volume):
+    return design_density * volume
+
+# C208 - [decays/s] Radioactivity in trap per cavity
+def calculate_activity_in_trap(number_density, cavity_radius):
+    # C090
+    coil_1_height = 0.75*m
+    # C091
+    coil_2_height = 4.80*m
+    # C206 - [atoms]
+    atoms_between_trap_coils = number_density * np.pi * cavity_radius**2 * np.absolute(coil_2_height - coil_1_height)
+    return atoms_between_trap_coils / tritium_livetime
+
+# Background T2 in atomic trap
+def calculate_T2_background_atomic_trap(cavity_radius, cavity_wall_temp, cavity_L_over_D, max_ratio_T2_T, number_density, wall_activity):
+    trap_wall_area = calculate_trap_wall_area(cavity_radius, cavity_L_over_D)
+    # C306 - [mbar] Vapor Pressure of T2 w/ constants for saturated T2 vapor from Souers et al.
     T2_vapor_pressure = mbar * np.exp(5.84605 + (-160.7*K/cavity_wall_temp) + 2.3235 * np.log(cavity_wall_temp/K)) / 0.76
-    # C307 - Density of saturated vapor [m^-3]
-    molar_volume = 2.24*10**-2*m**3 # Volume of 1mol of ideal gas at 1atm. Higher pressure --> smaller volume; higher temp --> lower volume.
+    # C307 - [m^-3] Density of saturated vapor
     sat_vapor_density = NA * (T2_vapor_pressure/mbar) * 273*K / (1000 * molar_volume * cavity_wall_temp)
-    # C308 - T2 density form desorption at end of a cycle: [m^-3] = s^-1 * sqrt(kg/eV) / m^2
-    T2_density_desorp = 4 * molecules_desorbed_wall_beta * (Ci_Bq) * activity * np.sqrt(molecules_desorbed_wall_beta * (tritium_mass_atomic / c0**2) / (2 * atomic_tritium_recoil_energy * 1.6*10**-19 * (J/eV) )) / trap_wall_area
-    # C309
+    # C308 -  [m^-3] = s^-1 * sqrt(kg/eV) / m^2 T2 density form desorption at end of a cycle
+    T2_density_desorp = 4 * molecules_desorbed_wall_beta * Ci_Bq * wall_activity * np.sqrt(molecules_desorbed_wall_beta * (tritium_mass_atomic / c0**2) / (2 * atomic_tritium_recoil_energy * 1.6*10**-19 * (J/eV) )) / trap_wall_area
+    # C309 [m^-3] Total T2 density
     T2_total_density = sat_vapor_density + T2_density_desorp
+    # C310 T2/T number ratio. Activity ratio is 1.64 times bigger
+    # Number density b/w trap coils varies between Mermithid and Atomic Calculator due to inelastic + elastic T2-e cross-section
     T2_T_ratio = T2_total_density / number_density
     return T2_total_density, T2_T_ratio
 
-'''
-# T2 Heat Leak:
-# He Heat Leak:
-'''
+# He Heat Leak: Notable difference comes from pumping speed, physical volume, and design density
+def calculate_He_heat_leak(pumping_speed_theoretical, pumping_cavity_termination, turbopump_speed, cavity_temperature, design_density, volume, wall_activity):
+    He_velocity = calculate_average_velocity(cavity_temperature)
+    # C266 - [atoms/s] Not including flow for He heat leak itself
+    He_production_rate = wall_activity * Ci_Bq
+    # C269 - [m^-3] Number density of Helium
+    He_density = He_production_rate * (1 / pumping_speed_theoretical + 1 / pumping_cavity_termination + 1 / turbopump_speed)
+    # C272 - [s] Time constant for loss due to He-3 heat leak
+    time_constant_He = 1 / (He_density * He_velocity * H_He_crosssection)
+    # C273 - [s^-1] T atom current required to keep up with 3He heat leak
+    T_current_He_heat = calculate_inventory(design_density, volume) / time_constant_He
+    return time_constant_He, T_current_He_heat
 
+# Aperture Heat Leak:
+def calculate_aperture_heat_leak(trapped_gas_temp, design_density, volume):
+    global area_loading_aperture
+    # C108 - [m^2] Choose an area. (determines injection speed and density.)
+    area_loading_aperture = 0.001*m**2
+    # C250 - [m/s] average velocity of trapped gas
+    trapped_gas_velocity = calculate_average_velocity(trapped_gas_temp)
+    # C251 - [atom/s] inward atom current required through aperture to balance losses (j_aperture)
+    current_aperture = area_loading_aperture * design_density * trapped_gas_velocity / 4
+    # C252 - [s] Time constant for loss through aperture
+    time_constant_aperture = calculate_inventory(design_density, volume) / current_aperture
+    return time_constant_aperture, current_aperture
+
+# Radioactivity Heat Leak:
+def calculate_rad_heat_leak(cavity_radius, number_density, cavity_L_over_D, design_density, volume, net_efficiency):
+    # C256 [s] Input from Ben Clark's thesis with a mirror ratio of 0.5
+    half_life = 11 * 24 * 3600 * s
+    trap_wall_area = calculate_trap_wall_area(cavity_radius, cavity_L_over_D)
+    trap_activity = calculate_activity_in_trap(number_density, cavity_radius)
+    # C257 - [atoms/s] Atom current required to balance loss due to radioactivity
+    current_rad = trap_activity * np.log(2) * tritium_livetime / (net_efficiency * half_life)
+    # C258 - [s] Time constant for loss due to radioactivty (tau_rad)
+    time_constant_rad = calculate_inventory(design_density, volume) / current_rad
+    return time_constant_rad, current_rad
+
+# T2 Desoprtion from the wall
+def calculate_T2_desorption_from_wall(cavity_radius, cavity_L_over_D, wall_activity, design_density, volume):
+    trap_wall_area = calculate_trap_wall_area(cavity_radius, cavity_L_over_D)
+    # C261 - [s] mean lifetime of atom in trap from desorption
+    time_constant_desorp = trap_wall_area / (2 * molecules_desorbed_wall_beta * wall_activity * Ci_Bq * H_H2_crosssection)
+    # C262 - [atoms/s] current required to keep up
+    current_desorp = calculate_inventory(design_density, volume) / time_constant_desorp
+    return time_constant_desorp, current_desorp
+
+# Evaporation
+
+
+# Dipolar
+def calculate_dipolar_loss(nominal_field, cavity_radius, design_density, volume, trapped_gas_temp, cavity_L_over_D, pure_magnetic_flag):
+    # C089
+    top_of_cone = 0.60*m
+    # C092
+    top_plate_cavity = 5.30*m
+    # C201
+    gravity_temperature_scale = ((tritium_mass_atomic/c0**2 * gravity / (kB * trapped_gas_temp)) * np.absolute(pure_magnetic_flag * (1 + 1 / cavity_L_over_D) - 1))
+    # C202 surface_density_scale = 8.024e17/m**2
+    surface_density_scale = design_density * top_plate_cavity / (1 - np.exp(-gravity_temperature_scale * top_plate_cavity))
+    # C298 - [m^3/s] Dipolar spin-flip rate (G_dd). Depends on field (Lagendijk et al). Polynomial-log fit used now.
+    dipolar_spin_flip_rate = (60.106 + 13.812 * np.log(nominal_field) - 4.7867 * np.log(nominal_field)**2 - 2.3192 * np.log(nominal_field)**3 \
+                             - 0.32663 * np.log(nominal_field)**4 - 0.015775 * np.log(nominal_field)**5) * 1e-22 * LGd_rates * m**3/s
+    # C299 - [atoms/s] Flow to keep up with dipolar losses
+    current_dipolar = dipolar_spin_flip_rate * np.pi * cavity_radius**2 * surface_density_scale**2 * (gravity_temperature_scale * (np.exp(-gravity_temperature_scale * top_of_cone) \
+                      - np.exp(-gravity_temperature_scale * top_plate_cavity)) / 2 + (1 - np.exp(-2 * gravity_temperature_scale * top_of_cone) * (2 * gravity_temperature_scale**2  \
+                      * top_of_cone**2 + 2 * gravity_temperature_scale * top_of_cone + 1)) / (4 * top_of_cone**2 * gravity_temperature_scale))
+    # C300 - Time constant for loss due to dipolar spin-flip loss
+    time_constant_dipolar = calculate_inventory(design_density, volume) / current_dipolar
+    return time_constant_dipolar, current_dipolar
+
+# T2 Heat Leak:
+#def calculate_T2_heat_leak(trapped_gas_temp, design_density, volume):
+    # C277 - [atoms/s] T2 production rate (all atoms entering, except for T2 heat leak itself)
+    #T2_production_rate = 
 ''' # C328 - made into config file instead
 #def turbopumping_speed_required(atom_current, molecular_density):
 #    return atom_current / 2 / molecular_density
 '''
 
-# Turbopump Calculations:
-# [m^3/s] - The mean speed of the cylinder connected to a perfect pump (Dushman). Uniform source, outputs mean density in cavity. Cannot exceed (obstruction not included).
-# Need to convert tritium mass amu to eV : 1 amu ~ 931 MeV/c^2 and kB = 8.6E-05 eV/K. Multiply by sqrt(2) if atomic; # Useful for Atomic and Helium-3
+# Turbopump Calculations: Need to convert tritium mass amu to eV : 1 amu ~ 931 MeV/c^2 and kB = 8.6E-05 eV/K. Multiply by sqrt(2) if atomic; # Useful for Atomic and Helium-3
+# C233/C236 - [m^3/s] (molecular/atomic) theoretical pumping speed. The mean speed of the cylinder connected to a perfect pump (Dushman). Uniform source, outputs mean density in cavity. Cannot exceed (obstruction not included).
 def turbopumping_speed_limit(cavity_radius, cavity_temperature, cavity_L_over_D):
     return (np.pi * cavity_radius**2 * c0 * np.sqrt((8.6*10**-5 * eV / K) * cavity_temperature  / (4 * np.pi * tritium_mass_atomic)) / (0.5 + cavity_L_over_D / 8))
-
+# C239 - [m^3/s] Turbopump in series speed (2.5 m^3/s * 2)
 def turbopump_speed(number_turbos, turbopumping_speed_gas):
     return number_turbos * turbopumping_speed_gas
-
-# [m^3/s] - Assumed ambient room air (28-29 amu) temperature (293 K,  and a pumping speed of 0.5 L/s
+# C235/C238 - [m^3/s] (molecular/atomic) Assumed ambient room air (28-29 amu) temperature (293 K,  and a pumping speed of 0.5 L/s
 def cavity_termination_speed(turbopumping_speed_air, cavity_top_plate_temp):
     return (turbopumping_speed_air * np.sqrt(cavity_top_plate_temp * 28 * amu * c0**2 / (293 * K * 2 * tritium_mass_atomic)))
-
+# C331 - If above 1000, critical
 def ratio_required_theoretical_turbopumping_speed(pumping_speed_required, pumping_speed_limit, cavity_termination_speed,  turbopump_speed):
     return pumping_speed_required * ((1 / pumping_speed_limit) + (1 / cavity_termination_speed) + (1 / turbopump_speed))
-
+'''
 # Atom Supply into Trap:
 # Total current is atom current (d state only) + He heat leak + T2 heat leak
 #def total_current():
@@ -103,7 +183,7 @@ def ratio_required_theoretical_turbopumping_speed(pumping_speed_required, pumpin
 # Molecular density allowed by molecular/atomic assuming total atom density in all of physical volume
 def molecular_density_allowed(atom_density=1.5*10**17/m**3, max_ratio_nM_nA = 10**-4, GS_atomic_branch = 7.02*10**-1):
     return atom_density * max_ratio_nM_nA * GS_atomic_branch / 2
-
+'''
 
 
 
@@ -977,6 +1057,13 @@ class CavitySensitivity(Sensitivity):
             logger.info("Efficiency from axial frequency cut: {}".format(self.fa_cut_efficiency))
             logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
 
+    def print_T2_background_atomic_trap(self):
+        #logger.info("T2 background: {}".format(self.Efficiency.T2_background_atomic_trap))
+        if self.Efficiency.T2_background_atomic_trap:
+            T2_total_density, T2_T_ratio = calculate_T2_background_atomic_trap(self.cavity_radius, self.FrequencyExtraction.cavity_temperature, self.Experiment.cavity_L_over_D, self.Efficiency.max_ratio_T2_T, self.Experiment.number_density, self.Efficiency.wall_activity)
+            logger.info("T2_total_density: {} m^-3".format(T2_total_density*m**3))
+            logger.info("Ratio T2/T: {}".format(T2_T_ratio))
+
     def print_pumping_requirements(self):
         #logger.info("Pumping Calculation: {}".format(self.Efficiency.pumping_calculation))
         if self.Efficiency.pumping_calculation:
@@ -992,14 +1079,28 @@ class CavitySensitivity(Sensitivity):
                 logger.info("Cavity Termination Speed (Molecular): {} m^3/s".format(self.cavity_termination_speed * s / m**3))
             self.ratio_required_theoretical_turbopumping_speed = ratio_required_theoretical_turbopumping_speed(self.Efficiency.pumping_speed_required, self.turbopumping_speed_limit, self.cavity_termination_speed, self.turbopump_speed)
             logger.info("Ratio of Turbopump Speed Limit: {}".format(self.ratio_required_theoretical_turbopumping_speed))
-
-    def print_T2_background_atomic_trap(self):
-        #logger.info("T2 background: {}".format(self.Efficiency.T2_background_atomic_trap))
-        if self.Efficiency.T2_background_atomic_trap:
-            T2_total_density, T2_T_ratio = calculate_T2_background_atomic_trap(self.cavity_radius, self.FrequencyExtraction.cavity_temperature, self.Experiment.cavity_L_over_D, self.Efficiency.max_ratio_T2_T, self.Experiment.number_density)
-            logger.info("T2_total_density: {} m^-3".format(T2_total_density*m**3))
-            logger.info("Ratio T2/T: {}".format(T2_T_ratio))
-
+            if self.Efficiency.He_heat_leak:
+                self.time_constant_He, self.T_current_He_heat = calculate_He_heat_leak(self.turbopumping_speed_limit,  self.cavity_termination_speed, self.turbopump_speed,  self.FrequencyExtraction.cavity_temperature, self.Experiment.design_density, self.total_cavity_volume, self.Efficiency.wall_activity)
+                #self.time_constant_He, self.T_current_He_heat = calculate_He_heat_leak(9.68*m**3/s,  0.78*m**3/s, 5*m**3/s, self.FrequencyExtraction.cavity_temperature, 1.5e17*m**-3, 1.645*m**3, self.Efficiency.wall_activity)
+                logger.info("He Time Constant: {} s".format(self.time_constant_He/s))
+                logger.info("T atom current required to keep up with He-3 leak: {} atoms/s".format(self.T_current_He_heat*s))
+            if self.Efficiency.T2_heat_leak:
+                self.time_constant_aperture, self.current_aperture = calculate_aperture_heat_leak(self.DopplerBroadening.gas_temperature, self.Experiment.design_density, self.total_cavity_volume)
+                logger.info("Aperture Time Constant: {} s".format(self.time_constant_aperture/s))
+                logger.info("Current through aperture leak: {} atoms/s".format(self.current_aperture*s))
+                self.time_constant_rad, self.current_rad = calculate_rad_heat_leak(self.cavity_radius, self.Experiment.number_density, self.Experiment.cavity_L_over_D, self.Experiment.design_density, self.total_cavity_volume, self.Efficiency.net_rad_efficiency)
+                logger.info("Radiation Time Constant: {} s".format(self.time_constant_rad/s))
+                logger.info("Current through radiation leak: {} atoms/s".format(self.current_rad*s))
+                self.time_constant_desorp, self.current_desorp = calculate_T2_desorption_from_wall(self.cavity_radius, self.Experiment.cavity_L_over_D, self.Efficiency.wall_activity, self.Experiment.design_density, self.total_cavity_volume)
+                logger.info("Desorption Time Constant: {} s".format(self.time_constant_desorp/s))
+                logger.info("Current through desorption: {} atoms/s".format(self.current_desorp*s))
+                self.time_constant_dipolar, self.current_dipolar = calculate_dipolar_loss(self.MagneticField.nominal_field/T, self.cavity_radius, self.Experiment.design_density, self.total_cavity_volume, self.DopplerBroadening.gas_temperature, self.Experiment.cavity_L_over_D, self.Experiment.pure_magnetic_flag)
+                if not self.Experiment.pure_magnetic_flag:
+                    logger.info("***Magnetogravitional Trap***") # 0 is false in python
+                else:
+                    logger.info("***Magnetic Trap***")
+                logger.info("Dipolar Time Constant: {} s".format(self.time_constant_dipolar/s))
+                logger.info("Current Dipolar: {} atoms/s".format(self.current_dipolar*s))
 
 """ # Cramer-Rao lower bound / how much worse are we than the lower bound
 ScalingFactorCRLB = self.FrequencyExtraction.CRLB_scaling_factor
