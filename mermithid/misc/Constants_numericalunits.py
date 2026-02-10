@@ -33,6 +33,21 @@ ground_state_width_uncertainty = 0.001*0.436*eV
 
 gyro_mag_ratio_proton = 42.577*MHz/T
 
+# Atomic Calculator
+# C008 - [m^3] Volume of 1mol of ideal gas at 1atm. Higher pressure --> smaller volume; higher temp --> lower volume
+molar_volume = 2.24*10**-2*m**3
+# C009 - [m^2] H-He Cross-section at low temp but > 5K (Berlinsky)
+H_He_cross_section = 2e-19 * m**2
+# C012 - [m^2] Hard Spheres cross-section (289 pm kinetic diameter
+H_H2_cross_section = 2.62e-19*m**2
+# C049 - per beta decay
+molecules_desorbed_wall_beta = 1000
+# C028 - 1 Ci = 3.7e10 Bq
+Ci_Bq = 3.7*10**10
+# C036 - [eV] Bodine
+atomic_tritium_recoil_energy = 3.409*eV
+
+
 # units that do not show up in numericalunits
 # missing pre-factors
 fW = W*1e-15
