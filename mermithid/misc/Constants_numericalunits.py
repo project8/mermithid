@@ -14,11 +14,10 @@ from numericalunits import C, A, mA, uA, V, mV, nV, kV                          
 from numericalunits import Pa, bar, mbar, atm, torr, mtorr, L, mL               # Pressure, Volume
 
 T0 = -273.15*K
-gravity = 9.80 * m/s**2
 tritium_livetime = 5.605e8*s
 tritium_mass_atomic = 3.016* amu *c0**2
 tritium_electron_crosssection_atomic = 9.e-23*m**2 #Inelastic cross-section Hamish extrapolated to 18.6keV using Shah et al. (1987): https://iopscience.iop.org/article/10.1088/0022-3700/20/14/022. Full Bethe formula must be exactly right (down to magnetic and QED corrections) for the hydrogen atom.
-#tritium_electron_crosssection_atomic = 1.32e-22*m**2 #Inelastic cross-section + Elastic cross-section for T
+#tritium_electron_crosssection_atomic = 1.32e-22*m**2 #Inelastic cross-section + Elastic cross-section for T-e
 tritium_tritium_crosssection_atomic = 4.40e-16*m**2 # T-T cross-section at T=0
 tritium_endpoint_atomic = 18563.251*eV
 last_1ev_fraction_atomic = 2.067914e-13/eV**3
@@ -35,19 +34,42 @@ gyro_mag_ratio_proton = 42.577*MHz/T
 
 # Atomic Calculator
 # C008 - [m^3] Volume of 1mol of ideal gas at 1atm. Higher pressure --> smaller volume; higher temp --> lower volume
-molar_volume = 2.24*10**-2*m**3
+molar_volume = 2.24*e-2*m**3
 # C009 - [m^2] H-He Cross-section at low temp but > 5K (Berlinsky)
-H_He_crosssection = 2e-19 * m**2
+H_He_crosssection = 2e-19*m**2
+# C010 - [m^2] H-He Cross-section at low temps (Berlinsky)
+H_He_crosssection_low_temp = 3e-20*m**2
 # C012 - [m^2] Hard Spheres cross-section (289 pm kinetic diameter
 H_H2_crosssection = 2.62e-19*m**2
-# C049 - per beta decay
-molecules_desorbed_wall_beta = 1000
+# C21 - Boltzmann Constant [eV/K] = kB * (1 eV / 1.61e-19 J)
+kB_eV = 8.6e-5 * eV/K
+# C027 - [eV/T] Bohr Magneton
+bohr_magneton = 5.78e-5*eV/T
 # C028 - 1 Ci = 3.7e10 Bq
-Ci_Bq = 3.7*10**10
-# C036 - [eV] Bodine
+Ci_Bq = 3.7e10
+# C031 - Ground state branch (atomic)
+ground_state_branch_atomic = 0.702
+# C032 - Ground state branch (molecular)
+ground_state_branch_atomic = 0.570
+# C036 - [eV] Recoil energy of tritium atom (Bodine)
 atomic_tritium_recoil_energy = 3.409*eV
+# C038 - [eV] Binding energy of tritium molecule (Bodine)
+molecular_tritium_binding_energy = 4.59*eV
+# C039 - [eV] Molecular final-state g.s. manifold standard deviation
+molecular_final_state_manifold = 0.436*eV
+# C40 - Constant for saturated T2 vapor: A,  Souers et al.
+T2_vapor_A = 5.84605
+# C41 - Constant for saturated T2 vapor: B
+T2_vapor_B = -160.7
+# C42 - Constant for saturated T2 vapor: B'
+T2_vapor_B_prime = 2.3235
+# C043 - [m/s^2] gravitational constant
+gravity = 9.80 *m/s**2
 # C048 - Multiplier for Lagendijk G^d rates: Ben Jones, Morgan Elliott CM presentation 10/24
 LGd_rates = 50
+# C049 - per beta decay: see: https://www.overleaf.com/2817746228snnghrnzfthk
+molecules_desorbed_wall_beta = 1000
+
 # units that do not show up in numericalunits
 # missing pre-factors
 fW = W*1e-15
