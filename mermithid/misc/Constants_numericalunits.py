@@ -41,8 +41,12 @@ H_He_crosssection = 2e-19*m**2
 H_He_crosssection_low_temp = 3e-20*m**2
 # C012 - [m^2] Hard Spheres cross-section (289 pm kinetic diameter
 H_H2_crosssection = 2.62e-19*m**2
-# C21 - Boltzmann Constant [eV/K] = kB * (1 eV / 1.61e-19 J)
-kB_eV = 8.6e-5 * eV/K
+# C019 - [eV/amu] Conversion
+eV_amu = 931494100*eV/amu
+# C020 - [kg/amu] Conversion
+kg_amu = 1.66e-27*kg/amu
+# C021 - Boltzmann Constant [eV/K] = kB * (1 eV / 1.61e-19 J)
+kB_eV = 8.6e-5*eV/K
 # C027 - [eV/T] Bohr Magneton
 bohr_magneton = 5.78e-5*eV/T
 # C028 - 1 Ci = 3.7e10 Bq
@@ -57,11 +61,11 @@ atomic_tritium_recoil_energy = 3.409*eV
 molecular_tritium_binding_energy = 4.59*eV
 # C039 - [eV] Molecular final-state g.s. manifold standard deviation
 molecular_final_state_manifold = 0.436*eV
-# C40 - Constant for saturated T2 vapor: A,  Souers et al.
+# C040 - Constant for saturated T2 vapor: A,  Souers et al.
 T2_vapor_A = 5.84605
-# C41 - Constant for saturated T2 vapor: B
+# C041 - Constant for saturated T2 vapor: B
 T2_vapor_B = -160.7
-# C42 - Constant for saturated T2 vapor: B'
+# C042 - Constant for saturated T2 vapor: B'
 T2_vapor_B_prime = 2.3235
 # C043 - [m/s^2] gravitational constant
 gravity = 9.80 *m/s**2
