@@ -27,7 +27,7 @@ except:
 
 # Jins functions - Atomic Calculator
 # Python decides whether a name is local or global at compile time (not runtime). The name must already exist in the module’s global namespace by the time the function runs, or Python has nowhere to bind it.
-area_loading_aperture, gravity_temperature_scale, surface_density_scale = (None, None, None)
+area_loading_aperture, gravity_temperature_scale, surface_density_scale, top_plate_cavity = (None, None, None, None)
 
 # C157 - [m] Fiducial distance from the cavity wall between max(ioffe_bite, larmor_radius)
 def ioffe_bite(nominal_field, magnetic_inhomogenity, ioffe_field, ioffe_multipolarity, cavity_radius):
@@ -38,7 +38,7 @@ def calculate_average_velocity(temp):
     return average_velocity
 
 # (Cavity length is cavity top plate - top of cone / 2)
-# C334 - [m^2] Cylinder wall; no endcaps included
+# C334 - [m^2] Cylinder wall; no endcaps included (2*pi*R*L)
 def calculate_trap_wall_area(cavity_radius, cavity_L_over_D):
     trap_wall_area = 2 * np.pi * (2 * cavity_radius**2) * cavity_L_over_D
     return trap_wall_area
@@ -124,7 +124,7 @@ def calculate_T2_desorption_from_wall(cavity_radius, cavity_L_over_D, wall_activ
 
 # Dipolar loss rate - Calculation with z-dependent density, cylinder & cone.
 def calculate_dipolar_loss(nominal_field, cavity_radius, design_density, volume, trapped_gas_temp, cavity_L_over_D, pure_magnetic_flag):
-    global gravity_temperature_scale, surface_density_scale
+    global top_plate_cavity, gravity_temperature_scale, surface_density_scale
     # C089 - [m]
     top_of_cone = 0.60*m
     # C092 - [m]
@@ -133,7 +133,7 @@ def calculate_dipolar_loss(nominal_field, cavity_radius, design_density, volume,
     gravity_temperature_scale = ((tritium_mass_atomic/c0**2 * gravity / (kB * trapped_gas_temp)) * np.absolute(pure_magnetic_flag * (1 + 1 / cavity_L_over_D) - 1))
     # C202 - [m^-2]
     surface_density_scale = design_density * top_plate_cavity / (1 - np.exp(-gravity_temperature_scale * top_plate_cavity))
-    # C298 - [m^3/s] Dipolar spin-flip rate (G_dd). Depends on field (Lagendijk et al). Polynomial-log fit used now.
+    # C298 - [m^3/s] Polynomial fit for Dipolar spin-flip rate (G_dd). Depends on field (Lagendijk et al). Polynomial-log fit used now.
     dipolar_spin_flip_rate = (60.106 + 13.812 * np.log(nominal_field) - 4.7867 * np.log(nominal_field)**2 - 2.3192 * np.log(nominal_field)**3 \
                              - 0.32663 * np.log(nominal_field)**4 - 0.015775 * np.log(nominal_field)**5) * 1e-22 * LGd_rates * m**3/s
     # C299 - [atoms/s] Flow to keep up with dipolar losses
@@ -145,16 +145,22 @@ def calculate_dipolar_loss(nominal_field, cavity_radius, design_density, volume,
     return time_constant_dipolar, current_dipolar
 
 # Evaporation loss rate - does not take into account density of states with height. Magnetic potential limits evaporation.
-def calculate_evaporation_loss(pure_magnetic_flag, trapped_gas_temp, cavity_length, ioffe_field, nominal_field):
+def calculate_evaporation_loss(pure_magnetic_flag, trapped_gas_temp, cavity_L_over_D, cavity_radius, ioffe_field, nominal_field):
     # C283 - [m] Mean free path at the base of cavity
     mfp_cavity_base = 1 / (gravity_temperature_scale * surface_density_scale * tritium_tritium_crosssection_atomic)
     if not pure_magnetic_flag:
         # C285 - Magnetogravitational eta
-        eta = (tritium_mass_atomic/c0**2) * kg_amu * gravity * cavity_length / (kB * trapped_gas_temp)
+        eta = (tritium_mass_atomic/c0**2) * kg_amu * gravity * (cavity_L_over_D * cavity_radius * 2) / (kB * trapped_gas_temp)
+        # C286 - [s^-1] Evaporation out the top; set to 1/1000 for pure magnetic trap
+        evaporation_out_top = (np.log(1 + np.log(2) * np.exp(gravity_temperature_scale * top_plate_cavity) / (surface_density_scale * tritium_tritium_crosssection_atomic)) \
+        * surface_density_scale * np.exp(-gravity_temperature_scale * top_plate_cavity) * np.sqrt(np.pi * kB * trapped_gas_temp / (2 * tritium_mass_atomic / c0**2)) * cavity_radius**2) \
+        * np.absolute(pure_magnetic_flag * (1 + 0.001) -1)
+        #time_constant_evaporation = 
     else:
         # C284 - Pure Magnetic eta
         eta = bohr_magneton * (np.sqrt(ioffe_field**2 + nominal_field**2) - nominal_field) / (trapped_gas_temp * 0.025*eV / np.absolute(T0))
-    return eta
+        evaporation_out_top = 1/1000
+    return eta, evaporation_out_top
 
 # T2 Heat Leak:
 #def calculate_T2_heat_leak(trapped_gas_temp, design_density, volume):
@@ -1117,8 +1123,9 @@ class CavitySensitivity(Sensitivity):
                 self.time_constant_dipolar, self.current_dipolar = calculate_dipolar_loss(self.MagneticField.nominal_field/T, self.cavity_radius, self.Experiment.design_density, self.total_cavity_volume, self.DopplerBroadening.gas_temperature, self.Experiment.cavity_L_over_D, self.Experiment.pure_magnetic_flag)
                 logger.info("Dipolar Time Constant: {} s".format(self.time_constant_dipolar/s))
                 logger.info("Atom current required for dipolar loss: {} atoms/s".format(self.current_dipolar*s))
-                self.eta = calculate_evaporation_loss(self.Experiment.pure_magnetic_flag, self.DopplerBroadening.gas_temperature, self.cavity_radius*2*self.Experiment.cavity_L_over_D, self.MagneticField.ioffe_field, self.MagneticField.nominal_field)
+                self.eta, self.evaporation_top = calculate_evaporation_loss(self.Experiment.pure_magnetic_flag, self.DopplerBroadening.gas_temperature, self.Experiment.cavity_L_over_D, self.cavity_radius, self.MagneticField.ioffe_field, self.MagneticField.nominal_field)
                 logger.info("eta: {} ".format(self.eta))
+                logger.info("evaporation : {} m/s".format(self.evaporation_top*s/m))
 
 
 """ # Cramer-Rao lower bound / how much worse are we than the lower bound
