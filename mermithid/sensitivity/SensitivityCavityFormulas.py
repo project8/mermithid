@@ -27,10 +27,10 @@ except:
 
 # Jins functions - Atomic Calculator
 # Python decides whether a name is local or global at compile time (not runtime). The name must already exist in the module’s global namespace by the time the function runs, or Python has nowhere to bind it.
-area_loading_aperture, gravity_temperature_scale, surface_density_scale, top_plate_cavity, top_cone = (None, None, None, None, None)
+area_loading_aperture, gravity_temperature_scale, surface_density_scale = (None, None, None)
 
 # C157 - [m] Fiducial distance from the cavity wall between max(ioffe_bite, larmor_radius)
-def ioffe_bite(nominal_field, magnetic_inhomogenity, ioffe_field, ioffe_multipolarity, cavity_radius):
+def calculate_ioffe_bite(nominal_field, magnetic_inhomogenity, ioffe_field, ioffe_multipolarity, cavity_radius):
     return ((2 * nominal_field**2 * magnetic_inhomogenity / (2 * nominal_field**2 * magnetic_inhomogenity + ioffe_field**2))**(1/(ioffe_multipolarity-2)) * cavity_radius * -1) + cavity_radius
 
 # C271 - [m/s] Atomic thermal speed of 3T or 3He (C270)
@@ -39,9 +39,9 @@ def calculate_average_velocity(temp):
     return average_velocity
 
 # C334 - [m^2] Cylinder wall; no endcaps included (2*pi*R*L)
-def calculate_trap_wall_area(cavity_radius, cavity_L_over_D):
+def calculate_trap_wall_area(cavity_radius, cavity_length):
     # (Cavity length is cavity top plate - top of cone / 2)
-    trap_wall_area = 2 * np.pi * (2 * cavity_radius**2) * cavity_L_over_D
+    trap_wall_area = 2 * np.pi * cavity_radius * cavity_length
     return trap_wall_area
 
 # C204 - [atoms] Inventory in physical volume
@@ -59,8 +59,8 @@ def calculate_activity_in_trap(number_density, cavity_radius):
     return atoms_between_trap_coils / tritium_livetime
 
 # Background T2 in atomic trap:
-def calculate_T2_background_atomic_trap(cavity_radius, cavity_wall_temp, cavity_L_over_D, max_ratio_T2_T, number_density, wall_activity):
-    trap_wall_area = calculate_trap_wall_area(cavity_radius, cavity_L_over_D)
+def calculate_T2_background_atomic_trap(cavity_radius, cavity_length, cavity_wall_temp, max_ratio_T2_T, number_density, wall_activity):
+    trap_wall_area = calculate_trap_wall_area(cavity_radius, cavity_length)
     # C306 - [mbar] Vapor Pressure of T2 w/ constants for saturated T2 vapor from Souers et al.
     T2_vapor_pressure = mbar * np.exp(T2_vapor_A + (T2_vapor_B*K/cavity_wall_temp) + T2_vapor_B_prime * np.log(cavity_wall_temp/K)) / 0.76
     # C307 - [m^-3] Density of saturated vapor
@@ -101,10 +101,10 @@ def calculate_aperture_heat_leak(trapped_gas_temp, design_density, volume):
     return time_constant_aperture, current_aperture
 
 # Radioactivity Heat Leak:
-def calculate_rad_heat_leak(cavity_radius, number_density, cavity_L_over_D, design_density, volume, net_efficiency):
+def calculate_rad_heat_leak(cavity_radius, cavity_length, number_density, design_density, volume, net_efficiency):
     # C256 - [s] Input from Ben Clark's thesis with a mirror ratio of 0.5
     half_life = 11 * 24 * 3600 * s
-    trap_wall_area = calculate_trap_wall_area(cavity_radius, cavity_L_over_D)
+    trap_wall_area = calculate_trap_wall_area(cavity_radius, cavity_length)
     trap_activity = calculate_activity_in_trap(number_density, cavity_radius)
     # C257 - [atoms/s] Atom current required to balance loss due to radioactivity
     current_rad_leak = trap_activity * np.log(2) * tritium_livetime / (net_efficiency * half_life)
@@ -113,8 +113,8 @@ def calculate_rad_heat_leak(cavity_radius, number_density, cavity_L_over_D, desi
     return time_constant_rad, current_rad_leak
 
 # T2 Desorption from the wall:
-def calculate_T2_desorption_from_wall(cavity_radius, cavity_L_over_D, wall_activity, design_density, volume):
-    trap_wall_area = calculate_trap_wall_area(cavity_radius, cavity_L_over_D)
+def calculate_T2_desorption_from_wall(cavity_radius, cavity_length,  wall_activity, design_density, volume):
+    trap_wall_area = calculate_trap_wall_area(cavity_radius, cavity_length)
     # C261 - [s] Mean lifetime of atom in trap from desorption
     time_constant_desorp = trap_wall_area / (2 * molecules_desorbed_wall_beta * wall_activity * Ci_Bq * H_H2_crosssection)
     # C262 - [atoms/s] Atom current required to keep up with desorption losses
@@ -122,12 +122,8 @@ def calculate_T2_desorption_from_wall(cavity_radius, cavity_L_over_D, wall_activ
     return time_constant_desorp, current_desorp
 
 # Dipolar loss rate: Calculation with z-dependent density, cylinder & cone.
-def calculate_dipolar_loss(nominal_field, cavity_radius, design_density, volume, trapped_gas_temp, cavity_L_over_D, pure_magnetic_flag):
-    global top_cone, top_plate_cavity, gravity_temperature_scale, surface_density_scale
-    # C089 - [m]
-    top_cone = 0.60*m
-    # C092 - [m]
-    top_plate_cavity = 5.30*m
+def calculate_dipolar_loss(nominal_field, cavity_radius, design_density, volume, trapped_gas_temp, cavity_L_over_D, top_cone, top_plate_cavity, pure_magnetic_flag):
+    global gravity_temperature_scale, surface_density_scale
     # C201 - [m^-1]
     gravity_temperature_scale = ((tritium_mass_atomic/c0**2 * gravity / (kB * trapped_gas_temp)) * np.absolute(pure_magnetic_flag * (1 + 1 / cavity_L_over_D) - 1))
     # C202 - [m^-2]
@@ -144,21 +140,21 @@ def calculate_dipolar_loss(nominal_field, cavity_radius, design_density, volume,
     return time_constant_dipolar, current_dipolar
 
 # Evaporation loss rate:  does not take into account density of states with height. Magnetic potential limits evaporation.
-def calculate_evaporation_loss(pure_magnetic_flag, trapped_gas_temp, cavity_L_over_D, cavity_radius, ioffe_field, nominal_field, design_density, relative_loss_rate_cone_wall, volume):
+def calculate_evaporation_loss(pure_magnetic_flag, trapped_gas_temp, cavity_radius, ioffe_field, nominal_field, cavity_length, top_cone, top_plate_cavity, design_density, relative_loss_rate_cone_wall, volume):
     # C283 - [m] Mean free path at the base of cavity
     mfp_cavity_base = 1 / (gravity_temperature_scale * surface_density_scale * tritium_tritium_crosssection_atomic)
     # C284 - Pure Magnetic eta
     eta = bohr_magneton * (np.sqrt(ioffe_field**2 + nominal_field**2) - nominal_field) / (trapped_gas_temp * 0.025*eV / np.absolute(T0))
     # C285 - Magnetogravitational eta
-    eta_grav = (tritium_mass_atomic/c0**2) * kg_amu * gravity * (cavity_L_over_D * cavity_radius * 2) / (kB * trapped_gas_temp)
+    eta_grav = (tritium_mass_atomic/c0**2) * kg_amu * gravity * cavity_length / (kB * trapped_gas_temp)
     # C286 - [s^-1] Evaporation out the top; set to 1/1000 for pure magnetic trap
     evaporation_top = (np.log(1 + np.log(2) * np.exp(gravity_temperature_scale * top_plate_cavity) / (surface_density_scale * tritium_tritium_crosssection_atomic)) \
-    * surface_density_scale * np.exp(-gravity_temperature_scale * top_plate_cavity) * np.sqrt(np.pi * kB * trapped_gas_temp / (2 * tritium_mass_atomic / c0**2)) * cavity_radius**2) \
+    * surface_density_scale * gravity_temperature_scale * np.exp(-gravity_temperature_scale * top_plate_cavity) * np.sqrt(np.pi * kB * trapped_gas_temp / (2 * tritium_mass_atomic / c0**2)) * cavity_radius**2) \
     * np.absolute(pure_magnetic_flag * (1 + 0.001) -1)
-    # C287 - [s/m????] Time constant for evaporation out of the top SKIP FOR NOW
-    #time_constant_evap_top = 
+    # C287 - [s] Time constant for evaporation out of the top
+    time_constant_evap_top = calculate_inventory(design_density, volume) / evaporation_top
     # C288 - [s^-1] Evaporation to the sides
-    evaporation_sides = (2 * np.pi * cavity_radius * (2 * cavity_radius * cavity_L_over_D) * design_density * np.sqrt(kB * trapped_gas_temp / (2 * np.pi * tritium_mass_atomic / c0**2)) \
+    evaporation_sides = (2 * np.pi * cavity_radius * cavity_length * design_density * np.sqrt(kB * trapped_gas_temp / (2 * np.pi * tritium_mass_atomic / c0**2)) \
     * np.exp(-eta) * top_plate_cavity * (np.exp(-gravity_temperature_scale * top_cone) - np.exp(-gravity_temperature_scale * top_plate_cavity)) \
     / ((1 - np.exp(-gravity_temperature_scale * top_plate_cavity)) * (top_plate_cavity - top_cone)))
     # C289 [Bq - Decay/s] - Accumulated activity in the sides by end of cycle
@@ -172,7 +168,7 @@ def calculate_evaporation_loss(pure_magnetic_flag, trapped_gas_temp, cavity_L_ov
     # C292 - [s] Time constant for evaporation loss of cone and sides
     time_constant_evap_cone_sides = calculate_inventory(design_density, volume) / (evaporation_cone + evaporation_sides)
     # C295 - [atom/s] Flow to keep up with evaporation losses aka Total evaporation_sum
-    current_evaporation = (evaporation_top/m) + evaporation_sides + evaporation_cone
+    current_evaporation = evaporation_top + evaporation_sides + evaporation_cone
     # C294 - [s] Time constant for total evaporation loss
     time_constant_total_evaporation = calculate_inventory(design_density, volume) / current_evaporation
     return time_constant_total_evaporation, current_evaporation
@@ -453,15 +449,24 @@ class CavitySensitivity(Sensitivity):
         self.Jprime_0 = 3.8317
         self.cavity_freq = frequency(self.T_endpoint, self.MagneticField.nominal_field)
         self.CavityRadius()
+        self.trap_geometry()
+        self.CavityLength()
         
         #Get trap length from cavity length if not specified
         if ((not hasattr(self.Experiment, 'trap_length')) or overwrite):
             self.Experiment.trap_length = 0.8 * 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
             logger.info("Calc'd trap length: {} m".format(round(self.Experiment.trap_length/m, 3), 2))
+        elif self.Experiment.trap_length_calc_flag:
+            self.Experiment.trap_length = self.trap_coil_2 - self.trap_coil_1
+            logger.info("Calc'd trap length: {} m".format(round(self.Experiment.trap_length/m, 3), 2))
 
         self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
         self.CavityVolume()
         self.CavityPower()
+
+        # C128 - Calculate Cavity L/D Ratio
+        if ((hasattr(self.Experiment, 'cavity_L_over_D')) and self.Experiment.cavity_L_over_D_calc_flag):
+            self.Experiment.cavity_L_over_D = self.cavity_length / (self.cavity_radius * 2)
 
         #Calculate position dependent trapping efficiency
         self.pos_dependent_trapping_efficiency = trapping_efficiency( z_range = self.Experiment.trap_length /2,
@@ -479,9 +484,9 @@ class CavitySensitivity(Sensitivity):
 
         #Ioffe bite used in radial efficiency and effective volume calculation
         self.unusable_dist_from_wall = self.Efficiency.unusable_dist_from_wall
-        if self.Efficiency.calculate_ioffe_bite and all(hasattr(self.MagneticField, attr) for attr in ("nominal_field", "magnetic_inhomogenity", "ioffe_field", "ioffe_multipolarity")):
-            self.unusable_dist_from_wall = ioffe_bite(self.MagneticField.nominal_field, self.MagneticField.magnetic_inhomogenity, self.MagneticField.ioffe_field, self.MagneticField.ioffe_multipolarity, self.cavity_radius)
-        elif self.Efficiency.calculate_ioffe_bite:
+        if self.Efficiency.calculate_ioffe_bite_flag and all(hasattr(self.MagneticField, attr) for attr in ("nominal_field", "magnetic_inhomogenity", "ioffe_field", "ioffe_multipolarity")):
+            self.unusable_dist_from_wall = calculate_ioffe_bite(self.MagneticField.nominal_field, self.MagneticField.magnetic_inhomogenity, self.MagneticField.ioffe_field, self.MagneticField.ioffe_multipolarity, self.cavity_radius)
+        elif self.Efficiency.calculate_ioffe_bite_flag:
             logger.info("Error: Did not specify all attributes for Ioffe bite calculation in config file")
 
         #Assigning the background constant if it's not in the config file
@@ -579,12 +584,28 @@ class CavitySensitivity(Sensitivity):
         axial_mode_index = 1
         self.cavity_radius = c0/(2*np.pi*self.cavity_freq)*np.sqrt(self.Jprime_0**2+axial_mode_index**2*np.pi**2/(4*self.Experiment.cavity_L_over_D**2))
         return self.cavity_radius
+
+    # Geometry of trap
+    def trap_geometry(self):
+        # C089 - [m] origin is the virtual point of the cone height
+        self.top_cone = 0.60*m
+        # C090 - [m] height of first trap coil
+        self.trap_coil_1 = 0.75*m
+        # C091 - [m] height of second trap coil
+        self.trap_coil_2 = 4.80*m
+        # C092 - [m] height of top plate of the cavity
+        self.top_plate_cavity = 5.30*m
+        # C093 - [m] height of the top of the vacuum system
+        self.top_vacuum_system = 7.50*m
+        return self.top_cone, self.trap_coil_1, self.trap_coil_2, self.top_plate_cavity, self.top_vacuum_system 
+    # C126 - [m] Cavity Length
+    def CavityLength(self):
+        self.cavity_length = (self.top_plate_cavity - self.top_cone/2)
+        return self.cavity_length
+
     def CavityVolume(self):
         #Calculate vacuum volume including cone and top service volume
         if self.Experiment.cavity_cone_flag:
-            #self.top_vacuum_system = 7.50*m
-            self.top_cone = 0.60*m
-            self.top_plate_cavity = 5.30*m
             self.total_cavity_volume = np.pi * self.cavity_radius**2 * (self.top_plate_cavity - (2/3) * self.top_cone) * self.Experiment.n_cavities
         else:
             #radius = 0.5*wavelength(self.T_endpoint, self.MagneticField.nominal_field)
@@ -592,12 +613,12 @@ class CavitySensitivity(Sensitivity):
         logger.info("Frequency: {} MHz".format(round(self.cavity_freq/MHz, 3)))
         logger.info("Wavelength: {} cm".format(round(wavelength(self.T_endpoint, self.MagneticField.nominal_field)/cm, 3)))
         logger.info("Cavity radius: {} cm".format(round(self.cavity_radius/cm, 3)))
-        logger.info("Cavity length: {} cm".format(round(2*self.cavity_radius*self.Experiment.cavity_L_over_D/cm, 3)))
+        logger.info("Cavity length: {} cm".format(round(self.cavity_length/cm, 3)))
+        #logger.info("Cavity length: {} cm".format(round(2*self.cavity_radius*self.Experiment.cavity_L_over_D/cm, 3)))
         logger.info("Total cavity volume: {} m^3".format(round(self.total_cavity_volume/m**3, 3)))\
         
         return self.total_cavity_volume
     
-
     # ELECTRON TRAP
     def TrapVolume(self):
         # Total volume of the electron traps in all cavities
@@ -654,7 +675,8 @@ class CavitySensitivity(Sensitivity):
         return self.box_trapping_efficiency
 
     def TrapLength(self):
-        self.Experiment.trap_length = 0.8 * 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
+        self.Experiment.trap_length = 0.8 * self.cavity_length
+        #self.Experiment.trap_length = 0.8 * 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
         logger.info("Calc'd trap length: {} m".format(round(self.Experiment.trap_length/m, 3), 2))
 
     def CavityPower(self):
@@ -1096,10 +1118,9 @@ class CavitySensitivity(Sensitivity):
     def print_T2_background_atomic_trap(self):
         #logger.info("T2 background: {}".format(self.Efficiency.T2_background_atomic_trap))
         if self.Efficiency.T2_background_atomic_trap:
-            T2_total_density, T2_T_ratio = calculate_T2_background_atomic_trap(self.cavity_radius, self.FrequencyExtraction.cavity_temperature, self.Experiment.cavity_L_over_D, self.Efficiency.max_ratio_T2_T, self.Experiment.number_density, self.Efficiency.wall_activity)
-            logger.info("T2_total_density: {} m^-3".format(T2_total_density*m**3))
+            T2_total_density, T2_T_ratio = calculate_T2_background_atomic_trap(self.cavity_radius, self.cavity_length, self.FrequencyExtraction.cavity_temperature, self.Efficiency.max_ratio_T2_T, self.Experiment.number_density, self.Efficiency.wall_activity)
+            logger.info("T2_total_density: {:.4e} m^-3".format(round(T2_total_density*m**3), 4))
             logger.info("Ratio T2/T: {}".format(T2_T_ratio))
-
     def print_pumping_requirements(self):
         #logger.info("Pumping Calculation: {}".format(self.Efficiency.pumping_calculation))
         if self.Efficiency.pumping_calculation:
@@ -1108,36 +1129,36 @@ class CavitySensitivity(Sensitivity):
             self.turbopumping_speed_limit = turbopumping_speed_limit(self.cavity_radius, self.FrequencyExtraction.cavity_temperature, self.Experiment.cavity_L_over_D, self.Experiment.atomic)
             self.cavity_termination_speed = cavity_termination_speed(self.Efficiency.turbopumping_speed_cavity_termination_air, self.Efficiency.cavity_top_plate_temperature, self.Experiment.atomic)
             if self.Experiment.atomic:
-                logger.info("Pumping Speed Limit(Atomic): {} m^3/s".format(self.turbopumping_speed_limit * s / m**3))
-                logger.info("Cavity Termination Speed (Atomic): {} m^3/s".format(self.cavity_termination_speed * s / m**3))
+                logger.info("Pumping Speed Limit(Atomic): {:.4} m^3/s".format(self.turbopumping_speed_limit * s / m**3))
+                logger.info("Cavity Termination Speed (Atomic): {:.4} m^3/s".format(self.cavity_termination_speed * s / m**3))
             else:
-                logger.info("Pumping Speed Limit(Molecular): {} m^3/s".format(self.turbopumping_speed_limit * s / m**3))
-                logger.info("Cavity Termination Speed (Molecular): {} m^3/s".format(self.cavity_termination_speed * s / m**3))
+                logger.info("Pumping Speed Limit(Molecular): {:.4} m^3/s".format(self.turbopumping_speed_limit * s / m**3))
+                logger.info("Cavity Termination Speed (Molecular): {:.4} m^3/s".format(self.cavity_termination_speed * s / m**3))
             self.ratio_required_theoretical_turbopumping_speed = ratio_required_theoretical_turbopumping_speed(self.Efficiency.pumping_speed_required, self.turbopumping_speed_limit, self.cavity_termination_speed, self.turbopump_speed)
-            logger.info("Ratio of Turbopump Speed Limit: {}".format(self.ratio_required_theoretical_turbopumping_speed))
+            logger.info("Ratio of Turbopump Speed Limit: {:.4e}".format(self.ratio_required_theoretical_turbopumping_speed))
             if self.Efficiency.T2_heat_leak:
                 self.time_constant_He, self.current_He = calculate_He_heat_leak(self.turbopumping_speed_limit,  self.cavity_termination_speed, self.turbopump_speed,  self.FrequencyExtraction.cavity_temperature, self.Experiment.design_density, self.total_cavity_volume, self.Efficiency.wall_activity)
-                logger.info("He Time Constant: {} s".format(self.time_constant_He/s))
-                logger.info("Atom current required for He-3 leak: {} atoms/s".format(self.current_He*s))
+                logger.info("He Time Constant: {} s".format(round(self.time_constant_He/s), 4))
+                logger.info("Atom current required for He-3 leak: {:.4e} atoms/s".format(round(self.current_He*s), 4))
                 self.time_constant_aperture, self.current_aperture = calculate_aperture_heat_leak(self.DopplerBroadening.gas_temperature, self.Experiment.design_density, self.total_cavity_volume)
-                logger.info("Aperture Time Constant: {} s".format(self.time_constant_aperture/s))
-                logger.info("Atom current required for aperture leak: {} atoms/s".format(self.current_aperture*s))
-                self.time_constant_rad, self.current_rad = calculate_rad_heat_leak(self.cavity_radius, self.Experiment.number_density, self.Experiment.cavity_L_over_D, self.Experiment.design_density, self.total_cavity_volume, self.Efficiency.net_rad_efficiency)
-                logger.info("Radiation Time Constant: {} s".format(self.time_constant_rad/s))
-                logger.info("Atom current required for radiation leak: {} atoms/s".format(self.current_rad*s))
-                self.time_constant_desorp, self.current_desorp = calculate_T2_desorption_from_wall(self.cavity_radius, self.Experiment.cavity_L_over_D, self.Efficiency.wall_activity, self.Experiment.design_density, self.total_cavity_volume)
-                logger.info("Desorption Time Constant: {} s".format(self.time_constant_desorp/s))
-                logger.info("Atom current required for desorption losses: {} atoms/s".format(self.current_desorp*s))
+                logger.info("Aperture Time Constant: {} s".format(round(self.time_constant_aperture/s), 4))
+                logger.info("Atom current required for aperture leak: {:.4e} atoms/s".format(round(self.current_aperture*s), 4))
+                self.time_constant_rad, self.current_rad = calculate_rad_heat_leak(self.cavity_radius, self.cavity_length, self.Experiment.number_density, self.Experiment.design_density, self.total_cavity_volume, self.Efficiency.net_rad_efficiency)
+                logger.info("Radiation Time Constant: {} s".format(round(self.time_constant_rad/s), 4))
+                logger.info("Atom current required for radiation leak: {:.4e} atoms/s".format(round(self.current_rad*s), 4))
+                self.time_constant_desorp, self.current_desorp = calculate_T2_desorption_from_wall(self.cavity_radius, self.cavity_length, self.Efficiency.wall_activity, self.Experiment.design_density, self.total_cavity_volume)
+                logger.info("Desorption Time Constant: {} s".format(round(self.time_constant_desorp/s), 4))
+                logger.info("Atom current required for desorption losses: {:.4e} atoms/s".format(round(self.current_desorp*s), 4))
                 if not self.Experiment.pure_magnetic_flag:
                     logger.info("***Magnetogravitional Trap***")
                 else:
                     logger.info("***Pure Magnetic Trap***")
-                self.time_constant_dipolar, self.current_dipolar = calculate_dipolar_loss(self.MagneticField.nominal_field/T, self.cavity_radius, self.Experiment.design_density, self.total_cavity_volume, self.DopplerBroadening.gas_temperature, self.Experiment.cavity_L_over_D, self.Experiment.pure_magnetic_flag)
-                logger.info("Dipolar Time Constant: {} s".format(self.time_constant_dipolar/s))
-                logger.info("Atom current required for dipolar losses: {} atoms/s".format(self.current_dipolar*s))
-                self.time_constant_evaporation, self.current_evaporation = calculate_evaporation_loss(self.Experiment.pure_magnetic_flag, self.DopplerBroadening.gas_temperature, self.Experiment.cavity_L_over_D, self.cavity_radius, self.MagneticField.ioffe_field, self.MagneticField.nominal_field, self.Experiment.design_density, self.Efficiency.relative_loss_rate_cone_wall, self.total_cavity_volume)
-                logger.info("Evaporation Time Constant: {} s".format(self.time_constant_evaporation/s))
-                logger.info("Atom current required for Evaporation losses: {} atoms/s".format(self.current_evaporation*s))
+                self.time_constant_dipolar, self.current_dipolar = calculate_dipolar_loss(self.MagneticField.nominal_field/T, self.cavity_radius, self.Experiment.design_density, self.total_cavity_volume, self.DopplerBroadening.gas_temperature, self.Experiment.cavity_L_over_D, self.top_cone, self.top_plate_cavity, self.Experiment.pure_magnetic_flag)
+                logger.info("Dipolar Time Constant: {} s".format(round(self.time_constant_dipolar/s), 4))
+                logger.info("Atom current required for dipolar losses: {:.4e} atoms/s".format(round(self.current_dipolar*s), 4))
+                self.time_constant_evaporation, self.current_evaporation = calculate_evaporation_loss(self.Experiment.pure_magnetic_flag, self.DopplerBroadening.gas_temperature, self.cavity_radius, self.MagneticField.ioffe_field, self.MagneticField.nominal_field, self.cavity_length, self.top_cone, self.top_plate_cavity, self.Experiment.design_density, self.Efficiency.relative_loss_rate_cone_wall, self.total_cavity_volume)
+                logger.info("Evaporation Time Constant: {} s".format(round(self.time_constant_evaporation/s), 4))
+                logger.info("Atom current required for Evaporation losses: {:.4e} atoms/s".format(round(self.current_evaporation*s), 4))
 
 
 """ # Cramer-Rao lower bound / how much worse are we than the lower bound
