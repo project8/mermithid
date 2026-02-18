@@ -46,15 +46,15 @@ eV_amu = 931494100*eV/amu
 # C020 - [kg/amu] Conversion
 kg_amu = 1.66e-27*kg/amu
 # C021 - Boltzmann Constant [eV/K] = kB * (1 eV / 1.61e-19 J)
-kB_eV = 8.6e-5*eV/K
+kB_eV = 8.617e-5*eV/K
 # C027 - [eV/T] Bohr Magneton
-bohr_magneton = 5.78e-5*eV/T
+bohr_magneton = 5.776e-5*eV/T
 # C028 - 1 Ci = 3.7e10 Bq
 Ci_Bq = 3.7e10
 # C031 - Ground state branch (atomic)
 ground_state_branch_atomic = 0.702
 # C032 - Ground state branch (molecular)
-ground_state_branch_atomic = 0.570
+ground_state_branch_molecular = 0.570
 # C036 - [eV] Recoil energy of tritium atom (Bodine)
 atomic_tritium_recoil_energy = 3.409*eV
 # C038 - [eV] Binding energy of tritium molecule (Bodine)
@@ -73,6 +73,8 @@ gravity = 9.80 *m/s**2
 LGd_rates = 50
 # C049 - per beta decay: see: https://www.overleaf.com/2817746228snnghrnzfthk
 molecules_desorbed_wall_beta = 1000
+# C050 - eV to J conversion
+eV_J = 1.605e-19 *J/eV
 
 # units that do not show up in numericalunits
 # missing pre-factors
