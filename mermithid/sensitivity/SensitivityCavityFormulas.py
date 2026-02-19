@@ -30,6 +30,7 @@ except:
 area_loading_aperture, gravity_temperature_scale, surface_density_scale = (None, None, None)
 
 # C157 - [m] Fiducial distance from the cavity wall between max(ioffe_bite, larmor_radius)
+# Ioffe field at wall is now the quadrature of the central field and Ioffe field by itself, everywhere it is used.
 def calculate_ioffe_bite(nominal_field, magnetic_inhomogenity, ioffe_field, ioffe_multipolarity, cavity_radius):
     return ((2 * nominal_field**2 * magnetic_inhomogenity / (2 * nominal_field**2 * magnetic_inhomogenity + ioffe_field**2))**(1/(ioffe_multipolarity-2)) * cavity_radius * -1) + cavity_radius
 
@@ -88,6 +89,7 @@ def calculate_aperture_heat_leak(trapped_gas_temp, design_density, volume):
     return time_constant_aperture, current_aperture_leak
 
 # Radioactivity Heat Leak:
+# Radioactivity loss is just a single number from Ben Clark’s thesis, needs to be done better.
 def calculate_rad_heat_leak(cavity_radius, number_density, design_density, volume, net_efficiency):
     # C256 - [s] Input from Ben Clark's thesis with a mirror ratio of 0.5
     half_life = 11 * 24 * 3600 * s
@@ -98,7 +100,8 @@ def calculate_rad_heat_leak(cavity_radius, number_density, design_density, volum
     time_constant_rad = calculate_inventory(design_density, volume) / current_rad_leak
     return time_constant_rad, current_rad_leak
 
-# T2 Desorption from the wall:
+# T2 Desorption from the wall: T2 desorption from walls as a background and a trap-heating loss.
+# Burst of molecules is emitted from the wall with each decay and can knock out atoms from the trap.  Description added to end of CDR 4.5.5.  New parameter to enter is the number of molecules (choose 1000 for now).
 def calculate_T2_desorption_from_wall(cavity_radius, cavity_length,  wall_activity, design_density, volume):
     # C261 - [s] Mean lifetime of atom in trap from desorption
     time_constant_desorp =  calculate_trap_wall_area(cavity_radius, cavity_length) / (2 * molecules_desorbed_wall_beta * wall_activity * Ci_Bq * H_H2_crosssection)
@@ -122,9 +125,9 @@ def calculate_He_heat_leak(pumping_speed_theoretical, pumping_cavity_termination
 # Dipolar loss rate: Calculation with z-dependent density, cylinder & cone.
 def calculate_dipolar_loss(nominal_field, cavity_radius, design_density, volume, trapped_gas_temp, cavity_L_over_D, top_cone, top_plate_cavity, pure_magnetic_flag):
     global gravity_temperature_scale, surface_density_scale
-    # C201 - [m^-1]
+    # C201 - [m^-1] Add the gravity-temperature scale parameter “b” for magnetogravitational trap
     gravity_temperature_scale = ((tritium_mass_atomic/c0**2 * gravity / (kB * trapped_gas_temp)) * np.absolute(pure_magnetic_flag * (1 + 1 / cavity_L_over_D) - 1))
-    # C202 - [m^-2]
+    # C202 - [m^-2] Add the surface density scale parameter “a/b” for magnetogravitational trap
     surface_density_scale = design_density * top_plate_cavity / (1 - np.exp(-gravity_temperature_scale * top_plate_cavity))
     # C298 - [m^3/s] Polynomial fit for Dipolar spin-flip rate (G_dd). Depends on field (Lagendijk et al). Polynomial-log fit used now.
     dipolar_spin_flip_rate = (60.106 + 13.812 * np.log(nominal_field) - 4.7867 * np.log(nominal_field)**2 - 2.3192 * np.log(nominal_field)**3 \
@@ -137,7 +140,8 @@ def calculate_dipolar_loss(nominal_field, cavity_radius, design_density, volume,
     time_constant_dipolar = calculate_inventory(design_density, volume) / current_dipolar
     return time_constant_dipolar, current_dipolar
 
-# Evaporation loss rate:  does not take into account density of states with height. Magnetic potential limits evaporation.
+# Evaporation loss rate: Does not take into account density of states with height. Magnetic potential limits evaporation.
+# Cone and cylinder now separate because cone is weaker owing to azimuthal modulation of Ioffe field.  Each now has its own density multiplier.  The weaker cone field is handled in a separate Igor calculation Coneangle.pxp outside this SS and entered as a loss rate multiplier in C111.
 def calculate_evaporation_loss(pure_magnetic_flag, trapped_gas_temp, cavity_radius, ioffe_field, nominal_field, cavity_length, top_cone, top_plate_cavity, design_density, relative_loss_rate_cone_wall, volume):
     # C283 - [m] Mean free path at the base of cavity
     mfp_cavity_base = 1 / (gravity_temperature_scale * surface_density_scale * tritium_tritium_crosssection_atomic)
@@ -237,7 +241,7 @@ def calculate_cryopump_speed(cavity_wall_temp, cavity_radius, cavity_length, pum
 
 
 # Injection Line Calculations:
-
+#Added details of injection (beginning cell 327): vertical flow speed in trap and in the beamline, energy in trapped gas, in beam gas (should be the same), density in the injection line, mfp in injection line, dipolar loss in injection line.  There are 2 new entries for this in the choices – beam temperature and beamline field.
 
 
 # Wouters functinos
@@ -489,7 +493,7 @@ class CavitySensitivity(Sensitivity):
             self.Experiment.trap_length = self.trap_coil_2 - self.trap_coil_1
             logger.info("Calc'd trap length from coils: {} m".format(round(self.Experiment.trap_length/m, 3), 2))
 
-        # C128 - Calculate Cavity L/D Ratio
+        # C128 - Calculate Cavity L/D Ratio with actual dimensions: top of cone, first trap coil, second trap coil, top plate of cavity, top of vacuum containment.
         if ((hasattr(self.Experiment, 'cavity_L_over_D')) and self.Experiment.cavity_L_over_D_calc_flag):
             self.Experiment.cavity_L_over_D = self.cavity_length / (self.cavity_radius * 2)
 
@@ -623,7 +627,7 @@ class CavitySensitivity(Sensitivity):
         # C093 - [m] height of the top of the vacuum system
         self.top_vacuum_system = 7.50*m
         return self.top_cone, self.trap_coil_1, self.trap_coil_2, self.top_plate_cavity, self.top_vacuum_system 
-    # C126 - [m] Cavity Length
+    # C126 - [m] Cavity Length from true L and f; estimated as L-z1/2
     def CavityLength(self):
         self.cavity_length = (self.top_plate_cavity - self.top_cone/2)
         return self.cavity_length
