@@ -47,10 +47,14 @@ eV_amu = 931494100*eV/amu
 kg_amu = 1.66e-27*kg/amu
 # C021 - Boltzmann Constant [eV/K] = kB * (1 eV / 1.61e-19 J)
 kB_eV = 8.617e-5*eV/K
+# C026 - [J/T] Bohr Magneton
+bohr_magneton = 9.27e-24*J/T
 # C027 - [eV/T] Bohr Magneton
-bohr_magneton = 5.776e-5*eV/T
-# C028 - 1 Ci = 3.7e10 Bq
-Ci_Bq = 3.7e10
+#bohr_magneton = 5.776e-5*eV/T
+# C028 - Curie Becquere Conversion: 1 Ci = 3.7e10 Bq. NOTE CURIE IS NOT A UNIT IN NUMERICAL UNITS SO DO THIS EXPLICTLY
+Ci_Bq = 3.7e10/s
+# C030 - [s^-1] Atomic tritium decay constant
+lambda_tritium = 1 / tritium_livetime
 # C031 - Ground state branch (atomic)
 ground_state_branch_atomic = 0.702
 # C032 - Ground state branch (molecular)
@@ -75,6 +79,9 @@ LGd_rates = 50
 molecules_desorbed_wall_beta = 1000
 # C050 - eV to J conversion
 eV_J = 1.605e-19 *J/eV
+# C118 - [Ci] Total activity on wall at recyling. Ci (Bq = 1 decay per second)
+wall_activity = 100 * Ci_Bq
+
 
 # units that do not show up in numericalunits
 # missing pre-factors
