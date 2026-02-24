@@ -34,7 +34,7 @@ gyro_mag_ratio_proton = 42.577*MHz/T
 
 # Atomic Calculator
 # C008 - [m^3] Volume of 1mol of ideal gas at 1atm. Higher pressure --> smaller volume; higher temp --> lower volume
-molar_volume = 2.24*e-2*m**3
+molar_volume = 0.0224*m**3
 # C009 - [m^2] H-He Cross-section at low temp but > 5K (Berlinsky)
 H_He_crosssection = 2e-19*m**2
 # C010 - [m^2] H-He Cross-section at low temps (Berlinsky)

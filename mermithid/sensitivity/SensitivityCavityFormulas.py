@@ -65,14 +65,14 @@ def calculate_T2_background_atomic_trap(cavity_radius, cavity_length, cavity_wal
     # C306 - [mbar] Vapor Pressure of T2 w/ constants for saturated T2 vapor from Souers et al.
     T2_vapor_pressure = mbar * np.exp(T2_vapor_A + (T2_vapor_B*K/cavity_wall_temp) + T2_vapor_B_prime * np.log(cavity_wall_temp/K)) / 0.76
     # C307 - [m^-3] Density of saturated vapor
-    sat_vapor_density = NA * (T2_vapor_pressure/mbar) * np.absolute(T0) / (1000 * molar_volume * cavity_wall_temp)
+    sat_vapor_density = NA * (T2_vapor_pressure/mbar) * np.absolute(T0/cavity_wall_temp) / (1000 * molar_volume)
     # C308 -  [m^-3] = s^-1 * sqrt(kg/eV) / m^2 T2 density form desorption at end of a cycle
     T2_density_desorp = 4 * molecules_desorbed_wall_beta * wall_activity * np.sqrt(molecules_desorbed_wall_beta * (tritium_mass_atomic / c0**2) / (2 * atomic_tritium_recoil_energy * eV_J )) / calculate_trap_wall_area(cavity_radius, cavity_length)
     # C309 [m^-3] Total T2 density
     T2_total_density = sat_vapor_density + T2_density_desorp
     # C310 - T2/T number ratio. Activity ratio is 1.64 times bigger
-    # Number density b/w trap coils varies between Mermithid and Atomic Calculator due to inelastic + elastic T2-e cross-section
     T2_T_ratio = T2_total_density / number_density
+    #return T2_vapor_pressure, sat_vapor_density,  T2_density_desorp, T2_total_density, T2_T_ratio
     return T2_total_density, T2_T_ratio
 
 # Aperture Heat Leak:
@@ -517,7 +517,7 @@ class CavitySensitivity(Sensitivity):
         #Get trap length from cavity length if not specified
         if ((not hasattr(self.Experiment, 'trap_length')) or overwrite):
             self.Experiment.trap_length = 0.8 * 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
-            logger.info("Calc'd trap length: {} m".format(round(self.Experiment.trap_length/m, 3), 2))
+            logger.info("Calc'd trap length: {:.3} m".format(self.Experiment.trap_length/m, 3))
         elif self.Experiment.trap_length_calc_flag:
             # C129 - Trap L/D = Trap L / 2 / cavity radius
             self.Experiment.trap_length = self.trap_coil_2 - self.trap_coil_1
@@ -1171,7 +1171,7 @@ class CavitySensitivity(Sensitivity):
         #logger.info("T2 background: {}".format(self.Efficiency.T2_background_atomic_trap))
         if self.Efficiency.T2_background_atomic_trap:
             self.T2_total_density, self.T2_T_ratio = calculate_T2_background_atomic_trap(self.cavity_radius, self.cavity_length, self.FrequencyExtraction.cavity_temperature, self.Efficiency.max_ratio_T2_T, self.Experiment.number_density)
-            logger.info("T2_total_density: {:.4e} m^-3".format(round(self.T2_total_density*m**3), 4))
+            logger.info("T2_total_density: {:.4e} m^-3".format(self.T2_total_density*m**3))
             logger.info("Ratio T2/T: {:.4e}".format(self.T2_T_ratio))
 
     def print_pumping_requirements(self):
