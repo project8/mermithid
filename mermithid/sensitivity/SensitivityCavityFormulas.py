@@ -27,7 +27,6 @@ except:
 
 # Jins functions - Atomic Calculator
 # Python decides whether a name is local or global at compile time (not runtime). The name must already exist in the module’s global namespace by the time the function runs, or Python has nowhere to bind it.
-area_loading_aperture, gravity_temperature_scale, surface_density_scale = (None, None, None)
 
 # C157 - [m] Fiducial distance from the cavity wall between max(ioffe_bite, larmor_radius)
 # Ioffe field at wall is now the quadrature of the central field and Ioffe field by itself, everywhere it is used.
@@ -45,6 +44,16 @@ def calculate_trap_wall_area(cavity_radius, cavity_length):
     # (Cavity length is cavity top plate - top of cone / 2)
     trap_wall_area = 2 * np.pi * cavity_radius * cavity_length
     return trap_wall_area
+
+# C201 - [m^-1] Add the gravity-temperature scale parameter “b” for magnetogravitational trap. For pure magnetic trap, make gravity  weaker by ratio of L/D.
+def calculate_gravity_temperature_scale(trapped_gas_temp, pure_magnetic_flag, cavity_L_over_D):
+    gravity_temperature_scale = ((tritium_mass_atomic/c0**2 * gravity / (kB * trapped_gas_temp)) * np.absolute(pure_magnetic_flag * (1 + 1 / cavity_L_over_D) - 1))
+    return gravity_temperature_scale
+
+# C202 - [m^-2] Add the surface density scale parameter “a/b” for magnetogravitational trap
+def calculate_surface_density_scale(design_density, gravity_temperature_scale, top_plate_cavity):
+    surface_density_scale = design_density * top_plate_cavity / (1 - np.exp(-gravity_temperature_scale * top_plate_cavity))
+    return surface_density_scale
 
 # C204 - [atom] Inventory in physical volume
 def calculate_inventory(design_density, volume):
@@ -67,7 +76,7 @@ def calculate_T2_background_atomic_trap(cavity_radius, cavity_length, cavity_wal
     # C307 - [m^-3] Density of saturated vapor
     sat_vapor_density = NA * (T2_vapor_pressure/mbar) * np.absolute(T0/cavity_wall_temp) / (1000 * molar_volume)
     # C308 -  [m^-3] = s^-1 * sqrt(kg/eV) / m^2 T2 density form desorption at end of a cycle
-    T2_density_desorp = 4 * molecules_desorbed_wall_beta * wall_activity * np.sqrt(molecules_desorbed_wall_beta * (tritium_mass_atomic / c0**2) / (2 * atomic_tritium_recoil_energy * eV_J )) / calculate_trap_wall_area(cavity_radius, cavity_length)
+    T2_density_desorp = 4 * molecules_desorbed_wall_beta * (wall_activity * Ci_Bq) * np.sqrt(molecules_desorbed_wall_beta * (tritium_mass_atomic / c0**2) / (2 * atomic_tritium_recoil_energy * eV_J )) / calculate_trap_wall_area(cavity_radius, cavity_length)
     # C309 [m^-3] Total T2 density
     T2_total_density = sat_vapor_density + T2_density_desorp
     # C310 - T2/T number ratio. Activity ratio is 1.64 times bigger
@@ -77,13 +86,10 @@ def calculate_T2_background_atomic_trap(cavity_radius, cavity_length, cavity_wal
 
 # Aperture Heat Leak:
 def calculate_aperture_heat_leak(trapped_gas_temp, design_density, volume):
-    global area_loading_aperture
-    # C108 - [m^2] Choose an area to determine injection speed and density.
-    area_loading_aperture = 0.001*m**2
     # C250 - [m/s] Average velocity of trapped gas
     trapped_gas_velocity = calculate_average_velocity(trapped_gas_temp)
     # C251 - [atom/s] Inward atom current required through aperture to balance losses (j_aperture)
-    current_aperture_leak = area_loading_aperture * design_density * trapped_gas_velocity / 4
+    current_aperture_leak = area_atom_loading_aperture * design_density * trapped_gas_velocity / 4
     # C252 - [s] Time constant for loss through aperture
     time_constant_aperture = calculate_inventory(design_density, volume) / current_aperture_leak
     return time_constant_aperture, current_aperture_leak
@@ -104,7 +110,7 @@ def calculate_rad_heat_leak(cavity_radius, number_density, design_density, volum
 # Burst of molecules is emitted from the wall with each decay and can knock out atoms from the trap.  Description added to end of CDR 4.5.5.  New parameter to enter is the number of molecules (choose 1000 for now).
 def calculate_T2_desorption_from_wall(cavity_radius, cavity_length, design_density, volume):
     # C261 - [s] Mean lifetime of atom in trap from desorption
-    time_constant_desorp =  calculate_trap_wall_area(cavity_radius, cavity_length) / (2 * molecules_desorbed_wall_beta * wall_activity * H_H2_crosssection)
+    time_constant_desorp =  calculate_trap_wall_area(cavity_radius, cavity_length) / (2 * molecules_desorbed_wall_beta * (wall_activity * Ci_Bq) * H_H2_crosssection)
     # C262 - [atom/s] Atom current required to keep up with desorption losses
     current_desorp = calculate_inventory(design_density, volume) / time_constant_desorp
     return time_constant_desorp, current_desorp
@@ -113,7 +119,7 @@ def calculate_T2_desorption_from_wall(cavity_radius, cavity_length, design_densi
 def calculate_He_heat_leak(pumping_speed_theoretical, pumping_cavity_termination, turbopump_speed, cavity_temperature, design_density, volume):
     He_velocity = calculate_average_velocity(cavity_temperature)
     # C266 - [atom/s] Not including flow for He heat leak itself
-    He_production_rate = wall_activity
+    He_production_rate = wall_activity * Ci_Bq
     # C269 - [m^-3] Number density of Helium
     He_density = He_production_rate * ((1/pumping_speed_theoretical) + (1/pumping_cavity_termination) + (1/turbopump_speed))
     # C272 - [s] Time constant for loss due to He-3 heat leak
@@ -126,11 +132,8 @@ def calculate_He_heat_leak(pumping_speed_theoretical, pumping_cavity_termination
 
 # Dipolar loss rate: Calculation with z-dependent density, cylinder & cone.
 def calculate_dipolar_loss(nominal_field, cavity_radius, design_density, volume, trapped_gas_temp, cavity_L_over_D, top_cone, top_plate_cavity, pure_magnetic_flag):
-    global gravity_temperature_scale, surface_density_scale
-    # C201 - [m^-1] Add the gravity-temperature scale parameter “b” for magnetogravitational trap
-    gravity_temperature_scale = ((tritium_mass_atomic/c0**2 * gravity / (kB * trapped_gas_temp)) * np.absolute(pure_magnetic_flag * (1 + 1 / cavity_L_over_D) - 1))
-    # C202 - [m^-2] Add the surface density scale parameter “a/b” for magnetogravitational trap
-    surface_density_scale = design_density * top_plate_cavity / (1 - np.exp(-gravity_temperature_scale * top_plate_cavity))
+    gravity_temperature_scale = calculate_gravity_temperature_scale(trapped_gas_temp, pure_magnetic_flag, cavity_L_over_D)
+    surface_density_scale = calculate_surface_density_scale(design_density, gravity_temperature_scale, top_plate_cavity)
     # C298 - [m^3/s] Polynomial fit for Dipolar spin-flip rate (G_dd). Depends on field (Lagendijk et al). Polynomial-log fit used now.
     dipolar_spin_flip_rate = (60.106 + 13.812 * np.log(nominal_field) - 4.7867 * np.log(nominal_field)**2 - 2.3192 * np.log(nominal_field)**3 \
                              - 0.32663 * np.log(nominal_field)**4 - 0.015775 * np.log(nominal_field)**5) * 1e-22 * LGd_rates * m**3/s
@@ -144,7 +147,10 @@ def calculate_dipolar_loss(nominal_field, cavity_radius, design_density, volume,
 
 # Evaporation loss rate: Does not take into account density of states with height. Magnetic potential limits evaporation.
 # Cone and cylinder now separate because cone is weaker owing to azimuthal modulation of Ioffe field.  Each now has its own density multiplier.  The weaker cone field is handled in a separate Igor calculation Coneangle.pxp outside this SS and entered as a loss rate multiplier in C111.
-def calculate_evaporation_loss(pure_magnetic_flag, trapped_gas_temp, cavity_radius, ioffe_field, nominal_field, cavity_length, top_cone, top_plate_cavity, design_density, relative_loss_rate_cone_wall, volume):
+def calculate_evaporation_loss(cavity_L_over_D, pure_magnetic_flag, trapped_gas_temp, cavity_radius, ioffe_field, nominal_field, cavity_length, top_cone, top_plate_cavity, design_density, relative_loss_rate_cone_wall, volume):
+    gravity_temperature_scale = calculate_gravity_temperature_scale(trapped_gas_temp, pure_magnetic_flag, cavity_L_over_D)
+    surface_density_scale = calculate_surface_density_scale(design_density, gravity_temperature_scale, top_plate_cavity)
+
     # C283 - [m] Mean free path at the base of cavity
     mfp_cavity_base = 1 / (gravity_temperature_scale * surface_density_scale * tritium_tritium_crosssection_atomic)
     # C284 - Pure Magnetic eta
@@ -161,21 +167,17 @@ def calculate_evaporation_loss(pure_magnetic_flag, trapped_gas_temp, cavity_radi
     evaporation_sides = (2 * np.pi * cavity_radius * cavity_length * design_density * np.sqrt(kB * trapped_gas_temp / (2 * np.pi * tritium_mass_atomic / c0**2)) \
     * np.exp(-eta) * top_plate_cavity * (np.exp(-gravity_temperature_scale * top_cone) - np.exp(-gravity_temperature_scale * top_plate_cavity)) \
     / ((1 - np.exp(-gravity_temperature_scale * top_plate_cavity)) * (top_plate_cavity - top_cone)))
-    # C289 [Bq - Decay/s] - Accumulated activity in the sides by end of cycle
-    #accumulated_activity_sides = evaporation_sides * 
     # C290 - [s^-1] Evaporation in cone; for pure magnetic, double it to account for both ends
     evaporation_cone = (relative_loss_rate_cone_wall * np.pi * cavity_radius * np.sqrt(cavity_radius**2 + top_cone**2) * design_density \
     * np.sqrt(kB * trapped_gas_temp / (2 * np.pi * tritium_mass_atomic/c0**2)) * np.exp(-eta) * top_plate_cavity * (1 - np.exp(-gravity_temperature_scale * top_cone)) \
     / ((1 - np.exp(-gravity_temperature_scale * top_plate_cavity)) * top_cone)) * np.absolute(pure_magnetic_flag + 1)
-    # C291 [Bq - Decay/s] - Accumulated activity in the cone by end of cycle
-    #accumulated_activity_cone = evaporation_cone * 
     # C292 - [s] Time constant for evaporation loss of cone and sides
     time_constant_evap_cone_sides = calculate_inventory(design_density, volume) / (evaporation_cone + evaporation_sides)
     # C295 - [atom/s] Flow to keep up with evaporation losses aka Total evaporation_sum
     current_evaporation = evaporation_top + evaporation_sides + evaporation_cone
     # C294 - [s] Time constant for total evaporation loss
     time_constant_total_evaporation = calculate_inventory(design_density, volume) / current_evaporation
-    return time_constant_total_evaporation, current_evaporation
+    return time_constant_total_evaporation, current_evaporation, evaporation_top, evaporation_sides, evaporation_cone
 
 # T2 Heat Leak:
 def calculate_T2_heat_leak(aperture_current, rad_current, He_current, evap_current, dipolar_current, T2_total_density, cavity_wall_temp, design_density, volume):
@@ -242,14 +244,14 @@ def calculate_cryopump_speed(cavity_wall_temp, cavity_radius, cavity_length, pum
     # C339 - [W] Heat delivered to the cold surface
     recombination_heat_load = atom_current * molecular_tritium_binding_energy * eV_J / 2
     # C340 - [Ci/day] Accumulated activity per day
-    accumulated_activity_day = atom_current * lambda_tritium * 3600 * 24 / Ci_Bq
+    accumulated_activity_day = atom_current * lambda_tritium * (86400*s/day) / Ci_Bq
     # C342 - [day] Time between recycling cryosurface. For cryopumping atomic experiment; determines inventory on walls
-    time_recycling_crysurface = wall_activity / accumulated_activity_day
+    time_recycling_cryosurface = wall_activity / accumulated_activity_day
     # C344 - [m^3/s] Cryopumping speed for molecules
     cryopump_speed = np.sqrt(kB_eV * cavity_wall_temp / (4 * np.pi * tritium_mass_atomic)) * c0 * calculate_trap_wall_area(cavity_radius, cavity_length)
     # C345 - [molecules/s] max allowed injection rate of molecules
     max_molecules_injection = cryopump_speed * molecular_density_allowed(design_density, max_ratio_T2_T)
-    return ratio_cryopump_speed, cryopump_speed
+    return ratio_cryopump_speed, cryopump_speed, time_recycling_cryosurface
 
 # Injection Line Calculations:
 # density in the injection line, mfp in injection line, dipolar loss in injection line.  There are 2 new entries for this in the choices – beam temperature and beamline field.
@@ -259,11 +261,11 @@ def calculate_injection_line(atom_current, cavity_radius, design_density, trappe
     # C350 - [J/atom] Energy in trapped gas and in beam gas
     trapped_gas_energy = (1.5 * kB * trapped_gas_temp) + (0.5 * (tritium_mass_atomic/c0**2) * vertical_injection_speed**2) + (bohr_magneton * nominal_field)
     # C351 - [m^-3] Density in the injection line
-    injection_density = atom_current * np.sqrt((tritium_mass_atomic/c0**2) / (2 * trapped_gas_energy - 3 * kB * injection_gas_temp - 2 * bohr_magneton * injection_field)) / area_loading_aperture
+    injection_density = atom_current * np.sqrt((tritium_mass_atomic/c0**2) / (2 * trapped_gas_energy - 3 * kB * injection_gas_temp - 2 * bohr_magneton * injection_field)) / area_atom_loading_aperture
     # C352 - [m] Mean free path in beamline
     mfp_beamline = 1 / (injection_density * tritium_tritium_crosssection_atomic)
     # C353 - [m/s] Vertical flow speed through aperture
-    vertical_aperture_speed = design_density * np.pi * cavity_radius**2 * vertical_injection_speed / (area_loading_aperture * injection_density)
+    vertical_aperture_speed = design_density * np.pi * cavity_radius**2 * vertical_injection_speed / (area_atom_loading_aperture * injection_density)
     # C354 - [J/atom] Energy in injected gas
     injection_gas_energy = (1.5 * kB * injection_gas_temp) + (0.5 * (tritium_mass_atomic/c0**2) * vertical_aperture_speed**2) + (bohr_magneton * injection_field)
     # C355 - [m^3/s] 5th degree polynomial fit for injection line dipolar loss rate
@@ -1178,7 +1180,7 @@ class CavitySensitivity(Sensitivity):
         #logger.info("Pumping Calculation: {}".format(self.Efficiency.pumping_calculation))
         if self.Efficiency.pumping_calculation:
             self.turbopump_speed = turbopump_speed(self.Efficiency.number_turbopumps, self.Efficiency.turbopump_speed_gas_T2)
-            logger.info("Turbopump Speed: {} m^3/s".format(self.turbopump_speed * s / m**3))
+            logger.info("Turbopump Speed: {:.4} m^3/s".format(self.turbopump_speed * s / m**3))
             self.turbopump_speed_limit_atomic = turbopump_speed_limit(self.cavity_radius, self.FrequencyExtraction.cavity_temperature, self.Experiment.cavity_L_over_D, self.Experiment.atomic)
             self.cavity_termination_speed_atomic = cavity_termination_speed(self.Efficiency.turbopump_speed_cavity_termination_air, self.Efficiency.cavity_top_plate_temperature, self.Experiment.atomic)
             self.turbopump_speed_limit_molecular = turbopump_speed_limit(self.cavity_radius, self.FrequencyExtraction.cavity_temperature, self.Experiment.cavity_L_over_D, not self.Experiment.atomic)
@@ -1207,7 +1209,7 @@ class CavitySensitivity(Sensitivity):
                 self.time_constant_dipolar, self.current_dipolar = calculate_dipolar_loss(self.MagneticField.nominal_field/T, self.cavity_radius, self.Experiment.design_density, self.total_cavity_volume, self.DopplerBroadening.gas_temperature, self.Experiment.cavity_L_over_D, self.top_cone, self.top_plate_cavity, self.Experiment.pure_magnetic_flag)
                 logger.info("Dipolar Time Constant: {:.4} s".format(self.time_constant_dipolar/s))
                 logger.info("Atom current required for dipolar losses: {:.4e} atoms/s".format(self.current_dipolar*s))
-                self.time_constant_evaporation, self.current_evaporation = calculate_evaporation_loss(self.Experiment.pure_magnetic_flag, self.DopplerBroadening.gas_temperature, self.cavity_radius, self.MagneticField.ioffe_field, self.MagneticField.nominal_field, self.cavity_length, self.top_cone, self.top_plate_cavity, self.Experiment.design_density, self.Efficiency.relative_loss_rate_cone_wall, self.total_cavity_volume)
+                self.time_constant_evaporation, self.current_evaporation, self.evaporation_top, self.evaporation_sides, self.evaporation_cone = calculate_evaporation_loss(self.Experiment.cavity_L_over_D, self.Experiment.pure_magnetic_flag, self.DopplerBroadening.gas_temperature, self.cavity_radius, self.MagneticField.ioffe_field, self.MagneticField.nominal_field, self.cavity_length, self.top_cone, self.top_plate_cavity, self.Experiment.design_density, self.Efficiency.relative_loss_rate_cone_wall, self.total_cavity_volume)
                 logger.info("Evaporation Time Constant: {:.4} s".format(self.time_constant_evaporation/s))
                 logger.info("Atom current required for Evaporation losses: {:.4e} atoms/s".format(self.current_evaporation*s))
                 self.time_constant_T2, self.current_T2_leak = calculate_T2_heat_leak(self.current_aperture_leak, self.current_rad_leak, self.current_He_leak, self.current_evaporation, self.current_dipolar, self.T2_total_density, self.FrequencyExtraction.cavity_temperature, self.Experiment.design_density, self.total_cavity_volume)
@@ -1224,17 +1226,25 @@ class CavitySensitivity(Sensitivity):
                 logger.info("Turbopump Speed required: {} m^3/s".format(self.turbopump_speed_required * s / m**3))
                 self.ratio_turbopump_speed = ratio_turbopump_speed(self.turbopump_speed_required, self.turbopump_speed_limit_molecular, self.cavity_termination_speed_molecular, self.turbopump_speed)
                 logger.info("Ratio of Turbopump Speed Limit: {:.4e}".format(self.ratio_turbopump_speed))
-                if (self.ratio_turbopump_speed >= 1.0): logger.info("CRITICAL PUMPING REACHED! Experiment cannot procede with turbopumps.")
-                self.ratio_cryopump_speed, self.cryopump_speed = calculate_cryopump_speed(self.FrequencyExtraction.cavity_temperature, self.cavity_radius, self.cavity_length, self.turbopump_speed_required, self.total_atom_current, self.Experiment.design_density, self.Efficiency.max_ratio_T2_T)
+                if (self.ratio_turbopump_speed >= 1.0): logger.info("CRITICAL PUMPING REACHED! Experiment cannot proceed with turbopumps.")
+                self.ratio_cryopump_speed, self.cryopump_speed, self.time_recycling_cryosurface = calculate_cryopump_speed(self.FrequencyExtraction.cavity_temperature, self.cavity_radius, self.cavity_length, self.turbopump_speed_required, self.total_atom_current, self.Experiment.design_density, self.Efficiency.max_ratio_T2_T)
                 logger.info("Ratio of Cryopump Speed: {:.4}".format(self.ratio_cryopump_speed))
                 if (self.ratio_cryopump_speed >= 1.0): logger.info("CRITICAL PUMPING REACHED! The molecular pumping speed required is a dimensional calculation, not really a speed. As a result, the cryopumping speed limit is not real. Ideal cryopumping is the impingement rate: it all sticks. The actual molecular density is determined by the vapor pressure.")
                 logger.info("Cryopump speed of molecules: {:.4} m^3/s".format(self.cryopump_speed * s/m**3))
+                logger.info("Time Recycling Cryosurface: {:.4} days".format(self.time_recycling_cryosurface / day))
+                # C289 [Bq - Decay/s] - Accumulated activity in the sides by end of cycle
+                self.accumulated_activity_sides = self.evaporation_sides * self.time_recycling_cryosurface * (86400*s/day) * lambda_tritium / Ci_Bq
+                # C291 [Bq - Decay/s] - Accumulated activity in the cone by end of cycle
+                self.accumulated_activity_cone = self.evaporation_cone * self.time_recycling_cryosurface * (86400*s/day) * lambda_tritium / Ci_Bq
+                logger.info("Accumulated activity on the sides by end of cycle: {:.4} Ci".format(self.accumulated_activity_sides))
+                logger.info("Accumulated activity on the cone by end of cycle: {:.4} Ci".format(self.accumulated_activity_cone))
+
                 self.vertical_injection_speed, self.trapped_gas_energy, self.injection_density, self.vertical_aperture_speed, self.injection_gas_energy = calculate_injection_line(self.total_atom_current, self.cavity_radius, self.Experiment.design_density, self.DopplerBroadening.gas_temperature, self.MagneticField.nominal_field, self.DopplerBroadening.injection_temperature, self.MagneticField.injection_field)
                 logger.info("Injection_density: {:.4e} m^-3".format(self.injection_density*m**3))
                 if (self.injection_density*m**3 > 1e20): logger.info("Too high! Lower temperature and/or magnetic field in the injection beamline.")
-                logger.info("Injection speed: {:.4e} m/s".format(self.vertical_injection_speed * s/m))
+                logger.info("Vertical injection speed in trap at bottom: {:.4e} m/s".format(self.vertical_injection_speed * s/m))
                 logger.info("Trapped gas energy: {:.4e} J".format(self.trapped_gas_energy/J))
-                logger.info("Aperture speed: {:.4e} m/s".format(self.vertical_aperture_speed * s/m))
+                logger.info("Vertical injection speed in aperture: {:.4e} m/s".format(self.vertical_aperture_speed * s/m))
                 logger.info("Injection gas energy: {:.4e} J".format(self.injection_gas_energy/J))
 
 

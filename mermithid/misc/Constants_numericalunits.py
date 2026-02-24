@@ -77,10 +77,12 @@ gravity = 9.80 *m/s**2
 LGd_rates = 50
 # C049 - per beta decay: see: https://www.overleaf.com/2817746228snnghrnzfthk
 molecules_desorbed_wall_beta = 1000
-# C050 - eV to J conversion
+# C050 - [eV] to [J] conversion
 eV_J = 1.605e-19 *J/eV
+# C108 - [m^2] Choose an area to determine injection speed and density
+area_atom_loading_aperture = 0.001 * m**2
 # C118 - [Ci] Total activity on wall at recyling. Ci (Bq = 1 decay per second)
-wall_activity = 100 * Ci_Bq
+wall_activity = 100
 
 
 # units that do not show up in numericalunits
