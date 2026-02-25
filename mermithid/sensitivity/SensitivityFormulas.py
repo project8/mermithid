@@ -316,7 +316,7 @@ class Sensitivity(object):
             delta = self.DopplerBroadening.Default_Systematic_Uncertainty
             return sigma, delta
 
-        # termal doppler broardening
+        # thermal doppler broadening
         gasTemp = self.DopplerBroadening.gas_temperature
         mass_T = self.T_mass
         endpoint = self.T_endpoint
@@ -335,7 +335,7 @@ class Sensitivity(object):
         Ee = endpoint + me*c0**2
         p_rec = np.sqrt( Emax**2-me**2*c0**4 + (Emax - Ee - E_rec)**2 - mbeta**2 + 2*Ee*(Emax - Ee - E_rec)*betae*betanu*cosThetaenu )
         sigma_trans = np.sqrt(p_rec**2/(2*mass_T)*2*kB*gasTemp)
-
+        # sigma_trans = 2 * Ke * np.sqrt(kB_eV * trapped_gas_temp / (mass (eV) * beta^2))
         if self.Experiment.atomic == True:
             delta_trans = np.sqrt(p_rec**2/(2*mass_T)*kB/gasTemp*self.DopplerBroadening.gas_temperature_uncertainty**2)
         else:

@@ -659,7 +659,7 @@ class CavitySensitivity(Sensitivity):
         # C093 - [m] height of the top of the vacuum system
         self.top_vacuum_system = 7.50*m
         return self.top_cone, self.trap_coil_1, self.trap_coil_2, self.top_plate_cavity, self.top_vacuum_system 
-    # C126 - [m] Cavity Length from true L and f; estimated as L-z1/2
+    # C126 - [m] Cavity Length from true L and f (estimated as L-z1/2); effective cavity length enters first third of ioffe cone
     def CavityLength(self):
         self.cavity_length = (self.top_plate_cavity - self.top_cone/2)
         return self.cavity_length
@@ -667,6 +667,8 @@ class CavitySensitivity(Sensitivity):
     def CavityVolume(self):
         #Calculate vacuum volume including cone and top service volume
         if self.Experiment.cavity_cone_flag:
+            # V = V_cyl + V_cone = pi * r^2 * (L + h/3), total height is height of trap coils + height of cone; 
+            # See Robertson_H&V_2025-10-29 for explanation; nothing changes about physical volume for second cone in horizontal configuration.
             self.total_cavity_volume = np.pi * self.cavity_radius**2 * (self.top_plate_cavity - (2/3) * self.top_cone) * self.Experiment.n_cavities
         else:
             #radius = 0.5*wavelength(self.T_endpoint, self.MagneticField.nominal_field)
