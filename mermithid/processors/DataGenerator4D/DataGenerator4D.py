@@ -99,16 +99,16 @@ class DataGenerator4D(BaseProcessor):
         self.ke_edges: Optional[Union[np.ndarray, List[float]]] = reader.read_param(
             params, "ke_edges", None
         )  # (eV)
-        self.theta_bins: int = reader.read_param(params, "theta_bins", 100)
+        self.theta_bins: int = reader.read_param(params, "theta_bins", 3600)
         self.theta_edges: Optional[Union[np.ndarray, List[float]]] = reader.read_param(
             params, "theta_edges", None
         )  # (rad)
         self.r_max: float = reader.read_param(params, "r_max", 0.01)  # (m)
-        self.r_bins: int = reader.read_param(params, "r_bins", 100)
+        self.r_bins: int = reader.read_param(params, "r_bins", 1400)
         self.r_edges: Optional[Union[np.ndarray, List[float]]] = reader.read_param(
             params, "r_edges", None
         )  # (m)
-        self.phi_bins: int = reader.read_param(params, "phi_bins", 100)
+        self.phi_bins: int = reader.read_param(params, "phi_bins", 360)
         self.phi_edges: Optional[Union[np.ndarray, List[float]]] = reader.read_param(
             params, "phi_edges", None
         )  # (rad)

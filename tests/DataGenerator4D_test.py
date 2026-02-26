@@ -1,6 +1,6 @@
 """
 To test mermithid.processors.DataGenerator4D.DataGenerator4D.
-It will take ~5 min to run.
+It will take ~10 min to run.
 Author: S. M. Lee
 First Date: August 26, 2025
 Last Date: January 19, 2026
@@ -26,9 +26,9 @@ class DataGenerator4DTest(unittest.TestCase):
             "ke_min": 18000,  # eV
             "ke_max": 19000,  # eV
             "ke_bins": 100,
-            "theta_bins": 720,
+            "theta_bins": 3600,
             "r_max": 0.007,  # m
-            "r_bins": 300,
+            "r_bins": 1400,
             "phi_bins": 360,
             # Monoenergetic rate configurations
             "source_types": ["mono"],
