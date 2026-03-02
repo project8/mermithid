@@ -292,6 +292,12 @@ class CavitySensitivity(Sensitivity):
             self.bkgd_constant = 1
             logger.info("Using background rate constant of 1/eV/s") 
         
+        # Number of steps in pitch angle between min_pitch and pi/2 for the frequency noise uncertainty calculation
+        self.pitch_steps = 100
+        if hasattr(self.FrequencyExtraction, "pitch_steps"):
+            self.pitch_steps = self.FrequencyExtraction.pitch_steps
+            logger.info("Using configured pitch_steps value")  
+       
         # Need to get power fractions before calculating effective volume (given impact on detection efficiency)
         # Power fractions are relative to the power of a 90° carrier electron
         # If average_power_fractions==True, use carrier and sideband pitch power fractions averaged over the usable pitch angle range.
@@ -300,6 +306,17 @@ class CavitySensitivity(Sensitivity):
         if hasattr(self.FrequencyExtraction, "use_average_power_fractions"):
             if self.FrequencyExtraction.use_average_power_fractions:
                 logger.info("Using average carrier and sideband power fractions")
+                #Calculating the trapped pitch angle distribution:
+
+                # Used as both the array of start pitch angles as an input to the calculation, and the array of bottom pitch angles that we interpolate to
+                self.theta_array = np.linspace(self.FrequencyExtraction.minimum_angle_in_bandwidth, 90*deg, self.pitch_steps)
+
+                # Calculating distribution of pitch angles at the bottom of the trap, after trapping
+                self.theta_bottoms_bin_centers, self.prob_theta_bottom = dist_of_theta_bottom_after_trapping(self.MagneticField.nominal_field, self.theta_array, self.Experiment.trap_length, self.FrequencyExtraction.minimum_angle_in_bandwidth, flat_fraction=self.MagneticField.trap_flat_fraction, n_z_start=self.Efficiency.n_z_for_trapped_pitch_dist, n_theta_bottom=self.Efficiency.n_theta_bottom_for_trapped_pitch_dist)
+                
+                # Determining which probability corresponds to each pitch angle in self.theta_array
+                self.prob_theta_array = np.interp(self.theta_array, self.theta_bottoms_bin_centers, self.prob_theta_bottom)
+
             else:
                 logger.info("Using carrier and sideband (power fractions vs. pitch angle) from file")
                 # Read powers from the file and then scale them by power of maximum
@@ -353,12 +370,6 @@ class CavitySensitivity(Sensitivity):
         if hasattr(self.FrequencyExtraction, "crlb_constant"):
             self.CRLB_constant = self.FrequencyExtraction.crlb_constant
             logger.info("Using configured CRLB constant")      
-        
-        # Number of steps in pitch angle between min_pitch and pi/2 for the frequency noise uncertainty calculation
-        self.pitch_steps = 100
-        if hasattr(self.FrequencyExtraction, "pitch_steps"):
-            self.pitch_steps = self.FrequencyExtraction.pitch_steps
-            logger.info("Using configured pitch_steps value")  
 
         #Just calculated for comparison
         self.larmor_power = rad_power(self.T_endpoint, np.pi/2, self.MagneticField.nominal_field) # currently not used
@@ -646,8 +657,10 @@ class CavitySensitivity(Sensitivity):
             # resolution contribution from noise.
             if self.FrequencyExtraction.use_average_power_fractions:
                 pitch_comps = pitch_comps_for_p_and_q_calc
+                prob_theta_array_for_f_noise = self.prob_theta_array
             else:
                 pitch_comps = np.pi/2 - self.theta_array[:len(self.theta_array)-1] #Cut out theta=pi/2 since sideband power is 0 there, resulting in infinite tau_snr.
+                prob_theta_array_for_f_noise = self.prob_theta_array[:len(self.theta_array)-1] #Cut out theta=pi/2 since sideband power is 0 there, resulting in infinite tau_snr.
 
             #Define the trap parameter p based on the relation between the trap length and the cavity mode
             #This p is for a box trap
@@ -685,14 +698,17 @@ class CavitySensitivity(Sensitivity):
             # Total uncertainty for each pitch angle
             var_f_noise_array = var_noise_from_fc_array + var_noise_from_flsb_array
 
+            for i in range(len(var_f_noise_array)):
+                sigEnoises = e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*np.sqrt(var_f_noise_array[i])*c0**2
+                print(thetas_for_p_and_q_calc[i]/deg, sigEnoises/eV)
+
             # Next, we average over sigma_noise values.
             # This is a quadrature sum average weighted by the pitch angle distribution,
             # reflecting that the detector response function could be constructed by sampling
             # from many normal distributions with different standard deviations (sigma_noise_array),
             # then finding the standard deviation of the full group of sampled values.
             # IS THE BELOW CORRECT?
-            prob_theta_array_without_pi_over_2 = self.prob_theta_array[:len(self.theta_array)-1] #Cut out theta=pi/2 since sideband power is 0 there, resulting in infinite tau_snr.
-            self.sigma_f_noise = np.sqrt(np.sum(var_f_noise_array*prob_theta_array_without_pi_over_2)/np.sum(self.prob_theta_array))
+            self.sigma_f_noise = np.sqrt(np.sum(var_f_noise_array*prob_theta_array_for_f_noise)/np.sum(self.prob_theta_array))
 
         else:
             self.sigma_f_noise = np.sqrt(self.var_f_c_CRLB)
