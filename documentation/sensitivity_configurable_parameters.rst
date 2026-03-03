@@ -97,6 +97,14 @@ We use the CRLB for calculating the frequency resolution. The CRLB is calculated
 * ``sigmae_theta``: Fixed input in eV. Energy broadening remaining after theta reconstruction, from electrons with lower pitch angles exploring high fields. Accounts for both the uncertainty on theta and uncertainties on the trap depth/boxiness.
 * ``sigmae_phi``: Fixed input in eV. Energy broadening from phi field inhomogeneity that remains after phi reconstruction.
 
+Each variable corresponds to the energy resolution contribution from field variation along a particular spatial direction / time, after accounting for position reconstruction in that direction / time. Then fraction_uncertainty_on_field_broadening accounts for how well that field broadening is known/calculated.
+Broken up between different position and time coordinates, for cases in which we want to study the effect of field variation along each coordinate individually, and then input the resulting resolution contributions into mermithid. Resolution contributions due to field variation along the different coordinates are added in quadrature.
+Currently using the variable sigmae_r to account for the total resolution contribution from field variation + reconstruction/calculation in all coordinates.
+
+In the atomic calculator, the input is a field inhomogeneity value deltaB/B in ppm, instead of being a resolution contribution value in eV. Field inhomogeneity is converted to a resolution value using a simple B-->E formula, based on the Larmor formula. Used to have something similar in mermithid but scrapped that.
+Don't love this approach because it implies that a certain physical field inhomogeneity corresponds to a certain resolution contribution via the Larmor formula and that's really not the case. Take, for example, radial variation. If there is no radial reconstruction, then to get the resolution contribution from the physical field variation, one needs to account for the fact that there are more electrons at higher radii, and that the detection efficiency depends on radius in some way. Those effects re-weight the impact of the field vs. radius profile. In addition, if there is radial reconstruction, that can further reduce the resolution relative to the physical radial field inhomogeneity, because we can use knowledge of electron radii to correct for the field vs. radius variation. So, there are several degrees of separation between physical field inhomogeneity and a resolution contribution.
+Since we don't have models of these various effects in mermithid or the atomic calculator, prefer to just have us directly input the resolution contributions. Yes, one could take the 0.085eV number and convert it to a deltaB/B requirement via the Larmor formula, but that number doesn't really mean anything.
+
 **FinalStates**
 
 * ``ground_state_width_uncertainty_fraction``: Uncertainty on the ground state width. Recommended to use 0.001.
