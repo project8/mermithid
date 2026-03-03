@@ -2,7 +2,7 @@ import numpy as np
 from scipy.special import roots_laguerre
 from mermithid.misc.Constants_numericalunits import *
 '''
-Ben Jones calculation disagrees with evaporation losses in atomic calc and must be integrated: https://3.basecamp.com/3700981/buckets/3107037/uploads/8902667883
+Ben Jones calculation disagrees with evaporation losses (specifically out the top > 5 mK, agrees otherwise) in atomic calc and must be integrated: https://3.basecamp.com/3700981/buckets/3107037/uploads/8902667883
 
 '''
 

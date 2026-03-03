@@ -780,6 +780,27 @@ class CavitySensitivity(Sensitivity):
         else:
             return 0, 0
 
+    def syst_plasma_effects(self):
+        if self.PlasmaEffects.UseFixedValue:
+            sigma = self.PlasmaEffects.Default_Systematic_Smearing
+            delta = self.PlasmaEffects.Default_Systematic_Uncertainty
+            return sigma, delta
+        elif not self.PlasmaEffects.UseFixedValue and self.Experiment.design_density_flag:
+            # C212 [s] - Differs from atomic calculator due to In + Es Crosssection for T-e at 18.6 keV and trap density
+            mean_track_duration = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
+            #mean_track_duration = self.time_window
+            # C061 - Only used to estimate plasma broadening and mean track number present. Rough guess.
+            tracks_per_event = 10
+            # C131 - Box trap approximation
+            min_pitch_angle_acceptance = 0.089
+            #C217 - [eV] Plasma Broadening Calculation. Conservative upper limit based on dominance of 1 charge
+            sigma = 7.2e-10 * (calculate_inventory(self.Experiment.design_density, self.total_cavity_volume) * lambda_tritium / Ci_Bq) * mean_track_duration * tracks_per_event \
+                    * Ci_Bq * min_pitch_angle_acceptance * np.log(self.cavity_length / self.cavity_radius) / 2.35 * eV
+            delta = self.PlasmaEffects.Default_Systematic_Uncertainty
+            return sigma, delta
+        else:
+            return 0, 0
+
     def det_efficiency_track_duration(self):
         """
         Detection efficiency implemented based on René's slides, with faster and stable implementation using Gauss-Laguerre quadrature (G-L method):
