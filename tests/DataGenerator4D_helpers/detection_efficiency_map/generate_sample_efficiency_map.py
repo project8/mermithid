@@ -13,7 +13,7 @@ Usage examples:
   python generate_sample_efficiency_map.py --output custom_efficiency.npy
 
 Author: S. M. Lee
-Date: February 26, 2026
+Date: March 7, 2026
 """
 
 import numpy as np

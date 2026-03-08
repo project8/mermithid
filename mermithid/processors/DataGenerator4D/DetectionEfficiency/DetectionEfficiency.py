@@ -3,7 +3,7 @@ DetectionEfficiency class for DataGenerator4D.
 Handles loading and applying 4D detection efficiency map.
 
 Author: S. M. Lee
-Date: February 26, 2026
+Date: March 7, 2026
 """
 
 from __future__ import absolute_import

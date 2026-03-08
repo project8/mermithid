@@ -29,7 +29,7 @@ Usage examples:
   python generate_sample_energy_error_map.py --model gaussian_combined --sigma-base 1.5
 
 Author: S. M. Lee
-Date: March 6, 2026
+Date: March 7, 2026
 """
 
 import numpy as np

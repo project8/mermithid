@@ -7,7 +7,7 @@ energy due to detector resolution, electronics noise, and signal processing
 uncertainties.
 
 Author: S. M. Lee
-Date: March 6, 2026
+Date: March 7, 2026
 """
 
 from __future__ import absolute_import

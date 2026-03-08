@@ -2,7 +2,7 @@
 The data generator class for CCA.
 Author: S. M. Lee
 First Date: August 25, 2025
-Last Update: January 19, 2026
+Last Update: March 7, 2026
 """
 
 from __future__ import absolute_import
