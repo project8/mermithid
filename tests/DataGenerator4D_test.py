@@ -331,8 +331,8 @@ class DataGenerator4DTest(unittest.TestCase):
         ax_ke_error_start.set_xlim(var_items[0]["min"], var_items[0]["max"])
 
         ax_ke_error_start.set_ylabel(r"$E_{k}^{\mathrm{observed}} - E_{k}^{\mathrm{start}}$ [eV]")
-        ax_ke_error_start.set_ylim(-5, 5)
-        ax_ke_error_start.set_yticks([-5, 0, 5])
+        ax_ke_error_start.set_ylim(-20, 20)
+        ax_ke_error_start.set_yticks([-20, -10, 0, 10, 20])
 
         # ke_error vs r_start scatter
         ax_ke_error_r.scatter(
