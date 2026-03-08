@@ -17,6 +17,8 @@ from mermithid.misc.FakeTritiumDataFunctions import *
 
 from . import EnergySampler
 from . import SpatialSampler
+from . import DetectionEfficiency
+from . import EnergyError
 
 logger = morphologging.getLogger(__name__)
 
@@ -28,9 +30,9 @@ __all__.append(__name__)
 class DataGenerator4D(BaseProcessor):
     """
     Generate pseudo electrons for CCA. It samples 4D data
-    (E, theta_center, r_start, phi_start) from a given source and background
-    model. This will sample theta_start together, which is internally used for
-    the detector response simulation.
+    (ke_observed, theta_center, r_start, phi_start) from a given source and background
+    model. This samples ke_start and theta_start together, which are internally
+    used for the trapping_efficiency/energy_error application.
 
     Parameters:
         name: The name of the instance
@@ -176,6 +178,22 @@ class DataGenerator4D(BaseProcessor):
             "path": self.cavity_field_path,
         }
 
+        # Detection efficiency configurations
+        self.detection_efficiency_enabled: bool = reader.read_param(
+            params, "detection_efficiency_enabled", False
+        )  # (bool)
+        self.detection_efficiency_path: Optional[str] = reader.read_param(
+            params, "detection_efficiency_path", None
+        )  # (str)
+
+        # Energy error configurations
+        self.energy_error_enabled: bool = reader.read_param(
+            params, "energy_error_enabled", False
+        )  # (bool)
+        self.energy_error_map_path: Optional[str] = reader.read_param(
+            params, "energy_error_map_path", None
+        )  # (str)
+
         # Instantiate the samplers
         self._edge: Dict[str, np.ndarray] = dict()
         if self.ke_edges is None:
@@ -244,6 +262,30 @@ class DataGenerator4D(BaseProcessor):
             logger.error(f"Unknown spatial model: {self.spatial_model}")
             return False
 
+        # detection efficiency
+        self._detection_efficiency: Optional[DetectionEfficiency.DetectionEfficiency] = None
+        if self.detection_efficiency_enabled:
+            if self.detection_efficiency_path is None:
+                logger.error("Detection efficiency enabled but no path provided.")
+                return False
+            
+            self._detection_efficiency = DetectionEfficiency.DetectionEfficiency(
+                name=self._procName + "_detection_efficiency",
+                efficiency_map_path=self.detection_efficiency_path,
+            )
+
+        # energy error
+        self._energy_error: Optional[EnergyError.EnergyError] = None
+        if self.energy_error_enabled:
+            if self.energy_error_map_path is None:
+                logger.error("Energy error enabled but no map path provided.")
+                return False
+            
+            self._energy_error = EnergyError.EnergyError(
+                name=self._procName + "_energy_error",
+                energy_error_map_path=self.energy_error_map_path,
+            )
+
         # placeholder for the InternalRun result
         self.results: List[Dict[str, np.ndarray]] = [{} for _ in self.runtimes]
 
@@ -287,7 +329,9 @@ class DataGenerator4D(BaseProcessor):
 
         Returns:
             A dictionary containing the sampled 4D data arrays for each runtime.
-            Keys: "sampler_id", "ke", "theta_center", "r_start", "phi_start", "theta_start"
+            Keys: "sampler_id", "ke_start", "ke_observed", "theta_center", "r_start", "phi_start", "theta_start"
+            - "ke_start": Initial kinetic energy before detector smearing
+            - "ke_observed": Kinetic energy after applying detector energy error (smearing)
             Each value is a list of np.ndarray, one for each runtime.
         """
         info_msg = f"{self._procName} is generating pseudo-data:"
@@ -299,7 +343,8 @@ class DataGenerator4D(BaseProcessor):
         fake_data: List[Dict[str, np.ndarray]] = [
             {
                 "sampler_id": np.zeros(0, dtype=int),
-                "ke": np.zeros(0, dtype=float),
+                "ke_start": np.zeros(0, dtype=float),
+                "ke_observed": np.zeros(0, dtype=float),
                 "theta_center": np.zeros(0, dtype=float),
                 "r_start": np.zeros(0, dtype=float),
                 "phi_start": np.zeros(0, dtype=float),
@@ -318,10 +363,11 @@ class DataGenerator4D(BaseProcessor):
                 fake_data[i]["sampler_id"] = np.concatenate(
                     (fake_data[i]["sampler_id"], np.full(n_samples[i], sampler_id))
                 )
-                fake_data[i]["ke"] = np.concatenate((fake_data[i]["ke"], ke_samples[i]))
+                fake_data[i]["ke_start"] = np.concatenate((fake_data[i]["ke_start"], ke_samples[i]))
+                fake_data[i]["ke_observed"] = np.concatenate((fake_data[i]["ke_observed"], ke_samples[i]))
 
         # sample geometry
-        if not self._spatial_sampler.Sample([fd["ke"] for fd in fake_data]):
+        if not self._spatial_sampler.Sample([fd["ke_start"] for fd in fake_data]):
             return fake_data
 
         geometry_samples = (
@@ -333,18 +379,67 @@ class DataGenerator4D(BaseProcessor):
             fake_data[i]["phi_start"] = geometry_samples[i]["phi_start"]
             fake_data[i]["theta_start"] = geometry_samples[i]["theta_start"]
 
-        # TODO: apply the detector response
-        # test_detector = Detector4D.Detector4D(name="test_detector")
-        # test_detector.SetResolution(
-        #     Detector4D.ResolutionOnEnergy.ConstantGaussian(
-        #         name="test_resolution",
-        #         resolution=100,  # (eV)
-        #     )
-        # )
+        # Apply detection efficiency
+        if self._detection_efficiency is not None:
+            logger.info("Applying detection efficiency")
+            for i in range(len(self.runtimes)):
+                n_before = len(fake_data[i]["ke_start"])
+                
+                # Apply efficiency and get boolean mask of detected events
+                detected = self._detection_efficiency.apply_efficiency(
+                    fake_data[i]["ke_start"],
+                    fake_data[i]["theta_center"],
+                    fake_data[i]["r_start"],
+                    fake_data[i]["phi_start"],
+                )
+                
+                # Filter all arrays to keep only detected events
+                fake_data[i]["sampler_id"] = fake_data[i]["sampler_id"][detected]
+                fake_data[i]["ke_start"] = fake_data[i]["ke_start"][detected]
+                fake_data[i]["ke_observed"] = fake_data[i]["ke_observed"][detected]
+                fake_data[i]["theta_center"] = fake_data[i]["theta_center"][detected]
+                fake_data[i]["r_start"] = fake_data[i]["r_start"][detected]
+                fake_data[i]["phi_start"] = fake_data[i]["phi_start"][detected]
+                fake_data[i]["theta_start"] = fake_data[i]["theta_start"][detected]
+                
+                n_after = len(fake_data[i]["ke_start"])
+                efficiency_measured = n_after / n_before if n_before > 0 else 0
+                logger.info(
+                    f"    Runtime {i}: {n_before} -> {n_after} events "
+                    f"(measured efficiency: {efficiency_measured:.3f})"
+                )
+
+        # Apply energy error
+        if self._energy_error is not None:
+            logger.info("Applying energy error")
+            for i in range(len(self.runtimes)):
+                n_events = len(fake_data[i]["ke_start"])
+                if n_events == 0:
+                    logger.info(f"    Runtime {i}: No events to apply energy error")
+                    continue
+                
+                # Sample energy errors for each event
+                ke_errors = self._energy_error.sample_energy_error(
+                    fake_data[i]["ke_start"],
+                    fake_data[i]["theta_center"],
+                    fake_data[i]["r_start"],
+                    fake_data[i]["phi_start"],
+                )
+                
+                # Create observed kinetic energy by adding error to initial kinetic energy
+                fake_data[i]["ke_observed"] = fake_data[i]["ke_start"] + ke_errors
+                
+                # Log statistics
+                logger.info(
+                    f"    Runtime {i}: Applied energy error to {n_events} events. "
+                    f"Mean error: {ke_errors.mean():.3f} eV, "
+                    f"Std: {ke_errors.std():.3f} eV, "
+                    f"Range: [{ke_errors.min():.3f}, {ke_errors.max():.3f}] eV"
+                )
 
         logger.info("Generated 4-dimensional data")
         for i, runtime in enumerate(self.runtimes):
-            n_events = len(fake_data[i]["ke"])
+            n_events = len(fake_data[i]["ke_observed"])
             logger.info(f"    Runtime {i} ({runtime:.1f} s): {n_events} events")
 
         return fake_data

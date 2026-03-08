@@ -1,0 +1,24 @@
+Arguments:
+  model: gaussian_r_dependent
+  ke_error_min: -20.0
+  ke_error_max: 20.0
+  ke_error_bins: 10
+  ke_start_min: 18000
+  ke_start_max: 19000
+  ke_start_bins: 10
+  theta_center_bins: 6
+  r_max: 0.01
+  r_bins: 10
+  phi_bins: 6
+  sigma_base: 5.0
+  output: sample_energy_error_map_small.npy
+Generated energy error map with shape: (10, 10, 6, 10, 6)
+  ke_error bins: 10 [-20.0, 20.0] eV
+  ke_start bins: 10 [18000, 19000] eV
+  theta_center bins: 6 [0.000, 3.142] rad
+  r bins: 10 [0.0000, 0.0100] m
+  phi bins: 6 [0.000, 6.283] rad
+Normalization check: sum along axis 0 in [1.000000, 1.000000]
+Error model: gaussian_r_dependent
+Base sigma: 5.0 eV
+Saved to: sample_energy_error_map_small.npy

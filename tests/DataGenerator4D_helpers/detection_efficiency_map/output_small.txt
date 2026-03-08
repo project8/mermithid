@@ -1,0 +1,14 @@
+Arguments:
+  ke_bins: 50
+  theta_center_bins: 12
+  r_bins: 50
+  phi_bins: 12
+  ke_min: 18000
+  ke_max: 19000
+  r_max: 0.01
+  model: radial_falloff
+  output: sample_efficiency_map_small.npy
+Generated efficiency map with shape: (50, 12, 50, 12)
+Efficiency range: [0.069, 1.000]
+Mean efficiency: 0.683
+Saved to: sample_efficiency_map_small.npy

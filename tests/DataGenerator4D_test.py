@@ -1,12 +1,19 @@
 """
 To test mermithid.processors.DataGenerator4D.DataGenerator4D.
 It will take ~10 min to run.
+
+command: python3 DataGenerator4D_test.py
+quick command: python3 DataGenerator4D_test.py --quick
+  --quick: Use reduced bins and small energy error map for faster execution (for quick testing and debugging)
+
 Author: S. M. Lee
 First Date: August 26, 2025
 Last Date: January 19, 2026
 """
 
 import unittest
+import argparse
+import sys
 
 from morpho.utilities import morphologging
 
@@ -14,6 +21,8 @@ logger = morphologging.getLogger(__name__)
 
 import matplotlib.pyplot as plt
 import numpy as np
+
+QUICK_MODE = False
 
 
 class DataGenerator4DTest(unittest.TestCase):
@@ -45,12 +54,23 @@ class DataGenerator4DTest(unittest.TestCase):
             "uniform_cylinder_radius": 0.06,  # (m)
             # Cavity field configurations
             "cavity_field_option": "numeric",
-            # "cavity_field_map_path": "cavity_field_maps/box.npz",
-            # "cavity_field_map_path": "cavity_field_maps/harmonic.npz",
-            "cavity_field_map_path": "cavity_field_maps/CCA_Trap_V45.npz",
+            # "cavity_field_map_path": "./DataGenerator4D_helpers/cavity_field_map/box.npz",
+            # "cavity_field_map_path": "./DataGenerator4D_helpers/cavity_field_map/harmonic.npz",
+            "cavity_field_map_path": "./DataGenerator4D_helpers/cavity_field_map/CCA_Trap_V45.npz",
+            # Detection efficiency map
+            "detection_efficiency_enabled": True,
+            "detection_efficiency_path": "./DataGenerator4D_helpers/detection_efficiency_map/sample_efficiency_map_small.npy",
+            # Energy error map
+            "energy_error_enabled": True,
+            "energy_error_map_path": "./DataGenerator4D_helpers/energy_error_map/sample_energy_error_map_small.npy",
             # Operational metadata
             "channel_runtimes": [6000.0, 12000.0],  # s
         }
+
+        if QUICK_MODE:
+            logger.info("Running in quick mode")
+            specGen_config["theta_bins"] = 360
+            specGen_config["r_bins"] = 140
 
         specGen = DataGenerator4D("specGen")
         specGen.Configure(specGen_config)
@@ -70,12 +90,12 @@ class DataGenerator4DTest(unittest.TestCase):
         var_items = list()
         var_items.append(
             {
-                "name": "ke",
-                "equation": r"$E_{k}$",
+                "name": "ke_observed",
+                "equation": r"$E_{k}^{\mathrm{observed}}$",
                 "min": draw_config["ke_min"],
                 "max": draw_config["ke_max"],
                 "bins": draw_config["ke_bins"],
-                "label": "Kinetic Energy [eV]",
+                "label": "Observed Energy [eV]",
                 "ticks": np.linspace(draw_config["ke_min"], draw_config["ke_max"], 3),
                 "ticklabels": [
                     f"{int(x):d}"
@@ -149,13 +169,15 @@ class DataGenerator4DTest(unittest.TestCase):
         )
 
         fig = plt.figure(figsize=(12, 8))
-        fig_joint, fig_theta = fig.subfigures(1, 2, width_ratios=[2, 1])
+        fig_joint, fig_response = fig.subfigures(1, 2, width_ratios=[2, 1])
 
         axs_joint = fig_joint.subplots(4, 4)
 
-        gs_theta = fig_theta.add_gridspec(20, 20)
-        ax_theta_hist: plt.Axes = fig_theta.add_subplot(gs_theta[0:9, 2:])
-        ax_theta_transform: plt.Axes = fig_theta.add_subplot(gs_theta[11:20, 2:])
+        gs_response = fig_response.add_gridspec(20, 20)
+        ax_ke_error_start: plt.Axes = fig_response.add_subplot(gs_response[0:6, 2:10])
+        ax_ke_error_r: plt.Axes = fig_response.add_subplot(gs_response[0:6, 12:])
+        ax_theta_hist: plt.Axes = fig_response.add_subplot(gs_response[8:13, 2:])
+        ax_theta_transform: plt.Axes = fig_response.add_subplot(gs_response[15:20, 2:])
 
         # Joint plots
         colors = ["red", "blue"]
@@ -283,6 +305,53 @@ class DataGenerator4DTest(unittest.TestCase):
                     ax.yaxis.set_ticks_position("both")
                 ax.tick_params(direction="in", which="both")
 
+        # ke error plots
+        ke_observe_all = np.concatenate(
+            [results[i]["ke_observed"] for i in range(len(results))]
+        )
+        ke_start_all = np.concatenate(
+            [results[i]["ke_start"] for i in range(len(results))]
+        )
+        r_start_all = np.concatenate(
+            [results[i]["r_start"] for i in range(len(results))]
+        )
+
+        # ke_error vs ke_start scatter
+        ax_ke_error_start.scatter(
+            ke_start_all,
+            ke_observe_all - ke_start_all,
+            color="black",
+            s=1,
+            alpha=0.01,
+        )
+
+        ax_ke_error_start.set_xlabel("Initial Energy " + r"$E_{k}^{\mathrm{start}}$ [eV]")
+        ax_ke_error_start.set_xticks(var_items[0]["ticks"])
+        ax_ke_error_start.set_xticklabels(var_items[0]["ticklabels"])
+        ax_ke_error_start.set_xlim(var_items[0]["min"], var_items[0]["max"])
+
+        ax_ke_error_start.set_ylabel(r"$E_{k}^{\mathrm{observed}} - E_{k}^{\mathrm{start}}$ [eV]")
+        ax_ke_error_start.set_ylim(-5, 5)
+        ax_ke_error_start.set_yticks([-5, 0, 5])
+
+        # ke_error vs r_start scatter
+        ax_ke_error_r.scatter(
+            r_start_all,
+            ke_observe_all - ke_start_all,
+            color="black",
+            s=1,
+            alpha=0.01,
+        )
+
+        ax_ke_error_r.set_xlabel("Radius " + r"$r_{\mathrm{start}}$ [m]")
+        ax_ke_error_r.set_xticks(var_items[2]["ticks"])
+        ax_ke_error_r.set_xticklabels(var_items[2]["ticklabels"])
+        ax_ke_error_r.set_xlim(var_items[2]["min"], var_items[2]["max"])
+
+        ax_ke_error_r.set_ylim(-20, 20)
+        ax_ke_error_r.set_yticks([-20, -10, 0, 10, 20])
+        ax_ke_error_r.set_yticklabels([])
+
         # Trapped theta plots
         theta_start_all = np.concatenate(
             [results[i]["theta_start"] for i in range(len(results))]
@@ -384,4 +453,13 @@ class DataGenerator4DTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Use reduced bins and small energy error map for faster execution",
+    )
+    args, remaining_argv = parser.parse_known_args()
+
+    QUICK_MODE = args.quick
+    unittest.main(argv=[sys.argv[0]] + remaining_argv)
