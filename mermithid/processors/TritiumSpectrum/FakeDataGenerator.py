@@ -528,7 +528,31 @@ class FakeDataGenerator(BaseProcessor):
         #logger.info('Block 2')
         if self.poisson_stats:
             logger.info('Using Poisson statistics to determine number of events')
-            KE = np.random.choice(self.Koptions, np.random.poisson(S+B), p = self.probs)
+            print(f'Size of Koptions: {len(self.Koptions)}')
+            print(f'Size of probs: {len(self.probs)}')
+            print("len(Koptions), len(probs), probs_sum:", len(self.Koptions), len(self.probs), np.sum(self.probs))
+            # Sampling with np.random.choice.
+            # print('Using np.random.choice to sample from probabilities')
+            # KE = np.random.choice(self.Koptions, np.random.poisson(S+B), p = self.probs)
+
+            # Sampling with np.random.multinomial
+            # print('Using multinomial method to sample from probabilities')
+            # KE = np.random.multinomial(np.random.poisson(S+B), self.probs)
+            # indices = np.repeat(np.arange(len(self.Koptions)), KE)
+            # KE = self.Koptions[indices]
+
+            # Sampling using inverse transform sampling, in batches to avoid memory issues.
+            print('Using inverse transform sampling to sample from probabilities, in batches')
+            num_events = int(np.random.poisson(S+B))
+            KE = np.empty(num_events, dtype=self.Koptions.dtype)
+            cdf = np.cumsum(self.probs, dtype=np.float64)
+            cdf[-1] = 1.0
+            batch_size = 10000
+            for start in range(0, num_events, batch_size):
+                stop = min(start + batch_size, num_events)
+                u = np.random.uniform(0.0, 1.0, size=stop-start)
+                idx = np.searchsorted(cdf, u, side='left')
+                KE[start:stop] = self.Koptions[idx]
         else:
             logger.info('Using fixed statistics to determine number of events')
             KE = np.random.choice(self.Koptions, round(S+B), p = self.probs)
