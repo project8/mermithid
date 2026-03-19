@@ -698,9 +698,9 @@ class CavitySensitivity(Sensitivity):
             # Total uncertainty for each pitch angle
             var_f_noise_array = var_noise_from_fc_array + var_noise_from_flsb_array
 
-            for i in range(len(var_f_noise_array)):
-                sigEnoises = e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*np.sqrt(var_f_noise_array[i])*c0**2
-                print(thetas_for_p_and_q_calc[i]/deg, sigEnoises/eV)
+            #for i in range(len(var_f_noise_array)):
+            #    sigEnoises = e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*np.sqrt(var_f_noise_array[i])*c0**2 #Short derivation: https://www.overleaf.com/read/yqkpdmxmhkrm#b057f5 
+            #    print(thetas_for_p_and_q_calc[i]/deg, sigEnoises/eV)
 
             # Next, we average over sigma_noise values.
             # This is a quadrature sum average weighted by the pitch angle distribution,
@@ -714,7 +714,7 @@ class CavitySensitivity(Sensitivity):
             self.sigma_f_noise = np.sqrt(self.var_f_c_CRLB)
 
         # Convert uncertainty from frequency to energy
-        self.sigma_K_noise = e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*self.sigma_f_noise*c0**2
+        self.sigma_K_noise = e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*self.sigma_f_noise*c0**2 #Short derivation: https://www.overleaf.com/read/yqkpdmxmhkrm#b057f5 
 
         # combined sigma_f in eV
         sigma_f = np.sqrt(self.sigma_K_noise**2 + self.FrequencyExtraction.magnetic_field_smearing**2)
