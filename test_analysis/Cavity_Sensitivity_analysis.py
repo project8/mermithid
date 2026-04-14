@@ -185,15 +185,15 @@ sens_config_dict = {
     "label_x_position": 4e14, #4e14, #0.02, #1e14,
     "plot_key_parameters": False,
     }
-sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-sens_curve.Configure(sens_config_dict)
-sens_curve.Run()
+#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+#sens_curve.Configure(sens_config_dict)
+#sens_curve.Run()
 
 
 sens_config_dict = {
     # required
     "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
-    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_livetime_curve_target_and_threshold_Jan-30-2026.pdf", #ncav-eff-time
+    "plot_path": "./LFA_and_PhaseIV_sensitivity_vs_livetime_curve_target_and_threshold_Apr-14-2026.pdf", #ncav-eff-time
     "exposure_axis": True,
     # optional
     "figsize": (8.3, 6.3), #(10,6),
@@ -236,9 +236,9 @@ sens_config_dict = {
     #"goals_x_position": 0.12, #4e-2, #<-- Number for ncav*eff*time   #0.11, <-- Number for ncavities*livetime
     #"goals_y_rel_position": 0.86, #0.84, <-- Number for ncav*eff*time   #0.81, <-- Number for ncavities*livetime
     }
-#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-#sens_curve.Configure(sens_config_dict)
-#sens_curve.Run()
+sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+sens_curve.Configure(sens_config_dict)
+sens_curve.Run()
 
 
 sens_config_dict = {
