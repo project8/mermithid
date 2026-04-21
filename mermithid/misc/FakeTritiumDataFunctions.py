@@ -145,7 +145,8 @@ Tritium beta spectrum definition
 #Beta spectrum with a lower energy bound Kmin
 def spectral_rate_in_window(K, Q, mnu, Kmin):
     if Q-mnu > K > Kmin:
-        return GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*ephasespace(K, Q)*(Q - K)*np.sqrt((Q - K)**2 - (mnu)**2)
+        # return GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*ephasespace(K, Q)*(Q - K)*np.sqrt((Q - K)**2 - (mnu)**2)
+        return GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*np.sqrt((Q - K)**2 - (mnu)**2)
     else:
         return 0.
 
@@ -153,7 +154,8 @@ def spectral_rate_in_window(K, Q, mnu, Kmin):
 def beta_rates(K, Q, mnu, index):
     beta_rates = np.zeros(len(K))
     nu_mass_shape = ((Q - K[index])**2 -mnu**2)**0.5
-    beta_rates[index] = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*ephasespace(K[index], Q)*(Q - K[index])*nu_mass_shape
+    # beta_rates[index] = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*ephasespace(K[index], Q)*(Q - K[index])*nu_mass_shape
+    beta_rates[index] = GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*(Q - K[index])*nu_mass_shape
     return beta_rates
 
 
@@ -182,7 +184,8 @@ def spectral_rate(K, Q, mnu, final_state_array):
             # binding energies are negative
             Q_state = Q+e_binding
             if Q_state-mnu > K > 0:
-                return_value += final_state_array[1][i] *(GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*ephasespace(K, Q_state)*(Q_state - K)*np.sqrt((Q_state - K)**2 - (mnu)**2))
+                # return_value += final_state_array[1][i] *(GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*ephasespace(K, Q_state)*(Q_state - K)*np.sqrt((Q_state - K)**2 - (mnu)**2))
+                return_value += final_state_array[1][i] *(GF**2.*Vud**2*Mnuc2/(2.*np.pi**3)*(Q_state - K)*np.sqrt((Q_state - K)**2 - (mnu)**2))
 
         return return_value/np.sum(final_state_array[1])
 
