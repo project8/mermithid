@@ -81,7 +81,7 @@ class TritiumBinner(BaseProcessor):
             return False
 
         self.bins = np.asarray(self.bins)
-        self.bin_centers = self.bins[:-1] + 0.5 * (self.bins[1] - self.bins[0])
+        self.bin_centers = 0.5 * (self.bins[:-1] + self.bins[1:])
 
         return True
 
