@@ -1,11 +1,13 @@
 
 #version: "3.9"
-# Check running containers docker ps (detached) -d
-# Attach to container docker attach [name]
-# Mermithid is a bind mount, this guarantees: live code edits on host, Python imports always resolve to your branch & no accidental use of the installed site-packages version
 
+# Check running containers docker ps (detached) -d
 #docker compose up -d 
+
+# Attach to container docker attach [name]
 #docker attach mermithid_sensitivity
+
+# Mermithid is a bind mount, this guarantees: live code edits on host, Python imports always resolve to your branch & no accidental use of the installed site-packages version
 #export PYTHONPATH=/mermithid/:$PYTHONPATH &&
 
 # /mermithid is on sys.path. Python should import from it but it does not, because mermithid is already imported earlier by ROOT’s import hook. Once a module is loaded, Python never re-resolves it.

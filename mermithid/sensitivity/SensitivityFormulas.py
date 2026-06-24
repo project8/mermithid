@@ -66,6 +66,7 @@ deg = np.pi/180
 '''
 from mermithid.misc.Constants_numericalunits import *
 from mermithid.misc.CRESFunctions_numericalunits import *
+from mermithid.cavity.AtomicCalculator import *
 
 try:
     from morpho.utilities import morphologging
@@ -108,7 +109,7 @@ class Sensitivity(object):
 
         self.Experiment = NameSpace({opt: eval(self.cfg.get('Experiment', opt)) for opt in self.cfg.options('Experiment')})
         
-        # seetings fro molecular or atomic tritium
+        # settings for molecular or atomic tritium
         self.tau_tritium = tritium_livetime
         if self.Experiment.atomic:
             self.T_mass = tritium_mass_atomic
@@ -173,7 +174,14 @@ class Sensitivity(object):
     def DeltaEWidth(self):
         """optimal energy bin width"""
         labels, sigmas, deltas = self.get_systematics()
-        return np.sqrt(self.BackgroundRate()/self.SignalRate()
+        if self.Efficiency.T2_background_atomic_trap:
+            self.T2_total_density, self.T2_T_ratio = calculate_T2_background_atomic_trap(self.cavity_radius, self.cavity_length, self.FrequencyExtraction.cavity_temperature, self.Efficiency.max_ratio_T2_T, self.Experiment.number_density)
+            # C240 - Activity ratio of T2/T
+            self.T2_T_activity = self.T2_T_ratio * 2 / ground_state_branch_atomic
+            return np.sqrt((self.BackgroundRate() + 3 * endpoint_diff**2 * last_1eV_activity_atomic * self.T2_T_activity) / (last_1eV_activity_atomic * (1 + self.T2_T_activity))
+                   	      + 8*np.log(2)*(np.sum(sigmas**2)))
+        else:
+            return np.sqrt(self.BackgroundRate()/self.SignalRate()
                               + 8*np.log(2)*(np.sum(sigmas**2)))
 
     def StatSens(self):
@@ -481,4 +489,4 @@ class Sensitivity(object):
             delta = self.PlasmaEffects.Default_Systematic_Uncertainty
             return sigma, delta
         else:
-            raise NotImplementedError("Plasma effect sysstematic is not implemented.")
+            raise NotImplementedError("Plasma effect systematic is not implemented.")
