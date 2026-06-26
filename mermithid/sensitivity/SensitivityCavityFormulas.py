@@ -793,7 +793,8 @@ class CavitySensitivity(Sensitivity):
             tracks_per_event = 10
             # C131 - Box trap approximation
             min_pitch_angle_acceptance = 0.089
-            #C217 - [eV] Plasma Broadening Calculation. Conservative upper limit based on dominance of 1 charge
+            # C217 - [eV] Plasma Broadening Calculation. Conservative upper limit based on dominance of 1 charge
+            # 2.35 converts stddev to FWHM
             sigma = 7.2e-10 * (calculate_inventory(self.Experiment.design_density, self.total_cavity_volume) * lambda_tritium / Ci_Bq) * mean_track_duration * tracks_per_event \
                     * Ci_Bq * min_pitch_angle_acceptance * np.log(self.cavity_length / self.cavity_radius) / 2.35 * eV
             delta = self.PlasmaEffects.Default_Systematic_Uncertainty
@@ -972,7 +973,7 @@ class CavitySensitivity(Sensitivity):
                 self.time_constant_aperture, self.current_aperture_leak = calculate_aperture_heat_leak(self.DopplerBroadening.gas_temperature, self.Experiment.design_density, self.total_cavity_volume)
                 logger.info("Aperture Time Constant: {:.4} s".format(self.time_constant_aperture/s))
                 logger.info("Atom current required for aperture leak: {:.4e} atoms/s".format(self.current_aperture_leak*s))
-                self.time_constant_rad, self.current_rad_leak = calculate_rad_heat_leak(self.cavity_radius, self.Experiment.number_density, self.trap_coil_1, self.trap_coil_2, self.Experiment.design_density, self.total_cavity_volume, self.Efficiency.net_rad_efficiency)
+                self.time_constant_rad, self.current_rad_leak = calculate_rad_heat_leak(self.cavity_radius, self.Experiment.number_density, self.trap_coil_1, self.trap_coil_2, self.Experiment.design_density, self.total_cavity_volume, self.Efficiency.total_efficiency)
                 logger.info("Radiation Time Constant: {:.4} s".format(self.time_constant_rad/s))
                 logger.info("Atom current required for radiation leak: {:.4e} atoms/s".format(self.current_rad_leak*s))
                 self.time_constant_desorp, self.current_desorp = calculate_T2_desorption_from_wall(self.cavity_radius, self.cavity_length, self.Experiment.design_density, self.total_cavity_volume)

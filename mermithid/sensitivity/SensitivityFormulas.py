@@ -144,16 +144,16 @@ class Sensitivity(object):
     def SignalRate(self):
         """signal events in the energy interval before the endpoint, scale with DeltaE**3"""
         self.EffectiveVolume()
-        signal_rate = self.Experiment.number_density*self.effective_volume*self.last_1ev_fraction/self.tau_tritium
+        self.signal_rate = self.Experiment.number_density*self.effective_volume*self.last_1ev_fraction/self.tau_tritium
         if not self.Experiment.atomic:
             if hasattr(self.Experiment, 'gas_fractions'):
                 avg_n_T_atoms = self.AvgNumTAtomsPerParticle_MolecularExperiment(self.Experiment.gas_fractions, self.Experiment.H2_type_gas_fractions)
-                signal_rate *= avg_n_T_atoms
+                self.signal_rate *= avg_n_T_atoms
             else:
-                signal_rate *= 2
+                self.signal_rate *= 2
         if hasattr(self.Experiment, 'active_gas_fraction'):
-            signal_rate *= self.Experiment.active_gas_fraction
-        return signal_rate
+            self.signal_rate *= self.Experiment.active_gas_fraction
+        return self.signal_rate
 
     def BackgroundRate(self):
         """background rate, can be calculated from multiple components.
@@ -171,14 +171,21 @@ class Sensitivity(object):
         """Number of background events."""
         return self.BackgroundRate()*self.Experiment.LiveTime*self.DeltaEWidth()
 
+    def SignalRatio(self):
+        self.T2_total_density, self.T2_T_ratio = calculate_T2_background_atomic_trap(self.cavity_radius, self.cavity_length, self.FrequencyExtraction.cavity_temperature, self.Efficiency.max_ratio_T2_T, self.Experiment.number_density)
+        # C240 - Activity ratio of T2/T
+        self.signal_ratio = self.T2_T_ratio * 2 / ground_state_branch_atomic
+        """
+        # Atomic Calculator activity in last eV of spectrum
+        sig_rate = calculate_activity_last_1eV_spectrum(self.Experiment.atomic, self.Experiment.number_density, self.cavity_radius, self.trap_coil_1, self.trap_coil_2, self.Efficiency.total_efficiency): 
+        """
+        return self.signal_ratio
+
     def DeltaEWidth(self):
         """optimal energy bin width"""
         labels, sigmas, deltas = self.get_systematics()
         if self.Efficiency.T2_background_atomic_trap:
-            self.T2_total_density, self.T2_T_ratio = calculate_T2_background_atomic_trap(self.cavity_radius, self.cavity_length, self.FrequencyExtraction.cavity_temperature, self.Efficiency.max_ratio_T2_T, self.Experiment.number_density)
-            # C240 - Activity ratio of T2/T
-            self.T2_T_activity = self.T2_T_ratio * 2 / ground_state_branch_atomic
-            return np.sqrt((self.BackgroundRate() + 3 * endpoint_diff**2 * last_1eV_activity_atomic * self.T2_T_activity) / (last_1eV_activity_atomic * (1 + self.T2_T_activity))
+            return np.sqrt((self.BackgroundRate() + 3 * endpoint_diff**2 * self.SignalRate() * self.SignalRatio()) / (self.SignalRate() * (1 + self.SignalRatio()))
                    	      + 8*np.log(2)*(np.sum(sigmas**2)))
         else:
             return np.sqrt(self.BackgroundRate()/self.SignalRate()

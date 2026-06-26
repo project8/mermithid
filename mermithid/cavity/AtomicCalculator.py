@@ -262,3 +262,17 @@ def calculate_injection_line(atom_current, cavity_radius, design_density, trappe
     # C356 - [m^-1] Beamline dipolar loss
     beamline_dipolar = injection_dipolar_loss_rate * injection_density / vertical_aperture_speed
     return vertical_injection_speed, trapped_gas_energy, injection_density, vertical_aperture_speed, injection_gas_energy
+
+
+def calculate_activity_last_1eV_spectrum(self, atomic_flag, number_density, cavity_radius, trap_coil_1, trap_coil_2, total_efficiency):
+    if atomic_flag:
+        trap_activity = calculate_activity_in_trap(number_density, cavity_radius, trap_coil_1, trap_coil_2)
+        # C209 - [decay/s] Activity in last 100 eV of spectrum * net efficiency
+        # Note last_1eV_fraction_atomic is the fraction of events in the last 1eV
+        activity_last_100eV_efficiency = trap_activity * last_1ev_fraction_atomic * total_efficiency * 1000000 / ground_state_branch_atomic
+        # C211 - [decay/s]
+        last_1eV_atomic = activity_last_100eV_efficiency * ground_state_branch_atomic / 1000000
+        return last_1eV_atomic
+    else:
+        print("Yeah I didn't do that yet - Jin")
+        return None

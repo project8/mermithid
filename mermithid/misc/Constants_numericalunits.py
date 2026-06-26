@@ -1,3 +1,4 @@
+# C033 - Bayesian Paper (unitless) 
 '''
 Some constants useful for various things...
 The constants here use the numericalunits package. For constants not using this package import form Constants.py
@@ -20,11 +21,13 @@ tritium_electron_crosssection_atomic = 9.e-23*m**2 #Inelastic cross-section Hami
 #tritium_electron_crosssection_atomic = 1.32e-22*m**2 #Inelastic cross-section + Elastic cross-section for T-e
 tritium_tritium_crosssection_atomic = 4.40e-16*m**2 # T-T cross-section at T=0
 tritium_endpoint_atomic = 18563.251*eV
+# C033 - [eV^-3] Bayesian Paper
 last_1ev_fraction_atomic = 2.067914e-13/eV**3
 
 tritium_mass_molecular = 6.032099 * amu *c0**2
 tritium_electron_crosssection_molecular = 3.67*1e-22*m**2 #[Inelastic from Aseev (2000) for T2] + [Elastic from Liu (1987) for H2, extrapolated by Elise to 18.6keV]
 tritium_endpoint_molecular = 18574.01*eV
+# C034 - [eV^-3] Bayesian Paper
 last_1ev_fraction_molecular = 1.67364e-13/eV**3
 
 ground_state_width = 0.436 * eV
@@ -60,7 +63,7 @@ ground_state_branch_atomic = 0.702
 # C032 - Ground state branch (molecular)
 ground_state_branch_molecular = 0.570
 # C035 - [eV] Difference between atomic and effective molecular endpoints, effective difference 10-2 eV
-endpoint_diff = 8*eV
+endpoint_diff = tritium_endpoint_molecular - tritium_endpoint_atomic
 # C036 - [eV] Recoil energy of tritium atom (Bodine)
 atomic_tritium_recoil_energy = 3.409*eV
 # C038 - [eV] Binding energy of tritium molecule (Bodine)
@@ -85,8 +88,6 @@ eV_J = 1.605e-19 *J/eV
 area_atom_loading_aperture = 0.001 * m**2
 # C118 - [Ci] Total activity on wall at recyling. Ci (Bq = 1 decay per second)
 wall_activity = 100
-# C211 - CALCULATION [s^-1] Atomic Activity in last eV of spectrum 
-last_1eV_activity_atomic = 5.42e-7/s
 
 # units that do not show up in numericalunits
 # missing pre-factors
