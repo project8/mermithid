@@ -71,7 +71,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         # options
         self.optimize_main_density = reader.read_param(params, 'optimize_main_density', True)
         self.optimize_comparison_density = reader.read_param(params, 'optimize_comparison_density', True)
-        self.verbose = reader.read_param(params, 'verbose', True)
+        self.verbose = reader.read_param(params, 'verbose', False)
         self.comparison_curve = reader.read_param(params, 'comparison_curve', False)
         self.B_error = reader.read_param(params, 'B_inhomogeneity', 7e-6)
         self.B_error_uncertainty = reader.read_param(params, 'B_inhom_uncertainty', 0.05)
@@ -592,7 +592,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
                         scenarios, if the minimum allowed density is 1e-20 atoms/m^3, the optimization \
                         over density still works.")
         logger.info("Once you have read these disclaimers and are familiar with them, you can set \
-                    verbose==False in your config dictionary to stop seeing them.")
+                    verbose==False in your config dictionary (CavitySensitivtyCurveProcessor or test_anaylsis/) to stop seeing them.")
 
     
     def create_plot(self):
