@@ -213,9 +213,9 @@ class Sensitivity(object):
             sens = 2/(3*sig_rate*self.Experiment.LiveTime*n_cavities)*np.sqrt(sig_rate*self.Experiment.LiveTime*n_cavities*(1+zeta)*DeltaE \
                    	+ bkg_rate*(n_cavities**2*self.Experiment.LiveTime/DeltaE) + 3*n_cavities**2*zeta*endpoint_diff*sig_rate \
 			* self.Experiment.LiveTime*(1 + endpoint_diff/DeltaE))
-            return sens
-        # Stat^2 = 4/(9*r_a*t) * (delta_E + b/r_a/delta_E) if zeta=0
-        sens = 2/(3*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*DeltaE \
+        else:
+            # Stat^2 = 4/(9*r_a*t) * (delta_E + b/r_a/delta_E) if zeta=0
+            sens = 2/(3*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*DeltaE \
                   	+ bkg_rate*self.Experiment.LiveTime/DeltaE)
         return sens
 
