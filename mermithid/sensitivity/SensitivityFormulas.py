@@ -172,14 +172,16 @@ class Sensitivity(object):
         return self.BackgroundRate()*self.Experiment.LiveTime*self.DeltaEWidth()
 
     def SignalRatio(self):
-        self.T2_total_density, self.T2_T_ratio = calculate_T2_background_atomic_trap(self.cavity_radius, self.cavity_length, self.FrequencyExtraction.cavity_temperature, self.Efficiency.max_ratio_T2_T, self.Experiment.number_density)
-        # C240 - Activity ratio of T2/T
-        self.signal_ratio = self.T2_T_ratio * 2 / ground_state_branch_atomic
-        """
-        # Atomic Calculator activity in last eV of spectrum
-        sig_rate = calculate_activity_last_1eV_spectrum(self.Experiment.atomic, self.Experiment.number_density, self.cavity_radius, self.trap_coil_1, self.trap_coil_2, self.Efficiency.total_efficiency): 
-        """
-        return self.signal_ratio
+        if self.Efficiency.T2_background_atomic_trap:
+            self.T2_total_density, self.T2_T_ratio = calculate_T2_background_atomic_trap(self.cavity_radius, self.cavity_length, self.FrequencyExtraction.cavity_temperature, self.Efficiency.max_ratio_T2_T, self.Experiment.number_density)
+            # C240 - Activity ratio of T2/T
+            signal_ratio = self.T2_T_ratio * 2 / ground_state_branch_atomic
+            """
+            # Atomic Calculator activity in last eV of spectrum
+            sig_rate = calculate_activity_last_1eV_spectrum(self.Experiment.atomic, self.Experiment.number_density, self.cavity_radius, self.trap_coil_1, self.trap_coil_2, self.Efficiency.total_efficiency): 
+            """
+            return signal_ratio
+        return None
 
     def DeltaEWidth(self):
         """optimal energy bin width"""
@@ -187,14 +189,16 @@ class Sensitivity(object):
         sig_rate = self.SignalRate()
         bkg_rate = self.BackgroundRate()
         zeta = self.SignalRatio()
+        #logger.info(f"zeta value: {repr(zeta)}")
+        #logger.info(f"zeta type: {type(zeta)}")
+        #logger.info(f"zeta dtype: {getattr(zeta, 'dtype', None)}")
+        #logger.info(f"zeta finite check: {np.isfinite(zeta)}")
         if self.Efficiency.T2_background_atomic_trap:
             # zeta = molecular background / atomic signal (r_m / r_a); if r_m = 0 then zeta = 0 and equation reduces to else statement
             # delta_E = sqrt((b + 3 * delta_endpoint * zeta * r_a) / ((1 + zeta) * r_a) + 8*ln(2) * Systematics)
-            return np.sqrt((bkg_rate + 3 * endpoint_diff**2 * sig_rate * zeta) / (sig_rate * (1 + zeta))
+            return np.sqrt((bkg_rate + 3 * endpoint_diff**2 * sig_rate * zeta) / (sig_rate * (1 + zeta)) \
                    	+ 8*np.log(2)*(np.sum(sigmas**2)))
-
-        elif np.isclose(zeta, 0.0, atol=1e-12):
-            return np.sqrt(bkg_rate/sig_rate + 8*np.log(2)*(np.sum(sigmas**2)))
+        return np.sqrt(bkg_rate/sig_rate + 8*np.log(2)*(np.sum(sigmas**2)))
 
     def StatSens(self):
         """Pure statistic sensitivity assuming Poisson count experiment in a single bin
@@ -204,15 +208,15 @@ class Sensitivity(object):
         DeltaE = self.DeltaEWidth()
         zeta = self.SignalRatio()
         n_cavities = self.Experiment.n_cavities
-        # Stat^2 = 4/(9*r_a*t*#_cav) * ((1 + zeta)*delta_E + b*#_cav/r_a/delta_E + 3*#_cav*zeta*delta_endpoint*(1 + delta_endpoint/delta_E))
         if self.Efficiency.T2_background_atomic_trap:
-            sens = 2/(3*sig_rate*self.Experiment.LiveTime*n_cavities)*np.sqrt(sig_rate*self.Experiment.LiveTime*n_cavities*(1+zeta)*DeltaE
-                   	+ bkg_rate*(n_cavities**2*self.Experiment.LiveTime/DeltaE) + 3*n_cavities**2*zeta*endpoint_diff*sig_rate*
-			self.Experiment.LiveTime*(1 + endpoint_diff/DeltaE)
+            # Stat^2 = 4/(9*r_a*t*#_cav) * ((1 + zeta)*delta_E + b*#_cav/r_a/delta_E + 3*#_cav*zeta*delta_endpoint*(1 + delta_endpoint/delta_E))
+            sens = 2/(3*sig_rate*self.Experiment.LiveTime*n_cavities)*np.sqrt(sig_rate*self.Experiment.LiveTime*n_cavities*(1+zeta)*DeltaE \
+                   	+ bkg_rate*(n_cavities**2*self.Experiment.LiveTime/DeltaE) + 3*n_cavities**2*zeta*endpoint_diff*sig_rate \
+			* self.Experiment.LiveTime*(1 + endpoint_diff/DeltaE))
+            return sens
         # Stat^2 = 4/(9*r_a*t) * (delta_E + b/r_a/delta_E) if zeta=0
-        elif np.isclose(zeta, 0.0, atol=1e-12):
-            sens = 2/(3*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*DeltaE
-                   	+ bkg_rate*self.Experiment.LiveTime/DeltaE)
+        sens = 2/(3*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*DeltaE \
+                  	+ bkg_rate*self.Experiment.LiveTime/DeltaE)
         return sens
 
     def SystSens(self):
