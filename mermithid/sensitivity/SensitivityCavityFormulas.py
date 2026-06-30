@@ -361,6 +361,10 @@ class CavitySensitivity(Sensitivity):
                 plt.legend(fontsize=12, loc='lower center')
                 plt.tight_layout()
                 plt.savefig("theta_bottom_dist_interpolated_{}.png".format(self.Experiment.exp_label), dpi=300)
+                
+        #Set up cavity signal modes and readout ports configurations
+        self.SetupModesAndPorts()
+        self.SolveExternalQ()
         
         #Calculate the effective volume and print out related quantities
         self.EffectiveVolume()
@@ -369,10 +373,6 @@ class CavitySensitivity(Sensitivity):
         logger.info("Cyclotron radius: {}m".format(self.cyc_rad/m))
         if self.use_cyc_rad:
             logger.info("Using cyclotron radius as unusable distance from wall, for radial efficiency calculation")
-        
-        #Set up cavity signal modes and readout ports configurations
-        self.SetupModesAndPorts()
-        self.SolveExternalQ()
         
         ####
         #Initialization related to the energy resolution:
@@ -642,53 +642,114 @@ class CavitySensitivity(Sensitivity):
     # SYSTEMATICS
     # Generic systematics are implemented in the parent class in SensitivityFormulas.py
 
-    def calculate_tau_snr(self, time_window, power_fraction=1, tau_snr_array_for_radii=False):
-        """
-        power_fraction may be used as a carrier or a sideband power fraction,
-        relative to the power of a 90 degree carrier.
-        """
-        endpoint_frequency = self.cavity_freq
-    
-        # Cavity coupling
-        self.CavityLoadedQ()
-        coupling = self.FrequencyExtraction.unloaded_q/self.loaded_q-1
-    
-        # Attenuation frequency dependence at hoc method
-        #att_cir_db = -0.3
-        #att_line_db = -0.05
-        att_cir_db_freq = self.FrequencyExtraction.att_cir_db*(1+endpoint_frequency/(10*GHz))
-        att_line_db_freq = self.FrequencyExtraction.att_line_db*(1+endpoint_frequency/(10*GHz))
-        
-        # Noise power for bandwidth set by density/track length
-        fft_bandwidth = 3/time_window #(delta f) is the frequency bandwidth of interest. We have a main carrier and 2 axial side bands, so 3*(FFT bin width)
-        self.fft_bandwidth = fft_bandwidth
-        tn_fft = Pn_dut_entrance(self.FrequencyExtraction.cavity_temperature,
-                                 self.FrequencyExtraction.amplifier_temperature,
-                                 att_line_db_freq,att_cir_db_freq,
-                                 coupling,
-                                 endpoint_frequency,
-                                 fft_bandwidth,self.loaded_q)/kB/fft_bandwidth
-    
-        # Noise temperature of amplifier
-        tn_amplifier = endpoint_frequency*hbar*2*np.pi/kB/self.FrequencyExtraction.quantum_amp_efficiency
-        tn_system_fft = tn_amplifier+tn_fft
-        self.noise_temp = tn_system_fft
-        
-        # Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
-        # logger.info("Power: {}".format(Pe/W))
-        if tau_snr_array_for_radii:
-            Pe = self.signal_power_vs_r * power_fraction
-        else:
-            Pe = self.signal_power * power_fraction
-        
-        P_signal_received = Pe*db_to_pwr_ratio(att_cir_db_freq+att_line_db_freq)
-        self.received_power = P_signal_received
-        tau_snr = kB*tn_system_fft/P_signal_received
-        self.noise_energy = kB*tn_system_fft
+#    def calculate_tau_snr(self, time_window, power_fraction=1, tau_snr_array_for_radii=False):
+#        """
+#        power_fraction may be used as a carrier or a sideband power fraction,
+#        relative to the power of a 90 degree carrier.
+#        """
+#        endpoint_frequency = self.cavity_freq
+#    
+#        # Cavity coupling
+#        self.CavityLoadedQ()
+#        coupling = self.FrequencyExtraction.unloaded_q/self.loaded_q-1
+#    
+#        # Attenuation frequency dependence at hoc method
+#        #att_cir_db = -0.3
+#        #att_line_db = -0.05
+#        att_cir_db_freq = self.FrequencyExtraction.att_cir_db*(1+endpoint_frequency/(10*GHz))
+#        att_line_db_freq = self.FrequencyExtraction.att_line_db*(1+endpoint_frequency/(10*GHz))
+#        
+#        # Noise power for bandwidth set by density/track length
+#        fft_bandwidth = 3/time_window #(delta f) is the frequency bandwidth of interest. We have a main carrier and 2 axial side bands, so 3*(FFT bin width)
+#        self.fft_bandwidth = fft_bandwidth
+#        tn_fft = Pn_dut_entrance(self.FrequencyExtraction.cavity_temperature,
+#                                 self.FrequencyExtraction.amplifier_temperature,
+#                                 att_line_db_freq,att_cir_db_freq,
+#                                 coupling,
+#                                 endpoint_frequency,
+#                                 fft_bandwidth,self.loaded_q)/kB/fft_bandwidth
+#    
+#        # Noise temperature of amplifier
+#        tn_amplifier = endpoint_frequency*hbar*2*np.pi/kB/self.FrequencyExtraction.quantum_amp_efficiency
+#        tn_system_fft = tn_amplifier+tn_fft
+#        self.noise_temp = tn_system_fft
+#        
+#        # Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
+#        # logger.info("Power: {}".format(Pe/W))
+#        if tau_snr_array_for_radii:
+#            Pe = self.signal_power_vs_r * power_fraction
+#        else:
+#            Pe = self.signal_power * power_fraction
+#        
+#        P_signal_received = Pe*db_to_pwr_ratio(att_cir_db_freq+att_line_db_freq)
+#        self.received_power = P_signal_received
+#        tau_snr = kB*tn_system_fft/P_signal_received
+#        self.noise_energy = kB*tn_system_fft
 
-        # end of Wouter's calculation
+#        # end of Wouter's calculation
+#        return tau_snr
+
+    def calculate_tau_snr(self, time_window, power_fraction=1, tau_snr_array_for_radii=False):
+        """Multimode tau_SNR for the primary mode (modes[0]) read out through self.ports.
+        Per-port noise -> signed covariance Sigma; ports combined by a zero-forcing
+        weight; out-coupling W_i = q_loaded/q_ext applied to the signal. Single mode /
+        single port reduces to the previous scalar result divided by W_i."""
+        self.CavityLoadedQ()   # keep self.loaded_q / self.required_bw side effects
+
+        fft_bandwidth = 3/time_window
+        self.fft_bandwidth = fft_bandwidth
+        mode   = self.modes[0]
+        f_mode = self.CavityModeFrequency(mode.axial_mode_index)
+        q_l    = mode.q_loaded
+        L      = self.cavity_length
+
+        Pe = (self.signal_power_vs_r if tau_snr_array_for_radii else self.signal_power)*power_fraction
+
+        n_ports = len(self.ports)
+        Pn_total_list = np.empty(n_ports)
+        Pn_cav_list   = np.empty(n_ports)
+        signs         = np.empty(n_ports)
+        weight_factor = np.empty(n_ports)        # sqrt(W_i * att_tot) per port
+        for i, port in enumerate(self.ports):
+            q_ext = mode.q_externals.get(port.name, np.inf)
+            if np.isfinite(q_ext):
+                coupling = mode.q_unloaded/q_ext
+                W_i      = q_l/q_ext
+            else:
+                coupling = 0.0; W_i = 0.0
+            field = np.sin(mode.axial_mode_index*np.pi*port.z_position/L)
+            signs[i] = np.sign(field) if field != 0 else 1.0
+            att_line_db_freq = port.att_line_db*(1+f_mode/(10*GHz))
+            att_cir_db_freq  = port.att_cir_db*(1+f_mode/(10*GHz))
+            att_tot = db_to_pwr_ratio(att_line_db_freq+att_cir_db_freq)
+            weight_factor[i] = np.sqrt(W_i*att_tot)
+            Pn_total = Pn_dut_entrance(self.FrequencyExtraction.cavity_temperature,
+                                       port.amplifier_temperature,
+                                       att_line_db_freq, att_cir_db_freq,
+                                       coupling, f_mode, fft_bandwidth, q_l)
+            tn_amp = f_mode*hbar*2*np.pi/kB/port.quantum_amp_efficiency
+            Pn_total_list[i] = Pn_total + kB*tn_amp*fft_bandwidth
+            Pn_cav_list[i]   = Pn_cavity(self.FrequencyExtraction.cavity_temperature,
+                                         coupling, q_l, fft_bandwidth, f_mode)*att_tot
+
+        Sigma = np.diag(Pn_total_list).astype(float)
+        for i in range(n_ports):
+            for j in range(n_ports):
+                if i != j:
+                    Sigma[i, j] = signs[i]*signs[j]*np.sqrt(Pn_cav_list[i]*Pn_cav_list[j])
+
+        spatial = np.array([[np.sin(m.axial_mode_index*np.pi*port.z_position/L)
+                             for m in self.modes] for port in self.ports])
+        w       = np.linalg.pinv(spatial)[0, :]          # isolate modes[0]
+        iso_var = w @ Sigma @ w
+        G       = (np.sum(w*signs*weight_factor))**2     # signal gain
+
+        self.noise_temp     = iso_var/(n_ports**2)/(kB*fft_bandwidth)
+        self.noise_energy   = kB*self.noise_temp
+        self.received_power = Pe*G
+        tau_snr = iso_var/(Pe*G*fft_bandwidth)
         return tau_snr
-        
+                
     """
     def print_SNRs(self, rho_opt):
         tau_snr = self.calculate_tau_snr(self.time_window, sideband_power_fraction=1)
