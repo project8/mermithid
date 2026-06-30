@@ -24,10 +24,10 @@ def larmor_radius(magnetic_field, kin_energy=endpoint, pitch=np.pi/2):
 
 # Hanneke factor for TE011 mode, for an electron at fixed location (r_position, z_position).
 # Note: We don't "halve the power," given this from Rick: https://3.basecamp.com/3700981/buckets/3107037/uploads/8101664058. 
-def hanneke_factor_TE011(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, mode_frequency):
+def hanneke_factor_TE011(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, mode_frequency, axial_mode_index=1):
     global bessel_derivative_zero
     # Calculate the lambda_mnp_squared factor
-    mode_p = 1 # TE011 mode
+    mode_p = axial_mode_index # was mode_p = 1
     z_L = l_cav/2
     # Calculate the lambda_mnp_squared factor
     classical_electron_radius_c_squared = e**2 / (4 * np.pi * eps0 * me)
@@ -50,18 +50,18 @@ def hanneke_factor_TE011(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotr
     return lambda_mnp_squared, delta
 
 # Calculate the radiated power for an electron at fixed location (r_position, z_position) with energy tranverse_kinetic_energy.
-def hanneke_radiated_power(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, tranverse_kinetic_energy, mode_frequency=None):
+def hanneke_radiated_power(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, tranverse_kinetic_energy, mode_frequency=None, axial_mode_index=1):
     if mode_frequency is None:
         # Assume that the center of the mode and the cyclotron frequency are identical
         mode_frequency = cyclotron_frequency
 
-    lambda_mnp_squared, delta = hanneke_factor_TE011(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, mode_frequency=mode_frequency)
+    lambda_mnp_squared, delta = hanneke_factor_TE011(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, mode_frequency=mode_frequency, axial_mode_index=axial_mode_index)
     return tranverse_kinetic_energy*(2*loaded_Q/(1+delta**2))*lambda_mnp_squared/(mode_frequency*np.pi*2)
 
 # Calculate the radiated power for an electron at fixed location (r_position, z_position) with energy tranverse_kinetic_energy.
 # Averaging over the larmor power included.
 def larmor_orbit_averaged_hanneke_power(r_position, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, 
-                                        kinetic_energy=endpoint, pitch=np.pi/2, mode_frequency=None, n_points=100):
+                                        kinetic_energy=endpoint, pitch=np.pi/2, mode_frequency=None, n_points=100, axial_mode_index=1):
     if mode_frequency is None:
         # Assume that the center of the mode and the cyclotron frequency are identical
         mode_frequency = cyclotron_frequency
@@ -92,7 +92,7 @@ def larmor_orbit_averaged_hanneke_power(r_position, z_position, loaded_Q, l_cav,
             else:
                 hanneke_powers[i] = 0
         else:
-            hanneke_power = hanneke_radiated_power(r_pos_orbit, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, tranverse_kinetic_energy, mode_frequency=mode_frequency)
+            hanneke_power = hanneke_radiated_power(r_pos_orbit, z_position, loaded_Q, l_cav, r_cav, cyclotron_frequency, tranverse_kinetic_energy, mode_frequency=mode_frequency, axial_mode_index=axial_mode_index)
             hanneke_powers[i] = np.mean(hanneke_power.T, axis=-1)
     if r_scalar:
         hanneke_powers = hanneke_powers[0]
