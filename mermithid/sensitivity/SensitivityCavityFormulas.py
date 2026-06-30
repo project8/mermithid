@@ -11,6 +11,7 @@ import numpy as np
 from scipy.stats import ncx2, chi2
 from scipy.special import roots_laguerre
 import matplotlib.pyplot as plt  
+from scipy.optimize import nnls
 
 from mermithid.misc.Constants_numericalunits import *
 from mermithid.misc.CRESFunctions_numericalunits import *
@@ -26,6 +27,29 @@ except:
     print("Run without morpho!")
 
 
+from dataclasses import dataclass, field
+from typing import Optional, Dict
+
+@dataclass
+class SignalMode:
+    """One TE_01l cavity mode. l = axial_mode_index (1 => TE011)."""
+    name:            str
+    axial_mode_index: int
+    q_unloaded:      float
+    q_loaded:        float = 0.0
+    q_externals:     dict  = field(default_factory=dict)
+    power_fractions: Optional[Dict[str, object]] = None
+
+@dataclass
+class OutputPort:
+    """One physical extraction port and its RF noise chain."""
+    name:                   str
+    z_position:             float
+    amplifier_temperature:  float
+    att_line_db:            float
+    att_cir_db:             float
+    quantum_amp_efficiency: float
+    
 
 # Wouters functinos
 def db_to_pwr_ratio(q_db):
@@ -260,6 +284,7 @@ class CavitySensitivity(Sensitivity):
         self.Jprime_0 = 3.8317
         self.cavity_freq = frequency(self.T_endpoint, self.MagneticField.nominal_field)
         self.CavityRadius()
+        self.cavity_length = 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
         
         #Get trap length from cavity length if not specified
         if ((not hasattr(self.Experiment, 'trap_length')) or overwrite):
@@ -336,7 +361,7 @@ class CavitySensitivity(Sensitivity):
                 plt.legend(fontsize=12, loc='lower center')
                 plt.tight_layout()
                 plt.savefig("theta_bottom_dist_interpolated_{}.png".format(self.Experiment.exp_label), dpi=300)
-
+        
         #Calculate the effective volume and print out related quantities
         self.EffectiveVolume()
         logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3), 2))
@@ -344,7 +369,11 @@ class CavitySensitivity(Sensitivity):
         logger.info("Cyclotron radius: {}m".format(self.cyc_rad/m))
         if self.use_cyc_rad:
             logger.info("Using cyclotron radius as unusable distance from wall, for radial efficiency calculation")
-
+        
+        #Set up cavity signal modes and readout ports configurations
+        self.SetupModesAndPorts()
+        self.SolveExternalQ()
+        
         ####
         #Initialization related to the energy resolution:
         ####
@@ -370,12 +399,59 @@ class CavitySensitivity(Sensitivity):
         else:  
             logger.info("Using the detection eff and RF background rate from the config file.")
 
+    def SetupModesAndPorts(self):
+        """Build self.modes and self.ports from config. Defaults to a single
+        TE011 mode + single port, reproducing the single-mode setup exactly.
+        A config may opt into multimode via FrequencyExtraction.axial_mode_indices
+        and FrequencyExtraction.ports."""
+        fe = self.FrequencyExtraction
 
+        # --- Modes: default [1] (TE011 only) ---
+        axial_indices = getattr(fe, "axial_mode_indices", [1])
+        fractions = None
+        if hasattr(self, "carrier_power_fraction_array"):
+            fractions = {"carrier":  self.carrier_power_fraction_array,
+                         "sideband": self.sideband_power_fraction_array}
+        self.modes = []
+        for p in axial_indices:
+            self.modes.append(SignalMode(
+                name="TE01{}".format(p), axial_mode_index=p,
+                q_unloaded=fe.unloaded_q,
+                power_fractions=(fractions if p == axial_indices[0] else None)))
+
+        # --- Ports: default single port from existing scalar config ---
+        port_specs = getattr(fe, "ports", None)
+        self.ports = []
+        if port_specs is None:
+            self.ports.append(OutputPort(
+                name="Port_1", z_position=self.cavity_length * 0.5,
+                amplifier_temperature=fe.amplifier_temperature,
+                att_line_db=fe.att_line_db, att_cir_db=fe.att_cir_db,
+                quantum_amp_efficiency=fe.quantum_amp_efficiency))
+        else:
+            for i, spec in enumerate(port_specs):
+                self.ports.append(OutputPort(
+                    name=spec.get("name", "Port_{}".format(i + 1)),
+                    z_position=spec["z_position"],
+                    amplifier_temperature=spec.get("amplifier_temperature", fe.amplifier_temperature),
+                    att_line_db=spec.get("att_line_db", fe.att_line_db),
+                    att_cir_db=spec.get("att_cir_db", fe.att_cir_db),
+                    quantum_amp_efficiency=spec.get("quantum_amp_efficiency", fe.quantum_amp_efficiency)))
+                                   
     # CAVITY
     def CavityRadius(self):
         axial_mode_index = 1
         self.cavity_radius = c0/(2*np.pi*self.cavity_freq)*np.sqrt(self.Jprime_0**2+axial_mode_index**2*np.pi**2/(4*self.Experiment.cavity_L_over_D**2))
         return self.cavity_radius
+    
+    def CavityModeFrequency(self, axial_mode_index=1):
+        """Resonant frequency of the TE_01l cylindrical cavity mode, l = axial_mode_index.
+        l=1 (TE011) is the fundamental that sets the cavity geometry, so
+        CavityModeFrequency(1) == self.cavity_freq by construction (round-trip).
+        Uses self.Jprime_0 (3.8317) so the single-mode geometry is unchanged."""
+        k_r = self.Jprime_0 / self.cavity_radius
+        k_z = axial_mode_index * np.pi / self.cavity_length
+        return c0 / (2 * np.pi) * np.sqrt(k_r**2 + k_z**2)
     
     def CavityVolume(self):
         #radius = 0.5*wavelength(self.T_endpoint, self.MagneticField.nominal_field)
@@ -472,32 +548,93 @@ class CavitySensitivity(Sensitivity):
         return self.signal_power
     
 
-    def CavityLoadedQ(self):
-        # Using Wouter's calculation:
-        # Total required bandwidth is the sum of the endpoint region and the axial frequency. 
-        # I will assume the bandwidth is dominated by the sidebands and not by the energy ROI
-        
-        #self.loaded_q =1/(0.22800*((90-self.FrequencyExtraction.minimum_angle_in_bandwidth)*np.pi/180)**2+2**2*0.01076**2/(4*0.22800))
+#    def CavityLoadedQ(self):
+#        # Using Wouter's calculation:
+#        # Total required bandwidth is the sum of the endpoint region and the axial frequency. 
+#        # I will assume the bandwidth is dominated by the sidebands and not by the energy ROI
+#        
+#        #self.loaded_q =1/(0.22800*((90-self.FrequencyExtraction.minimum_angle_in_bandwidth)*np.pi/180)**2+2**2*0.01076**2/(4*0.22800))
 
-        endpoint_frequency = self.cavity_freq
-        #required_bw_axialfrequency = axial_frequency(self.Experiment.cavity_L_over_D*self.CavityRadius()*2, 
-        #                                             self.T_endpoint, 
-        #                                             self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
+#        endpoint_frequency = self.cavity_freq
+#        #required_bw_axialfrequency = axial_frequency(self.Experiment.cavity_L_over_D*self.CavityRadius()*2, 
+#        #                                             self.T_endpoint, 
+#        #                                             self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
+#        max_ax_freq, mean_field, _ = axial_motion(self.MagneticField.nominal_field,
+#                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth,
+#                                                  self.Experiment.trap_length,
+#                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth, 
+#                                                  self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
+#        required_bw_axialfrequency = max_ax_freq*self.FrequencyExtraction.sideband_order
+#        self.required_bw_axialfrequency = required_bw_axialfrequency
+#        required_bw_meanfield = required_bw_meanfield = np.abs(frequency(self.T_endpoint, mean_field) - endpoint_frequency)
+#        required_bw = np.add(required_bw_axialfrequency,required_bw_meanfield) # Broadcasting
+#        self.required_bw = required_bw
+#    
+#        # Cavity coupling
+#        self.loaded_q = endpoint_frequency/required_bw # FWHM
+#        return self.loaded_q
+
+    #New functions for multi-mode
+    def CavityLoadedQ(self, f_mode=None, tuning_pitch=None):
+        # Defaults reproduce the single-mode (TE011) result exactly.
+        store = (f_mode is None and tuning_pitch is None)
+        if f_mode is None:
+            f_mode = self.cavity_freq
+        if tuning_pitch is None:
+            tuning_pitch = self.FrequencyExtraction.minimum_angle_in_bandwidth
         max_ax_freq, mean_field, _ = axial_motion(self.MagneticField.nominal_field,
-                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth,
-                                                  self.Experiment.trap_length,
-                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth, 
-                                                  self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
-        required_bw_axialfrequency = max_ax_freq*self.FrequencyExtraction.sideband_order
-        self.required_bw_axialfrequency = required_bw_axialfrequency
-        required_bw_meanfield = required_bw_meanfield = np.abs(frequency(self.T_endpoint, mean_field) - endpoint_frequency)
-        required_bw = np.add(required_bw_axialfrequency,required_bw_meanfield) # Broadcasting
-        self.required_bw = required_bw
+                                                  tuning_pitch, self.Experiment.trap_length,
+                                                  tuning_pitch, self.T_endpoint,
+                                                  flat_fraction=self.MagneticField.trap_flat_fraction)
+        required_bw_axialfrequency = max_ax_freq * self.FrequencyExtraction.sideband_order
+        required_bw_meanfield = np.abs(frequency(self.T_endpoint, mean_field) - f_mode)
+        required_bw = np.add(required_bw_axialfrequency, required_bw_meanfield)
+        loaded_q = f_mode / required_bw
+        if store:   # single-mode path: keep the existing side effects
+            self.required_bw_axialfrequency = required_bw_axialfrequency
+            self.required_bw = required_bw
+            self.loaded_q = loaded_q
+        return loaded_q
     
-        # Cavity coupling
-        self.loaded_q = endpoint_frequency/required_bw # FWHM
-        return self.loaded_q
-
+    def SolveExternalQ(self, target_qls=None, ortho_weight=1e10, ortho_tol=1e-6):
+        """Solve per-port external Qs so each mode hits its target loaded Q while
+        keeping modes orthogonal. Single mode/port reduces to coupling = Q0/Ql - 1."""
+        n_modes = len(self.modes)
+        L = self.cavity_length
+        min_pitch = self.FrequencyExtraction.minimum_angle_in_bandwidth
+        if target_qls is None:
+            target_qls = [self.CavityLoadedQ(f_mode=self.CavityModeFrequency(m.axial_mode_index),
+                                             tuning_pitch=min_pitch) for m in self.modes]
+        system_A, system_b = [], []
+        for alpha, mode in enumerate(self.modes):
+            required_inv_q_ext = max(0.0, 1.0/target_qls[alpha] - 1.0/mode.q_unloaded)
+            system_A.append([np.sin(mode.axial_mode_index*np.pi*port.z_position/L)**2
+                             for port in self.ports])
+            system_b.append(required_inv_q_ext)
+        for alpha in range(n_modes):
+            for beta in range(alpha+1, n_modes):
+                system_A.append([np.sin(self.modes[alpha].axial_mode_index*np.pi*port.z_position/L)
+                                 * np.sin(self.modes[beta].axial_mode_index*np.pi*port.z_position/L)
+                                 * ortho_weight for port in self.ports])
+                system_b.append(0.0)
+        A_mat, b_vec = np.array(system_A), np.array(system_b)
+        x_opt, x_res = nnls(A_mat, b_vec)
+        if n_modes > 1:
+            ortho_error = np.max(np.abs(A_mat[n_modes:] @ x_opt)) / ortho_weight
+            if ortho_error > ortho_tol:
+                logger.warning("Fixed z-positions cause mode hybridization "
+                               "(max error {:.2e})".format(ortho_error))
+        for alpha, mode in enumerate(self.modes):
+            total_inv_q_ext = 0.0
+            for i, port in enumerate(self.ports):
+                field_sq = np.sin(mode.axial_mode_index*np.pi*port.z_position/L)**2
+                port_inv_q = x_opt[i]*field_sq
+                mode.q_externals[port.name] = (1.0/port_inv_q if port_inv_q > 1e-10 else np.inf)
+                total_inv_q_ext += port_inv_q
+            mode.q_loaded = (1.0/(1.0/mode.q_unloaded + total_inv_q_ext)
+                             if total_inv_q_ext > 0 else mode.q_unloaded)
+        return x_opt, x_res
+        
     # SENSITIVITY
     # see parent class in SensitivityFormulas.py
  
