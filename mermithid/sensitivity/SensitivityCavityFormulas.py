@@ -32,13 +32,14 @@ from typing import Optional, Dict
 
 @dataclass
 class SignalMode:
-    """One TE_01l cavity mode. l = axial_mode_index (1 => TE011)."""
     name:            str
     axial_mode_index: int
     q_unloaded:      float
     q_loaded:        float = 0.0
     q_externals:     dict  = field(default_factory=dict)
     power_fractions: Optional[Dict[str, object]] = None
+    signal_power:        float  = 0.0      # emitted power [W] (Phase 7)
+    signal_power_vs_r:   object = None      # per-radius array (Phase 7)
 
 @dataclass
 class OutputPort:
@@ -366,6 +367,12 @@ class CavitySensitivity(Sensitivity):
         self.SetupModesAndPorts()
         self.SolveExternalQ()
         
+        #Assign signal power to modes
+        self.modes[0].signal_power = self.signal_power
+        self.modes[0].signal_power_vs_r = self.signal_power_vs_r
+        for mode in self.modes[1:]:
+            mode.signal_power, mode.signal_power_vs_r = self.CavityModePower(mode)
+            
         #Calculate the effective volume and print out related quantities
         self.EffectiveVolume()
         logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3), 2))
@@ -547,7 +554,28 @@ class CavitySensitivity(Sensitivity):
         self.signal_power = np.mean(self.signal_power_vs_r)
         return self.signal_power
     
-
+    def CavityModePower(self, mode):
+        """Emitted power for a non-primary mode via the generalized Hanneke power."""
+        _, _, z_t = axial_motion(self.MagneticField.nominal_field,
+                                 self.FrequencyExtraction.minimum_angle_in_bandwidth,
+                                 self.Experiment.trap_length,
+                                 self.FrequencyExtraction.minimum_angle_in_bandwidth,
+                                 self.T_endpoint,
+                                 flat_fraction=self.MagneticField.trap_flat_fraction,
+                                 trajectory=1000)
+        r_sample_size = 50
+        if (not self.Efficiency.calculate_det_eff_for_sampled_radii) or self.Efficiency.usefixedvalue:
+            r_sample_size = 1000
+        f_mode = self.CavityModeFrequency(mode.axial_mode_index)
+        power_vs_r = np.mean(larmor_orbit_averaged_hanneke_power(
+            np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=r_sample_size),
+            z_t, mode.q_loaded,
+            2*self.Experiment.cavity_L_over_D*self.cavity_radius,
+            self.cavity_radius, self.cavity_freq,
+            mode_frequency=f_mode, axial_mode_index=mode.axial_mode_index), axis=1)
+        svr = power_vs_r[power_vs_r != 0]
+        return np.mean(svr), svr
+        
 #    def CavityLoadedQ(self):
 #        # Using Wouter's calculation:
 #        # Total required bandwidth is the sum of the endpoint region and the axial frequency. 
@@ -690,65 +718,74 @@ class CavitySensitivity(Sensitivity):
 #        return tau_snr
 
     def calculate_tau_snr(self, time_window, power_fraction=1, tau_snr_array_for_radii=False):
-        """Multimode tau_SNR for the primary mode (modes[0]) read out through self.ports.
-        Per-port noise -> signed covariance Sigma; ports combined by a zero-forcing
-        weight; out-coupling W_i = q_loaded/q_ext applied to the signal. Single mode /
-        single port reduces to the previous scalar result divided by W_i."""
-        self.CavityLoadedQ()   # keep self.loaded_q / self.required_bw side effects
-
+        """Multimode tau_SNR: per-mode isolated tau combined as 1/tau = sum_modes 1/tau_mode.
+        Each mode is read out through self.ports (signed covariance + zero-forcing) with its
+        out-coupling W_i = q_loaded/q_ext. Single mode/single port reduces to the prior result."""
+        self.CavityLoadedQ()
         fft_bandwidth = 3/time_window
         self.fft_bandwidth = fft_bandwidth
-        mode   = self.modes[0]
-        f_mode = self.CavityModeFrequency(mode.axial_mode_index)
-        q_l    = mode.q_loaded
-        L      = self.cavity_length
-
-        Pe = (self.signal_power_vs_r if tau_snr_array_for_radii else self.signal_power)*power_fraction
-
-        n_ports = len(self.ports)
-        Pn_total_list = np.empty(n_ports)
-        Pn_cav_list   = np.empty(n_ports)
-        signs         = np.empty(n_ports)
-        weight_factor = np.empty(n_ports)        # sqrt(W_i * att_tot) per port
-        for i, port in enumerate(self.ports):
-            q_ext = mode.q_externals.get(port.name, np.inf)
-            if np.isfinite(q_ext):
-                coupling = mode.q_unloaded/q_ext
-                W_i      = q_l/q_ext
-            else:
-                coupling = 0.0; W_i = 0.0
-            field = np.sin(mode.axial_mode_index*np.pi*port.z_position/L)
-            signs[i] = np.sign(field) if field != 0 else 1.0
-            att_line_db_freq = port.att_line_db*(1+f_mode/(10*GHz))
-            att_cir_db_freq  = port.att_cir_db*(1+f_mode/(10*GHz))
-            att_tot = db_to_pwr_ratio(att_line_db_freq+att_cir_db_freq)
-            weight_factor[i] = np.sqrt(W_i*att_tot)
-            Pn_total = Pn_dut_entrance(self.FrequencyExtraction.cavity_temperature,
-                                       port.amplifier_temperature,
-                                       att_line_db_freq, att_cir_db_freq,
-                                       coupling, f_mode, fft_bandwidth, q_l)
-            tn_amp = f_mode*hbar*2*np.pi/kB/port.quantum_amp_efficiency
-            Pn_total_list[i] = Pn_total + kB*tn_amp*fft_bandwidth
-            Pn_cav_list[i]   = Pn_cavity(self.FrequencyExtraction.cavity_temperature,
-                                         coupling, q_l, fft_bandwidth, f_mode)*att_tot
-
-        Sigma = np.diag(Pn_total_list).astype(float)
-        for i in range(n_ports):
-            for j in range(n_ports):
-                if i != j:
-                    Sigma[i, j] = signs[i]*signs[j]*np.sqrt(Pn_cav_list[i]*Pn_cav_list[j])
+        L = self.cavity_length
 
         spatial = np.array([[np.sin(m.axial_mode_index*np.pi*port.z_position/L)
                              for m in self.modes] for port in self.ports])
-        w       = np.linalg.pinv(spatial)[0, :]          # isolate modes[0]
-        iso_var = w @ Sigma @ w
-        G       = (np.sum(w*signs*weight_factor))**2     # signal gain
+        W_zf = np.linalg.pinv(spatial)
 
-        self.noise_temp     = iso_var/(n_ports**2)/(kB*fft_bandwidth)
-        self.noise_energy   = kB*self.noise_temp
-        self.received_power = Pe*G
-        tau_snr = iso_var/(Pe*G*fft_bandwidth)
-        return tau_snr
+        inv_tau_total = None
+        for m_idx, mode in enumerate(self.modes):
+            f_mode = self.CavityModeFrequency(mode.axial_mode_index)
+            q_l    = mode.q_loaded
+            Pe = (mode.signal_power_vs_r if tau_snr_array_for_radii else mode.signal_power)*power_fraction
+
+            n_ports = len(self.ports)
+            Pn_total_list = np.empty(n_ports)
+            Pn_cav_list   = np.empty(n_ports)
+            signs         = np.empty(n_ports)
+            weight_factor = np.empty(n_ports)
+            for i, port in enumerate(self.ports):
+                q_ext = mode.q_externals.get(port.name, np.inf)
+                if np.isfinite(q_ext):
+                    coupling = mode.q_unloaded/q_ext
+                    W_i      = q_l/q_ext
+                else:
+                    coupling = 0.0; W_i = 0.0
+                field = np.sin(mode.axial_mode_index*np.pi*port.z_position/L)
+                signs[i] = np.sign(field) if field != 0 else 1.0
+                att_line_db_freq = port.att_line_db*(1+f_mode/(10*GHz))
+                att_cir_db_freq  = port.att_cir_db*(1+f_mode/(10*GHz))
+                att_tot = db_to_pwr_ratio(att_line_db_freq+att_cir_db_freq)
+                weight_factor[i] = np.sqrt(W_i*att_tot)
+                Pn_total = Pn_dut_entrance(self.FrequencyExtraction.cavity_temperature,
+                                           port.amplifier_temperature,
+                                           att_line_db_freq, att_cir_db_freq,
+                                           coupling, f_mode, fft_bandwidth, q_l)
+                tn_amp = f_mode*hbar*2*np.pi/kB/port.quantum_amp_efficiency
+                Pn_total_list[i] = Pn_total + kB*tn_amp*fft_bandwidth
+                Pn_cav_list[i]   = Pn_cavity(self.FrequencyExtraction.cavity_temperature,
+                                             coupling, q_l, fft_bandwidth, f_mode)*att_tot
+
+            Sigma = np.diag(Pn_total_list).astype(float)
+            for i in range(n_ports):
+                for j in range(n_ports):
+                    if i != j:
+                        Sigma[i, j] = signs[i]*signs[j]*np.sqrt(Pn_cav_list[i]*Pn_cav_list[j])
+
+            w       = W_zf[m_idx, :]
+            iso_var = w @ Sigma @ w
+            G       = (np.sum(w*signs*weight_factor))**2
+            tau_mode = iso_var/(Pe*G*fft_bandwidth)
+
+            with np.errstate(divide='ignore', invalid='ignore'):
+                inv = np.where(tau_mode > 0, 1.0/tau_mode, 0.0)
+            inv_tau_total = inv if inv_tau_total is None else inv_tau_total + inv
+
+            if m_idx == 0:        # primary mode sets reported noise bookkeeping
+                self.noise_temp     = iso_var/(n_ports**2)/(kB*fft_bandwidth)
+                self.noise_energy   = kB*self.noise_temp
+                self.received_power = Pe*G
+
+        with np.errstate(divide='ignore', invalid='ignore'):
+            tau_snr = np.where(inv_tau_total > 0, 1.0/inv_tau_total, np.inf)
+        return float(tau_snr) if np.ndim(tau_snr) == 0 else tau_snr
                 
     """
     def print_SNRs(self, rho_opt):
