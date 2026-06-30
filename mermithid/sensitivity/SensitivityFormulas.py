@@ -66,7 +66,7 @@ deg = np.pi/180
 '''
 from mermithid.misc.Constants_numericalunits import *
 from mermithid.misc.CRESFunctions_numericalunits import *
-from mermithid.cavity.AtomicCalculator import *
+from mermithid.sensitivity.AtomicCalculator import *
 
 try:
     from morpho.utilities import morphologging
@@ -174,7 +174,7 @@ class Sensitivity(object):
     def SignalRatio(self):
         if self.Efficiency.T2_background_atomic_trap:
             self.T2_total_density, self.T2_T_ratio = calculate_T2_background_atomic_trap(self.cavity_radius, self.cavity_length, self.FrequencyExtraction.cavity_temperature, self.Efficiency.max_ratio_T2_T, self.Experiment.number_density)
-            # C240 - Activity ratio of T2/T
+            # C240 - Activity ratio of the rate of T2/T events in the last eV of the T2/T spectrum. (Difference between the two spectra)
             signal_ratio = self.T2_T_ratio * 2 / ground_state_branch_atomic
             """
             # Atomic Calculator activity in last eV of spectrum

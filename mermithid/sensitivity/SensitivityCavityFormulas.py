@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from mermithid.misc.Constants_numericalunits import *
 from mermithid.misc.CRESFunctions_numericalunits import *
 from mermithid.cavity.HannekeFunctions import *
-from mermithid.cavity.AtomicCalculator import *
+from mermithid.sensitivity.AtomicCalculator import *
 from mermithid.sensitivity.SensitivityFormulas import *
 
 
