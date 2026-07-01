@@ -174,11 +174,17 @@ class Sensitivity(object):
     def SignalRatio(self):
         if self.Efficiency.T2_background_atomic_trap:
             self.T2_total_density, self.T2_T_ratio = calculate_T2_background_atomic_trap(self.cavity_radius, self.cavity_length, self.FrequencyExtraction.cavity_temperature, self.Efficiency.max_ratio_T2_T, self.Experiment.number_density)
+            if self.Efficiency.usefixedratio:
+                self.T2_T_ratio = self.Efficiency.T2_T_ratio
             # C240 - Activity ratio of the rate of T2/T events in the last eV of the T2/T spectrum. (Difference between the two spectra)
             signal_ratio = self.T2_T_ratio * 2 / ground_state_branch_atomic
             """
             # Atomic Calculator activity in last eV of spectrum
-            sig_rate = calculate_activity_last_1eV_spectrum(self.Experiment.atomic, self.Experiment.number_density, self.cavity_radius, self.trap_coil_1, self.trap_coil_2, self.Efficiency.total_efficiency): 
+            if self.Efficiency.usefixedvalue:
+                self.total_efficiency = self.Efficiency.fixed_efficiency
+            else:
+                self.total_efficiency = self.effective_volume/self.total_trap_volume
+            sig_rate = calculate_activity_last_1eV_spectrum(self.Experiment.atomic, self.Experiment.number_density, self.cavity_radius, self.trap_coil_1, self.trap_coil_2, self.total_efficiency): 
             """
             return signal_ratio
         return None

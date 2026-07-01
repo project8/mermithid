@@ -950,6 +950,8 @@ class CavitySensitivity(Sensitivity):
         #logger.info("T2 background: {}".format(self.Efficiency.T2_background_atomic_trap))
         if self.Efficiency.T2_background_atomic_trap:
             self.T2_total_density, self.T2_T_ratio = calculate_T2_background_atomic_trap(self.cavity_radius, self.cavity_length, self.FrequencyExtraction.cavity_temperature, self.Efficiency.max_ratio_T2_T, self.Experiment.number_density)
+            if self.Efficiency.usefixedratio:
+               self.T2_T_ratio = self.Efficiency.T2_T_ratio
             logger.info("T2_total_density: {:.4e} m^-3".format(self.T2_total_density*m**3))
             logger.info("Ratio T2/T: {:.4e}".format(self.T2_T_ratio))
 
@@ -967,13 +969,17 @@ class CavitySensitivity(Sensitivity):
             logger.info("Pumping Speed Limit (Molecular): {:.4} m^3/s".format(self.turbopump_speed_limit_molecular * s / m**3))
             logger.info("Cavity Termination Speed (Molecular): {:.4} m^3/s".format(self.cavity_termination_speed_molecular * s / m**3))
             if self.Efficiency.T_atom_supply_trap:
+                if self.Efficiency.usefixedvalue:
+                    self.total_efficiency = self.Efficiency.fixed_efficiency
+                else:
+                    self.total_efficiency = self.effective_volume/self.total_trap_volume
                 self.time_constant_He, self.current_He_leak = calculate_He_heat_leak(self.turbopump_speed_limit_atomic,  self.cavity_termination_speed_atomic, self.turbopump_speed,  self.FrequencyExtraction.cavity_temperature, self.Experiment.design_density, self.total_cavity_volume)
                 logger.info("He Time Constant: {:.4} s".format(self.time_constant_He/s))
                 logger.info("Atom current required for He-3 leak: {:.4e} atoms/s".format(self.current_He_leak*s))
                 self.time_constant_aperture, self.current_aperture_leak = calculate_aperture_heat_leak(self.DopplerBroadening.gas_temperature, self.Experiment.design_density, self.total_cavity_volume)
                 logger.info("Aperture Time Constant: {:.4} s".format(self.time_constant_aperture/s))
                 logger.info("Atom current required for aperture leak: {:.4e} atoms/s".format(self.current_aperture_leak*s))
-                self.time_constant_rad, self.current_rad_leak = calculate_rad_heat_leak(self.cavity_radius, self.Experiment.number_density, self.trap_coil_1, self.trap_coil_2, self.Experiment.design_density, self.total_cavity_volume, self.Efficiency.total_efficiency)
+                self.time_constant_rad, self.current_rad_leak = calculate_rad_heat_leak(self.cavity_radius, self.Experiment.number_density, self.trap_coil_1, self.trap_coil_2, self.Experiment.design_density, self.total_cavity_volume, self.total_efficiency)
                 logger.info("Radiation Time Constant: {:.4} s".format(self.time_constant_rad/s))
                 logger.info("Atom current required for radiation leak: {:.4e} atoms/s".format(self.current_rad_leak*s))
                 self.time_constant_desorp, self.current_desorp = calculate_T2_desorption_from_wall(self.cavity_radius, self.cavity_length, self.Experiment.design_density, self.total_cavity_volume)
