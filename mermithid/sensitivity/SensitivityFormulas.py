@@ -92,18 +92,19 @@ class Sensitivity(object):
         * Nicks CRLB for frequency resolution: https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398
         * Molecular contamination in atomic tritium: https://3.basecamp.com/3700981/buckets/3107037/documents/3151077016
     """
-    def __init__(self, config_path):
+    def __init__(self, config_path, verbose=True):
         self.cfg = configparser.ConfigParser()
         with open(config_path, 'r') as configfile:
             self.cfg.read_file(configfile)
 
         # display configuration
         try:
-            logger.info("Config file content:")
-            for sect in self.cfg.sections():
-               logger.info('    Section: {}'.format(sect))
-               for k,v in self.cfg.items(sect):
-                  logger.info('        {} = {}'.format(k,v))
+            if verbose:
+                logger.info("Config file content:")
+                for sect in self.cfg.sections():
+                    logger.info('    Section: {}'.format(sect))
+                    for k,v in self.cfg.items(sect):
+                        logger.info('        {} = {}'.format(k,v))
         except:
             pass
 
