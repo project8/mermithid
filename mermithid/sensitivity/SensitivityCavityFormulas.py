@@ -368,8 +368,6 @@ class CavitySensitivity(Sensitivity):
         self.SolveExternalQ()
         
         #Assign signal power to modes
-        self.modes[0].signal_power = self.signal_power
-        self.modes[0].signal_power_vs_r = self.signal_power_vs_r
         for mode in self.modes[1:]:
             mode.signal_power, mode.signal_power_vs_r = self.CavityModePower(mode)
             
@@ -444,7 +442,17 @@ class CavitySensitivity(Sensitivity):
                     att_line_db=spec.get("att_line_db", fe.att_line_db),
                     att_cir_db=spec.get("att_cir_db", fe.att_cir_db),
                     quantum_amp_efficiency=spec.get("quantum_amp_efficiency", fe.quantum_amp_efficiency)))
-                                   
+                    
+        for port in self.ports:
+            if port.att_line_db > 0 or port.att_cir_db > 0:
+                raise ValueError("Port '{}': attenuations must be negative dB losses.".format(port.name))
+                
+        for mode in self.modes:
+            for port in self.ports:
+                if abs(np.sin(mode.axial_mode_index*np.pi*port.z_position/self.cavity_length)) < 1e-12:
+                    logger.warning("Mode TE01{} has zero field at port '{}'; it cannot couple there.".format(
+                        mode.axial_mode_index, port.name))
+                                                  
     # CAVITY
     def CavityRadius(self):
         axial_mode_index = 1
@@ -563,17 +571,16 @@ class CavitySensitivity(Sensitivity):
                                  self.T_endpoint,
                                  flat_fraction=self.MagneticField.trap_flat_fraction,
                                  trajectory=1000)
-        r_sample_size = 50
-        if (not self.Efficiency.calculate_det_eff_for_sampled_radii) or self.Efficiency.usefixedvalue:
-            r_sample_size = 1000
         f_mode = self.CavityModeFrequency(mode.axial_mode_index)
         power_vs_r = np.mean(larmor_orbit_averaged_hanneke_power(
-            np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=r_sample_size),
-            z_t, mode.q_loaded,
-            2*self.Experiment.cavity_L_over_D*self.cavity_radius,
-            self.cavity_radius, self.cavity_freq,
+            self._radii_sample, z_t, mode.q_loaded,
+            self.cavity_length, self.cavity_radius, self.cavity_freq,
             mode_frequency=f_mode, axial_mode_index=mode.axial_mode_index), axis=1)
-        svr = power_vs_r[power_vs_r != 0]
+        svr = power_vs_r[self._radii_nonzero_mask]
+        if len(svr) == 0 or not np.any(svr):
+            logger.warning("CavityModePower: TE01{} contributes no signal on the "
+                           "shared radius sample.".format(mode.axial_mode_index))
+            return 0.0, svr
         return np.mean(svr), svr
         
 #    def CavityLoadedQ(self):
@@ -734,7 +741,10 @@ class CavitySensitivity(Sensitivity):
         for m_idx, mode in enumerate(self.modes):
             f_mode = self.CavityModeFrequency(mode.axial_mode_index)
             q_l    = mode.q_loaded
-            Pe = (mode.signal_power_vs_r if tau_snr_array_for_radii else mode.signal_power)*power_fraction
+            if m_idx == 0:
+                Pe = (self.signal_power_vs_r if tau_snr_array_for_radii else self.signal_power)*power_fraction
+            else:
+                Pe = (mode.signal_power_vs_r if tau_snr_array_for_radii else mode.signal_power)*power_fraction
 
             n_ports = len(self.ports)
             Pn_total_list = np.empty(n_ports)
@@ -778,7 +788,7 @@ class CavitySensitivity(Sensitivity):
                 inv = np.where(tau_mode > 0, 1.0/tau_mode, 0.0)
             inv_tau_total = inv if inv_tau_total is None else inv_tau_total + inv
 
-            if m_idx == 0:        # primary mode sets reported noise bookkeeping
+            if m_idx == 0:        # diagnostic bookkeeping; exact for the default center port, conventional for multi-port
                 self.noise_temp     = iso_var/(n_ports**2)/(kB*fft_bandwidth)
                 self.noise_energy   = kB*self.noise_temp
                 self.received_power = Pe*G

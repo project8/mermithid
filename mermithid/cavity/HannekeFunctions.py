@@ -133,7 +133,7 @@ def larmor_orbit_averaged_hanneke_power(r_position, z_position, loaded_Q, l_cav,
     
 # Calculate the average radiated power for an electron with radius r_position in a box trap:
 def larmor_orbit_averaged_hanneke_power_box(r_position, loaded_Q, l_cav, r_cav, cyclotron_frequency,
-                                            kinetic_energy=endpoint, pitch=np.pi/2, mode_frequency=None, n_points=100):
+                                            kinetic_energy=endpoint, pitch=np.pi/2, mode_frequency=None, n_points=100, axial_mode_index=1):
     
     return larmor_orbit_averaged_hanneke_power(r_position, 0, loaded_Q, l_cav, r_cav, cyclotron_frequency, 
-                                               kinetic_energy=kinetic_energy, pitch=pitch, mode_frequency=mode_frequency, n_points=n_points)/2
+                                               kinetic_energy=kinetic_energy, pitch=pitch, mode_frequency=mode_frequency, n_points=n_points, axial_mode_index=axial_mode_index)/2
