@@ -199,6 +199,15 @@ def build_baseline(config_path, optimize=True,
               - (s_main.FrequencyExtraction.unloaded_q / s_main.loaded_q - 1.0))
               / (s_main.FrequencyExtraction.unloaded_q / s_main.loaded_q - 1.0)))
 
+    # -- Phase 8: interference matrix R^2 (diagnostic) --
+    # Single mode/port: R2[0,0] must equal 1 - W_i = 1 - q_loaded/q_ext exactly.
+    _safe(out, errors, "R2_diag_mode0",
+          lambda: float(np.real(s_main.BuildInterferenceMatrix()[0, 0])))
+    _safe(out, errors, "R2_mode0_minus_one_minus_Wi_rel",
+          lambda: float(abs(np.real(s_main.BuildInterferenceMatrix()[0, 0])
+                            - (1.0 - s_main.modes[0].q_loaded
+                               / list(s_main.modes[0].q_externals.values())[0]))))
+
     # -- Phase 6: SNR / noise denominator pieces --
     _safe(out, errors, "noise_energy_eV",  lambda: s_main.noise_energy / eV)
     _safe(out, errors, "fft_bandwidth_Hz", lambda: s_main.fft_bandwidth / Hz)

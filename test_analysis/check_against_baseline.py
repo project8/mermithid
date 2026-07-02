@@ -63,6 +63,8 @@ EXACT_KEYS = {
     "port0_att_cir_db", "port0_quantum_amp_efficiency",
     # Phase 4 per-mode loaded Q / external Q (single-mode reduction):
     "mode0_q_loaded", "mode0_q_ext_port0",
+    # Phase 8 interference matrix (deterministic from solved Qs):
+    "R2_diag_mode0",
     # Deterministic input distributions (file-driven / fixed binning):
     "theta_array_rad", "carrier_power_fraction_array",
     "sideband_power_fraction_array", "prob_theta_array",
@@ -90,7 +92,8 @@ RTOL_REDUCED = 1e-8
 # so these pass iff BOTH baseline and updated are below an absolute floor.
 ABS_ZERO_KEYS = {"mode_freq_p1_minus_cavity_freq_rel",
                  "mode0_q_loaded_minus_loaded_q_rel",
-                 "mode0_coupling_minus_inline_rel"}
+                 "mode0_coupling_minus_inline_rel",
+                 "R2_mode0_minus_one_minus_Wi_rel"}
 ABS_ZERO_TOL = 1e-12
 
 

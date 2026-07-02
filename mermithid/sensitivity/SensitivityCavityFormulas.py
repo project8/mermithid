@@ -670,6 +670,36 @@ class CavitySensitivity(Sensitivity):
                              if total_inv_q_ext > 0 else mode.q_unloaded)
         return x_opt, x_res
         
+    def BuildInterferenceMatrix(self):
+        """Inter-mode interference matrix R^2_{alpha,beta} ('SNR of Multimode
+        Signal Readout', Sec. 3):  R^2 = 1_N - R_d^dagger R_d, where
+        R_d[i,alpha] = sign(sin(p*pi*z_i/L)) * sqrt(Q_alpha / Q_ext_{alpha,i}).
+        Diagonal = fraction of each mode's power in unobserved channels
+        (single mode/port: R^2 = 1 - W_i); off-diagonals = mode cross-talk.
+        Diagnostic only -- not folded into tau_SNR (the omitted correction is
+        |dtau/tau| ~ f_RF * R^2_aa; see notebook Sec. 8)."""
+        n_modes = len(self.modes)
+        n_ports = len(self.ports)
+        L = self.cavity_length
+
+        R_d = np.zeros((n_ports, n_modes), dtype=complex)
+        for i, port in enumerate(self.ports):
+            for a, mode in enumerate(self.modes):
+                q_ext = mode.q_externals.get(port.name, np.inf)
+                if not np.isfinite(q_ext) or q_ext <= 0:
+                    continue
+                field = np.sin(mode.axial_mode_index*np.pi*port.z_position/L)
+                sign  = np.sign(field) if field != 0 else 1.0
+                R_d[i, a] = sign*np.sqrt(mode.q_loaded/q_ext)
+
+        R2 = np.eye(n_modes, dtype=complex) - R_d.conj().T @ R_d
+        max_crosstalk = (np.max(np.abs(R2 - np.diag(np.diag(R2))))
+                         if n_modes > 1 else 0.0)
+        if max_crosstalk > 1e-3:
+            logger.warning("Interference matrix: mode cross-talk |R2_ab| up to "
+                           "{:.2e}; zero-forcing isolation may be degraded.".format(max_crosstalk))
+        return R2
+           
     # SENSITIVITY
     # see parent class in SensitivityFormulas.py
  
@@ -725,13 +755,46 @@ class CavitySensitivity(Sensitivity):
 #        return tau_snr
 
     def calculate_tau_snr(self, time_window, power_fraction=1, tau_snr_array_for_radii=False):
-        """Multimode tau_SNR: per-mode isolated tau combined as 1/tau = sum_modes 1/tau_mode.
-        Each mode is read out through self.ports (signed covariance + zero-forcing) with its
-        out-coupling W_i = q_loaded/q_ext. Single mode/single port reduces to the prior result."""
+        """Multimode tau_SNR per Rick's multi-mode SNR document"""
         self.CavityLoadedQ()
         fft_bandwidth = 3/time_window
         self.fft_bandwidth = fft_bandwidth
         L = self.cavity_length
+        n_modes = len(self.modes)
+
+        # --- interference factors (document main result), diagonal-normalized ---
+        R2 = self.BuildInterferenceMatrix()
+        mode_powers = np.array([self.signal_power] +
+                               [m.signal_power for m in self.modes[1:]])
+        # per-mode cavity-generated noise P_N,alpha (cavity paper expression;
+        # document: 'same as a single port at that temperature with the loaded Q')
+        PN_modes = np.empty(n_modes)
+        for a, mode in enumerate(self.modes):
+            f_a = self.CavityModeFrequency(mode.axial_mode_index)
+            inv_qext_tot = sum(1.0/q for q in mode.q_externals.values()
+                               if np.isfinite(q) and q > 0)
+            coupling_tot = mode.q_unloaded*inv_qext_tot
+            PN_modes[a] = Pn_cavity(self.FrequencyExtraction.cavity_temperature,
+                                    coupling_tot, mode.q_loaded, fft_bandwidth, f_a)
+
+        def _F(X):
+            F = np.ones(n_modes)
+            for a in range(n_modes):
+                d = abs(1.0 - R2[a, a])**2
+                if d < 1e-12 or X[a] <= 0:
+                    continue
+                s = 1.0 + 0.0j
+                for b in range(n_modes):
+                    if X[b] > 0:
+                        s -= R2[a, b]*np.sqrt(X[b]/X[a])
+                F[a] = abs(s)**2/d
+            return F
+        F_sig = _F(mode_powers)
+        F_N   = _F(PN_modes)
+        if np.any(np.abs(F_sig - 1) > 0.5) or np.any(np.abs(F_N - 1) > 0.5):
+            logger.warning("Interference factors far from 1 (F_sig={}, F_N={}); "
+                           "port hybridization invalidates the zero-forcing model.".format(
+                               np.round(F_sig, 3), np.round(F_N, 3)))
 
         spatial = np.array([[np.sin(m.axial_mode_index*np.pi*port.z_position/L)
                              for m in self.modes] for port in self.ports])
@@ -744,7 +807,7 @@ class CavitySensitivity(Sensitivity):
             if m_idx == 0:
                 Pe = (self.signal_power_vs_r if tau_snr_array_for_radii else self.signal_power)*power_fraction
             else:
-                Pe = (mode.signal_power_vs_r if tau_snr_array_for_radii else mode.signal_power)*power_fraction
+                Pe = mode.signal_power*power_fraction   # interim scalar (see Phase 9 note)
 
             n_ports = len(self.ports)
             Pn_total_list = np.empty(n_ports)
@@ -764,14 +827,19 @@ class CavitySensitivity(Sensitivity):
                 att_cir_db_freq  = port.att_cir_db*(1+f_mode/(10*GHz))
                 att_tot = db_to_pwr_ratio(att_line_db_freq+att_cir_db_freq)
                 weight_factor[i] = np.sqrt(W_i*att_tot)
-                Pn_total = Pn_dut_entrance(self.FrequencyExtraction.cavity_temperature,
-                                           port.amplifier_temperature,
-                                           att_line_db_freq, att_cir_db_freq,
-                                           coupling, f_mode, fft_bandwidth, q_l)
+                Pn_at_amp = Pn_dut_entrance(self.FrequencyExtraction.cavity_temperature,
+                                            port.amplifier_temperature,
+                                            att_line_db_freq, att_cir_db_freq,
+                                            coupling, f_mode, fft_bandwidth, q_l)
                 tn_amp = f_mode*hbar*2*np.pi/kB/port.quantum_amp_efficiency
-                Pn_total_list[i] = Pn_total + kB*tn_amp*fft_bandwidth
-                Pn_cav_list[i]   = Pn_cavity(self.FrequencyExtraction.cavity_temperature,
-                                             coupling, q_l, fft_bandwidth, f_mode)*att_tot
+                Pn_at_amp += kB*tn_amp*fft_bandwidth
+                Pn_cav_i = Pn_cavity(self.FrequencyExtraction.cavity_temperature,
+                                     coupling, q_l, fft_bandwidth, f_mode)*att_tot
+                # Split total port noise into RF part (not mixed; document Sec. 3)
+                # and cavity-generated part (carries the F_N interference factor).
+                Pn_rf_i = Pn_at_amp - Pn_cav_i
+                Pn_cav_list[i]   = Pn_cav_i*F_N[m_idx]
+                Pn_total_list[i] = Pn_rf_i + Pn_cav_list[i]
 
             Sigma = np.diag(Pn_total_list).astype(float)
             for i in range(n_ports):
@@ -782,13 +850,14 @@ class CavitySensitivity(Sensitivity):
             w       = W_zf[m_idx, :]
             iso_var = w @ Sigma @ w
             G       = (np.sum(w*signs*weight_factor))**2
-            tau_mode = iso_var/(Pe*G*fft_bandwidth)
+            tau_mode = iso_var/(Pe*F_sig[m_idx]*G*fft_bandwidth)
 
             with np.errstate(divide='ignore', invalid='ignore'):
                 inv = np.where(tau_mode > 0, 1.0/tau_mode, 0.0)
             inv_tau_total = inv if inv_tau_total is None else inv_tau_total + inv
 
-            if m_idx == 0:        # diagnostic bookkeeping; exact for the default center port, conventional for multi-port
+            if m_idx == 0:
+                # diagnostic bookkeeping; exact for the default center port
                 self.noise_temp     = iso_var/(n_ports**2)/(kB*fft_bandwidth)
                 self.noise_energy   = kB*self.noise_temp
                 self.received_power = Pe*G
