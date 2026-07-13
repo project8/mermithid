@@ -18,12 +18,12 @@ tritium_livetime = 5.605e8*s
 tritium_mass_atomic = 3.016* amu *c0**2
 tritium_electron_crosssection_atomic = 9.e-23*m**2 #Hamish extrapolated to 18.6keV using Shah et al. (1987): https://iopscience.iop.org/article/10.1088/0022-3700/20/14/022
 tritium_endpoint_atomic = 18563.251*eV
-last_1ev_fraction_atomic = 2.067914e-13/eV**3
+last_1ev_fraction_atomic = 2.06e-13/eV**3 #From https://arxiv.org/pdf/2012.14341 #Version from Rene; unsure of source: 2.067914e-13/eV**3
 
 tritium_mass_molecular = 6.032099 * amu *c0**2
 tritium_electron_crosssection_molecular = 3.67*1e-22*m**2 #[Inelastic from Aseev (2000) for T2] + [Elastic from Liu (1987) for H2, extrapolated by Elise to 18.6keV]
 tritium_endpoint_molecular = 18574.01*eV
-last_1ev_fraction_molecular = 1.67364e-13/eV**3
+last_1ev_fraction_molecular = 1.69e-13/eV**3 #From https://arxiv.org/pdf/2012.14341 #Version from Rene; unsure of source: 1.67364e-13/eV**3
 
 ground_state_width = 0.436 * eV
 ground_state_width_uncertainty = 0.001*0.436*eV
