@@ -341,7 +341,7 @@ def convolved_bkgd_rate_arrays(K, Kmin, Kmax, lineshape, ls_params, min_energy, 
     return convolved
 
 
-
+# https://3.basecamp.com/3700981/buckets/3107037/documents/10099116348
 ##Fraction of events near the endpoint
 ##Currently, this only holds for the last 13.6 eV of the spectrum
 #def frac_near_endpt(Kmin, Q, mass, atom_or_mol='atom'):

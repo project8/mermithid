@@ -116,6 +116,7 @@ class Sensitivity(object):
             self.T_mass = tritium_mass_atomic
             self.Te_crosssection = tritium_electron_crosssection_atomic
             self.T_endpoint = tritium_endpoint_atomic
+            # Initially defined as number of events divided by energy window of last eV. For info: https://3.basecamp.com/3700981/buckets/3107037/documents/10099116348
             self.last_1ev_fraction = last_1ev_fraction_atomic
         else:
             self.T_mass = tritium_mass_molecular
