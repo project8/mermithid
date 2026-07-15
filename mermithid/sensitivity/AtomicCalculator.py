@@ -277,4 +277,3 @@ def calculate_activity_last_1eV_spectrum(self, atomic_flag, number_density, cavi
         activity_last_100eV_efficiency = trap_activity * last_1ev_fraction_molecular * total_efficiency * 1000000 / ground_state_branch_molecular
         last_1eV_molecular = activity_last_100eV_efficiency * ground_state_branch_molecular / 1000000
         return last_1eV_molecular
-
