@@ -244,7 +244,7 @@ class CavitySensitivity(Sensitivity):
         * Molecular contamination in atomic tritium: https://3.basecamp.com/3700981/buckets/3107037/documents/3151077016
     """
     def __init__(self, config_path, verbose=True):
-        Sensitivity.__init__(self, config_path)
+        Sensitivity.__init__(self, config_path, verbose=verbose)
 
         # Calc non-config parameters outside of init function:
         ## Allows re-calcing params if config values changed later, e.g. param scans
