@@ -3,7 +3,7 @@ The spatial variables sampling class.
 
 Author: S. M. Lee
 First Date: September 15, 2025
-Last Update: January 19, 2026
+Last Update: July 20, 2026
 """
 
 from __future__ import absolute_import
@@ -104,17 +104,17 @@ class SpatialSampler:
             logger.error("phi_edges must be in ascending order.")
             raise ValueError("phi_edges must be in ascending order.")
 
-        self._theta_edge: np.ndarray = np.asarray(theta_edges)
-        self._r_edge: np.ndarray = np.asarray(r_edges)
-        self._phi_edge: np.ndarray = np.asarray(phi_edges)
+        self._theta_edges: np.ndarray = np.asarray(theta_edges)
+        self._r_edges: np.ndarray = np.asarray(r_edges)
+        self._phi_edges: np.ndarray = np.asarray(phi_edges)
         self._theta_centers: np.ndarray = 0.5 * (
-            self._theta_edge[:-1] + self._theta_edge[1:]
+            self._theta_edges[:-1] + self._theta_edges[1:]
         )  # (bins_theta,)
         self._r_centers: np.ndarray = 0.5 * (
-            self._r_edge[:-1] + self._r_edge[1:]
+            self._r_edges[:-1] + self._r_edges[1:]
         )  # (bins_r,)
         self._phi_centers: np.ndarray = 0.5 * (
-            self._phi_edge[:-1] + self._phi_edge[1:]
+            self._phi_edges[:-1] + self._phi_edges[1:]
         )  # (bins_phi,)
         self._theta_bins: int = len(self._theta_centers)
         self._r_bins: int = len(self._r_centers)
@@ -152,19 +152,19 @@ class SpatialSampler:
     def theta_edges(self) -> Optional[np.ndarray]:
         if self.binned_mode:
             return None
-        return self._theta_edge
+        return self._theta_edges
 
     @property
     def r_edges(self) -> Optional[np.ndarray]:
         if self.binned_mode:
             return None
-        return self._r_edge
+        return self._r_edges
 
     @property
     def phi_edges(self) -> Optional[np.ndarray]:
         if self.binned_mode:
             return None
-        return self._phi_edge
+        return self._phi_edges
 
     @property
     def cavityField(self) -> Optional[CavityField.CavityField]:

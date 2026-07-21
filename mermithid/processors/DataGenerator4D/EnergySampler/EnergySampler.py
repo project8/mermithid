@@ -2,7 +2,7 @@
 Energy sampler base class.
 Author: S. M. Lee
 First Date: September 04, 2025
-Last Update: September 04, 2025
+Last Update: July 20, 2026
 """
 
 from __future__ import absolute_import
@@ -60,8 +60,8 @@ class EnergySampler:
             logger.error("ke_edges must be in ascending order.")
             raise ValueError("ke_edges must be in ascending order.")
 
-        self._edge: np.ndarray = np.asarray(ke_edges)
-        self._ke_bins: int = len(self._edge) - 1
+        self._edges: np.ndarray = np.asarray(ke_edges)
+        self._ke_bins: int = len(self._edges) - 1
         self._rate: np.ndarray = np.zeros(self._ke_bins, dtype="float64")
 
     @property
@@ -74,7 +74,7 @@ class EnergySampler:
 
     @property
     def edges(self) -> np.ndarray:
-        return self._edge
+        return self._edges
 
     @property
     def result(self) -> List[np.ndarray]:
@@ -148,13 +148,13 @@ class EnergySampler:
             for bin_idx, count in enumerate(counts):
                 if count > 0:
                     samples[idx : idx + count] = np.random.uniform(
-                        self._edge[bin_idx], self._edge[bin_idx + 1], count
+                        self._edges[bin_idx], self._edges[bin_idx + 1], count
                     )
                     idx += count
 
             self._sample_energy.append(samples)
 
-        return False
+        return True
 
     @abc.abstractmethod
     def CalculateRate(self) -> bool:

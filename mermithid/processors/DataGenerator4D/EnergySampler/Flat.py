@@ -2,7 +2,7 @@
 Sample energy from a flat spectrum.
 Author: S. M. Lee
 First Date: September 02, 2025
-Last Update: September 02, 2025
+Last Update: July 20, 2026
 """
 
 from __future__ import absolute_import
@@ -47,7 +47,7 @@ class Flat(EnergySampler):
 
         # calculate the energy spectrum. shape=(ke_bins,)
         ke_spectrum = np.full(self._ke_bins, self.flat_rate, dtype="float64")  # (1/s/eV)
-        ke_spectrum *= self._edge[1:] - self._edge[:-1]  # (1/s)
+        ke_spectrum *= self._edges[1:] - self._edges[:-1]  # (1/s)
 
         # add to self._rate (1/s). shape=(ke_bins,)
         self._rate += ke_spectrum
@@ -66,13 +66,13 @@ class Flat(EnergySampler):
         logger.debug("Unbinned sampling for <{}>".format(self.name))
         for runtime in runtimes:
             expected_counts = (
-                self.flat_rate * (self._edge[-1] - self._edge[0]) * runtime
+                self.flat_rate * (self._edges[-1] - self._edges[0]) * runtime
             )  # (counts)
             if expected_counts < 0:
                 logger.error("Negative expected counts found in <{}>".format(self.name))
                 return False
             counts = np.random.poisson(expected_counts)  # (counts,)
-            samples = np.random.uniform(self._edge[0], self._edge[-1], counts)
+            samples = np.random.uniform(self._edges[0], self._edges[-1], counts)
 
             self._sample_energy.append(samples)
 

@@ -2,13 +2,17 @@
 The data generator class for CCA.
 Author: S. M. Lee
 First Date: August 25, 2025
-Last Update: March 7, 2026
+Last Update: July 20, 2026
 """
 
 from __future__ import absolute_import
 
+import json
+import os
 from collections import OrderedDict as od
-from typing import Dict, List, Optional, Union, OrderedDict
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, OrderedDict
+
+import numpy as np
 
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
@@ -43,6 +47,48 @@ class DataGenerator4D(BaseProcessor):
         The sampled 4D data are stored in `self.results`.
     """
 
+    @staticmethod
+    def _read_first_param(
+        params: Dict[str, Any], keys: Sequence[str], default: Any = None
+    ) -> Any:
+        """
+        Read the first available key from a list of aliases.
+        """
+        for key in keys:
+            if key in params:
+                return params[key]
+        return default
+
+    @staticmethod
+    def _read_spatial_numerical_data(path: str) -> Optional[Dict[str, np.ndarray]]:
+        """
+        Load histogram data either from a numpy file.
+        Supported file extensions: .npy, .npz
+
+        Returns:
+            A dictionary of the loaded data, or None if the file could not be loaded.
+        """
+        if path is not None:
+            if not os.path.exists(path):
+                logger.error(f"Histogram file does not exist: {path}")
+                return None
+
+            ext = os.path.splitext(path)[1].lower()
+            try:
+                if ext == ".npy" or ext == ".npz":
+                    with np.load(path) as file:
+                        pdf = file["pdf"]
+                        r_edges = file["r_edges"]
+                        theta_edges = file["theta_edges"]
+                        phi_edges = file["phi_edges"]
+                    return {"pdf": pdf, "r_edges": r_edges, "theta_edges": theta_edges, "phi_edges": phi_edges}
+                else:
+                    logger.error(f"Unsupported histogram file extension: {ext}")
+                    return None
+            except (OSError, ValueError, json.JSONDecodeError) as error:
+                logger.error(f"Failed to load histogram from {path}: {error}")
+                return None
+
     def InternalConfigure(self, params):
         """
         Configure the `DataGenerator4D` instance.
@@ -50,7 +96,7 @@ class DataGenerator4D(BaseProcessor):
         TODO: explain parameters
         """
         # Choose the source
-        source_type_menu = ["mono"]  # TODO: ["e-gun", "Kr"]
+        source_type_menu = ["mono", "numerical"]  # TODO: ["e-gun", "Kr"]
         self.source_types: List[str] = reader.read_param(
             params, "source_types", ["mono"]
         )
@@ -63,7 +109,7 @@ class DataGenerator4D(BaseProcessor):
                 return False
 
         # Choose the background
-        bkgd_type_menu = ["flat"]
+        bkgd_type_menu = ["flat", "numerical"]
         self.bkgd_types: List[str] = reader.read_param(params, "bkgd_types", [])
         for t in self.bkgd_types:
             if not t in bkgd_type_menu:
@@ -74,7 +120,7 @@ class DataGenerator4D(BaseProcessor):
                 return False
 
         # Choose the spatial model
-        spatial_model_menu = ["uniform_cylinder"]  # TODO: other models
+        spatial_model_menu = ["uniform_cylinder", "numerical"]  # TODO: other models
         self.spatial_model: str = reader.read_param(
             params, "spatial_model", "uniform_cylinder"
         )
@@ -136,6 +182,25 @@ class DataGenerator4D(BaseProcessor):
 
         # TODO: Kr source configurations
 
+        # Numerical source/background configurations
+        self.source_numerical_rate_path: Optional[str] = self._read_first_param(
+            params,
+            ["source_numerical_ke_rate_path", "source_numerical_rate_path"],
+            None,
+        )
+        self.source_numerical_binned_mode: bool = reader.read_param(
+            params, "source_numerical_binned_mode", False
+        )
+
+        self.bkgd_numerical_rate_path: Optional[str] = self._read_first_param(
+            params,
+            ["bkgd_numerical_ke_rate_path", "bkgd_numerical_rate_path"],
+            None,
+        )
+        self.bkgd_numerical_binned_mode: bool = reader.read_param(
+            params, "bkgd_numerical_binned_mode", False
+        )
+
         # Spatial model configurations
         self.spatial_binned_mode: bool = reader.read_param(
             params, "spatial_binned_mode", False
@@ -145,6 +210,14 @@ class DataGenerator4D(BaseProcessor):
         self.uniform_cylinder_radius: float = reader.read_param(
             params, "uniform_cylinder_radius", 0.01
         )  # (m)
+
+        # Numerical spatial model configurations
+        self.spatial_numerical_hist_path: Optional[str] = self._read_first_param(
+            params, ["spatial_numerical_hist_path", "numerical_spatial_hist_path"], None
+        )
+        self.spatial_numerical_apply_trapping_efficiency: bool = reader.read_param(
+            params, "spatial_numerical_apply_trapping_efficiency", False
+        )
 
         # Cavity field configurations
         cavity_field_option_menu = ["none", "numeric"]  # TODO: analytic
@@ -195,19 +268,30 @@ class DataGenerator4D(BaseProcessor):
         )  # (str)
 
         # Instantiate the samplers
-        self._edge: Dict[str, np.ndarray] = dict()
+        self._edges: Dict[str, np.ndarray] = dict()
         if self.ke_edges is None:
             self.ke_edges = np.linspace(self.ke_min, self.ke_max, self.ke_bins + 1)
-        self._edge["ke_edges"] = np.asarray(self.ke_edges)
+        self._edges["ke_edges"] = np.asarray(self.ke_edges)
         if self.theta_edges is None:
             self.theta_edges = np.linspace(0, np.pi, self.theta_bins + 1)
-        self._edge["theta_edges"] = np.asarray(self.theta_edges)
+        self._edges["theta_edges"] = np.asarray(self.theta_edges)
         if self.r_edges is None:
             self.r_edges = np.linspace(0, self.r_max, self.r_bins + 1)
-        self._edge["r_edges"] = np.asarray(self.r_edges)
+        self._edges["r_edges"] = np.asarray(self.r_edges)
         if self.phi_edges is None:
             self.phi_edges = np.linspace(0, 2 * np.pi, self.phi_bins + 1)
-        self._edge["phi_edges"] = np.asarray(self.phi_edges)
+        self._edges["phi_edges"] = np.asarray(self.phi_edges)
+
+        # overwrite the default edges values when the spatial model is numerical
+        if self.spatial_model == "numerical":
+            _spatial_numerical_data = self._read_spatial_numerical_data(self.spatial_numerical_hist_path)
+            if _spatial_numerical_data is None:
+                logger.error("Failed to read spatial numerical data")
+                return False
+            
+            self._edges["theta_edges"] = _spatial_numerical_data["theta_edges"]
+            self._edges["r_edges"] = _spatial_numerical_data["r_edges"]
+            self._edges["phi_edges"] = _spatial_numerical_data["phi_edges"]
 
         # energy samplers
         self._energy_samplers: OrderedDict[str, EnergySampler.EnergySampler] = od()
@@ -219,9 +303,16 @@ class DataGenerator4D(BaseProcessor):
                     peak_energy=self.mono_energy,
                     peak_rate=self.mono_rate,
                     binned_mode=self.mono_binned_mode,
-                    **self._edge,
+                    **self._edges,
                 )
-
+                self._energy_samplers[source_type] = sampler
+            elif source_type == "numerical":
+                sampler = EnergySampler.Numerical(
+                    name=self._procName + "_source_numerical",
+                    path=self.source_numerical_rate_path,
+                    binned_mode=self.source_numerical_binned_mode,
+                    **self._edges,
+                )
                 self._energy_samplers[source_type] = sampler
             # TODO: elif self.source_type == "Kr":
             # TODO: elif self.source_type == "e-gun":
@@ -235,7 +326,15 @@ class DataGenerator4D(BaseProcessor):
                     name=self._procName + "_flat",
                     flat_rate=self.bkgd_flat_rate,
                     binned_mode=self.bkgd_flat_binned_mode,
-                    **self._edge,
+                    **self._edges,
+                )
+                self._energy_samplers[bkgd_type] = sampler
+            elif bkgd_type == "numerical":
+                sampler = EnergySampler.Numerical(
+                    name=self._procName + "_bkgd_numerical",
+                    path=self.bkgd_numerical_rate_path,
+                    binned_mode=self.bkgd_numerical_binned_mode,
+                    **self._edges,
                 )
                 self._energy_samplers[bkgd_type] = sampler
             # TODO: elif self.bkgd_type == "slope":
@@ -255,7 +354,17 @@ class DataGenerator4D(BaseProcessor):
                 binned_mode=self.spatial_binned_mode,
                 cavity_field_option=self.cavity_field_option,
                 cavity_field_kwargs=self.cavity_field_kwargs,
-                **self._edge,
+                **self._edges,
+            )
+        elif self.spatial_model == "numerical":
+            self._spatial_sampler = SpatialSampler.Numerical(
+                name=self._procName + "_spatial_numerical",
+                binned_mode=self.spatial_binned_mode,
+                path=self.spatial_numerical_hist_path,
+                apply_trapping_efficiency=self.spatial_numerical_apply_trapping_efficiency,
+                cavity_field_option=self.cavity_field_option,
+                cavity_field_kwargs=self.cavity_field_kwargs,
+                **self._edges,
             )
         # TODO: elif self.spatial_model == other models:
         else:
@@ -292,12 +401,12 @@ class DataGenerator4D(BaseProcessor):
         return True
 
     @property
-    def edge(self) -> Dict[str, np.ndarray]:
+    def edges(self) -> Dict[str, np.ndarray]:
         """
         Returns the dictionary of edges for each dimension.
         Keys: "ke_edges", "r_edges", "theta_edges", "phi_edges"
         """
-        return self._edge
+        return self._edges
 
     @property
     def energy_samplers(self) -> OrderedDict[str, EnergySampler.EnergySampler]:

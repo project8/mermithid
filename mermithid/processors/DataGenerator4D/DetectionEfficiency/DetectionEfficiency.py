@@ -3,7 +3,8 @@ DetectionEfficiency class for DataGenerator4D.
 Handles loading and applying 4D detection efficiency map.
 
 Author: S. M. Lee
-Date: March 7, 2026
+First Date: March 7, 2025
+Last Update: July 20, 2026
 """
 
 from __future__ import absolute_import
@@ -107,18 +108,52 @@ class DetectionEfficiency:
                 f"expected shape {expected_shape}"
             )
 
-        # Create interpolator
-        self.interpolator = RegularGridInterpolator(
-            (
-                self.ke_centers,
-                self.theta_center_centers,
-                self.r_centers,
-                self.phi_centers,
-            ),
-            self.efficiency,
-            bounds_error=False,
-            fill_value=0.0,
-        )
+        # Using interpolator
+        # FIXME: it returns 0 for points outside the grid, made of centers.
+        # self.efficiency_fcn = RegularGridInterpolator(
+        #     (
+        #         self.ke_centers,
+        #         self.theta_center_centers,
+        #         self.r_centers,
+        #         self.phi_centers,
+        #     ),
+        #     self.efficiency,
+        #     bounds_error=False,
+        #     fill_value=0.0,
+        # )
+
+        def _grid_value_getter(points):
+            """
+            Find the bin and return the corresponding efficiency value for each
+            point, without any interpolation. Points outside the bin edges will
+            return 0 efficiency.
+            """
+            # Unpack points
+            ke, theta_c, r, phi = points.T  # 4 * (N,)
+
+            # Find bin indices
+            ke_idx = np.searchsorted(self.ke_edges, ke, side="right") - 1  # (N,)
+            theta_c_idx = np.searchsorted(self.theta_center_edges, theta_c, side="right") - 1  # (N,)
+            r_idx = np.searchsorted(self.r_edges, r, side="right") - 1  # (N,)
+            phi_idx = np.searchsorted(self.phi_edges, phi, side="right") - 1  # (N,)
+
+            mask_valid = (
+                (ke_idx >= 0) & (ke_idx < len(self.ke_centers))
+                & (theta_c_idx >= 0) & (theta_c_idx < len(self.theta_center_centers))
+                & (r_idx >= 0) & (r_idx < len(self.r_centers))
+                & (phi_idx >= 0) & (phi_idx < len(self.phi_centers))
+            )
+            efficiency_values = np.zeros(len(points))
+            efficiency_values[mask_valid] = self.efficiency[
+                ke_idx[mask_valid],
+                theta_c_idx[mask_valid],
+                r_idx[mask_valid],
+                phi_idx[mask_valid],
+            ]
+            
+            return efficiency_values
+
+        self.efficiency_fcn = _grid_value_getter
 
         logger.info(
             f"{name}: Initialized with efficiency map shape {self.efficiency.shape}"
@@ -165,12 +200,9 @@ class DetectionEfficiency:
         # Stack coordinates for interpolation
         points = np.column_stack(
             [ke, theta_center, r_start, phi_start]
-        )
+        )  # shape (N, 4)
 
-        # Interpolate efficiency
-        efficiency = self.interpolator(points)
-
-        # Ensure efficiency is in [0, 1]
+        efficiency = self.efficiency_fcn(points)
         efficiency = np.clip(efficiency, 0, 1)
 
         return efficiency

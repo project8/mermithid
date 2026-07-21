@@ -2,7 +2,7 @@
 Sample energy from a monoenergetic peak.
 Author: S. M. Lee
 First Date: September 02, 2025
-Last Update: September 02, 2025
+Last Update: July 20, 2026
 """
 
 from __future__ import absolute_import
@@ -49,7 +49,7 @@ class Monoenergetic(EnergySampler):
 
         # calculate the energy spectrum. shape=(ke_bins,)
         ke_spectrum = np.zeros(self._ke_bins, dtype="float64")  # (1/s)
-        peak_i = np.digitize(self.peak_energy, self._edge["ke"]) - 1
+        peak_i = np.digitize(self.peak_energy, self._edges["ke"]) - 1
         if 0 <= peak_i < self._ke_bins:
             ke_spectrum[peak_i] = self.peak_rate  # (1/s)
         else:

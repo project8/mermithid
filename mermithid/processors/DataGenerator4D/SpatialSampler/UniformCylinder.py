@@ -2,7 +2,7 @@
 Spatial variable sampler for the uniform cylinder geometry.
 Author: S. M. Lee
 First Date: September 15, 2025
-Last Update: January 19, 2026
+Last Update: July 20, 2026
 """
 
 from __future__ import absolute_import
@@ -92,8 +92,8 @@ class UniformCylinder(SpatialSampler):
             logger.debug(msg)
 
         # Normalize the PDF
-        dr = np.diff(self._r_edge)  # (bins_r,)
-        dtheta = np.diff(self._theta_edge)  # (bins_theta,)
+        dr = np.diff(self._r_edges)  # (bins_r,)
+        dtheta = np.diff(self._theta_edges)  # (bins_theta,)
         normalization = np.sum(pdf * dr[:, np.newaxis] * dtheta[np.newaxis, :])
         self.r_theta_pdf = pdf / normalization  # (bins_r, bins_theta)
 
@@ -117,31 +117,44 @@ class UniformCylinder(SpatialSampler):
             return False
 
         # Flatten the PDF after normalization and create a cumulative distribution function (CDF)
-        dr = np.diff(self._r_edge)  # (bins_r,)
-        dtheta = np.diff(self._theta_edge)  # (bins_theta,)
-        flat_pdf = (
+        dr = np.diff(self._r_edges)  # (bins_r,)
+        dtheta = np.diff(self._theta_edges)  # (bins_theta,)
+        flat_mass = (
             self.r_theta_pdf * dr[:, np.newaxis] * dtheta[np.newaxis, :]
         ).flatten()  # (bins_r * bins_theta,)
-        cdf = np.cumsum(flat_pdf)
+        cdf = np.cumsum(flat_mass)
         cdf /= cdf[-1]  # ensure normalization of CDF
 
         # for each runtime, sample from the CDF
         # TODO: continuous sampling?
         for i, ke in enumerate(self.ke):
             entries = ke.shape[0]
+            if entries == 0:
+                self._sample_r_bin_indices.append(np.zeros(0, dtype=int))
+                self._sample_theta_bin_indices.append(np.zeros(0, dtype=int))
+                continue
+
             u = np.random.uniform(0, 1, entries)  # (entries,)
 
             # Find the bin indices using inverse transform sampling
             bin_indices = np.searchsorted(cdf, u)  # (entries,)
-            bin_indices = np.clip(bin_indices, 0, len(flat_pdf) - 1)
+            bin_indices = np.clip(bin_indices, 0, len(flat_mass) - 1)
 
             # Convert flat indices back to 2D indices
             r_bin_indices = bin_indices // self._theta_bins  # (entries,)
             theta_bin_indices = bin_indices % self._theta_bins  # (entries,)
 
-            # Sample r and theta from the bin centers
-            r_samples = self._r_centers[r_bin_indices]  # (entries,)
-            theta_samples = self._theta_centers[theta_bin_indices]  # (entries,)
+            # # Sample r and theta from the bin centers
+            # r_samples = self._r_centers[r_bin_indices]  # (entries,)
+            # theta_samples = self._theta_centers[theta_bin_indices]  # (entries,)
+
+            # Sample r and theta from the bin
+            r_samples = np.random.uniform(
+                self._r_edges[r_bin_indices], self._r_edges[r_bin_indices + 1]
+            )  # (entries,)
+            theta_samples = np.random.uniform(
+                self._theta_edges[theta_bin_indices], self._theta_edges[theta_bin_indices + 1]
+            )  # (entries,)
 
             self._sample_theta_start[i] = theta_samples  # (rad)
             self._sample_r_start[i] = r_samples  # (m)
