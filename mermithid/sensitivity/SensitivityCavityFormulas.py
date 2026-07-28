@@ -233,6 +233,11 @@ def trapping_efficiency(z_range, bg_magnetic_field, min_pitch_angle, trap_flat_f
     return mean_efficiency
 
 
+def track_duration_distribution(track_duration, mean_track_duration):
+    # The "1/mean_track_duration" factor normalizes the distribution
+    return (1/mean_track_duration)*np.exp(-track_duration/mean_track_duration)
+
+
 
 ###############################################################################
 class CavitySensitivity(Sensitivity):
@@ -356,17 +361,6 @@ class CavitySensitivity(Sensitivity):
                 plt.tight_layout()
                 plt.savefig("theta_bottom_dist_interpolated_{}.png".format(self.Experiment.exp_label), dpi=300)
 
-        #Calculate the effective volume and print out related quantities
-        self.EffectiveVolume()
-        logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3), 2))
-        logger.info("Total trap volume: {} m^3".format(self.total_trap_volume/m**3))
-        logger.info("Ioffe bite: {} m".format(self.unusable_dist_from_wall/m))
-        logger.info("Cyclotron radius: {} m".format(self.cyc_rad/m))
-        if self.use_cyc_rad:
-            logger.info("Using cyclotron (Larmor) radius as unusable distance from wall, for radial efficiency calculation")
-        else:
-            logger.info("Using ioffe bite as unusable distance from wall, for radial efficiency calculation")
-
         ####
         #Initialization related to the energy resolution:
         ####
@@ -382,6 +376,26 @@ class CavitySensitivity(Sensitivity):
             self.pitch_steps = self.FrequencyExtraction.pitch_steps
             logger.info("Using configured pitch_steps value")  
 
+
+        #Calculate the resolution contribution from noise (affecting frequency reconstruction),
+        #accounting for a magnetic field correction based on sideband frequencies (if that option is chosen). 
+        #This needs to be done before calculating the effective volume, since the reconstruction efficiency
+        #is a factor in the effective volume.
+        self.syst_frequency_extraction()
+
+        ###
+        #Back to effective volume:
+        ###
+        #Calculate the effective volume and print out related quantities
+        self.EffectiveVolume()
+        logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3), 2))
+        logger.info("Total trap volume: {} m^3".format(self.total_trap_volume/m**3))
+        logger.info("Ioffe bite: {} m".format(self.unusable_dist_from_wall/m))
+        logger.info("Cyclotron radius: {} m".format(self.cyc_rad/m))
+        if self.use_cyc_rad:
+            logger.info("Using cyclotron (Larmor) radius as unusable distance from wall, for radial efficiency calculation")
+        else:
+            logger.info("Using ioffe bite as unusable distance from wall, for radial efficiency calculation")
         #Just calculated for comparison
         self.larmor_power = rad_power(self.T_endpoint, np.pi/2, self.MagneticField.nominal_field) # currently not used
 
@@ -479,7 +493,7 @@ class CavitySensitivity(Sensitivity):
                                                                     )/self.pos_dependent_trapping_efficiency 
             
             #The effective volume includes the three efficiency factors above, as well as the trapping efficiency
-            self.effective_volume = self.total_trap_volume*self.radial_efficiency*self.detection_efficiency*self.fa_cut_efficiency*self.pos_dependent_trapping_efficiency   
+            self.effective_volume = self.total_trap_volume*self.radial_efficiency*self.detection_efficiency*self.fa_cut_efficiency*self.pos_dependent_trapping_efficiency*self.recon_efficiency
             
         # The "signal rate improvement" factor can be toggled to test the increase in statistics required to reach some sensitivity
         self.effective_volume*=self.Experiment.sri_factor
@@ -614,13 +628,13 @@ class CavitySensitivity(Sensitivity):
         logger.info("Opimtum energy window: {} eV".format(self.DeltaEWidth()/eV))
     """
 
-    def frequency_variance_from_CRLB(self, tau_SNR):
-        self.eta = self.slope*self.time_window/(4*self.cavity_freq*np.pi)
+    def frequency_variance_from_CRLB(self, tau_SNR, track_duration):
+        self.eta = self.slope*track_duration/(4*self.cavity_freq*np.pi)
         if self.eta < 1e-6:
             # This is for the case where the track is flat (almost no slope), and where we
             # treat it as a pure sinusoid (don't fit the slope when extracting the frequency).
             # Applies for a complex signal.
-            return self.FrequencyExtraction.CRLB_scaling_factor*(6*tau_SNR/self.time_window**3)/(2*np.pi)**2 
+            return self.FrequencyExtraction.CRLB_scaling_factor*(6*tau_SNR/track_duration**3)/(2*np.pi)**2 
         else:
             # Non-zero, fitted slope. 
             # Doesn't assume that alpha*T/2 << omega_c, since it includes the 5*eta/(1-eta) term in Eq. 25 of Joe's write-up: https://3.basecamp.com/3700981/buckets/3107037/documents/6331876030.
@@ -631,7 +645,7 @@ class CavitySensitivity(Sensitivity):
             # Nick's derivation uses an expression for P_fa assuming the phase is known. 
             # The phase won't be known, but it's more difficult to determine the unknown-phase expression.
             # Working on that.
-            return self.FrequencyExtraction.CRLB_scaling_factor*(23*(self.slope*tau_SNR)**2 + tau_SNR/self.time_window**3*(96 - 6*5*self.eta/(1+self.eta)))/(2*np.pi)**2
+            return self.FrequencyExtraction.CRLB_scaling_factor*(23*(self.slope*tau_SNR)**2 + tau_SNR/track_duration**3*(96 - 6*5*self.eta/(1+self.eta)))/(2*np.pi)**2
 
     
     def syst_frequency_extraction(self):
@@ -643,46 +657,66 @@ class CavitySensitivity(Sensitivity):
             delta = self.FrequencyExtraction.Default_Systematic_Uncertainty
             return sigma, delta
         
-       
+        #Sample track duration values from exponential distribution
+        self.mean_track_duration = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
+        if hasattr(self.FrequencyExtraction, "use_full_track_duration_distribution") and self.FrequencyExtraction.use_full_track_duration_distribution:
+            n_track_duration_samples = 5000
+            self.time_window = np.random.exponential(self.mean_track_duration/s, n_track_duration_samples)*s
+            #Order self.time_window from longest to shortest track durations. That will later allow us to
+            #break a loop when none of the resolution from noise values (for different thetas) will be below
+            #the threshold anymore
+            self.time_window = np.sort(self.time_window)[::-1]
+        else:
+            self.time_window = self.mean_track_duration*np.ones(1)
+        
         endpoint_frequency = self.cavity_freq
+
+        # Converting the max allowed energy reconstruction stdev to a max allowed frequency variance
+        self.max_allowed_f_var = (self.FrequencyExtraction.max_allowed_energy_std_recon*(2*np.pi*endpoint_frequency**2)/e/self.MagneticField.nominal_field/c0**2)**2
+
         # using Pe and alpha (aka slope) from above
         Pe = self.signal_power #/self.FrequencyExtraction.mode_coupling_efficiency
         
         self.slope = endpoint_frequency * 2 * np.pi * Pe/me/c0**2 # track slope
-        self.time_window = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
-        
-        self.time_window_slope_zero = abs(self.cavity_freq-frequency(self.T_endpoint+20*meV, self.MagneticField.nominal_field))/self.slope
-        
-        if self.FrequencyExtraction.use_average_power_fractions:
-            tau_snr_full_length = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.carrier_power_fraction)
-        else:
-            tau_snr_full_length = self.calculate_tau_snr(self.time_window, self.carrier_power_fraction_array)
-            tau_snr_full_length = tau_snr_full_length[:len(self.theta_array)-1] #Cut out theta=pi/2, since sideband power is 0 there, resulting in infinite tau_snr.
 
-        #Calculate the frequency variance from the CRLB
-        self.var_f_c_CRLB = self.frequency_variance_from_CRLB(tau_snr_full_length)
-        self.best_time_window = self.time_window
+        #self.time_window_slope_zero = abs(self.cavity_freq-frequency(self.T_endpoint+20*meV, self.MagneticField.nominal_field))/self.slope
+        
+        #tau_snr_full_length = []
+        self.var_f_c_CRLB = []
+        if self.FrequencyExtraction.use_average_power_fractions:
+            for window in self.time_window:
+                tau_snr_full_length = self.calculate_tau_snr(window, self.FrequencyExtraction.carrier_power_fraction)
+                #Calculate the frequency variance from the CRLB
+                self.var_f_c_CRLB.append(self.frequency_variance_from_CRLB(tau_snr_full_length, window))
+        else:
+            for window in self.time_window:
+                tau_snr_full_length = self.calculate_tau_snr(window, self.carrier_power_fraction_array)[:len(self.theta_array)-1] #Cut out theta=pi/2, since sideband power is 0 there, resulting in infinite tau_snr.
+                #Calculate the frequency variance from the CRLB
+                self.var_f_c_CRLB.append(self.frequency_variance_from_CRLB(tau_snr_full_length, window)) 
 
         # sigma_f from pitch angle reconstruction
         if self.FrequencyExtraction.crlb_on_sidebands:
             #Calculate noise contribution to uncertainty, including energy correction for pitch angle.
             #This comes from section 6.1.9 of the CDR.
 
+            tau_snr_full_length_sideband = []
             if self.FrequencyExtraction.use_average_power_fractions:
-                tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.sideband_power_fraction)
+                for window in self.time_window:
+                    tau_snr_full_length_sideband.append(self.calculate_tau_snr(window, self.FrequencyExtraction.sideband_power_fraction))
             else:
-                tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, self.sideband_power_fraction_array)
-                tau_snr_full_length_sideband = tau_snr_full_length_sideband[:len(self.theta_array)-1] #Cut out theta=pi/2, since sideband power is 0 there, resulting in infinite tau_snr.
+                for window in self.time_window:
+                    tau_snr_full_length_sideband_temp = self.calculate_tau_snr(window, self.sideband_power_fraction_array)
+                    tau_snr_full_length_sideband.append(tau_snr_full_length_sideband_temp[:len(self.theta_array)-1]) #Cut out theta=pi/2, since sideband power is 0 there, resulting in infinite tau_snr.
             
-            # (sigmaf_lsb)^2:
-            var_f_sideband_crlb = self.frequency_variance_from_CRLB(tau_snr_full_length_sideband)
-            m = self.FrequencyExtraction.sideband_order #For convenience
+            # Defining variables trhat are the same regardless of track duration:
 
+            m = self.FrequencyExtraction.sideband_order
+            
             # Defining array of pitch angle complements (pi/2 - theta) used when calculating
             # the parameters describing the track shape (p and q)
             thetas_for_p_and_q_calc = np.linspace(self.FrequencyExtraction.minimum_angle_in_bandwidth, 90*deg, self.pitch_steps)
             pitch_comps_for_p_and_q_calc = np.pi/2 - thetas_for_p_and_q_calc
-            
+
             # Defining array of pitch angle complement values over which we calculate the
             # resolution contribution from noise.
             if self.FrequencyExtraction.use_average_power_fractions:
@@ -717,29 +751,65 @@ class CavitySensitivity(Sensitivity):
             # Derivative of f_c0 with respect to f_lsb (lower sideband frequency)
             dfc0_dlsb_array = 0.5 - 2*self.q*pitch_comps/m/self.p/(1 - self.q*pitch_comps**2)
 
-            # Noise variance term from the carrier frequency uncertainty
-            var_noise_from_fc_array = dfc0_dfc_array**2*self.var_f_c_CRLB
+            #Cut out theta=pi/2 since sideband power is 0 there, resulting in infinite tau_snr.
+            prob_theta_array_without_pi_over_2 = self.prob_theta_array[:len(self.theta_array)-1] 
 
-            # Noise variance term from the lower sideband frequency uncertainty
-            var_noise_from_flsb_array = dfc0_dlsb_array**2*var_f_sideband_crlb
+            #Now loop over track durations
+            recon_eff, sigma_f_noise = [], []
+            for i in range(len(self.time_window)):
+                # (sigmaf_lsb)^2:
+                var_f_sideband_crlb = self.frequency_variance_from_CRLB(tau_snr_full_length_sideband[i], window)
 
-            # Total uncertainty for each pitch angle
-            var_f_noise_array = var_noise_from_fc_array + var_noise_from_flsb_array
+                # Noise variance term from the carrier frequency uncertainty
+                var_noise_from_fc_array = dfc0_dfc_array**2*self.var_f_c_CRLB[i]
 
-            # Next, we average over sigma_noise values.
-            # This is a quadrature sum average weighted by the pitch angle distribution,
-            # reflecting that the detector response function could be constructed by sampling
-            # from many normal distributions with different standard deviations (sigma_noise_array),
-            # then finding the standard deviation of the full group of sampled values.
-            # IS THE BELOW CORRECT?
-            prob_theta_array_without_pi_over_2 = self.prob_theta_array[:len(self.theta_array)-1] #Cut out theta=pi/2 since sideband power is 0 there, resulting in infinite tau_snr.
-            self.sigma_f_noise = np.sqrt(np.sum(var_f_noise_array*prob_theta_array_without_pi_over_2)/np.sum(self.prob_theta_array))
+                # Noise variance term from the lower sideband frequency uncertainty
+                var_noise_from_flsb_array = dfc0_dlsb_array**2*var_f_sideband_crlb
+
+                # Total uncertainty for each pitch angle
+                var_f_noise_array = var_noise_from_fc_array + var_noise_from_flsb_array
+
+                #Cut out values of var_f_noise_array that are larger than max_allowed_f_var
+                valid_var_indices = var_f_noise_array <= self.max_allowed_f_var
+
+                #Break the loop if no valid var_f_noise_array values remain
+                #Since we sorted the track durations from longest to shortest,
+                #no valid values will remian for later (shorter) track durations.
+                if np.sum(valid_var_indices) == 0:
+                    break
+
+                valid_vars = var_f_noise_array[valid_var_indices]
+                # Weight the reconstruction efficiency by the pitch-angle probability density
+                total_prob = np.sum(prob_theta_array_without_pi_over_2)
+                recon_eff.append(np.sum(prob_theta_array_without_pi_over_2[valid_var_indices]) / total_prob)
+
+                #Choose the values of prob_theta_array_without_pi_over_2 that correspond to the valid_vars
+                prob_theta_array_temp = prob_theta_array_without_pi_over_2[valid_var_indices]
+
+                # Next, we average over sigma_noise values.
+                # This is a quadrature sum average weighted by the pitch angle distribution,
+                # reflecting that the detector response function could be constructed by sampling
+                # from many normal distributions with different standard deviations (sigma_noise_array),
+                # then finding the standard deviation of the full group of sampled values.
+                # IS THE BELOW CORRECT?
+                sigma_f_noise.append(np.sqrt(np.sum(valid_vars*prob_theta_array_temp)/np.sum(prob_theta_array_temp)))
+            
+            #Average over track durations
+            self.recon_efficiency = np.mean(recon_eff)
+            self.sigma_f_noise = np.mean(sigma_f_noise)
 
         else:
-            self.sigma_f_noise = np.sqrt(self.var_f_c_CRLB)
+            #Cut out values of self.var_f_c_CRLB that are larger than self.max_allowed_f_var.
+            #Average over the remaining values.
+            #Save the percentage of values that were not cut out as self.recon_efficiency
+            valid_var_indices = self.var_f_c_CRLB <= self.max_allowed_f_var
+            valid_vars = self.var_f_c_CRLB[valid_var_indices]
+            self.recon_efficiency = len(valid_vars)/len(self.var_f_c_CRLB)
+            self.sigma_f_noise = np.sqrt(np.mean(valid_vars))
 
         # Convert uncertainty from frequency to energy
         self.sigma_K_noise = e*self.MagneticField.nominal_field/(2*np.pi*endpoint_frequency**2)*self.sigma_f_noise*c0**2
+        
 
         # combined sigma_f in eV
         sigma_f = np.sqrt(self.sigma_K_noise**2 + self.FrequencyExtraction.magnetic_field_smearing**2)
@@ -829,11 +899,11 @@ class CavitySensitivity(Sensitivity):
         """
         # Calculate the mean track duration
         # TO-DO: Only do the lines below ones for a given density; don't repeat for each threshold being scanned ...
-        mean_track_duration = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
+        #mean_track_duration = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
         if self.FrequencyExtraction.use_average_power_fractions:
-            tau_snr_ex_total = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction + self.FrequencyExtraction.sideband_power_fraction, tau_snr_array_for_radii=self.Efficiency.calculate_det_eff_for_sampled_radii)
+            tau_snr_ex_total = self.calculate_tau_snr(self.mean_track_duration, self.FrequencyExtraction.carrier_power_fraction + self.FrequencyExtraction.sideband_power_fraction, tau_snr_array_for_radii=self.Efficiency.calculate_det_eff_for_sampled_radii)
         else:
-            tau_snr_ex_total = self.calculate_tau_snr(mean_track_duration, self.carrier_power_fraction_array + self.sideband_power_fraction_array, tau_snr_array_for_radii=self.Efficiency.calculate_det_eff_for_sampled_radii)
+            tau_snr_ex_total = self.calculate_tau_snr(self.mean_track_duration, self.carrier_power_fraction_array + self.sideband_power_fraction_array, tau_snr_array_for_radii=self.Efficiency.calculate_det_eff_for_sampled_radii)
         if isinstance(tau_snr_ex_total, float):
             tau_snr_ex_total = [tau_snr_ex_total]
 
@@ -841,7 +911,7 @@ class CavitySensitivity(Sensitivity):
         x, w = roots_laguerre(100) #n=100 is the number of quadrature points
         
         # Scale the track duration to match the form of Gauss-Laguerre quadrature
-        scaled_x = x * mean_track_duration # scaled_x = xμ
+        scaled_x = x * self.mean_track_duration # scaled_x = xμ
 
         # Evaluate the non-central chi-squared dist values at the scaled quadrature points
         sf_values = np.array([ncx2(df=2, nc=2 * scaled_x / tau_snr).sf(self.Threshold.detection_threshold) for tau_snr in tau_snr_ex_total])
@@ -889,29 +959,29 @@ class CavitySensitivity(Sensitivity):
         
         logger.info("**SNR parameters**:")
         if rho == None:
-            track_duration = self.time_window
+            mean_track_duration = self.mean_track_duration
             logger.info("SNR-related parameters are printed for pre-set number density.")
         else:
-            track_duration = track_length(rho, self.T_endpoint, molecular=(not self.Experiment.atomic))
+            mean_track_duration = track_length(rho, self.T_endpoint, molecular=(not self.Experiment.atomic))
         
-        tau_snr_90deg = self.calculate_tau_snr(track_duration, power_fraction=1)
+        tau_snr_90deg = self.calculate_tau_snr(mean_track_duration, power_fraction=1)
         #For an example carrier:
         if self.FrequencyExtraction.use_average_power_fractions:
-            tau_snr_ex_carrier = self.calculate_tau_snr(track_duration, self.FrequencyExtraction.carrier_power_fraction)
+            tau_snr_ex_carrier = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction)
         else:
-            tau_snr_ex_carrier = np.mean(self.calculate_tau_snr(track_duration, self.carrier_power_fraction_array))
+            tau_snr_ex_carrier = np.mean(self.calculate_tau_snr(mean_track_duration, self.carrier_power_fraction_array))
 
         eV_bandwidth = np.abs(self.cavity_freq - frequency(self.T_endpoint + 1*eV, self.MagneticField.nominal_field))
         SNR_1eV_90deg = 1/eV_bandwidth/tau_snr_90deg
-        SNR_track_duration_90deg = track_duration/tau_snr_90deg
+        SNR_track_duration_90deg = mean_track_duration/tau_snr_90deg
         SNR_1ms_90deg = 0.001*s/tau_snr_90deg
 
         SNR_1eV_ex_carrier = 1/eV_bandwidth/tau_snr_ex_carrier
-        SNR_track_duration_ex_carrier = track_duration/tau_snr_ex_carrier
+        SNR_track_duration_ex_carrier = mean_track_duration/tau_snr_ex_carrier
         SNR_1ms_ex_carrier = 0.001*s/tau_snr_ex_carrier
         
         logger.info("Number density: {} m^-3".format(self.Experiment.number_density*m**3))
-        logger.info("Track duration: {}ms".format(track_duration/ms))
+        logger.info("Track duration: {}ms".format(mean_track_duration/ms))
         logger.info("tau_SNR for 90° carrier: {}s".format(tau_snr_90deg/s))
         logger.info("tau_SNR for carrier used in calculation (see config file): {}s".format(tau_snr_ex_carrier/s))
         logger.info("Sampling duration for 1eV: {}ms".format(1/eV_bandwidth/ms))
@@ -931,7 +1001,7 @@ class CavitySensitivity(Sensitivity):
         #logger.info("CRLB constant: {}".format(self.CRLB_constant))
         logger.info("**Done printing SNR parameters.**")
         
-        return self.noise_temp, SNR_1eV_90deg, track_duration
+        return self.noise_temp, SNR_1eV_90deg, mean_track_duration
     
     
     def print_Efficiencies(self):
@@ -939,6 +1009,7 @@ class CavitySensitivity(Sensitivity):
         logger.info("Total efficiency: {}".format(self.effective_volume/self.total_trap_volume))  
         if not self.Efficiency.usefixedvalue:
             # radial and detection efficiency are configured in the config file
+            logger.info("Reconstruction efficiency: {}".format(self.recon_efficiency))
             logger.info("Radial efficiency: {}".format(self.radial_efficiency))
             logger.info("Detection efficiency: {}".format(self.detection_efficiency))
             #logger.info("Detection efficiency integration error: {}".format(self.abs_err))

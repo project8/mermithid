@@ -800,7 +800,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         resolutions = []
         crlb_window = []
         crlb_max_window = []
-        crlb_slope_zero_window = []
+        #crlb_slope_zero_window = []
         #det_effs = []
         
         temp_rho = deepcopy(sens.Experiment.number_density)
@@ -815,9 +815,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             thresh_opt.append(self.thresholds[index])
             limits.append(thresh_limits[index]) #(sens.CL90(Experiment={"number_density": rho})/eV)
             resolutions.append(sens.sigma_K_noise/meV)
-            crlb_window.append(sens.best_time_window/ms)
+            crlb_window.append(sens.mean_track_duration/ms)
             crlb_max_window.append(sens.time_window/ms)
-            crlb_slope_zero_window.append(sens.time_window_slope_zero/ms)
+            #crlb_slope_zero_window.append(sens.time_window_slope_zero/ms)
             #det_effs.append(self.sens_main.detection_efficiency)
 
         #print(det_effs)   
@@ -829,7 +829,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
             self.kp_ax[0].plot(self.rhos*m**3, resolutions, **kwargs)
             
             self.kp_ax[1].plot(self.rhos*m**3, crlb_max_window, color='red', marker='.')
-            self.kp_ax[1].plot(self.rhos*m**3, crlb_slope_zero_window, color='green', marker='.')
+            #self.kp_ax[1].plot(self.rhos*m**3, crlb_slope_zero_window, color='green', marker='.')
             self.kp_ax[1].plot(self.rhos*m**3, crlb_window, linestyle="--", marker='.', **kwargs)
         return limits
     
@@ -1014,7 +1014,7 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         resolutions = []
         crlb_window = []
         crlb_max_window = []
-        crlb_slope_zero_window = []
+        #crlb_slope_zero_window = []
         total_volumes = []
         effective_volumes = []
         opt_rho = []
@@ -1050,9 +1050,9 @@ class CavitySensitivityCurveProcessor(BaseProcessor):
         
             # other quantities
             resolutions.append(sens.syst_frequency_extraction()[0]/meV)
-            crlb_window.append(sens.best_time_window/ms)
+            crlb_window.append(sens.mean_track_duration/ms)
             crlb_max_window.append(sens.time_window/ms)
-            crlb_slope_zero_window.append(sens.time_window_slope_zero/ms)
+            #crlb_slope_zero_window.append(sens.time_window_slope_zero/ms)
             noise_power.append(sens.noise_temp/K)
             
         # set rho and f back

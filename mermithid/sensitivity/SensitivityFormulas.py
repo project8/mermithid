@@ -345,7 +345,8 @@ class Sensitivity(object):
         #    pass
         print("Contribution to sigma_(m_beta^2)", " "*18, "%.2f"%(self.SystSens()/meV**2), "meV^2 ->", "%.2f"%(np.sqrt(self.SystSens())/meV), "meV")
         print("Systematic mass limit", " "*18, "%.2f"%(np.sqrt(1.64*self.SystSens())/meV), "meV")
-        logger.info("Carrier frequency uncertainty: {} Hz".format(np.sqrt(self.var_f_c_CRLB)/Hz))
+        logger.info("Max allowed cyclotron frequency uncertainty: {} Hz".format(np.sqrt(self.max_allowed_f_var)/Hz))
+        logger.info("Corresponding reconstruction efficiency: {}".format(self.recon_efficiency))
         return np.sqrt(1.64*self.SystSens())/meV, np.sqrt(np.sum(sigmas**2))/meV
 
     def syst_doppler_broadening(self):
@@ -384,7 +385,7 @@ class Sensitivity(object):
             delta_trans = sigma_trans*self.DopplerBroadening.fraction_uncertainty_on_doppler_broadening
         return sigma_trans, delta_trans
 
-
+    """
     def syst_frequency_extraction(self):
         # cite{https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398} (Section 1.2, p 7-9)
         # Are we double counting the antenna collection efficiency? We use it here. Does it also impact the effective volume, v_eff ?
@@ -435,6 +436,7 @@ class Sensitivity(object):
         # Depending on the trap shape this smearing may be different.
 
         return sigma_f, delta_sigma_f
+    """
 
     def syst_magnetic_field(self):
 
