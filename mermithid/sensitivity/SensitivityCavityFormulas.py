@@ -294,7 +294,6 @@ class CavitySensitivity(Sensitivity):
 
         self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
         self.CavityVolume()
-        self.CavityPower()
 
         #Calculate position dependent trapping efficiency
         self.pos_dependent_trapping_efficiency = trapping_efficiency( z_range = self.Experiment.trap_length /2,
@@ -329,22 +328,10 @@ class CavitySensitivity(Sensitivity):
             else:
                 logger.info("Using carrier and sideband (power fractions vs. pitch angle) from file")
                 # Read powers from the file and then scale them by power of maximum
-                # pitch angle to get power fractions.
-                theta_array, carrier_power_array, sideband_power_array = [], [], []
-                power_file = open(self.FrequencyExtraction.powers_vs_theta_file, 'r')
-                for i in power_file.readlines()[1:]: # Skip header line
-                    line = i.strip()
-                    theta_array.append(float(line.split(",")[0])) # In degrees
-                    carrier_power_array.append(float(line.split(",")[1]))
-                    sideband_power_array.append(float(line.split(",")[2]))
-                power_file.close()
-                self.theta_array = np.array(theta_array)*deg # The "*deg" multiplies by np.pi/180
-                carrier_power_array = np.array(carrier_power_array)
-                sideband_power_array = np.array(sideband_power_array)
-                # The calculation below assumes that the file contains a pitch angle very close to 90 degrees:
-                max_theta_index = np.argmax(self.theta_array)
-                self.carrier_power_fraction_array = carrier_power_array / carrier_power_array[max_theta_index]
-                self.sideband_power_fraction_array = sideband_power_array / carrier_power_array[max_theta_index]
+                # pitch angle to get power fractions. (Reading extracted into
+                # ReadPowerFractionsFile so per-mode files load through identical code.)
+                self.theta_array, self.carrier_power_fraction_array, self.sideband_power_fraction_array = \
+                    self.ReadPowerFractionsFile(self.FrequencyExtraction.powers_vs_theta_file)
 
                 # Calculating distribution of pitch angles at the bottom of the trap, after trapping
                 theta_start_array = np.linspace(self.FrequencyExtraction.minimum_angle_in_bandwidth, np.pi/2, self.Efficiency.n_theta_start_for_trapped_pitch_dist)
@@ -366,6 +353,7 @@ class CavitySensitivity(Sensitivity):
         #Set up cavity signal modes and readout ports configurations
         self.SetupModesAndPorts()
         self.SolveExternalQ()
+        self.CavityPower()
         
         #Assign signal power to modes
         for mode in self.modes[1:]:
@@ -406,53 +394,123 @@ class CavitySensitivity(Sensitivity):
 
     def SetupModesAndPorts(self):
         """Build self.modes and self.ports from config. Defaults to a single
-        TE011 mode + single port, reproducing the single-mode setup exactly.
-        A config may opt into multimode via FrequencyExtraction.axial_mode_indices
-        and FrequencyExtraction.ports."""
+        TE011 mode + single center port (reproducing the single-mode setup).
+        Multimode opt-in via FrequencyExtraction.axial_mode_indices and
+        port_z_fractions; per-port/per-mode keys broadcast from the existing
+        scalar config values when omitted."""
         fe = self.FrequencyExtraction
 
-        # --- Modes: default [1] (TE011 only) ---
+        def _broadcast(name, n, default):
+            """Return an n-long list from a config key: list (must match n),
+            scalar (repeated), or absent (default repeated)."""
+            val = getattr(fe, name, None)
+            if val is None:
+                return [default]*n
+            if hasattr(val, "__len__") and not isinstance(val, str):
+                if len(val) != n:
+                    raise ValueError("{}: expected {} entries, got {}".format(name, n, len(val)))
+                return list(val)
+            return [val]*n
+
+        # --- Modes ---
         axial_indices = getattr(fe, "axial_mode_indices", [1])
-        fractions = None
-        if hasattr(self, "carrier_power_fraction_array"):
-            fractions = {"carrier":  self.carrier_power_fraction_array,
-                         "sideband": self.sideband_power_fraction_array}
+        if not hasattr(axial_indices, "__len__"):
+            axial_indices = [int(axial_indices)]
+        axial_indices = [int(p) for p in axial_indices]
+        unloaded_qs = _broadcast("mode_unloaded_qs", len(axial_indices), fe.unloaded_q)
+
+        # Per-mode power-fraction files: broadcast from powers_vs_theta_file when
+        # omitted; an entry of None means the mode carries no independent signal
+        # (it still contributes noise and interference). Each file must be
+        # normalized to ITS OWN mode's 90-deg carrier (see ReadPowerFractionsFile).
+        primary_file = getattr(fe, "powers_vs_theta_file", None)
+        frac_files = _broadcast("mode_powers_vs_theta_files", len(axial_indices), primary_file)
+
         self.modes = []
-        for p in axial_indices:
+        for k, p in enumerate(axial_indices):
+            if k == 0:
+                # Primary mode: reference the arrays CalcDefaults already built
+                # (bit-identity with the single-mode path).
+                fractions = None
+                if hasattr(self, "carrier_power_fraction_array"):
+                    fractions = {"carrier":  self.carrier_power_fraction_array,
+                                 "sideband": self.sideband_power_fraction_array}
+            elif frac_files[k] is None:
+                fractions = None
+            elif frac_files[k] == primary_file and hasattr(self, "carrier_power_fraction_array"):
+                # Same file as the primary: reuse its arrays (no re-read, identical values).
+                fractions = {"carrier":  self.carrier_power_fraction_array,
+                             "sideband": self.sideband_power_fraction_array}
+            else:
+                th, car, sb = self.ReadPowerFractionsFile(frac_files[k])
+                if hasattr(self, "theta_array") and not np.array_equal(th, self.theta_array):
+                    logger.warning("TE01{}: interpolating power fractions onto the "
+                                   "primary theta grid.".format(p))
+                    car = np.interp(self.theta_array, th, car)
+                    sb  = np.interp(self.theta_array, th, sb)
+                fractions = {"carrier": car, "sideband": sb}
             self.modes.append(SignalMode(
                 name="TE01{}".format(p), axial_mode_index=p,
-                q_unloaded=fe.unloaded_q,
-                power_fractions=(fractions if p == axial_indices[0] else None)))
+                q_unloaded=unloaded_qs[k],
+                power_fractions=fractions))
 
-        # --- Ports: default single port from existing scalar config ---
-        port_specs = getattr(fe, "ports", None)
+        # --- Ports ---
+        z_fractions = getattr(fe, "port_z_fractions", None)
+        if z_fractions is None:
+            z_fractions = [0.5]                       # single center port (default)
+        elif not hasattr(z_fractions, "__len__"):
+            z_fractions = [float(z_fractions)]
+        n_p = len(z_fractions)
+        amp_temps = _broadcast("port_amplifier_temperatures", n_p, fe.amplifier_temperature)
+        att_lines = _broadcast("port_att_line_db",            n_p, fe.att_line_db)
+        att_cirs  = _broadcast("port_att_cir_db",             n_p, fe.att_cir_db)
+        quantum_effs = _broadcast("port_quantum_amp_efficiencies", n_p, fe.quantum_amp_efficiency)
+
         self.ports = []
-        if port_specs is None:
+        for i in range(n_p):
             self.ports.append(OutputPort(
-                name="Port_1", z_position=self.cavity_length * 0.5,
-                amplifier_temperature=fe.amplifier_temperature,
-                att_line_db=fe.att_line_db, att_cir_db=fe.att_cir_db,
-                quantum_amp_efficiency=fe.quantum_amp_efficiency))
-        else:
-            for i, spec in enumerate(port_specs):
-                self.ports.append(OutputPort(
-                    name=spec.get("name", "Port_{}".format(i + 1)),
-                    z_position=spec["z_position"],
-                    amplifier_temperature=spec.get("amplifier_temperature", fe.amplifier_temperature),
-                    att_line_db=spec.get("att_line_db", fe.att_line_db),
-                    att_cir_db=spec.get("att_cir_db", fe.att_cir_db),
-                    quantum_amp_efficiency=spec.get("quantum_amp_efficiency", fe.quantum_amp_efficiency)))
-                    
+                name="Port_{}".format(i+1),
+                z_position=self.cavity_length*float(z_fractions[i]),
+                amplifier_temperature=amp_temps[i],
+                att_line_db=att_lines[i], att_cir_db=att_cirs[i],
+                quantum_amp_efficiency=quantum_effs[i]))
+
+        # --- validation ---
         for port in self.ports:
             if port.att_line_db > 0 or port.att_cir_db > 0:
                 raise ValueError("Port '{}': attenuations must be negative dB losses.".format(port.name))
-                
         for mode in self.modes:
             for port in self.ports:
                 if abs(np.sin(mode.axial_mode_index*np.pi*port.z_position/self.cavity_length)) < 1e-12:
                     logger.warning("Mode TE01{} has zero field at port '{}'; it cannot couple there.".format(
                         mode.axial_mode_index, port.name))
-                                                  
+
+    def ReadPowerFractionsFile(self, filepath):
+        """Read a power-fractions CSV (pitch angle [deg], carrier power, sideband power;
+        one header line) and return (theta_array [rad], carrier_fraction, sideband_fraction),
+        normalized to the carrier power at the maximum pitch angle in the file.
+
+        CONVENTION: each mode's file must be normalized to THAT mode's own 90-degree
+        carrier power. The absolute inter-mode suppression comes from the generalized
+        Hanneke power (CavityModePower); normalizing a higher mode's file to TE011
+        instead would double-count the mode's Lorentzian suppression."""
+        theta_array, carrier_power_array, sideband_power_array = [], [], []
+        power_file = open(filepath, 'r')
+        for i in power_file.readlines()[1:]: # Skip header line
+            line = i.strip()
+            theta_array.append(float(line.split(",")[0])) # In degrees
+            carrier_power_array.append(float(line.split(",")[1]))
+            sideband_power_array.append(float(line.split(",")[2]))
+        power_file.close()
+        theta_array = np.array(theta_array)*deg # The "*deg" multiplies by np.pi/180
+        carrier_power_array = np.array(carrier_power_array)
+        sideband_power_array = np.array(sideband_power_array)
+        # The calculation below assumes that the file contains a pitch angle very close to 90 degrees:
+        max_theta_index = np.argmax(theta_array)
+        carrier_fraction = carrier_power_array / carrier_power_array[max_theta_index]
+        sideband_fraction = sideband_power_array / carrier_power_array[max_theta_index]
+        return theta_array, carrier_fraction, sideband_fraction
+
     # CAVITY
     def CavityRadius(self):
         axial_mode_index = 1
@@ -552,7 +610,7 @@ class CavitySensitivity(Sensitivity):
         r_sample_size = 50
         if((not self.Efficiency.calculate_det_eff_for_sampled_radii) or (self.Efficiency.usefixedvalue)): r_sample_size = 1000
         power_vs_r_with_zeros = np.mean(larmor_orbit_averaged_hanneke_power(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=r_sample_size),
-                                                                            z_t, self.CavityLoadedQ(), 
+                                                                            z_t, self.modes[0].q_loaded, 
                                                                             2*self.Experiment.cavity_L_over_D*self.cavity_radius, 
                                                                             self.cavity_radius, 
                                                                             self.cavity_freq), axis=1)
@@ -563,7 +621,11 @@ class CavitySensitivity(Sensitivity):
         return self.signal_power
     
     def CavityModePower(self, mode):
-        """Emitted power for a non-primary mode via the generalized Hanneke power."""
+        """Emitted power for a non-primary mode via the generalized Hanneke power.
+        NOTE: draws its own radius sample; per-radius arrays across modes are NOT
+        index-aligned with the primary's (deferred to the CavityPower unification
+        in the cleanup pass). calculate_tau_snr therefore uses the scalar mean
+        power / fraction arrays for higher modes, never their _vs_r arrays."""
         _, _, z_t = axial_motion(self.MagneticField.nominal_field,
                                  self.FrequencyExtraction.minimum_angle_in_bandwidth,
                                  self.Experiment.trap_length,
@@ -571,15 +633,19 @@ class CavitySensitivity(Sensitivity):
                                  self.T_endpoint,
                                  flat_fraction=self.MagneticField.trap_flat_fraction,
                                  trajectory=1000)
+        r_sample_size = 50
+        if((not self.Efficiency.calculate_det_eff_for_sampled_radii) or (self.Efficiency.usefixedvalue)):
+            r_sample_size = 1000
         f_mode = self.CavityModeFrequency(mode.axial_mode_index)
         power_vs_r = np.mean(larmor_orbit_averaged_hanneke_power(
-            self._radii_sample, z_t, mode.q_loaded,
+            np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=r_sample_size),
+            z_t, mode.q_loaded,
             self.cavity_length, self.cavity_radius, self.cavity_freq,
             mode_frequency=f_mode, axial_mode_index=mode.axial_mode_index), axis=1)
-        svr = power_vs_r[self._radii_nonzero_mask]
-        if len(svr) == 0 or not np.any(svr):
+        svr = power_vs_r[power_vs_r != 0]
+        if len(svr) == 0:
             logger.warning("CavityModePower: TE01{} contributes no signal on the "
-                           "shared radius sample.".format(mode.axial_mode_index))
+                           "sampled radii.".format(mode.axial_mode_index))
             return 0.0, svr
         return np.mean(svr), svr
         
@@ -625,32 +691,76 @@ class CavitySensitivity(Sensitivity):
         required_bw_meanfield = np.abs(frequency(self.T_endpoint, mean_field) - f_mode)
         required_bw = np.add(required_bw_axialfrequency, required_bw_meanfield)
         loaded_q = f_mode / required_bw
+        # Optional user override of the PRIMARY mode's loaded Q (config).
+        # required_bw_* stay as the physical bandwidth requirement.
+        user_qls = getattr(self.FrequencyExtraction, "mode_loaded_qs", None)
+        if store and user_qls is not None:
+            user_q = user_qls[0] if hasattr(user_qls, "__len__") else user_qls
+            if user_q is not None:
+                if user_q > loaded_q:
+                    logger.warning("Configured loaded Q {:.0f} exceeds the bandwidth-required "
+                                   "{:.0f}: mode is narrower than signal + sidebands; this "
+                                   "signal loss is NOT modeled.".format(user_q, loaded_q))
+                loaded_q = user_q
         if store:   # single-mode path: keep the existing side effects
             self.required_bw_axialfrequency = required_bw_axialfrequency
             self.required_bw = required_bw
             self.loaded_q = loaded_q
         return loaded_q
     
-    def SolveExternalQ(self, target_qls=None, ortho_weight=1e10, ortho_tol=1e-6):
+    def SolveExternalQ(self, target_qls=None, target_weights=None, ortho_weight=1e10, ortho_tol=1e-6):
         """Solve per-port external Qs so each mode hits its target loaded Q while
         keeping modes orthogonal. Single mode/port reduces to coupling = Q0/Ql - 1."""
         n_modes = len(self.modes)
         L = self.cavity_length
         min_pitch = self.FrequencyExtraction.minimum_angle_in_bandwidth
         if target_qls is None:
-            target_qls = [self.CavityLoadedQ(f_mode=self.CavityModeFrequency(m.axial_mode_index),
-                                             tuning_pitch=min_pitch) for m in self.modes]
+            computed = [self.CavityLoadedQ(f_mode=self.CavityModeFrequency(m.axial_mode_index),
+                                           tuning_pitch=min_pitch) for m in self.modes]
+            user_qls = getattr(self.FrequencyExtraction, "mode_loaded_qs", None)
+            if user_qls is None:
+                target_qls = computed
+            else:
+                if not hasattr(user_qls, "__len__"):
+                    user_qls = [user_qls]*n_modes
+                if len(user_qls) != n_modes:
+                    raise ValueError("mode_loaded_qs: expected {} entries, got {}".format(n_modes, len(user_qls)))
+                target_qls = [u if u is not None else c for u, c in zip(user_qls, computed)]
+                for a, (u, c) in enumerate(zip(user_qls, computed)):
+                    if u is not None and u > c:
+                        logger.warning("TE01{}: configured loaded Q {:.0f} exceeds bandwidth-required "
+                                       "{:.0f}; signal loss not modeled.".format(
+                                           self.modes[a].axial_mode_index, u, c))
         system_A, system_b = [], []
+        if target_weights is None:
+            # Primary mode's bandwidth target takes priority; higher modes are
+            # bonus channels and absorb the geometric compromise.
+            target_weights = [100.0] + [1.0]*(n_modes-1)
         for alpha, mode in enumerate(self.modes):
             required_inv_q_ext = max(0.0, 1.0/target_qls[alpha] - 1.0/mode.q_unloaded)
-            system_A.append([np.sin(mode.axial_mode_index*np.pi*port.z_position/L)**2
+            system_A.append([target_weights[alpha]*np.sin(mode.axial_mode_index*np.pi*port.z_position/L)**2
                              for port in self.ports])
-            system_b.append(required_inv_q_ext)
+            system_b.append(target_weights[alpha]*required_inv_q_ext)
         for alpha in range(n_modes):
             for beta in range(alpha+1, n_modes):
                 system_A.append([np.sin(self.modes[alpha].axial_mode_index*np.pi*port.z_position/L)
                                  * np.sin(self.modes[beta].axial_mode_index*np.pi*port.z_position/L)
                                  * ortho_weight for port in self.ports])
+                system_b.append(0.0)
+        # Prefer UNIFORM port couplings among degenerate optima: the tau_SNR
+        # combination (CRLB doc Eq. snrsum) assumes independent recovered
+        # per-mode noise, which holds for uniform antennas on the DST grid;
+        # a vertex solution (all coupling on one port) makes every mode share
+        # one amplifier (rho -> 1) and the 1/tau summation over-counts.
+        n_ports_solver = len(self.ports)
+        positive_b = [v for v in system_b[:n_modes] if v > 0]
+        if n_ports_solver > 1 and positive_b:
+            reg = 1e-3*max(positive_b)
+            for i in range(n_ports_solver - 1):
+                row = [0.0]*n_ports_solver
+                row[i] = reg
+                row[i+1] = -reg
+                system_A.append(row)
                 system_b.append(0.0)
         A_mat, b_vec = np.array(system_A), np.array(system_b)
         x_opt, x_res = nnls(A_mat, b_vec)
@@ -754,60 +864,98 @@ class CavitySensitivity(Sensitivity):
 #        # end of Wouter's calculation
 #        return tau_snr
 
-    def calculate_tau_snr(self, time_window, power_fraction=1, tau_snr_array_for_radii=False):
-        """Multimode tau_SNR per Rick's multi-mode SNR document"""
+    def calculate_tau_snr(self, time_window, power_fraction=1, tau_snr_array_for_radii=False,
+                          components=None):
+        """Multimode tau_SNR per Rick's multi-mode SNR document.
+
+        components: optional tuple of power_fractions keys, e.g. ("carrier",) or
+        ("carrier", "sideband"). When given, each mode's signal is
+        mode power * sum of ITS OWN power_fractions[component] arrays (per-mode
+        pitch dependence); a mode with power_fractions=None contributes no signal
+        (but still contributes noise and interference). When None (legacy), the
+        power_fraction argument is applied to the primary mode as before and
+        higher modes fall back to their scalar mean power."""
         self.CavityLoadedQ()
         fft_bandwidth = 3/time_window
         self.fft_bandwidth = fft_bandwidth
         L = self.cavity_length
         n_modes = len(self.modes)
 
+        if components is not None and self.modes[0].power_fractions is None:
+            raise ValueError("calculate_tau_snr(components=...) requires power fractions "
+                             "from file (use_average_power_fractions must be False).")
+
+        # Per-mode signal powers for the interference ratios. With components these
+        # are per-theta arrays (mode power x that mode's own fractions); ratios use
+        # the radius-averaged scalar mode powers as the absolute scale.
+        scalar_powers = [self.signal_power] + [m.signal_power for m in self.modes[1:]]
+        if components is not None:
+            mode_powers = [scalar_powers[a]*sum(m.power_fractions[c] for c in components)
+                           if m.power_fractions is not None else 0.0
+                           for a, m in enumerate(self.modes)]
+        else:
+            mode_powers = scalar_powers
+
         # --- interference factors (document main result), diagonal-normalized ---
         R2 = self.BuildInterferenceMatrix()
-        mode_powers = np.array([self.signal_power] +
-                               [m.signal_power for m in self.modes[1:]])
         # per-mode cavity-generated noise P_N,alpha (cavity paper expression;
         # document: 'same as a single port at that temperature with the loaded Q')
         PN_modes = np.empty(n_modes)
+        inv_qext_tot_list = np.empty(n_modes)
         for a, mode in enumerate(self.modes):
             f_a = self.CavityModeFrequency(mode.axial_mode_index)
             inv_qext_tot = sum(1.0/q for q in mode.q_externals.values()
                                if np.isfinite(q) and q > 0)
+            inv_qext_tot_list[a] = inv_qext_tot
             coupling_tot = mode.q_unloaded*inv_qext_tot
             PN_modes[a] = Pn_cavity(self.FrequencyExtraction.cavity_temperature,
                                     coupling_tot, mode.q_loaded, fft_bandwidth, f_a)
 
         def _F(X):
-            F = np.ones(n_modes)
+            """Diagonal-normalized interference factors; entries of X may be
+            scalars or per-theta arrays (elementwise). Exactly 1 for one mode."""
+            if n_modes == 1:
+                return [1.0]
+            F = []
             for a in range(n_modes):
                 d = abs(1.0 - R2[a, a])**2
-                if d < 1e-12 or X[a] <= 0:
+                Xa = np.asarray(X[a], dtype=float)
+                if d < 1e-12 or np.all(Xa <= 0):
+                    F.append(1.0)
                     continue
-                s = 1.0 + 0.0j
+                s = np.ones_like(Xa, dtype=complex)
                 for b in range(n_modes):
-                    if X[b] > 0:
-                        s -= R2[a, b]*np.sqrt(X[b]/X[a])
-                F[a] = abs(s)**2/d
+                    Xb = np.asarray(X[b], dtype=float)
+                    safe_den = np.where(Xa > 0, Xa, 1.0)
+                    ratio = np.where((Xa > 0) & (Xb > 0), np.sqrt(Xb/safe_den), 0.0)
+                    s = s - R2[a, b]*ratio
+                Fa = np.abs(s)**2/d
+                F.append(np.where(Xa > 0, Fa, 1.0))
             return F
         F_sig = _F(mode_powers)
-        F_N   = _F(PN_modes)
-        if np.any(np.abs(F_sig - 1) > 0.5) or np.any(np.abs(F_N - 1) > 0.5):
-            logger.warning("Interference factors far from 1 (F_sig={}, F_N={}); "
-                           "port hybridization invalidates the zero-forcing model.".format(
-                               np.round(F_sig, 3), np.round(F_N, 3)))
-
-        spatial = np.array([[np.sin(m.axial_mode_index*np.pi*port.z_position/L)
-                             for m in self.modes] for port in self.ports])
-        W_zf = np.linalg.pinv(spatial)
+        F_N   = _F(list(PN_modes))
+        if any(np.any(np.abs(np.asarray(f) - 1) > 0.5) for f in F_sig) or \
+           any(np.any(np.abs(np.asarray(f) - 1) > 0.5) for f in F_N):
+            logger.warning("Interference factors far from 1: strong port hybridization; "
+                           "the independent-mode treatment (per-mode tau + F factors) "
+                           "is outside its validated regime.")
 
         inv_tau_total = None
+        v_list = []
         for m_idx, mode in enumerate(self.modes):
             f_mode = self.CavityModeFrequency(mode.axial_mode_index)
             q_l    = mode.q_loaded
-            if m_idx == 0:
+            if components is not None:
+                if mode.power_fractions is None:
+                    continue        # mode carries no independent signal
+                frac = sum(mode.power_fractions[c] for c in components)
+                base = (self.signal_power_vs_r if (m_idx == 0 and tau_snr_array_for_radii)
+                        else (self.signal_power if m_idx == 0 else mode.signal_power))
+                Pe = base*frac
+            elif m_idx == 0:
                 Pe = (self.signal_power_vs_r if tau_snr_array_for_radii else self.signal_power)*power_fraction
             else:
-                Pe = mode.signal_power*power_fraction   # interim scalar (see Phase 9 note)
+                Pe = mode.signal_power*power_fraction   # legacy fallback (scalar mean power)
 
             n_ports = len(self.ports)
             Pn_total_list = np.empty(n_ports)
@@ -833,12 +981,23 @@ class CavitySensitivity(Sensitivity):
                                             coupling, f_mode, fft_bandwidth, q_l)
                 tn_amp = f_mode*hbar*2*np.pi/kB/port.quantum_amp_efficiency
                 Pn_at_amp += kB*tn_amp*fft_bandwidth
-                Pn_cav_i = Pn_cavity(self.FrequencyExtraction.cavity_temperature,
-                                     coupling, q_l, fft_bandwidth, f_mode)*att_tot
-                # Split total port noise into RF part (not mixed; document Sec. 3)
-                # and cavity-generated part (carries the F_N interference factor).
-                Pn_rf_i = Pn_at_amp - Pn_cav_i
-                Pn_cav_list[i]   = Pn_cav_i*F_N[m_idx]
+                # Chain/RF noise split: subtract the cavity noise as EMBEDDED in
+                # Pn_dut_entrance (per-port coupling; correct for the reflected-
+                # chain physics) to isolate the RF-only part, which is per-port
+                # and not mixed (document Sec. 3).
+                Pn_cav_embedded = Pn_cavity(self.FrequencyExtraction.cavity_temperature,
+                                            coupling, q_l, fft_bandwidth, f_mode)*att_tot
+                Pn_rf_i = Pn_at_amp - Pn_cav_embedded
+                # Cavity thermal noise: the TOTAL delivered power is set by the
+                # total coupling (document: 'the same as a single port at that
+                # temperature with the associated loaded Q'); each port carries
+                # its share (1/q_ext,i)/(sum 1/q_ext). Evaluating the single-port
+                # formula at each per-port coupling and summing would create
+                # thermal power from nowhere (transmission 4b/(1+b)^2 grows as
+                # coupling is subdivided).
+                share_i = ((1.0/q_ext)/inv_qext_tot_list[m_idx]
+                           if (np.isfinite(q_ext) and inv_qext_tot_list[m_idx] > 0) else 0.0)
+                Pn_cav_list[i]   = PN_modes[m_idx]*share_i*att_tot*F_N[m_idx]
                 Pn_total_list[i] = Pn_rf_i + Pn_cav_list[i]
 
             Sigma = np.diag(Pn_total_list).astype(float)
@@ -847,20 +1006,41 @@ class CavitySensitivity(Sensitivity):
                     if i != j:
                         Sigma[i, j] = signs[i]*signs[j]*np.sqrt(Pn_cav_list[i]*Pn_cav_list[j])
 
-            w       = W_zf[m_idx, :]
-            iso_var = w @ Sigma @ w
-            G       = (np.sum(w*signs*weight_factor))**2
-            tau_mode = iso_var/(Pe*F_sig[m_idx]*G*fft_bandwidth)
+            # --- max-SNR (optimal) port combination for this mode ---
+            # Per-port signal amplitude v_i = sign * sqrt(W_i * att_i)  (the R_d
+            # entries of the multimode-readout document). SNR_opt quadratic form:
+            v = signs*weight_factor
+            v_list.append(v)
+            qform = v @ np.linalg.solve(Sigma, v)          # = v^T Sigma^-1 v  [1/W]
+            tau_mode = 1.0/(Pe*F_sig[m_idx]*qform*fft_bandwidth)
 
             with np.errstate(divide='ignore', invalid='ignore'):
                 inv = np.where(tau_mode > 0, 1.0/tau_mode, 0.0)
             inv_tau_total = inv if inv_tau_total is None else inv_tau_total + inv
 
             if m_idx == 0:
-                # diagnostic bookkeeping; exact for the default center port
-                self.noise_temp     = iso_var/(n_ports**2)/(kB*fft_bandwidth)
+                # diagnostic bookkeeping; reduces to the single-port values exactly
+                self.received_power = Pe*np.sum(v**2)
+                self.noise_temp     = np.sum(v**2)/qform/(kB*fft_bandwidth)
                 self.noise_energy   = kB*self.noise_temp
-                self.received_power = Pe*G
+
+        # Validity check for the 1/tau summation (CRLB doc Eq. snrsum): the
+        # combination assumes independent recovered per-mode noise, i.e. near-
+        # orthogonal per-mode port-amplitude vectors. Report the cross-mode
+        # correlation when it is materially violated (doc, off-diag appendix).
+        if len(v_list) > 1:
+            Vm = np.array(v_list)
+            Gm = Vm @ Vm.T
+            norms = np.sqrt(np.clip(np.diag(Gm), 1e-300, None))
+            rho = Gm/np.outer(norms, norms) - np.eye(len(v_list))
+            max_rho = float(np.max(np.abs(rho)))
+            if max_rho > 0.1 and not getattr(self, "_rho_warned", False):
+                self._rho_warned = True
+                logger.warning("Cross-mode recovered-noise correlation up to {:.2f}: "
+                               "the 1/tau summation over-counts correlated mode "
+                               "contributions (CRLB doc, off-diagonal appendix). "
+                               "Check SolveExternalQ coupling distribution. "
+                               "(Warning shown once per instance.)".format(max_rho))
 
         with np.errstate(divide='ignore', invalid='ignore'):
             tau_snr = np.where(inv_tau_total > 0, 1.0/inv_tau_total, np.inf)
@@ -929,7 +1109,7 @@ class CavitySensitivity(Sensitivity):
         if self.FrequencyExtraction.use_average_power_fractions:
             tau_snr_full_length = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.carrier_power_fraction)
         else:
-            tau_snr_full_length = self.calculate_tau_snr(self.time_window, self.carrier_power_fraction_array)
+            tau_snr_full_length = self.calculate_tau_snr(self.time_window, components=("carrier",))
             tau_snr_full_length = tau_snr_full_length[:len(self.theta_array)-1] #Cut out theta=pi/2, since sideband power is 0 there, resulting in infinite tau_snr.
 
         #Calculate the frequency variance from the CRLB
@@ -944,7 +1124,7 @@ class CavitySensitivity(Sensitivity):
             if self.FrequencyExtraction.use_average_power_fractions:
                 tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.sideband_power_fraction)
             else:
-                tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, self.sideband_power_fraction_array)
+                tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, components=("sideband",))
                 tau_snr_full_length_sideband = tau_snr_full_length_sideband[:len(self.theta_array)-1] #Cut out theta=pi/2, since sideband power is 0 there, resulting in infinite tau_snr.
             
             # (sigmaf_lsb)^2:
@@ -1084,7 +1264,7 @@ class CavitySensitivity(Sensitivity):
         if self.FrequencyExtraction.use_average_power_fractions:
             tau_snr_ex_total = self.calculate_tau_snr(mean_track_duration, self.FrequencyExtraction.carrier_power_fraction + self.FrequencyExtraction.sideband_power_fraction, tau_snr_array_for_radii=self.Efficiency.calculate_det_eff_for_sampled_radii)
         else:
-            tau_snr_ex_total = self.calculate_tau_snr(mean_track_duration, self.carrier_power_fraction_array + self.sideband_power_fraction_array, tau_snr_array_for_radii=self.Efficiency.calculate_det_eff_for_sampled_radii)
+            tau_snr_ex_total = self.calculate_tau_snr(mean_track_duration, components=("carrier", "sideband"), tau_snr_array_for_radii=self.Efficiency.calculate_det_eff_for_sampled_radii)
         if isinstance(tau_snr_ex_total, float):
             tau_snr_ex_total = [tau_snr_ex_total]
 
@@ -1150,7 +1330,7 @@ class CavitySensitivity(Sensitivity):
         if self.FrequencyExtraction.use_average_power_fractions:
             tau_snr_ex_carrier = self.calculate_tau_snr(track_duration, self.FrequencyExtraction.carrier_power_fraction)
         else:
-            tau_snr_ex_carrier = np.mean(self.calculate_tau_snr(track_duration, self.carrier_power_fraction_array))
+            tau_snr_ex_carrier = np.mean(self.calculate_tau_snr(track_duration, components=("carrier",)))
 
         eV_bandwidth = np.abs(self.cavity_freq - frequency(self.T_endpoint + 1*eV, self.MagneticField.nominal_field))
         SNR_1eV_90deg = 1/eV_bandwidth/tau_snr_90deg
