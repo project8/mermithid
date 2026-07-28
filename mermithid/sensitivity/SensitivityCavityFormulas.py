@@ -892,7 +892,7 @@ class CavitySensitivity(Sensitivity):
             track_duration = self.time_window
             logger.info("SNR-related parameters are printed for pre-set number density.")
         else:
-             track_duration = track_length(rho, self.T_endpoint, molecular=(not self.Experiment.atomic))
+            track_duration = track_length(rho, self.T_endpoint, molecular=(not self.Experiment.atomic))
         
         tau_snr_90deg = self.calculate_tau_snr(track_duration, power_fraction=1)
         #For an example carrier:
