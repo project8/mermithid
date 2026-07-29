@@ -48,6 +48,7 @@ class EnergyError:
         r_edges: Optional[np.ndarray] = None,
         phi_edges: Optional[np.ndarray] = None,
         energy_error_map: Optional[np.ndarray] = None,
+        nan_fill_value: Optional[float] = None,
     ):
         """
         Initialize the EnergyError.
@@ -61,9 +62,12 @@ class EnergyError:
             r_edges: Bin edges for radial position (m), shape (n_r_bins + 1,)
             phi_edges: Bin edges for azimuthal angle (rad), shape (n_phi_bins + 1,)
             energy_error_map: 5D probability array shaped (ke_error, ke_start, theta_center, r, phi)
+            nan_fill_value: Value to fill for NaN entries in energy error map. If
+            None, NaNs will raise an error.
         """
         self.name = name
         self.energy_error_map_path = energy_error_map_path
+        self.nan_fill_value = nan_fill_value
         
         # If path is provided, load from file
         if energy_error_map_path is not None:
@@ -134,6 +138,15 @@ class EnergyError:
                 f"Sum range: [{sums.min():.6f}, {sums.max():.6f}]. "
                 f"Distributions should sum to 1.0 along ke_error axis."
             )
+
+        # Fill NaN values if a fill value is provided
+        if self.nan_fill_value is not None:
+            self.energy_error_map = np.where(
+                np.isnan(self.energy_error_map), self.nan_fill_value, self.energy_error_map
+            )
+        else:
+            if np.isnan(self.energy_error_map).any():
+                raise ValueError(f"{name}: Energy error map contains NaN values and no fill value was provided")
 
         logger.info(
             f"{name}: Initialized with energy error map shape {self.energy_error_map.shape}"

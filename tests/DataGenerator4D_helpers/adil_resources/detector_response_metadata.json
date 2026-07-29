@@ -1,0 +1,152 @@
+{
+  "source_files": [
+    "/nfs/roberts/project/pi_kmh66/ek787/project/CCA_notebooks/STF/output/optSTFParams/fullRecon0.h5"
+  ],
+  "energy_map_csv": "/nfs/roberts/project/pi_kmh66/ek787/project/CCA_notebooks/STF/output/energyRecon/energy-freqMap_CCAscan_Row37_referenceRho3500um.csv",
+  "efficiency_axis_order": [
+    "ke_start",
+    "theta_center",
+    "r",
+    "phi"
+  ],
+  "energy_error_axis_order": [
+    "ke_error",
+    "ke_start",
+    "theta_center",
+    "r",
+    "phi"
+  ],
+  "units": {
+    "ke_start": "eV",
+    "ke_error": "eV",
+    "theta_center": "degree",
+    "r": "m",
+    "phi": "radian"
+  },
+  "phi_treatment": "single bin [0, 2*pi]; response averaged over/unresolved in phi",
+  "efficiency_definition": "original-notebook-compatible selected_count / generated_count within the configured response domain; selected_count includes the truth-informed |delta fCy| < 0.05 MHz requirement and is not globally normalized",
+  "response_domain": {
+    "energy_description": "intersection of truth sample and energy-map support",
+    "energy_bounds_ev": [
+      18500.002732,
+      18600.000000000004
+    ],
+    "theta_bounds_deg": [
+      88.0,
+      90.00000000000001
+    ],
+    "r_bounds_m": [
+      0.0,
+      0.0065000000000000014
+    ],
+    "finite_truth_events_outside_grid": 19542
+  },
+  "energy_error_map_definition": "probability mass per ke_error bin; sums to 1 in each populated condition cell",
+  "energy_error_truncation": {
+    "allowed": false,
+    "excluded_selected_events": 0
+  },
+  "empty_cell_policy": {
+    "efficiency": "NaN where generated_count == 0",
+    "energy_error_map": "all zeros where response_count == 0",
+    "validity_arrays": "stored in detector_response_diagnostics.npz"
+  },
+  "parameter_shape_without_phi": [
+    10,
+    40,
+    13
+  ],
+  "energy_error_shape_without_phi": [
+    197,
+    10,
+    40,
+    13
+  ],
+  "normalization_checks": {
+    "truth_probability_mass_sum": 1.0,
+    "detected_probability_mass_sum": 1.0,
+    "conditional_energy_error_mass_min_valid": 1.0,
+    "conditional_energy_error_mass_max_valid": 1.0000001192092896
+  },
+  "frequency_cuts_hz": {
+    "fcy": 142321160.798943,
+    "fax": 8120640.729553712
+  },
+  "statistical_reliability": {
+    "minimum_generated_for_reliable_efficiency": 10,
+    "minimum_selected_for_reliable_error_pdf": 10,
+    "masks_stored_in": "detector_response_diagnostics.npz"
+  },
+  "residual_validation": {
+    "full": {
+      "n": 8366,
+      "bias_ev": 0.050504337117361194,
+      "median_ev": 0.0053970884346199455,
+      "rms_ev": 1.327714219133514,
+      "std_ev": 1.3267533152857214,
+      "q16_ev": -0.41549744533331245,
+      "q84_ev": 0.3848631646797001,
+      "central_68_half_width_ev": 0.40018030500650625,
+      "mad_sigma_ev": 0.20050704076012987,
+      "minimum_ev": -10.160524661900126,
+      "maximum_ev": 9.38423513413727
+    },
+    "core_validation_cut_hz": 50000.0,
+    "core": {
+      "n": 8366,
+      "bias_ev": 0.050504337117361194,
+      "median_ev": 0.0053970884346199455,
+      "rms_ev": 1.327714219133514,
+      "std_ev": 1.3267533152857214,
+      "q16_ev": -0.41549744533331245,
+      "q84_ev": 0.3848631646797001,
+      "central_68_half_width_ev": 0.40018030500650625,
+      "mad_sigma_ev": 0.20050704076012987,
+      "minimum_ev": -10.160524661900126,
+      "maximum_ev": 9.38423513413727
+    },
+    "core_cauchy_loc_ev": 0.005668489870961834,
+    "core_cauchy_scale_ev": 0.15149673464019633,
+    "core_cauchy_fwhm_ev": 0.30299346928039267,
+    "original_notebook_reference_fwhm_ev": 0.3,
+    "pre_validation": {
+      "n": 8400,
+      "bias_ev": -0.10521260085705199,
+      "median_ev": 0.005176792627025861,
+      "rms_ev": 6.5749574078166875,
+      "std_ev": 6.5741155468416,
+      "q16_ev": -0.42151844902662566,
+      "q84_ev": 0.38787349361053197,
+      "central_68_half_width_ev": 0.4046959713185788,
+      "mad_sigma_ev": 0.2020065882890034,
+      "minimum_ev": -131.33028309606743,
+      "maximum_ev": 218.04164050009422
+    },
+    "core_cut_is_response_selection": true
+  },
+  "event_counts": {
+    "pre_validation_reconstructed": 8400,
+    "final_grid_sample": 8366,
+    "selected_inside_interpolation_hull": 8111,
+    "selected_using_rbf_extrapolation": 255
+  },
+  "selection": {
+    "mpt_policy": "strict_single",
+    "trap_zero_policy": "either_zero",
+    "allow_rbf_extrapolation": true,
+    "interpolation_hull_is_rejection_condition": false,
+    "apply_original_fcy_validation_to_grids": true,
+    "fcy_validation_outlier_cut_hz": 50000.0,
+    "expected_final_selected_events": 8366
+  },
+  "interpolator_validation": {
+    "n_test": 64,
+    "bias_ev": -0.021321600947317165,
+    "median_ev": 0.0014585364842787385,
+    "rmse_ev": 0.1690624401245669,
+    "std_ev": 0.16771254572606106,
+    "q16_ev": -0.053043065471429146,
+    "q84_ev": 0.024785543296602545,
+    "inside_training_hull_fraction": 0.90625
+  }
+}

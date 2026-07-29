@@ -258,6 +258,9 @@ class DataGenerator4D(BaseProcessor):
         self.detection_efficiency_path: Optional[str] = reader.read_param(
             params, "detection_efficiency_path", None
         )  # (str)
+        self.detection_efficiency_nan_fill_value: Optional[float] = reader.read_param(
+            params, "detection_efficiency_nan_fill_value", None
+        )  # (float)
 
         # Energy error configurations
         self.energy_error_enabled: bool = reader.read_param(
@@ -266,6 +269,9 @@ class DataGenerator4D(BaseProcessor):
         self.energy_error_map_path: Optional[str] = reader.read_param(
             params, "energy_error_map_path", None
         )  # (str)
+        self.energy_error_nan_fill_value: Optional[float] = reader.read_param(
+            params, "energy_error_nan_fill_value", None
+        )  # (float)
 
         # Instantiate the samplers
         self._edges: Dict[str, np.ndarray] = dict()
@@ -381,6 +387,7 @@ class DataGenerator4D(BaseProcessor):
             self._detection_efficiency = DetectionEfficiency.DetectionEfficiency(
                 name=self._procName + "_detection_efficiency",
                 efficiency_map_path=self.detection_efficiency_path,
+                nan_fill_value=self.detection_efficiency_nan_fill_value,
             )
 
         # energy error
@@ -393,6 +400,7 @@ class DataGenerator4D(BaseProcessor):
             self._energy_error = EnergyError.EnergyError(
                 name=self._procName + "_energy_error",
                 energy_error_map_path=self.energy_error_map_path,
+                nan_fill_value=self.energy_error_nan_fill_value,
             )
 
         # placeholder for the InternalRun result

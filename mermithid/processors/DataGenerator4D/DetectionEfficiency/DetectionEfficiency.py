@@ -41,6 +41,7 @@ class DetectionEfficiency:
         r_edges: Optional[np.ndarray] = None,
         phi_edges: Optional[np.ndarray] = None,
         efficiency: Optional[np.ndarray] = None,
+        nan_fill_value: Optional[float] = None,
     ):
         """
         Initialize the DetectionEfficiency.
@@ -53,9 +54,12 @@ class DetectionEfficiency:
             r_edges: Bin edges for radial position (m)
             phi_edges: Bin edges for azimuthal angle (rad)
             efficiency: 4D efficiency array (ke, theta_center, r, phi)
+            nan_fill_value: Value to fill for NaN entries in efficiency map. If
+            None, NaNs will raise an error.
         """
         self.name = name
         self.efficiency_map_path = efficiency_map_path
+        self.nan_fill_value = nan_fill_value
         
         # If path is provided, load from file
         if efficiency_map_path is not None:
@@ -107,6 +111,13 @@ class DetectionEfficiency:
                 f"{name}: Efficiency shape {self.efficiency.shape} does not match "
                 f"expected shape {expected_shape}"
             )
+
+        # Fill NaN values if a fill value is provided
+        if self.nan_fill_value is not None:
+            self.efficiency = np.where(np.isnan(self.efficiency), self.nan_fill_value, self.efficiency)
+        else:
+            if np.isnan(self.efficiency).any():
+                raise ValueError(f"{name}: Efficiency map contains NaN values and no fill value was provided")
 
         # Using interpolator
         # FIXME: it returns 0 for points outside the grid, made of centers.

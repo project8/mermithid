@@ -2,13 +2,11 @@
 Generate sample energy-rate PDFs for DataGenerator4D numerical tests.
 
 Creates an `.npz` file containing:
-- `rate`: 1D array of PDF values per bin (non-negative, normalized to sum=1)
+- `rate`: 1D array of PDF values per bin (non-negative)
 - `ke_edges`: 1D array of bin edges (length bins+1)
 
 Three generator options are provided:
 1) Sum of two Gaussians with small random fluctuations (default)
-2) Exponential tail plus a Gaussian peak
-3) Broad plateau with local dips (uniform + negative Gaussians)
 
 Usage example:
 python generate_sample_energy_rate.py --out energy_two_gaussian.npz --option two_gaussian

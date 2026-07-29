@@ -59,10 +59,14 @@ class DataGenerator4DTest(unittest.TestCase):
             "cavity_field_map_path": "./DataGenerator4D_helpers/cavity_field_map/CCA_Trap_V45.npz",
             # Detection efficiency map
             "detection_efficiency_enabled": True,
-            "detection_efficiency_path": "./DataGenerator4D_helpers/detection_efficiency_map/sample_efficiency_map_small.npy",
+            # "detection_efficiency_path": "./DataGenerator4D_helpers/detection_efficiency_map/sample_efficiency_map_small.npy",
+            "detection_efficiency_path": "./DataGenerator4D_helpers/adil_resources/detection_efficiency_formatted.npy",
+            "detection_efficiency_nan_fill_value": 0.0,
             # Energy error map
             "energy_error_enabled": True,
-            "energy_error_map_path": "./DataGenerator4D_helpers/energy_error_map/sample_energy_error_map_small.npy",
+            # "energy_error_map_path": "./DataGenerator4D_helpers/energy_error_map/sample_energy_error_map_small.npy",
+            "energy_error_map_path": "./DataGenerator4D_helpers/adil_resources/energy_error_map_formatted.npy",
+            "energy_error_nan_fill_value": 0.0,
             # Operational metadata
             "channel_runtimes": [6000.0, 12000.0],  # s
         }
