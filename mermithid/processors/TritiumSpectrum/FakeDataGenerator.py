@@ -120,11 +120,9 @@ class FakeDataGenerator(BaseProcessor):
         # get file content if needed
         # get efficiency dictionary
         if self.apply_efficiency:
-            print("00000")
             self.efficiency_dict = self.load_efficiency_curve()
             np.random.seed()
         else:
-            print("11111")
             self.efficiency_dict = None
 
         # generate data with lineshape

@@ -9,61 +9,6 @@ CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc
 '''
 import numpy as np
 import configparser
-'''
-from numpy import pi
-
-# Numericalunits is a package to handle units and some natural constants
-# natural constants
-from numericalunits import e, me, c0, eps0, kB, hbar
-from numericalunits import meV, eV, keV, MeV, cm, m, ns, s, Hz, kHz, MHz, GHz, amu
-from numericalunits import nT, uT, mT, T, mK, K,  C, F, g, W
-from numericalunits import hour, year, day
-from numericalunits import mu0, NA, kB, hbar, me, c0, e, eps0, hPlanck
-
-T0 = -273.15*K
-
-tritium_livetime = 5.605e8*s
-tritium_mass_atomic = 3.016* amu *c0**2
-tritium_electron_crosssection_atomic = 1.1e-22*m**2
-tritium_endpoint_atomic = 18563.251*eV
-last_1ev_fraction_atomic = 2.067914e-13/eV**3
-
-tritium_mass_molecular = 6.032099 * amu *c0**2
-tritium_electron_crosssection_molecular = 3.487*1e-22*m**2
-tritium_endpoint_molecular = 18573.24*eV
-last_1ev_fraction_molecular = 1.67364e-13/eV**3
-
-ground_state_width = 0.436 * eV
-ground_state_width_uncertainty = 0.01*0.436*eV
-
-gyro_mag_ratio_proton = 42.577*MHz/T
-
-#Atomic tritium-related constant
-ideal_gas_molar_volume = 2.24e-02*m**3 #Volume of 1mol of ideal gas at 1atm. Higher pressure --> smaller volume; higher temp --> lower volume.
-#Cross sections are from Berlinsky
-H_He_cross_sec_high_temp = 2.00e-19*m**2 #"High temp" means >5K
-H_He_cross_sec_low_temp = 3.00e-20*m**2
-#H_H_cross_sec =
-#H-H2 (289 pm kinetic diameter: Wikipedia)
-#18.6-keV electrons on atomic T
-#18.6-keV electrons on molecular T23.00E-20
-
-
-# units that do not show up in numericalunits
-# missing pre-factors
-fW = W*1e-15
-
-# unitless units, relative fractions
-pc = 0.01
-ppm = 1e-6
-ppb = 1e-9
-ppt = 1e-12
-ppq = 1e-15
-
-# radian and degree which are also not really units
-rad = 1
-deg = np.pi/180
-'''
 from mermithid.misc.Constants_numericalunits import *
 from mermithid.misc.CRESFunctions_numericalunits import *
 from mermithid.sensitivity.AtomicCalculator import *

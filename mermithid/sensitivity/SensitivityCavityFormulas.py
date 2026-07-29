@@ -263,7 +263,7 @@ class CavitySensitivity(Sensitivity):
         self.Jprime_0 = 3.8317
         self.cavity_freq = frequency(self.T_endpoint, self.MagneticField.nominal_field)
         self.CavityRadius()
-        self.trap_geometry()
+        self.TrapGeometry()
         self.CavityLength()
 
         self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
@@ -414,7 +414,7 @@ class CavitySensitivity(Sensitivity):
         return self.cavity_radius
 
     # Geometry of trap
-    def trap_geometry(self):
+    def TrapGeometry(self):
         # C089 - [m] origin is the virtual point of the cone height
         self.top_cone = 0.60*m
         # C090 - [m] height of first trap coil

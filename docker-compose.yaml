@@ -31,6 +31,7 @@ services:
         source /usr/local/p8/mermithid/v1.2.3/bin/this_cicada.sh &&
         pip install -e /mermithid &&
         bash
+      "
 #bash -c "
 #source /usr/local/p8/mermithid/v1.2.3/setup.sh &&
 #source /usr/local/p8/mermithid/v1.2.3/bin/this_phylloxera.sh &&
