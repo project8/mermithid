@@ -2,6 +2,16 @@ import numpy as np
 from scipy.special import roots_laguerre
 from mermithid.misc.Constants_numericalunits import *
 '''
+Google drive link to Atomic Calculator with Mermithid:
+https://docs.google.com/spreadsheets/d/1fFIV35X8PYnzHjHLeTz7li4TXMiD9oN1/edit?usp=drivesdk&ouid=107755588921795479156&rtpof=true&sd=true
+
+Basecamp ppt slides regarding Atomic Calculator Updates:
+https://app.basecamp.com/3700981/buckets/3107037/documents/9620255797
+
+Additional details see:
+CDR sections 2, 3, 4 and 5 -> https://www.overleaf.com/read/kkmqvqswqsjg
+Pre-CDR sections 3 and 4 -> https://www.overleaf.com/read/jkpsjrtwqzgf#855b7e
+
 Ben Jones calculation disagrees with evaporation losses (specifically out the top > 5 mK, agrees otherwise) in atomic calc and must be integrated: https://3.basecamp.com/3700981/buckets/3107037/uploads/8902667883
 
 '''
