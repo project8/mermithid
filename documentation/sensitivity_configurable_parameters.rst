@@ -7,6 +7,7 @@ The sensitivity calculation is configured using a configuration file. The config
 Our main goal is the calcualtion of sensitivity in a cavity experiment. The configurations below are to be used for the CavitySensitivity class in https://github.com/project8/mermithid/blob/feature/sensitivity_curve/mermithid/misc/SensitivityCavityFormulas.py
 This class is used by the CavitySensitivityCurveProcessor and the SensitivityParameterScanProcessor. 
 
+More information regarding parameter choices can be found in the Pre-CDR
 Structure of a config file
 --------------------------
 
@@ -15,6 +16,7 @@ Configuration files have several sections:
 
 * Experiment
 * Efficiency
+* Threshold
 * FrequencyExtraction
 * DopplerBroadening
 * MagneticField
@@ -39,14 +41,17 @@ Below is a list of the parameters with a short description of what role they pla
 * ``number_density``: This is the mean tritium gas density between the electron trapping coils. The density make be different at axial positions past the trap coils. The number_density together with the total volume, livetime, and the efficiency determines the statistical power of the experiment. Gas density also determines the track length and therefore the frequency resolution. The sensitivity curve processor can optimize this parameter to maximize the sensitivity. In that case this number is overwritten in the calculation. 
 * ``sri_factor``: The statistical rate increase factor articifially increases the number of observed events (it multiplies the total efficiency). It is highly recommended to set it to 1.
 * ``atomic``: If true, the calculation is done for atomic tritium. If false, moecular tritium is assumed. This affects the number of decays per gas molecule/atom (2 for molecular 1 for atomic), the track length in a given gas density (via electron scattering cross section), and the width of the final ground state.
-
+* ``active gas fraction``: The fraction of the gas within the CRES volume that's tritium. Very high (~1) in at atomic experiment. Lower in a molecular experiment due to presence of HT, H2, DT, and 3He, and possibly other gasses, too.
 
 **Efficiency**
 
-* ``usefixedvalue``: If true, fixed efficiency is used. If false, the efficiency is the product of radial, detection, and trapping efficienc. The trapping efficiency is calculated from the minimum pitch angle. 
+* ``usefixedvalue``: If true, fixed efficiency is used. If false, the efficiency is the product of radial, detection, and trapping efficiency. The trapping efficiency is calculated from the minimum pitch angle. Most of these are calculated in mermithid now. 
 * ``fixed_efficiency``: For example, set to roughly 2% for a 88deg minimum trapped pitch angle, assuming 100% detection efficiency of the trapped angles.
 * ``radial_efficiency``: Typically set to 0.67 from a calcualtion done for a 325MHz cavity with Halbach bite and radial cut on power of > 0.5 * maximum power.
 * ``detection_efficiency``: Fraction of events that is not detected.
+* ``unusable_dist_from_wall``: Cavity radius taken up by non-uniform field (The greater value between the Larmor radius and ioffe bite distance).
+
+**Threshold**
 
 **FrequencyExtraction**
 
@@ -75,10 +80,9 @@ We use the CRLB for calculating the frequency resolution. The CRLB is calculated
 * ``usefixedvalue``: If True ``default_systematic_smearing`` and ``default_systematic_uncertainty`` are used.
 * ``default_systematic_smearing``: Default systematic broadening for this category. Units must be eV.
 * ``default_systematic_uncertainty``: Default systematic uncertainty for this category. Units must be eV.
-* ``gas_temperature``: Temperature of the source gas. This should only be different from the cavity temperature if the gas is not in thermal equilibrium with the cavity. The gas temperature is used to calculate the Doppler broadening.
+* ``gas_temperature``: Temperature of the source gas. This should only be different from the cavity temperature if the gas is not in thermal equilibrium with the cavity. The gas temperature is used to calculate the Doppler broadening. In the molecular case, the molecules are in thermal equilibrium with the wall (85 K), but in the atomic case they are not, because they are prevented from contacting the wall by the Ioffe trap (4 mK - trapped gas temperature not wall temperature of 4 K)
 * ``gas_temperature_uncertainty``: Absolute uncertainty of the gas temperature.
-* ``fraction_uncertainty_on_doppler_broadening``: Fractional uncertainty on the Doppler broadening.
-
+* ``fraction_uncertainty_on_doppler_broadening``: Fractional uncertainty on the Doppler broadening. 
 
 **MagneticField**
 
@@ -92,6 +96,14 @@ We use the CRLB for calculating the frequency resolution. The CRLB is calculated
 * ``sigmae_r``: Fixed input in eV. Energy broadening from radial field inhomogeneity that remains after radial reconstruction. Accounts for both the uncertainty on each electron's radius and the uncertainty on the radial field profile.
 * ``sigmae_theta``: Fixed input in eV. Energy broadening remaining after theta reconstruction, from electrons with lower pitch angles exploring high fields. Accounts for both the uncertainty on theta and uncertainties on the trap depth/boxiness.
 * ``sigmae_phi``: Fixed input in eV. Energy broadening from phi field inhomogeneity that remains after phi reconstruction.
+
+Each variable corresponds to the energy resolution contribution from field variation along a particular spatial direction / time, after accounting for position reconstruction in that direction / time. Then fraction_uncertainty_on_field_broadening accounts for how well that field broadening is known/calculated.
+Broken up between different position and time coordinates, for cases in which we want to study the effect of field variation along each coordinate individually, and then input the resulting resolution contributions into mermithid. Resolution contributions due to field variation along the different coordinates are added in quadrature.
+Currently using the variable sigmae_r to account for the total resolution contribution from field variation + reconstruction/calculation in all coordinates.
+
+In the atomic calculator, the input is a field inhomogeneity value deltaB/B in ppm, instead of being a resolution contribution value in eV. Field inhomogeneity is converted to a resolution value using a simple B-->E formula, based on the Larmor formula. Used to have something similar in mermithid but scrapped that.
+Don't love this approach because it implies that a certain physical field inhomogeneity corresponds to a certain resolution contribution via the Larmor formula and that's really not the case. Take, for example, radial variation. If there is no radial reconstruction, then to get the resolution contribution from the physical field variation, one needs to account for the fact that there are more electrons at higher radii, and that the detection efficiency depends on radius in some way. Those effects re-weight the impact of the field vs. radius profile. In addition, if there is radial reconstruction, that can further reduce the resolution relative to the physical radial field inhomogeneity, because we can use knowledge of electron radii to correct for the field vs. radius variation. So, there are several degrees of separation between physical field inhomogeneity and a resolution contribution.
+Since we don't have models of these various effects in mermithid or the atomic calculator, prefer to just have us directly input the resolution contributions. Yes, one could take the 0.085eV number and convert it to a deltaB/B requirement via the Larmor formula, but that number doesn't really mean anything.
 
 **FinalStates**
 

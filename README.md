@@ -15,6 +15,8 @@ If you are not using a container with pre-installed dependencies, you will need 
 
 ## Installation
 
+After cloning mermithid, run `git submodule update --init --recursive`.
+
 These are two possible ways of installing and working with mermithid.
 
 ### Virtual environment installation

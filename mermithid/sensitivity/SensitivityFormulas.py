@@ -9,9 +9,9 @@ CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc
 '''
 import numpy as np
 import configparser
-
 from mermithid.misc.Constants_numericalunits import *
 from mermithid.misc.CRESFunctions_numericalunits import *
+from mermithid.sensitivity.AtomicCalculator import *
 
 try:
     from morpho.utilities import morphologging
@@ -55,12 +55,13 @@ class Sensitivity(object):
 
         self.Experiment = NameSpace({opt: eval(self.cfg.get('Experiment', opt)) for opt in self.cfg.options('Experiment')})
         
-        # seetings fro molecular or atomic tritium
+        # settings for molecular or atomic tritium
         self.tau_tritium = tritium_livetime
         if self.Experiment.atomic:
             self.T_mass = tritium_mass_atomic
             self.Te_crosssection = tritium_electron_crosssection_atomic
             self.T_endpoint = tritium_endpoint_atomic
+            # Initially defined as number of events divided by energy window of last eV. For info: https://3.basecamp.com/3700981/buckets/3107037/documents/10099116348
             self.last_1ev_fraction = last_1ev_fraction_atomic
         else:
             self.T_mass = tritium_mass_molecular
@@ -90,16 +91,16 @@ class Sensitivity(object):
     def SignalRate(self):
         """signal events in the energy interval before the endpoint, scale with DeltaE**3"""
         self.EffectiveVolume()
-        signal_rate = self.Experiment.number_density*self.effective_volume*self.last_1ev_fraction/self.tau_tritium
+        self.signal_rate = self.Experiment.number_density*self.effective_volume*self.last_1ev_fraction/self.tau_tritium
         if not self.Experiment.atomic:
             if hasattr(self.Experiment, 'gas_fractions'):
                 avg_n_T_atoms = self.AvgNumTAtomsPerParticle_MolecularExperiment(self.Experiment.gas_fractions, self.Experiment.H2_type_gas_fractions)
-                signal_rate *= avg_n_T_atoms
+                self.signal_rate *= avg_n_T_atoms
             else:
-                signal_rate *= 2
+                self.signal_rate *= 2
         if hasattr(self.Experiment, 'active_gas_fraction'):
-            signal_rate *= self.Experiment.active_gas_fraction
-        return signal_rate
+            self.signal_rate *= self.Experiment.active_gas_fraction
+        return self.signal_rate
 
     def BackgroundRate(self):
         """background rate, can be calculated from multiple components.
@@ -117,19 +118,58 @@ class Sensitivity(object):
         """Number of background events."""
         return self.BackgroundRate()*self.Experiment.LiveTime*self.DeltaEWidth()
 
+    def SignalRatio(self):
+        if self.Efficiency.T2_background_atomic_trap:
+            self.T2_total_density, self.T2_T_ratio = calculate_T2_background_atomic_trap(self.cavity_radius, self.cavity_length, self.FrequencyExtraction.cavity_temperature, self.Efficiency.max_ratio_T2_T, self.Experiment.number_density)
+            if self.Efficiency.usefixedratio:
+                self.T2_T_ratio = self.Efficiency.T2_T_ratio
+            # C240 - Activity ratio of the rate of T2/T events in the last eV of the T2/T spectrum. (Difference between the two spectra)
+            signal_ratio = self.T2_T_ratio * 2 / ground_state_branch_atomic
+            """
+            # Atomic Calculator activity in last eV of spectrum
+            if self.Efficiency.usefixedvalue:
+                self.total_efficiency = self.Efficiency.fixed_efficiency
+            else:
+                self.total_efficiency = self.effective_volume/self.total_trap_volume
+            sig_rate = calculate_activity_last_1eV_spectrum(self.Experiment.atomic, self.Experiment.number_density, self.cavity_radius, self.trap_coil_1, self.trap_coil_2, self.total_efficiency): 
+            """
+            return signal_ratio
+        return None
+
     def DeltaEWidth(self):
         """optimal energy bin width"""
         labels, sigmas, deltas = self.get_systematics()
-        return np.sqrt(self.BackgroundRate()/self.SignalRate()
-                              + 8*np.log(2)*(np.sum(sigmas**2)))
+        sig_rate = self.SignalRate()
+        bkg_rate = self.BackgroundRate()
+        zeta = self.SignalRatio()
+        #logger.info(f"zeta value: {repr(zeta)}")
+        #logger.info(f"zeta type: {type(zeta)}")
+        #logger.info(f"zeta dtype: {getattr(zeta, 'dtype', None)}")
+        #logger.info(f"zeta finite check: {np.isfinite(zeta)}")
+        if self.Efficiency.T2_background_atomic_trap:
+            # zeta = molecular background / atomic signal (r_m / r_a); if r_m = 0 then zeta = 0 and equation reduces to else statement
+            # delta_E = sqrt((b + 3 * delta_endpoint * zeta * r_a) / ((1 + zeta) * r_a) + 8*ln(2) * Systematics)
+            return np.sqrt((bkg_rate + 3 * endpoint_diff**2 * sig_rate * zeta) / (sig_rate * (1 + zeta)) \
+                   	+ 8*np.log(2)*(np.sum(sigmas**2)))
+        return np.sqrt(bkg_rate/sig_rate + 8*np.log(2)*(np.sum(sigmas**2)))
 
     def StatSens(self):
         """Pure statistic sensitivity assuming Poisson count experiment in a single bin
         As defined, it needs to be squared before being added to the systematic component"""
+        bkg_rate = self.BackgroundRate()
         sig_rate = self.SignalRate()
         DeltaE = self.DeltaEWidth()
-        sens = 2/(3*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*DeltaE
-                                                                  +self.BackgroundRate()*self.Experiment.LiveTime/DeltaE)
+        zeta = self.SignalRatio()
+        n_cavities = self.Experiment.n_cavities
+        if self.Efficiency.T2_background_atomic_trap:
+            # Stat^2 = 4/(9*r_a*t*#_cav) * ((1 + zeta)*delta_E + b*#_cav/r_a/delta_E + 3*#_cav*zeta*delta_endpoint*(1 + delta_endpoint/delta_E))
+            sens = 2/(3*sig_rate*self.Experiment.LiveTime*n_cavities)*np.sqrt(sig_rate*self.Experiment.LiveTime*n_cavities*(1+zeta)*DeltaE \
+                   	+ bkg_rate*(n_cavities**2*self.Experiment.LiveTime/DeltaE) + 3*n_cavities**2*zeta*endpoint_diff*sig_rate \
+			* self.Experiment.LiveTime*(1 + endpoint_diff/DeltaE))
+        else:
+            # Stat^2 = 4/(9*r_a*t) * (delta_E + b/r_a/delta_E) if zeta=0
+            sens = 2/(3*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*DeltaE \
+                  	+ bkg_rate*self.Experiment.LiveTime/DeltaE)
         return sens
 
     def SystSens(self):
@@ -264,7 +304,7 @@ class Sensitivity(object):
             delta = self.DopplerBroadening.Default_Systematic_Uncertainty
             return sigma, delta
 
-        # termal doppler broardening
+        # thermal doppler broadening
         gasTemp = self.DopplerBroadening.gas_temperature
         mass_T = self.T_mass
         endpoint = self.T_endpoint
@@ -283,7 +323,7 @@ class Sensitivity(object):
         Ee = endpoint + me*c0**2
         p_rec = np.sqrt( Emax**2-me**2*c0**4 + (Emax - Ee - E_rec)**2 - mbeta**2 + 2*Ee*(Emax - Ee - E_rec)*betae*betanu*cosThetaenu )
         sigma_trans = np.sqrt(p_rec**2/(2*mass_T)*2*kB*gasTemp)
-
+        # sigma_trans = 2 * Ke * np.sqrt(kB_eV * trapped_gas_temp / (mass (eV) * beta^2))
         if self.Experiment.atomic == True:
             delta_trans = np.sqrt(p_rec**2/(2*mass_T)*kB/gasTemp*self.DopplerBroadening.gas_temperature_uncertainty**2)
         else:
@@ -430,4 +470,4 @@ class Sensitivity(object):
             delta = self.PlasmaEffects.Default_Systematic_Uncertainty
             return sigma, delta
         else:
-            raise NotImplementedError("Plasma effect sysstematic is not implemented.")
+            raise NotImplementedError("Plasma effect systematic is not implemented.")
