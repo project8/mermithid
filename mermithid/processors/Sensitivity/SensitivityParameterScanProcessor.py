@@ -183,34 +183,41 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             parameter_value = self.scan_parameter_values[i]
             
             category, param = self.scan_parameter_name.split(".")
-            
+
+            # The config sections are NameSpace objects, whose __getattribute__
+            # lowercases every lookup while __setattr__ does not. Reads therefore
+            # work at any case, but writes have to be lowercased: assigning a
+            # mixed-case name (or writing straight into __dict__) creates a key
+            # that can never be read back, which leaves the scan sitting at the
+            # config value at every point without any error.
+            namespace = getattr(self.sens_main, category)
+
             # read current value of param
             try:
-                current_value = self.sens_main.__dict__[category].__dict__[param]
+                current_value = getattr(namespace, param)
                 logger.info(f"Current value of {param}: {current_value/self.scan_parameter_unit}")
-            except KeyError as e:
+            except AttributeError as e:
                 logger.error(f"Parameter {param} not found in {category}")
                 raise e
 
-
             # Set to scan param value
-            self.sens_main.__dict__[category].__dict__[param] = parameter_value 
             # Re-calc the cavity init with the new param
-            self.sens_main.CalcDefaults(overwrite=True)
+            #self.sens_main.CalcDefaults(overwrite=True)
+            setattr(namespace, param.lower(), parameter_value)
             # Ensure param scan value unchanged
-            read_back = self.sens_main.__dict__[category].__dict__[param]
-            #setattr(self.sens_main, self.scan_parameter_name, parameter_value)
-            #read_back = getattr(self.sens_main, self.scan_parameter_name)
-            logger.info(f"Setting {self.scan_parameter_name} to {parameter_value/self.scan_parameter_unit} and reading back: {read_back/ self.scan_parameter_unit}")
-           
+            read_back = getattr(namespace, param)
+            logger.info(f"Setting {self.scan_parameter_name} to {parameter_value/self.scan_parameter_unit} and reading back: {read_back/self.scan_parameter_unit}")
+            if read_back != parameter_value:
+                logger.warning(f"{self.scan_parameter_name} did not take the requested value")
+
             # pitch angle set equal
             if(param == "min_pitch_used_in_analysis"):
-                self.sens_main.__dict__["FrequencyExtraction"].__dict__["minimum_angle_in_bandwidth"] = parameter_value
+                setattr(self.sens_main.FrequencyExtraction, "minimum_angle_in_bandwidth", parameter_value)
             
-            # If the scanned param isn't trap length, calc trap length for cavity L/D
-            if (param != "trap_length"):
-                self.sens_main.TrapLength() 
-            
+            # DEPRECATED: If the scanned param isn't trap length, calc trap length for cavity L/D
+            #if (param != "trap_length"):
+            #    self.sens_main.TrapLength() 
+         
             logger.info("Calculating cavity experiment radius, volume, effective volume, power") 
             self.sens_main.CavityRadius()  
             self.sens_main.CavityVolume()
@@ -468,6 +475,3 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         self.fig.tight_layout()
         self.fig.savefig(os.path.join(self.plot_path, filename), bbox_inches="tight", metadata=metadata)
         self.fig.savefig(os.path.join(self.plot_path, filename.replace(".pdf", ".png")), bbox_inches="tight", metadata=metadata)
-            
-
-
