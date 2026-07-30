@@ -214,10 +214,10 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             if(param == "min_pitch_used_in_analysis"):
                 setattr(self.sens_main.FrequencyExtraction, "minimum_angle_in_bandwidth", parameter_value)
             
-            # DEPRECATED: If the scanned param isn't trap length, calc trap length for cavity L/D
-            #if (param != "trap_length"):
-            #    self.sens_main.TrapLength() 
-         
+            # If the scanned param isn't trap length, calc trap length for cavity L/D
+#            if (param != "trap_length"):
+#                self.sens_main.TrapLength() 
+            
             logger.info("Calculating cavity experiment radius, volume, effective volume, power") 
             self.sens_main.CavityRadius()  
             self.sens_main.CavityVolume()
@@ -418,30 +418,35 @@ class SensitivityParameterScanProcessor(BaseProcessor):
     def add_density_sens_line(self, sens, plot_key_params=False, **kwargs):
         limits = []
         resolutions = []
-        crlb_window = []
-        crlb_max_window = []
-        crlb_slope_zero_window = []
-        
+        track_durations = []
+
+        # The key parameter quantities used to be collected for every density even
+        # when the plots were switched off. They are only gathered on demand now:
+        # best_time_window and time_window_slope_zero no longer exist (the CRLB
+        # model samples a distribution of track durations instead), and
+        # time_window is an array rather than a scalar.
+        collect_key_params = self.make_key_parameter_plots and plot_key_params
+
         for rho in self.rhos:
             limits.append(sens.CL90(Experiment={"number_density": rho})/eV)
-            resolutions.append(sens.sigma_K_noise/meV)
-            crlb_window.append(sens.best_time_window/ms)
-            crlb_max_window.append(sens.time_window/ms)
-            crlb_slope_zero_window.append(sens.time_window_slope_zero/ms)
-            
-        
+            if collect_key_params:
+                resolutions.append(sens.sigma_K_noise/meV)
+                track_durations.append(np.mean(np.atleast_1d(sens.time_window))/ms)
+
         self.ax.plot(self.rhos*m**3, limits, **kwargs)
         rho_opt = self.rhos[np.argmin(limits)]
         # set experiment to optimum density
         sens.CL90(Experiment={"number_density": rho_opt})
         logger.info('Minimum limit at {}: {}'.format(rho_opt*m**3, np.min(limits)))
-        
-        if self.make_key_parameter_plots and plot_key_params:
-            self.kp_ax[0].plot(self.rhos*m**3, resolutions, **kwargs)
-            
-            self.kp_ax[1].plot(self.rhos*m**3, crlb_max_window, color='red', marker='.')
-            self.kp_ax[1].plot(self.rhos*m**3, crlb_slope_zero_window, color='green', marker='.')
-            self.kp_ax[1].plot(self.rhos*m**3, crlb_window, linestyle="--", marker='.', **kwargs)
+
+        if collect_key_params:
+            if not hasattr(self, "kp_ax"):
+                logger.warning("Key parameter axes (self.kp_ax) were never created, "
+                               "skipping the key parameter lines")
+            else:
+                self.kp_ax[0].plot(self.rhos*m**3, resolutions, **kwargs)
+                self.kp_ax[1].plot(self.rhos*m**3, track_durations,
+                                   linestyle="--", marker='.', **kwargs)
         return limits
     
  
