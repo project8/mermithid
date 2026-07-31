@@ -124,8 +124,8 @@ sens_config_dict = {
 # Configuration for efficiency scan
 sens_config_dict = {
     # required
-    #"config_file_path": "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg",
-    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_Atomic_Effects.cfg",
+    "config_file_path": "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg",
+    #config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_Atomic_Effects.cfg",
     "plot_path": ".",
     # optional
     "figsize": (7.0,6),
@@ -145,7 +145,18 @@ sens_config_dict = {
     "scan_parameter_unit": 1,
     "plot_sensitivity_scan_on_log_scale": True,
     "goals_x_position": 1.2e12, #0.0002
-    "plot_key_parameters": False
+    "plot_key_parameters": False,
+    "diagnostic_parameters": [
+    {"name": "SignalRate()",   "unit": "1/(eV^3 s)",     "label": "Signal rate",   "log": True},
+    {"name": "BackgroundRate()",   "unit": "1/(eV s)",     "label": "Background rate",   "log": True},
+    {"name": "SignalRatio()",                     "label": "T2/T signal ratio ζ",   "log": True},
+    {"name": "DeltaEWidth()",   "unit": "eV",     "label": "Optimum energy window",   "log": True},
+    {"name": "StatSens()",   "unit": "eV",     "label": "Statistical sensitivity",   "log": True},
+    {"name": "SystSens()",   "unit": "eV",     "label": "Systematic sensitivity",   "log": True},
+    {"name": "T2_T_ratio",   "log": True},
+    {"name": "effective_volume", "unit": "m^3",   "log": True},
+    "detection_efficiency",          # bare strings work for dimensionless quantities
+    ],
     }
 sens_scan = SensitivityParameterScanProcessor("sensitivity_curve_processor")
 sens_scan.Configure(sens_config_dict)

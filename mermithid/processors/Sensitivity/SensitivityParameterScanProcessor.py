@@ -13,6 +13,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import re
 import concurrent.futures
 
 
@@ -30,7 +31,7 @@ deg = np.pi/180
 # morpho imports
 from morpho.utilities import morphologging, reader
 from morpho.processors import BaseProcessor
-from mermithid.sensitivity.SensitivityFormulas import Sensitivity
+from mermithid.sensitivity.SensitivityFormulas import Sensitivity, NameSpace
 from mermithid.sensitivity.SensitivityCavityFormulas import CavitySensitivity
 
 
@@ -46,6 +47,148 @@ def return_var_name(variable):
     for name in globals():
         if eval(name) == variable:
             return name
+
+
+# ---------------------------------------------------------------------------
+# Units
+# ---------------------------------------------------------------------------
+
+import numericalunits as _nu
+
+# Namespace used to interpret unit strings such as "meV", "m^3", "1/s".
+# Mirrors what the .cfg files are allowed to use, so unit strings and config
+# values follow the same conventions.
+_UNIT_NAMESPACE = {k: v for k, v in vars(_nu).items() if not k.startswith("_")}
+_UNIT_NAMESPACE.update({"np": np, "pi": np.pi, "deg": deg, "ppm": ppm, "ppb": ppb})
+
+_DIMENSIONLESS_STRINGS = ("", "1", "-", "none", "dimensionless", "unitless")
+
+
+def resolve_unit(spec, context=""):
+    """Turn a unit specification into a (divisor, label) pair.
+
+    Accepts either
+      * a string, evaluated against numericalunits, e.g. "meV", "m^3", "1/(eV*s)".
+        Both "^" and "**" work for powers.
+      * a numericalunits value, e.g. eV (kept for backwards compatibility).
+      * None or 1, meaning dimensionless.
+
+    Anything that cannot be interpreted is treated as dimensionless with a
+    warning, so a typo in a unit never aborts a scan.
+
+    Note on already-scaled quantities: several mermithid methods return numbers
+    that have *already* been divided by their unit (print_systematics returns
+    meV, accumulated_activity_* is in Ci). Those must be declared dimensionless
+    here, otherwise the unit gets divided out twice.
+    """
+    if spec is None:
+        return 1.0, ""
+
+    if isinstance(spec, str):
+        text = spec.strip()
+        if text.lower() in _DIMENSIONLESS_STRINGS:
+            return 1.0, ""
+        try:
+            value = eval(text.replace("^", "**"), {"__builtins__": {}}, dict(_UNIT_NAMESPACE))
+        except Exception as err:
+            logger.warning("Could not interpret unit '{}'{}: {}. Treating as dimensionless.".format(
+                spec, context, err))
+            return 1.0, ""
+        if not np.isscalar(value) or value == 0:
+            logger.warning("Unit '{}'{} did not evaluate to a non-zero scalar. "
+                           "Treating as dimensionless.".format(spec, context))
+            return 1.0, ""
+        return float(value), text
+
+    # Numeric unit (legacy style: "scan_parameter_unit": eV)
+    value = float(spec)
+    if value == 1.0:
+        # "unit = 1" means dimensionless. Looking the value up by name returns
+        # None (or something arbitrary), which is where the old "(None)" axis
+        # labels came from.
+        return 1.0, ""
+    return value, (return_var_name(spec) or "")
+
+
+# ---------------------------------------------------------------------------
+# Attribute paths
+# ---------------------------------------------------------------------------
+
+def _split_token(token):
+    """Split a single path element into (name, subscripts, is_call).
+
+    'loaded_q'      -> ('loaded_q', [], False)
+    'q_array[2]'    -> ('q_array', ['2'], False)
+    'DeltaEWidth()' -> ('DeltaEWidth', [], True)
+
+    Raises ValueError on anything malformed, which is what lets
+    configure_diagnostics reject a bad name at startup rather than part way
+    through a scan.
+    """
+    token = token.strip()
+
+    is_call = token.endswith("()")
+    if is_call:
+        token = token[:-2]
+
+    indices = []
+    while token.endswith("]"):
+        start = token.rfind("[")
+        if start == -1:
+            raise ValueError("Unbalanced brackets in path element '{}'".format(token))
+        indices.insert(0, token[start + 1:-1])
+        token = token[:start]
+
+    if is_call and indices:
+        # The resolver calls before it indexes, so this spelling would silently
+        # evaluate as name()[i]. Reject it rather than guess.
+        raise ValueError("Cannot combine subscripts and a call in '{}'".format(token))
+
+    if not token.isidentifier():
+        raise ValueError("Cannot parse path element '{}'".format(token))
+
+    return token, indices, is_call
+
+
+def get_by_path(root, path):
+    """Resolve a dotted attribute path on an object.
+
+    Supports plain attributes ("loaded_q"), attributes of the config
+    namespaces ("Experiment.number_density"), no-argument method calls
+    ("DeltaEWidth()", "SignalRatio()") and subscripts ("q_array[0]").
+
+    Uses getattr rather than __dict__, which matters because the config
+    sections are NameSpace objects whose __getattribute__ lowercases every
+    lookup: __dict__ access fails on any name that is not already lowercase.
+    """
+    obj = root
+    for token in str(path).split("."):
+        name, indices, is_call = _split_token(token)
+        obj = getattr(obj, name)
+        if is_call:
+            obj = obj()
+        for index in indices:
+            obj = obj[int(index)]
+    return obj
+
+
+def set_by_path(root, path, value):
+    """Set a dotted attribute path on an object, and return the value read back.
+
+    NameSpace overrides __getattribute__ (lowercasing the name) but not
+    __setattr__. Setting a mixed-case name directly would therefore write a key
+    that can never be read back, silently leaving the original value in place.
+    Names on NameSpace targets are lowercased here to avoid that.
+    """
+    tokens = str(path).split(".")
+    parent = root if len(tokens) == 1 else get_by_path(root, ".".join(tokens[:-1]))
+    name, indices, is_call = _split_token(tokens[-1])
+    if is_call or indices:
+        raise ValueError("Cannot assign to path '{}'".format(path))
+    if isinstance(parent, NameSpace):
+        name = name.lower()
+    setattr(parent, name, value)
+    return getattr(parent, name)
 
 
 
@@ -74,11 +217,14 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         self.scan_parameter_steps = reader.read_param(params, "scan_parameter_steps", 3)
         self.scan_parameter_scale = reader.read_param(params, "scan_parameter_scale", "lin")
         scan_parameter_unit = reader.read_param(params, "scan_parameter_unit", eV)
-        
-        
-        self.scan_parameter_unit_string = return_var_name(scan_parameter_unit)
-        print("Unit string: ", self.scan_parameter_unit_string)
-        self.scan_parameter_unit = scan_parameter_unit
+
+        # Accepts either a numericalunits value (eV) or a string ("eV", "m^3", "1")
+        self.scan_parameter_unit, self.scan_parameter_unit_string = resolve_unit(
+            scan_parameter_unit, context=" for scan_parameter_unit")
+        logger.info("Scan parameter unit: {}".format(self.scan_parameter_unit_string or "dimensionless"))
+
+        # Short name of the scanned parameter, used for labels and file names
+        self.scan_parameter_short_name = self.scan_parameter_name.split(".")[-1]
 
         # main plot configurations
         self.figsize = reader.read_param(params, 'figsize', (6,6))
@@ -98,6 +244,18 @@ class SensitivityParameterScanProcessor(BaseProcessor):
 
         # key parameter plots
         self.make_key_parameter_plots = reader.read_param(params, 'plot_key_parameters', False)
+
+        # diagnostic parameters: extra quantities of the sensitivity object that
+        # are recorded at the density-optimized working point of every scan step
+        self.diagnostic_parameters = reader.read_param(params, 'diagnostic_parameters', [])
+        self.plot_diagnostics = reader.read_param(params, 'plot_diagnostics', True)
+        self.save_diagnostics = reader.read_param(params, 'save_diagnostics', True)
+        self.combine_diagnostic_plots = reader.read_param(params, 'combine_diagnostic_plots', False)
+        self.diagnostics_file_prefix = reader.read_param(params, 'diagnostics_file_prefix', 'diagnostics')
+        self.diagnostics = self.configure_diagnostics(self.diagnostic_parameters)
+        self.diagnostics_warned = set()
+        self.diagnostics_needing_providers = set()
+        self.diagnostic_values = {spec["key"]: [] for spec in self.diagnostics}
         
         if self.density_axis:
             self.add_sens_line = self.add_density_sens_line
@@ -179,44 +337,35 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         self.total_sigma = []
         self.sys_lim = []
 
+        # arrays for the diagnostic parameters (kept separate from the results above)
+        self.diagnostic_values = {spec["key"]: [] for spec in self.diagnostics}
+
         for i, color in self.range(self.scan_parameter_values/self.scan_parameter_unit):
             parameter_value = self.scan_parameter_values[i]
             
-            category, param = self.scan_parameter_name.split(".")
-
-            # The config sections are NameSpace objects, whose __getattribute__
-            # lowercases every lookup while __setattr__ does not. Reads therefore
-            # work at any case, but writes have to be lowercased: assigning a
-            # mixed-case name (or writing straight into __dict__) creates a key
-            # that can never be read back, which leaves the scan sitting at the
-            # config value at every point without any error.
-            namespace = getattr(self.sens_main, category)
+            param = self.scan_parameter_short_name
 
             # read current value of param
             try:
-                current_value = getattr(namespace, param)
+                current_value = get_by_path(self.sens_main, self.scan_parameter_name)
                 logger.info(f"Current value of {param}: {current_value/self.scan_parameter_unit}")
             except AttributeError as e:
-                logger.error(f"Parameter {param} not found in {category}")
+                logger.error(f"Parameter {self.scan_parameter_name} not found on the sensitivity object")
                 raise e
 
-            # Set to scan param value
-            # Re-calc the cavity init with the new param
-            #self.sens_main.CalcDefaults(overwrite=True)
-            setattr(namespace, param.lower(), parameter_value)
-            # Ensure param scan value unchanged
-            read_back = getattr(namespace, param)
+            # Set to scan param value and verify that it actually took effect
+            read_back = set_by_path(self.sens_main, self.scan_parameter_name, parameter_value)
             logger.info(f"Setting {self.scan_parameter_name} to {parameter_value/self.scan_parameter_unit} and reading back: {read_back/self.scan_parameter_unit}")
             if read_back != parameter_value:
                 logger.warning(f"{self.scan_parameter_name} did not take the requested value")
 
             # pitch angle set equal
             if(param == "min_pitch_used_in_analysis"):
-                setattr(self.sens_main.FrequencyExtraction, "minimum_angle_in_bandwidth", parameter_value)
+                set_by_path(self.sens_main, "FrequencyExtraction.minimum_angle_in_bandwidth", parameter_value)
             
-            # If the scanned param isn't trap length, calc trap length for cavity L/D
+            # DEPRECATED: If the scanned param isn't trap length, calc trap length for cavity L/D
 #            if (param != "trap_length"):
-#                self.sens_main.TrapLength() 
+#                self.sens_main.TrapLength() # method no longer exist in CavitySensitivity
             
             logger.info("Calculating cavity experiment radius, volume, effective volume, power") 
             self.sens_main.CavityRadius()  
@@ -234,7 +383,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
               
             # add main curve
             logger.info("Drawing main curve")  
-            label = f"{param} = {parameter_value/self.scan_parameter_unit:.2f} {self.scan_parameter_unit_string}"
+            label = f"{param} = {parameter_value/self.scan_parameter_unit:.2f} {self.scan_parameter_unit_string}".strip()
             self.add_sens_line(self.sens_main, label=label, color=color)
                  
             if self.make_key_parameter_plots:
@@ -296,7 +445,11 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             systematic_limit, total_sigma = self.sens_main.print_systematics()
             self.sys_lim.append(systematic_limit)
             self.total_sigma.append(total_sigma) 
-            
+
+            # diagnostics: the object is at the optimum density here, since CL90
+            # was last evaluated with number_density = rho_opt
+            self.store_diagnostics()
+
         self.save("sensitivity_vs_density_for_{}_scan.pdf".format(param))
             
 
@@ -321,7 +474,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         plt.figure(figsize=self.figsize)
         #plt.title("Sensitivity vs. {}".format(self.scan_parameter_name))
         plt.plot(self.scan_parameter_values/self.scan_parameter_unit, np.array(self.optimum_limits)/eV, marker=".", label="Density optimized scenarios")
-        plt.xlabel(f"{param} ({self.scan_parameter_unit_string})", fontsize=self.fontsize)
+        plt.xlabel(self.parameter_axis_label(), fontsize=self.fontsize)
         plt.ylabel(r"90% CL on $m_\beta$ (eV)", fontsize=self.fontsize)
         if self.plot_sensitivity_scan_on_log_scale:
             plt.yscale("log")
@@ -335,6 +488,19 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         plt.tight_layout()
         plt.savefig(os.path.join(self.plot_path, f"{param}_scan_optimum_limits.pdf"))
         plt.show()
+
+        # diagnostic parameters: own dict, own csv, own figures
+        self.diagnostic_results = {"scan_parameter": self.scan_parameter_name,
+                                   "scan_parameter_unit": self.scan_parameter_unit_string,
+                                   "scan_parameter_values": np.array(self.scan_parameter_values)/self.scan_parameter_unit}
+        for spec in self.diagnostics:
+            key = spec["name"] + (" [{}]".format(spec["unit_string"]) if spec["unit_string"] else "")
+            self.diagnostic_results[key] = np.array(self.diagnostic_values[spec["key"]], dtype=float)
+
+        if self.diagnostics and self.save_diagnostics:
+            self.save_diagnostics_csv()
+        if self.diagnostics and self.plot_diagnostics:
+            self.plot_diagnostics_vs_parameter()
         
         
         
@@ -343,6 +509,274 @@ class SensitivityParameterScanProcessor(BaseProcessor):
 
         return True
 
+
+    # -----------------------------------------------------------------------
+    # DIAGNOSTIC PARAMETERS
+    # -----------------------------------------------------------------------
+
+    # Methods that populate attributes which are not touched by the CL90 call
+    # chain (the atomic-calculator quantities: trap lifetime, atom currents,
+    # pumping speeds, accumulated activities, ...). They are only invoked if a
+    # requested diagnostic cannot be read without them. Order matters:
+    # print_pumping_requirements consumes T2_total_density from the first one.
+    diagnostic_provider_methods = ["print_T2_background_atomic_trap",
+                                   "print_pumping_requirements"]
+
+    def configure_diagnostics(self, specs):
+        """Normalize the diagnostic_parameters configuration.
+
+        Each entry is either a plain name string or a dict:
+            {"name": "DeltaEWidth()", "unit": "eV", "label": "Energy window",
+             "log": False, "fmt": "%.4g", "index": 0, "aggregate": "mean"}
+        """
+        diagnostics = []
+        if specs is None:
+            specs = []
+        if isinstance(specs, (str, dict)):
+            specs = [specs]
+
+        for spec in specs:
+            if isinstance(spec, str):
+                spec = {"name": spec}
+            if not isinstance(spec, dict):
+                raise ValueError("Diagnostic parameter entries must be strings or dicts, "
+                                 "got {}".format(type(spec)))
+            name = spec.get("name")
+            if not name:
+                raise ValueError("Diagnostic parameter entry is missing 'name': {}".format(spec))
+
+            # Fail early on unparseable paths rather than mid-scan
+            for token in str(name).split("."):
+                _split_token(token)
+
+            unit_value, unit_label = resolve_unit(spec.get("unit"),
+                                                  context=" for diagnostic '{}'".format(name))
+            key = re.sub(r"[^A-Za-z0-9]+", "_", str(name)).strip("_")
+            diagnostics.append({"name": name,
+                                "key": key,
+                                "unit": unit_value,
+                                "unit_string": unit_label,
+                                "label": spec.get("label", str(name)),
+                                "log": spec.get("log", False),
+                                "fmt": spec.get("fmt", "%.4g"),
+                                "index": spec.get("index", None),
+                                "aggregate": spec.get("aggregate", None)})
+
+        if diagnostics:
+            logger.info("Configured {} diagnostic parameter(s): {}".format(
+                len(diagnostics), ", ".join(d["name"] for d in diagnostics)))
+        return diagnostics
+
+    def run_diagnostic_providers(self):
+        """Call the provider methods so late-computed attributes exist."""
+        for method_name in self.diagnostic_provider_methods:
+            method = getattr(self.sens_main, method_name, None)
+            if method is None:
+                logger.warning("Sensitivity object has no method {}".format(method_name))
+                continue
+            try:
+                method()
+            except Exception as err:
+                logger.warning("Call to {} failed: {}".format(method_name, err))
+
+    def read_diagnostic(self, spec):
+        """Read one diagnostic. Returns (raw_value, error)."""
+        try:
+            return get_by_path(self.sens_main, spec["name"]), None
+        except Exception as err:
+            return None, err
+
+    def scale_diagnostic(self, spec, raw):
+        """Reduce a raw value to a single float in the requested unit."""
+        if raw is None:
+            # e.g. SignalRatio() returns None when T2_background_atomic_trap is off
+            return np.nan
+
+        value = raw
+        if spec["index"] is not None:
+            try:
+                value = value[spec["index"]]
+            except Exception as err:
+                self.warn_once(spec, "could not apply index {}: {}".format(spec["index"], err))
+                return np.nan
+        elif spec["aggregate"] is not None:
+            reducers = {"mean": np.mean, "max": np.max, "min": np.min, "sum": np.sum}
+            reducer = reducers.get(spec["aggregate"])
+            if reducer is None:
+                self.warn_once(spec, "unknown aggregate '{}'".format(spec["aggregate"]))
+                return np.nan
+            value = reducer(value)
+
+        try:
+            value = np.asarray(value, dtype=float)
+        except (TypeError, ValueError) as err:
+            self.warn_once(spec, "is not numeric ({}): {}".format(type(raw).__name__, err))
+            return np.nan
+        if value.size != 1:
+            self.warn_once(spec, "is not a scalar (shape {}). Use 'index' or "
+                                 "'aggregate' to reduce it.".format(value.shape))
+            return np.nan
+
+        return float(value) / spec["unit"]
+
+    def warn_once(self, spec, message):
+        if spec["key"] not in self.diagnostics_warned:
+            self.diagnostics_warned.add(spec["key"])
+            logger.warning("Diagnostic '{}' {}".format(spec["name"], message))
+
+    def evaluate_diagnostics(self):
+        """Record all diagnostics for the current state of the sensitivity object.
+
+        Call this with the object at the working point of interest (in the scan
+        loop: after CL90 has been re-evaluated at the optimum density), since
+        most of these quantities are side effects of the last calculation.
+        """
+        if not self.diagnostics:
+            return {}
+
+        # Attributes known to need a provider call are refreshed every step;
+        # without this, later steps would silently re-read the first step's value.
+        providers_ran = False
+        if self.diagnostics_needing_providers:
+            self.run_diagnostic_providers()
+            providers_ran = True
+
+        values = {}
+        for spec in self.diagnostics:
+            raw, err = self.read_diagnostic(spec)
+
+            if err is not None and not providers_ran:
+                # Might just not have been computed yet: run the providers once
+                # and retry before giving up on it.
+                logger.info("Diagnostic '{}' not available yet, running provider "
+                            "methods".format(spec["name"]))
+                self.run_diagnostic_providers()
+                providers_ran = True
+                raw, retry_err = self.read_diagnostic(spec)
+                if retry_err is None:
+                    self.diagnostics_needing_providers.add(spec["key"])
+                    err = None
+                else:
+                    err = retry_err
+
+            if err is not None:
+                self.warn_once(spec, "could not be read: {}. Storing NaN.".format(err))
+                raw = None
+
+            values[spec["key"]] = self.scale_diagnostic(spec, raw)
+
+        return values
+
+    def store_diagnostics(self):
+        """Evaluate the diagnostics and append them to the per-step arrays."""
+        values = self.evaluate_diagnostics()
+        for spec in self.diagnostics:
+            value = values.get(spec["key"], np.nan)
+            self.diagnostic_values[spec["key"]].append(value)
+            logger.info("Diagnostic {} = {:.6g} {}".format(
+                spec["name"], value, spec["unit_string"] or ""))
+
+    def diagnostic_label(self, spec):
+        if spec["unit_string"]:
+            return "{} ({})".format(spec["label"], spec["unit_string"])
+        return spec["label"]
+
+    def parameter_axis_label(self, name=None):
+        name = name or self.scan_parameter_short_name
+        if self.scan_parameter_unit_string:
+            return "{} ({})".format(name, self.scan_parameter_unit_string)
+        return name
+
+    def save_diagnostics_csv(self):
+        """Write the diagnostics to their own csv file, separate from the results."""
+        if not self.diagnostics:
+            return None
+
+        param = self.scan_parameter_short_name
+        x = np.array(self.scan_parameter_values) / self.scan_parameter_unit
+        columns = [x]
+        formats = ['%.6g']
+        headers = ["{}{}".format(param, " [{}]".format(self.scan_parameter_unit_string)
+                                   if self.scan_parameter_unit_string else "")]
+
+        for spec in self.diagnostics:
+            columns.append(np.array(self.diagnostic_values[spec["key"]], dtype=float))
+            formats.append(spec["fmt"])
+            headers.append("{}{}".format(spec["name"], " [{}]".format(spec["unit_string"])
+                                         if spec["unit_string"] else ""))
+
+        filename = os.path.join(self.plot_path,
+                                "{}_{}_scan.csv".format(self.diagnostics_file_prefix, param))
+        np.savetxt(filename, np.array(columns).T, delimiter=',',
+                   fmt=tuple(formats), header=', '.join(headers))
+        logger.info("Wrote diagnostics to {}".format(filename))
+        return filename
+
+    def plot_diagnostics_vs_parameter(self):
+        """One figure per diagnostic: diagnostic vs. scanned parameter."""
+        if not self.diagnostics:
+            return
+
+        param = self.scan_parameter_short_name
+        x = np.array(self.scan_parameter_values) / self.scan_parameter_unit
+
+        for spec in self.diagnostics:
+            y = np.array(self.diagnostic_values[spec["key"]], dtype=float)
+            if np.all(np.isnan(y)):
+                logger.warning("Diagnostic '{}' is NaN at every scan point, "
+                               "skipping its plot".format(spec["name"]))
+                continue
+
+            plt.figure(figsize=self.figsize)
+            plt.plot(x, y, marker=".")
+            plt.xlabel(self.parameter_axis_label(), fontsize=self.fontsize)
+            plt.ylabel(self.diagnostic_label(spec), fontsize=self.fontsize)
+            if self.scan_parameter_scale == "log":
+                plt.xscale("log")
+            if spec["log"]:
+                plt.yscale("log")
+            plt.tight_layout()
+            filename = os.path.join(self.plot_path, "{}_scan_diagnostic_{}.pdf".format(
+                param, spec["key"]))
+            plt.savefig(filename)
+            plt.close()
+            logger.info("Saved {}".format(filename))
+
+        if self.combine_diagnostic_plots:
+            self.plot_diagnostics_combined(x)
+
+    def plot_diagnostics_combined(self, x):
+        """All diagnostics in one multi-panel figure sharing the parameter axis."""
+        usable = [s for s in self.diagnostics
+                  if not np.all(np.isnan(np.array(self.diagnostic_values[s["key"]], dtype=float)))]
+        if not usable:
+            return
+
+        n_columns = int(np.ceil(np.sqrt(len(usable))))
+        n_rows = int(np.ceil(len(usable) / n_columns))
+        fig, axes = plt.subplots(n_rows, n_columns, sharex=True,
+                                 figsize=(4.0 * n_columns, 3.0 * n_rows), squeeze=False)
+        flat_axes = axes.flatten()
+
+        for ax, spec in zip(flat_axes, usable):
+            ax.plot(x, np.array(self.diagnostic_values[spec["key"]], dtype=float), marker=".")
+            ax.set_ylabel(self.diagnostic_label(spec), fontsize=self.fontsize - 2)
+            if self.scan_parameter_scale == "log":
+                ax.set_xscale("log")
+            if spec["log"]:
+                ax.set_yscale("log")
+        for ax in flat_axes[len(usable):]:
+            ax.set_visible(False)
+        for ax in axes[-1]:
+            if ax.get_visible():
+                ax.set_xlabel(self.parameter_axis_label(), fontsize=self.fontsize - 2)
+
+        fig.tight_layout()
+        filename = os.path.join(self.plot_path, "{}_scan_diagnostics_overview.pdf".format(
+            self.scan_parameter_short_name))
+        fig.savefig(filename)
+        plt.close(fig)
+        logger.info("Saved {}".format(filename))
 
     def create_plot(self, param_range=[]):
         # setup axis
@@ -374,7 +808,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             norm = matplotlib.colors.Normalize(vmin=np.min(param_range), vmax=np.max(param_range))
             sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
             sm.set_array([])
-            self.fig.colorbar(sm, ticks=np.round(param_range, 2), label=f"{self.scan_parameter_name} ({self.scan_parameter_unit_string})")
+            self.fig.colorbar(sm, ticks=np.round(param_range, 2), label=self.parameter_axis_label(self.scan_parameter_name))
             
         
 
