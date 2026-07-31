@@ -320,6 +320,13 @@ class CavitySensitivity(Sensitivity):
             self.Experiment.trap_length = 0.8 * 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
             logger.info("Calc'd trap length: {} m".format(round(self.Experiment.trap_length/m, 3), 2))
 
+        #Geometry sanity: electrons cannot be trapped outside the resonator.
+        if self.Experiment.trap_length > self.cavity_length:
+            logger.warning("Configured trap_length ({:.2f} m) exceeds the cavity length "
+                           "({:.2f} m): the trap extends beyond the resonator. Check "
+                           "trap_length and cavity_L_over_D.".format(
+                               self.Experiment.trap_length/m, self.cavity_length/m))
+
         self.Efficiency = NameSpace({opt: eval(self.cfg.get('Efficiency', opt)) for opt in self.cfg.options('Efficiency')})
         self.CavityVolume()
 
@@ -381,12 +388,9 @@ class CavitySensitivity(Sensitivity):
         #Set up cavity signal modes and readout ports configurations
         self.SetupModesAndPorts()
         self.SolveExternalQ()
+        #CavityPower computes the signal power for ALL modes on one shared radius sample
         self.CavityPower()
-        
-        #Assign signal power to modes
-        for mode in self.modes[1:]:
-            mode.signal_power, mode.signal_power_vs_r = self.CavityModePower(mode)
-            
+
         #Calculate the effective volume and print out related quantities
         self.EffectiveVolume()
         logger.info("Trap radius: {} cm".format(round(self.cavity_radius/cm, 3), 2))
@@ -520,7 +524,7 @@ class CavitySensitivity(Sensitivity):
 
         CONVENTION: each mode's file must be normalized to THAT mode's own 90-degree
         carrier power. The absolute inter-mode suppression comes from the generalized
-        Hanneke power (CavityModePower); normalizing a higher mode's file to TE011
+        Hanneke power (CavityPower); normalizing a higher mode's file to TE011
         instead would double-count the mode's Lorentzian suppression."""
         theta_array, carrier_power_array, sideband_power_array = [], [], []
         power_file = open(filepath, 'r')
@@ -627,7 +631,15 @@ class CavitySensitivity(Sensitivity):
         logger.info("Calc'd trap length: {} m".format(round(self.Experiment.trap_length/m, 3), 2))
 
     def CavityPower(self):
-        #Jprime_0 = 3.8317
+        """Signal power for every mode in self.modes, evaluated on ONE shared
+        radius sample with a single wall-clipping mask, so all per-mode
+        signal_power_vs_r arrays are index-aligned (required for the per-radius
+        tau combination). self.signal_power(_vs_r) alias the primary mode's
+        values, so there is a single source of truth and no stale copies.
+
+        The primary mode passes mode_frequency=None: the cavity is tuned so
+        TE011 sits on the cyclotron frequency, which also avoids the ~1 ulp
+        difference CavityModeFrequency(1) carries."""
         max_ax_freq, mean_field, z_t = axial_motion(self.MagneticField.nominal_field,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth,
                                                   self.Experiment.trap_length,
@@ -637,71 +649,35 @@ class CavitySensitivity(Sensitivity):
         #The np.random.triangluar function weights the radii, accounting for the fact that there are more electrons at large radii than small ones
         r_sample_size = 50
         if((not self.Efficiency.calculate_det_eff_for_sampled_radii) or (self.Efficiency.usefixedvalue)): r_sample_size = 1000
-        power_vs_r_with_zeros = np.mean(larmor_orbit_averaged_hanneke_power(np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=r_sample_size),
-                                                                            z_t, self.modes[0].q_loaded, 
-                                                                            2*self.Experiment.cavity_L_over_D*self.cavity_radius, 
-                                                                            self.cavity_radius, 
-                                                                            self.cavity_freq), axis=1)
-        #Remove zeros, since these represent electrons that hit the cavity wall and are not detected
-        self.signal_power_vs_r = power_vs_r_with_zeros[power_vs_r_with_zeros != 0]
+        radii_sample = np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=r_sample_size)
 
-        self.signal_power = np.mean(self.signal_power_vs_r)
+        mask = None
+        for k, mode in enumerate(self.modes):
+            f_mode = None if k == 0 else self.CavityModeFrequency(mode.axial_mode_index)
+            power_vs_r_with_zeros = np.mean(larmor_orbit_averaged_hanneke_power(radii_sample,
+                                                                               z_t, mode.q_loaded,
+                                                                               self.cavity_length,
+                                                                               self.cavity_radius,
+                                                                               self.cavity_freq,
+                                                                               mode_frequency=f_mode,
+                                                                               axial_mode_index=mode.axial_mode_index), axis=1)
+            if mask is None:
+                #Remove zeros, since these represent electrons that hit the cavity wall and are not detected.
+                #The primary mode defines the mask; wall clipping is geometry-only, so it is mode independent.
+                mask = power_vs_r_with_zeros != 0
+            mode.signal_power_vs_r = power_vs_r_with_zeros[mask]
+            if len(mode.signal_power_vs_r) == 0 or not np.any(mode.signal_power_vs_r):
+                logger.warning("CavityPower: TE01{} contributes no signal on the "
+                               "sampled radii.".format(mode.axial_mode_index))
+                mode.signal_power = 0.0
+            else:
+                mode.signal_power = np.mean(mode.signal_power_vs_r)
+
+        self._radii_sample = radii_sample
+        self._radii_nonzero_mask = mask
+        self.signal_power_vs_r = self.modes[0].signal_power_vs_r
+        self.signal_power = self.modes[0].signal_power
         return self.signal_power
-    
-    def CavityModePower(self, mode):
-        """Emitted power for a non-primary mode via the generalized Hanneke power.
-        NOTE: draws its own radius sample; per-radius arrays across modes are NOT
-        index-aligned with the primary's (deferred to the CavityPower unification
-        in the cleanup pass). calculate_tau_snr therefore uses the scalar mean
-        power / fraction arrays for higher modes, never their _vs_r arrays."""
-        _, _, z_t = axial_motion(self.MagneticField.nominal_field,
-                                 self.FrequencyExtraction.minimum_angle_in_bandwidth,
-                                 self.Experiment.trap_length,
-                                 self.FrequencyExtraction.minimum_angle_in_bandwidth,
-                                 self.T_endpoint,
-                                 flat_fraction=self.MagneticField.trap_flat_fraction,
-                                 trajectory=1000)
-        r_sample_size = 50
-        if((not self.Efficiency.calculate_det_eff_for_sampled_radii) or (self.Efficiency.usefixedvalue)):
-            r_sample_size = 1000
-        f_mode = self.CavityModeFrequency(mode.axial_mode_index)
-        power_vs_r = np.mean(larmor_orbit_averaged_hanneke_power(
-            np.random.triangular(0, self.cavity_radius, self.cavity_radius, size=r_sample_size),
-            z_t, mode.q_loaded,
-            self.cavity_length, self.cavity_radius, self.cavity_freq,
-            mode_frequency=f_mode, axial_mode_index=mode.axial_mode_index), axis=1)
-        svr = power_vs_r[power_vs_r != 0]
-        if len(svr) == 0:
-            logger.warning("CavityModePower: TE01{} contributes no signal on the "
-                           "sampled radii.".format(mode.axial_mode_index))
-            return 0.0, svr
-        return np.mean(svr), svr
-        
-#    def CavityLoadedQ(self):
-#        # Using Wouter's calculation:
-#        # Total required bandwidth is the sum of the endpoint region and the axial frequency. 
-#        # I will assume the bandwidth is dominated by the sidebands and not by the energy ROI
-#        
-#        #self.loaded_q =1/(0.22800*((90-self.FrequencyExtraction.minimum_angle_in_bandwidth)*np.pi/180)**2+2**2*0.01076**2/(4*0.22800))
-
-#        endpoint_frequency = self.cavity_freq
-#        #required_bw_axialfrequency = axial_frequency(self.Experiment.cavity_L_over_D*self.CavityRadius()*2, 
-#        #                                             self.T_endpoint, 
-#        #                                             self.FrequencyExtraction.minimum_angle_in_bandwidth/deg)
-#        max_ax_freq, mean_field, _ = axial_motion(self.MagneticField.nominal_field,
-#                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth,
-#                                                  self.Experiment.trap_length,
-#                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth, 
-#                                                  self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
-#        required_bw_axialfrequency = max_ax_freq*self.FrequencyExtraction.sideband_order
-#        self.required_bw_axialfrequency = required_bw_axialfrequency
-#        required_bw_meanfield = required_bw_meanfield = np.abs(frequency(self.T_endpoint, mean_field) - endpoint_frequency)
-#        required_bw = np.add(required_bw_axialfrequency,required_bw_meanfield) # Broadcasting
-#        self.required_bw = required_bw
-#    
-#        # Cavity coupling
-#        self.loaded_q = endpoint_frequency/required_bw # FWHM
-#        return self.loaded_q
 
     #New functions for multi-mode
     def CavityLoadedQ(self, f_mode=None, tuning_pitch=None):
@@ -864,53 +840,6 @@ class CavitySensitivity(Sensitivity):
     # SYSTEMATICS
     # Generic systematics are implemented in the parent class in SensitivityFormulas.py
 
-#    def calculate_tau_snr(self, time_window, power_fraction=1, tau_snr_array_for_radii=False):
-#        """
-#        power_fraction may be used as a carrier or a sideband power fraction,
-#        relative to the power of a 90 degree carrier.
-#        """
-#        endpoint_frequency = self.cavity_freq
-#    
-#        # Cavity coupling
-#        self.CavityLoadedQ()
-#        coupling = self.FrequencyExtraction.unloaded_q/self.loaded_q-1
-#    
-#        # Attenuation frequency dependence at hoc method
-#        #att_cir_db = -0.3
-#        #att_line_db = -0.05
-#        att_cir_db_freq = self.FrequencyExtraction.att_cir_db*(1+endpoint_frequency/(10*GHz))
-#        att_line_db_freq = self.FrequencyExtraction.att_line_db*(1+endpoint_frequency/(10*GHz))
-#        
-#        # Noise power for bandwidth set by density/track length
-#        fft_bandwidth = 3/time_window #(delta f) is the frequency bandwidth of interest. We have a main carrier and 2 axial side bands, so 3*(FFT bin width)
-#        self.fft_bandwidth = fft_bandwidth
-#        tn_fft = Pn_dut_entrance(self.FrequencyExtraction.cavity_temperature,
-#                                 self.FrequencyExtraction.amplifier_temperature,
-#                                 att_line_db_freq,att_cir_db_freq,
-#                                 coupling,
-#                                 endpoint_frequency,
-#                                 fft_bandwidth,self.loaded_q)/kB/fft_bandwidth
-#    
-#        # Noise temperature of amplifier
-#        tn_amplifier = endpoint_frequency*hbar*2*np.pi/kB/self.FrequencyExtraction.quantum_amp_efficiency
-#        tn_system_fft = tn_amplifier+tn_fft
-#        self.noise_temp = tn_system_fft
-#        
-#        # Pe = rad_power(self.T_endpoint, self.FrequencyExtraction.pitch_angle, self.MagneticField.nominal_field)
-#        # logger.info("Power: {}".format(Pe/W))
-#        if tau_snr_array_for_radii:
-#            Pe = self.signal_power_vs_r * power_fraction
-#        else:
-#            Pe = self.signal_power * power_fraction
-#        
-#        P_signal_received = Pe*db_to_pwr_ratio(att_cir_db_freq+att_line_db_freq)
-#        self.received_power = P_signal_received
-#        tau_snr = kB*tn_system_fft/P_signal_received
-#        self.noise_energy = kB*tn_system_fft
-
-#        # end of Wouter's calculation
-#        return tau_snr
-
     def calculate_tau_snr(self, time_window, power_fraction=1, tau_snr_array_for_radii=False,
                           components=None):
         """Multimode tau_SNR per Rick's multi-mode SNR document.
@@ -935,7 +864,7 @@ class CavitySensitivity(Sensitivity):
         # Per-mode signal powers for the interference ratios. With components these
         # are per-theta arrays (mode power x that mode's own fractions); ratios use
         # the radius-averaged scalar mode powers as the absolute scale.
-        scalar_powers = [self.signal_power] + [m.signal_power for m in self.modes[1:]]
+        scalar_powers = [m.signal_power for m in self.modes]
         if components is not None:
             mode_powers = [scalar_powers[a]*sum(m.power_fractions[c] for c in components)
                            if m.power_fractions is not None else 0.0
@@ -1002,17 +931,15 @@ class CavitySensitivity(Sensitivity):
         for m_idx, mode in enumerate(self.modes):
             f_mode = self.CavityModeFrequency(mode.axial_mode_index)
             q_l    = mode.q_loaded
+            # All modes share one radius sample and mask (CavityPower), so every
+            # mode's signal_power_vs_r is index-aligned and usable directly.
+            base = mode.signal_power_vs_r if tau_snr_array_for_radii else mode.signal_power
             if components is not None:
                 if mode.power_fractions is None:
                     continue        # mode carries no independent signal
-                frac = sum(mode.power_fractions[c] for c in components)
-                base = (self.signal_power_vs_r if (m_idx == 0 and tau_snr_array_for_radii)
-                        else (self.signal_power if m_idx == 0 else mode.signal_power))
-                Pe = base*frac
-            elif m_idx == 0:
-                Pe = (self.signal_power_vs_r if tau_snr_array_for_radii else self.signal_power)*power_fraction
+                Pe = base*sum(mode.power_fractions[c] for c in components)
             else:
-                Pe = mode.signal_power*power_fraction   # legacy fallback (scalar mean power)
+                Pe = base*power_fraction
 
             n_ports = len(self.ports)
             Pn_total_list = np.empty(n_ports)
