@@ -220,7 +220,7 @@ sens_config_dict = {
     "goals_x_position": {"LFA threshold (0.7 eV)": 4.5, "Phase IV (0.04 eV)": 0.108}, #6e14, #3.3e14, #5.5e13, 
     "goals_y_rel_position": {"LFA threshold (0.7 eV)": 0.83, "Phase IV (0.04 eV)": 0.83}, #6e14, #3.3e14, #5.5e13, 
     "comparison_curve": True,
-    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", "/termite/sensitivity_config_files/Config_PIVmodule1_150MHz_minpitch_87deg.cfg", "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg"], #"/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", 
+    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam.cfg", "/termite/sensitivity_config_files/Config_PIVmodule1_150MHz_minpitch_87deg.cfg", "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg_multimode_baseline.cfg"], #"/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", 
     "comparison_curve_label": [r"LFA, target: $1.7\,$m$^3$, 1 yr", r'One full-size module: $100\,$m$^3$, 1 yr', r"Phase IV$-$Ten full-size modules: $1000\,$m$^3$, 8 yrs"], #150 MHz, $V = 94\,$m$^3$
     "main_curve_color": "blue",
     "comparison_curve_colors": ["blue", "darkred", "black"],

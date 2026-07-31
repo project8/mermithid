@@ -143,6 +143,34 @@ def Pn_reflected(Pn_incident, coupling, loaded_Q, bandwidth, freq):
     reflection_coefficient = 1-freq/loaded_Q/bandwidth*np.arctan(loaded_Q*bandwidth/freq)*4*coupling/(1+coupling)**2
     return Pn_incident*reflection_coefficient
 
+def effective_coupling_multiport(beta_i, beta_total):
+    """Equivalent single-port coupling reproducing the multiport transmission.
+
+    The Pn_* helpers above express coupling through the single-port factor
+    4c/(1+c)^2, which is only valid when beta is the cavity's ONLY coupling.
+    For port i of a multiport cavity, the fraction of incident power that is
+    actually lost (dissipated in the cavity walls) is
+
+        T_i = 4*beta_i/(1 + beta_total)^2 ,
+
+    which follows from the resonator S-matrix
+        S_ii = (2*beta_i - 1 - beta_total)/(1 + beta_total),
+        S_ij = 2*sqrt(beta_i*beta_j)/(1 + beta_total):
+    summing sum_j |S_ij|^2 gives exactly 1 - 4*beta_i/(1+beta_total)^2, i.e.
+    the extra power absorbed at a port loaded by the other ports is exactly
+    restored by cross-port leakage from those ports. This holds when all ports
+    carry the same circulator/amplifier noise temperature (the caller warns
+    otherwise).
+
+    Inverting 4c/(1+c)^2 = T_i on the over-coupled branch gives the coupling to
+    hand the helpers. Identity for beta_i == beta_total, so a single-port
+    configuration is numerically unchanged.
+    """
+    if beta_i <= 0:
+        return 0.0
+    T = min(4.0*beta_i/(1.0 + beta_total)**2, 1.0)
+    return ((2.0 - T) + 2.0*np.sqrt(max(0.0, 1.0 - T)))/T
+
 # Power at the end of a lossy line with temperature gradient
 def Pn_f(Pn_i,t_i,t_f,a,bandwidth): # eq 10
     if hasattr(a, "__len__") or a!=1:
@@ -942,6 +970,16 @@ class CavitySensitivity(Sensitivity):
 
         inv_tau_total = None
         v_list = []
+        # The multiport coupling correction (effective_coupling_multiport) relies
+        # on cross-port leakage cancelling the extra absorption, which requires
+        # equal circulator/amplifier noise at every port.
+        if len(self.ports) > 1 and not getattr(self, "_amptemp_warned", False):
+            amp_temps = set(float(p.amplifier_temperature) for p in self.ports)
+            if len(amp_temps) > 1:
+                self._amptemp_warned = True
+                logger.warning("Ports have differing amplifier temperatures; the multiport "
+                               "coupling correction assumes equal circulator noise at all "
+                               "ports (cross-port leakage cancellation).")
         for m_idx, mode in enumerate(self.modes):
             f_mode = self.CavityModeFrequency(mode.axial_mode_index)
             q_l    = mode.q_loaded
@@ -969,6 +1007,13 @@ class CavitySensitivity(Sensitivity):
                     W_i      = q_l/q_ext
                 else:
                     coupling = 0.0; W_i = 0.0
+                # Multiport correction: the Pn_* helpers assume the port is the
+                # cavity's only coupling. Convert this port's beta_i to the
+                # equivalent single-port coupling that reproduces the true
+                # multiport loss 4*beta_i/(1+beta_total)^2. Identity when there
+                # is one port, so the single-mode path is unchanged.
+                beta_total = mode.q_unloaded*inv_qext_tot_list[m_idx]
+                coupling_eff = effective_coupling_multiport(coupling, beta_total)
                 field = np.sin(mode.axial_mode_index*np.pi*port.z_position/L)
                 signs[i] = np.sign(field) if field != 0 else 1.0
                 att_line_db_freq = port.att_line_db*(1+f_mode/(10*GHz))
@@ -978,15 +1023,14 @@ class CavitySensitivity(Sensitivity):
                 Pn_at_amp = Pn_dut_entrance(self.FrequencyExtraction.cavity_temperature,
                                             port.amplifier_temperature,
                                             att_line_db_freq, att_cir_db_freq,
-                                            coupling, f_mode, fft_bandwidth, q_l)
+                                            coupling_eff, f_mode, fft_bandwidth, q_l)
                 tn_amp = f_mode*hbar*2*np.pi/kB/port.quantum_amp_efficiency
                 Pn_at_amp += kB*tn_amp*fft_bandwidth
                 # Chain/RF noise split: subtract the cavity noise as EMBEDDED in
-                # Pn_dut_entrance (per-port coupling; correct for the reflected-
-                # chain physics) to isolate the RF-only part, which is per-port
-                # and not mixed (document Sec. 3).
+                # Pn_dut_entrance (same effective coupling) to isolate the
+                # RF-only part, which is per-port and not mixed (SNR doc Sec. 3).
                 Pn_cav_embedded = Pn_cavity(self.FrequencyExtraction.cavity_temperature,
-                                            coupling, q_l, fft_bandwidth, f_mode)*att_tot
+                                            coupling_eff, q_l, fft_bandwidth, f_mode)*att_tot
                 Pn_rf_i = Pn_at_amp - Pn_cav_embedded
                 # Cavity thermal noise: the TOTAL delivered power is set by the
                 # total coupling (document: 'the same as a single port at that
