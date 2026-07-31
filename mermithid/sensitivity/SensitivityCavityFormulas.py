@@ -742,9 +742,12 @@ class CavitySensitivity(Sensitivity):
         n_modes = len(self.modes)
         L = self.cavity_length
         min_pitch = self.FrequencyExtraction.minimum_angle_in_bandwidth
-        if target_qls is None:
-            computed = [self.CavityLoadedQ(f_mode=self.CavityModeFrequency(m.axial_mode_index),
+        # Bandwidth-required loaded Q per mode: always computed, both as the
+        # default target and as the reference for the achieved-Q check below.
+        computed_qls = [self.CavityLoadedQ(f_mode=self.CavityModeFrequency(m.axial_mode_index),
                                            tuning_pitch=min_pitch) for m in self.modes]
+        if target_qls is None:
+            computed = computed_qls
             user_qls = getattr(self.FrequencyExtraction, "mode_loaded_qs", None)
             if user_qls is None:
                 target_qls = computed
@@ -806,6 +809,22 @@ class CavitySensitivity(Sensitivity):
                 total_inv_q_ext += port_inv_q
             mode.q_loaded = (1.0/(1.0/mode.q_unloaded + total_inv_q_ext)
                              if total_inv_q_ext > 0 else mode.q_unloaded)
+        # A mode whose ACHIEVED loaded Q exceeds its bandwidth-required value is
+        # narrower than its own signal + axial sidebands; that signal loss is not
+        # modelled, so its contribution to the tau_SNR combination is optimistic.
+        # (The configured-Q override warns separately in CavityLoadedQ; this
+        # catches the case where the port geometry, not the user, causes it.)
+        if not getattr(self, "_solver_bw_warned", False):
+            for alpha, mode in enumerate(self.modes):
+                required_ql = computed_qls[alpha]
+                if mode.q_loaded > required_ql*(1.0 + 1e-6):
+                    self._solver_bw_warned = True
+                    logger.warning("TE01{}: solved loaded Q {:.0f} exceeds the bandwidth-required "
+                                   "{:.0f} (+{:.0%}); the mode is narrower than its signal and the "
+                                   "resulting capture loss is NOT modelled, so its contribution to "
+                                   "the tau_SNR combination is optimistic.".format(
+                                       mode.axial_mode_index, mode.q_loaded, required_ql,
+                                       mode.q_loaded/required_ql - 1.0))
         return x_opt, x_res
         
     def BuildInterferenceMatrix(self):
