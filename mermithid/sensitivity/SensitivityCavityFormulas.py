@@ -310,6 +310,13 @@ class CavitySensitivity(Sensitivity):
         ###
         #Initialization related to the effective volume:
         ###
+        #First zero of J0'. Deliberately kept at this 5-digit value: it sets
+        #cavity_radius and CavityModeFrequency consistently, so the geometry
+        #round-trip CavityModeFrequency(1) == cavity_freq is exact. Upgrading to
+        #the full-precision root (3.8317059702075123) would shift cavity_radius
+        #by ~1.6e-6 and CL90 by ~3e-6; that is a deliberate, separately gated
+        #change, not a bug. (HannekeFunctions uses scipy's jnp_zeros internally,
+        #which only affects absolute power, not the geometry.)
         self.Jprime_0 = 3.8317
         self.cavity_freq = frequency(self.T_endpoint, self.MagneticField.nominal_field)
         self.CavityRadius()
@@ -918,6 +925,7 @@ class CavitySensitivity(Sensitivity):
 
         inv_tau_total = None
         v_list = []
+        readout_models = []
         # The multiport coupling correction (effective_coupling_multiport) relies
         # on cross-port leakage cancelling the extra absorption, which requires
         # equal circulator/amplifier noise at every port.
@@ -1003,6 +1011,18 @@ class CavitySensitivity(Sensitivity):
             v_list.append(v)
             qform = v @ np.linalg.solve(Sigma, v)          # = v^T Sigma^-1 v  [1/W]
             tau_mode = 1.0/(Pe*F_sig[m_idx]*qform*fft_bandwidth)
+            # Stash the readout model so external validation (mc_validate.py) can
+            # use exactly what was computed here, never a reimplementation.
+            readout_models.append({"mode_name": mode.name,
+                                   "axial_mode_index": mode.axial_mode_index,
+                                   "v": np.array(v, dtype=float),
+                                   "Sigma": np.array(Sigma, dtype=float),
+                                   "Pn_rf": np.array(Pn_total_list - Pn_cav_list, dtype=float),
+                                   "Pn_cav": np.array(Pn_cav_list, dtype=float),
+                                   "Pe": Pe,
+                                   "F_sig": F_sig[m_idx],
+                                   "fft_bandwidth": fft_bandwidth,
+                                   "tau_mode": tau_mode})
 
             with np.errstate(divide='ignore', invalid='ignore'):
                 inv = np.where(tau_mode > 0, 1.0/tau_mode, 0.0)
@@ -1018,6 +1038,7 @@ class CavitySensitivity(Sensitivity):
         # combination assumes independent recovered per-mode noise, i.e. near-
         # orthogonal per-mode port-amplitude vectors. Report the cross-mode
         # correlation when it is materially violated (doc, off-diag appendix).
+        self._last_readout_models = readout_models
         if len(v_list) > 1:
             Vm = np.array(v_list)
             Gm = Vm @ Vm.T
