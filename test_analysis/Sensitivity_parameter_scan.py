@@ -147,12 +147,12 @@ sens_config_dict = {
     "goals_x_position": 1.2e12, #0.0002
     "plot_key_parameters": False,
     "diagnostic_parameters": [
-    {"name": "SignalRate()",   "unit": "1/(eV^3 s)",     "label": "Signal rate",   "log": True},
-    {"name": "BackgroundRate()",   "unit": "1/(eV s)",     "label": "Background rate",   "log": True},
+    {"name": "SignalRate()",   "unit": "1/(eV^3*s)",     "label": "Signal rate",   "log": True},
+    {"name": "BackgroundRate()",   "unit": "1/(eV*s)",     "label": "Background rate",   "log": True},
     {"name": "SignalRatio()",                     "label": "T2/T signal ratio ζ",   "log": True},
     {"name": "DeltaEWidth()",   "unit": "eV",     "label": "Optimum energy window",   "log": True},
-    {"name": "StatSens()",   "unit": "eV",     "label": "Statistical sensitivity",   "log": True},
-    {"name": "SystSens()",   "unit": "eV",     "label": "Systematic sensitivity",   "log": True},
+    {"name": "StatSens()",   "unit": "eV^2",     "label": "Statistical sensitivity",   "log": True},
+    {"name": "SystSens()",   "unit": "eV^2",     "label": "Systematic sensitivity",   "log": True},
     {"name": "T2_T_ratio",   "log": True},
     {"name": "effective_volume", "unit": "m^3",   "log": True},
     "detection_efficiency",          # bare strings work for dimensionless quantities
