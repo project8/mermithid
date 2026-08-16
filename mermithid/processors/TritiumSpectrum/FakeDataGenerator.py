@@ -419,7 +419,7 @@ class FakeDataGenerator(BaseProcessor):
         logger.info('Stepsize is {} eV'.format(step_size))
 
         #Options of kinetic energies to be sampled
-        self.Koptions = np.arange(Kmin_eff, Kmax_eff, self.lineshape_stepize)
+        self.Koptions = np.arange(Kmin_eff, Kmax_eff, step_size)
 
         if efficiency_dict is not None:
             logger.info('Evaluating efficiencies')
