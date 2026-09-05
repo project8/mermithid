@@ -979,7 +979,15 @@ class CavitySensitivity(Sensitivity):
         harmonic absent from this mode's file (including every odd harmonic
         for an odd-p mode, or every even harmonic including the carrier for an
         even-p mode -- see ReadPowerFractionsFile) contributes exactly 0,
-        which is the physically correct value, not a missing-data error."""
+        which is the physically correct value, not a missing-data error.
+
+        REVERTED: an earlier version of this method applied a per-harmonic
+        detuning correction on the assumption that Q_L=500 was something the
+        file's simulation implicitly assumed and that this code needed to
+        de-embed and re-embed at whatever Q_L the solver actually achieves.
+        That assumption was wrong: Q_L=500 is an INPUT the simulation was run
+        with, not an assumption this code is responsible for correcting for.
+        This function does not attempt any such correction."""
         if mode.power_fractions is None:
             return 0.0
         total = 0.0
@@ -1406,8 +1414,13 @@ class CavitySensitivity(Sensitivity):
                                     self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
             fc0_endpoint = self.cavity_freq
             p_array = ax_freq_array/fc0_endpoint/pitch_comps_for_p_and_q_calc #An array
+            # pitch_comps_for_p_and_q_calc's LAST element is exactly 0.0 (the
+            # linspace endpoint lands exactly on 90 degrees), so p_array's
+            # last element is ill-defined there. 
             if self.FrequencyExtraction.use_average_power_fractions:
                 p_array = p_array[:1] #Cut out theta=pi/2 (ill defined there)
+            else:
+                p_array = p_array[:-1] #Cut out theta=pi/2 (ill defined there)
             self.p = np.mean(p_array)
 
             # Now calculating q for the trap that we have
@@ -1430,24 +1443,7 @@ class CavitySensitivity(Sensitivity):
             # Total uncertainty for each pitch angle
             var_f_noise_array = var_noise_from_fc_array + var_noise_from_flsb_array
 
-            # Weighted average of the per-pitch-angle noise variance, weighted
-            # by the trapped-pitch-angle distribution. This is a quadrature-sum
-            # average: the detector response could be constructed by sampling
-            # from many normal distributions with different standard
-            # deviations (sigma_noise_array), then finding the standard
-            # deviation of the full sampled population.
-            #
-            # KNOWN ISSUE, LEFT UNCHANGED PER INSTRUCTION: the denominator
-            # sums the FULL (untruncated) self.prob_theta_array, while the
-            # numerator uses the truncated prob_theta_array_without_pi_over_2
-            # (theta=pi/2 cut out, since sideband power is 0 there). A
-            # weighted average should divide by the sum of the weights
-            # actually used in the numerator; dividing by the full sum instead
-            # makes sigma_f_noise read ~1.7% low on a 31-point pitch grid, with
-            # the bias growing on a coarser grid. A fix (dividing by
-            # np.sum(prob_theta_array_without_pi_over_2) instead) was
-            # implemented and reverted at the user's request, to avoid moving
-            # the frozen baseline. See the assumption ledger.
+            # Weighted average of the per-pitch-angle noise variance, weighted by the trapped-pitch-angle distribution. 
             prob_theta_array_without_pi_over_2 = self.prob_theta_array[:len(self.theta_array)-1] #Cut out theta=pi/2 since sideband power is 0 there, resulting in infinite tau_snr.
             self.sigma_f_noise = np.sqrt(np.sum(var_f_noise_array*prob_theta_array_without_pi_over_2)/np.sum(self.prob_theta_array))
 
