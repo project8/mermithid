@@ -2,7 +2,7 @@
 The data generator class for CCA.
 Author: S. M. Lee
 First Date: August 25, 2025
-Last Update: July 20, 2026
+Last Update: September 09, 2026
 """
 
 from __future__ import absolute_import
@@ -147,15 +147,24 @@ class DataGenerator4D(BaseProcessor):
         self.ke_edges: Optional[Union[np.ndarray, List[float]]] = reader.read_param(
             params, "ke_edges", None
         )  # (eV)
+        self.theta_min: float = reader.read_param(
+            params, "theta_min", 0.0
+        )  # (rad)
+        self.theta_max: float = reader.read_param(
+            params, "theta_max", np.pi
+        )  # (rad)
         self.theta_bins: int = reader.read_param(params, "theta_bins", 3600)
         self.theta_edges: Optional[Union[np.ndarray, List[float]]] = reader.read_param(
             params, "theta_edges", None
         )  # (rad)
+        self.r_min: float = reader.read_param(params, "r_min", 0.0)  # (m)
         self.r_max: float = reader.read_param(params, "r_max", 0.01)  # (m)
         self.r_bins: int = reader.read_param(params, "r_bins", 1400)
         self.r_edges: Optional[Union[np.ndarray, List[float]]] = reader.read_param(
             params, "r_edges", None
         )  # (m)
+        self.phi_min: float = reader.read_param(params, "phi_min", 0.0)  # (rad)
+        self.phi_max: float = reader.read_param(params, "phi_max", 2 * np.pi)  # (rad)
         self.phi_bins: int = reader.read_param(params, "phi_bins", 360)
         self.phi_edges: Optional[Union[np.ndarray, List[float]]] = reader.read_param(
             params, "phi_edges", None
@@ -191,6 +200,9 @@ class DataGenerator4D(BaseProcessor):
         self.source_numerical_binned_mode: bool = reader.read_param(
             params, "source_numerical_binned_mode", False
         )
+        self.source_numerical_rate: Optional[np.ndarray] = reader.read_param(
+            params, "source_numerical_rate", None
+        )  # (1/s)
 
         self.bkgd_numerical_rate_path: Optional[str] = self._read_first_param(
             params,
@@ -200,6 +212,9 @@ class DataGenerator4D(BaseProcessor):
         self.bkgd_numerical_binned_mode: bool = reader.read_param(
             params, "bkgd_numerical_binned_mode", False
         )
+        self.bkgd_numerical_rate: Optional[np.ndarray] = reader.read_param(
+            params, "bkgd_numerical_rate", None
+        )  # (1/s)
 
         # Spatial model configurations
         self.spatial_binned_mode: bool = reader.read_param(
@@ -279,13 +294,13 @@ class DataGenerator4D(BaseProcessor):
             self.ke_edges = np.linspace(self.ke_min, self.ke_max, self.ke_bins + 1)
         self._edges["ke_edges"] = np.asarray(self.ke_edges)
         if self.theta_edges is None:
-            self.theta_edges = np.linspace(0, np.pi, self.theta_bins + 1)
+            self.theta_edges = np.linspace(self.theta_min, self.theta_max, self.theta_bins + 1)
         self._edges["theta_edges"] = np.asarray(self.theta_edges)
         if self.r_edges is None:
-            self.r_edges = np.linspace(0, self.r_max, self.r_bins + 1)
+            self.r_edges = np.linspace(self.r_min, self.r_max, self.r_bins + 1)
         self._edges["r_edges"] = np.asarray(self.r_edges)
         if self.phi_edges is None:
-            self.phi_edges = np.linspace(0, 2 * np.pi, self.phi_bins + 1)
+            self.phi_edges = np.linspace(self.phi_min, self.phi_max, self.phi_bins + 1)
         self._edges["phi_edges"] = np.asarray(self.phi_edges)
 
         # overwrite the default edges values when the spatial model is numerical
@@ -317,6 +332,7 @@ class DataGenerator4D(BaseProcessor):
                     name=self._procName + "_source_numerical",
                     path=self.source_numerical_rate_path,
                     binned_mode=self.source_numerical_binned_mode,
+                    rate=self.source_numerical_rate,
                     **self._edges,
                 )
                 self._energy_samplers[source_type] = sampler
@@ -340,6 +356,7 @@ class DataGenerator4D(BaseProcessor):
                     name=self._procName + "_bkgd_numerical",
                     path=self.bkgd_numerical_rate_path,
                     binned_mode=self.bkgd_numerical_binned_mode,
+                    rate=self.bkgd_numerical_rate,
                     **self._edges,
                 )
                 self._energy_samplers[bkgd_type] = sampler

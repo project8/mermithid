@@ -8,7 +8,7 @@ quick command: python3 DataGenerator4D_test.py --quick
 
 Author: S. M. Lee
 First Date: August 26, 2025
-Last Date: March 7, 2026
+Last Date: September 09, 2026
 """
 
 import unittest
@@ -32,16 +32,16 @@ class DataGenerator4DTest(unittest.TestCase):
 
         specGen_config = {
             # ROI configurations
-            "ke_min": 18000,  # eV
-            "ke_max": 19000,  # eV
-            "ke_bins": 100,
+            "ke_min": 18400,  # eV
+            "ke_max": 18700,  # eV
+            "ke_bins": 300,
             "theta_bins": 3600,
             "r_max": 0.007,  # m
             "r_bins": 1400,
             "phi_bins": 360,
             # Monoenergetic rate configurations
             "source_types": ["mono"],
-            "mono_energy": 18300,  # eV
+            "mono_energy": 18550,  # eV
             "mono_rate": 1,  # (1/s)
             "mono_binned_mode": False,
             # Background configurations

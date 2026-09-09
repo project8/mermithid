@@ -2,7 +2,7 @@
 Sample spatial variables from a user-provided histogram.
 Author: S. M. Lee
 First Date: July 14, 2026
-Last Update: July 20, 2026
+Last Update: September 09, 2026
 """
 
 from __future__ import absolute_import
@@ -45,28 +45,49 @@ class Numerical(SpatialSampler):
         name: str,
         path: str,
         apply_trapping_efficiency: bool = False,
+        pdf: Optional[np.ndarray] = None,
+        r_edges: Optional[np.ndarray] = None,
+        theta_edges: Optional[np.ndarray] = None,
+        phi_edges: Optional[np.ndarray] = None,
         **kwargs,
     ):
         super(Numerical, self).__init__(name, **kwargs)
         logger.debug("Creating Numerical spatial sampler <{}>".format(self._samplerName))
 
-        try:
-            with np.load(path) as data:
-                pdf = data["pdf"]
-                r_edges = data["r_edges"]
-                theta_edges = data["theta_edges"]
-                phi_edges = data["phi_edges"]
-            logger.info(f"{self.name}: Loaded spatial PDF histogram from {path}")
-        except Exception as e:
-            raise RuntimeError(
-                f"{self.name}: Failed to load spatial PDF histogram from {path}: {e}"
-            )
+        if path is not None:
+            try:
+                with np.load(path) as data:
+                    _given_pdf = data["pdf"]
+                    _given_r_edges = data["r_edges"]
+                    _given_theta_edges = data["theta_edges"]
+                    _given_phi_edges = data["phi_edges"]
+                logger.info(f"{self.name}: Loaded spatial PDF histogram from {path}")
+            except Exception as e:
+                raise RuntimeError(
+                    f"{self.name}: Failed to load spatial PDF histogram from {path}: {e}"
+                )
+        elif pdf is not None:
+            if r_edges is None or theta_edges is None or phi_edges is None:
+                raise ValueError("If 'pdf' is provided, 'r_edges', 'theta_edges', and 'phi_edges' must also be provided.")
+            _given_pdf = np.asarray(pdf, dtype="float64")
+            _given_r_edges = np.asarray(r_edges, dtype="float64")
+            _given_theta_edges = np.asarray(theta_edges, dtype="float64")
+            _given_phi_edges = np.asarray(phi_edges, dtype="float64")
+        else:
+            raise ValueError("Either 'path' or 'pdf' must be provided.")
         
-        assert np.allclose(self._r_edges, r_edges), "r-edges do not match"
-        assert np.allclose(self._theta_edges, theta_edges), "theta-edges do not match"
-        assert np.allclose(self._phi_edges, phi_edges), "phi-edges do not match"
+        self._r_edges = np.asarray(_given_r_edges, dtype="float64")
+        self._theta_edges = np.asarray(_given_theta_edges, dtype="float64")
+        self._phi_edges = np.asarray(_given_phi_edges, dtype="float64")
 
-        self._numerical_pdf = np.asarray(pdf, dtype="float64")  # (r_bins, theta_bins, phi_bins)
+        self._r_centers = 0.5 * (self._r_edges[1:] + self._r_edges[:-1])
+        self._theta_centers = 0.5 * (self._theta_edges[1:] + self._theta_edges[:-1])
+        self._phi_centers = 0.5 * (self._phi_edges[1:] + self._phi_edges[:-1])
+        self._theta_bins = self._theta_edges.size - 1
+        self._r_bins = self._r_edges.size - 1
+        self._phi_bins = self._phi_edges.size - 1
+
+        self._numerical_pdf = np.asarray(_given_pdf, dtype="float64")  # (r_bins, theta_bins, phi_bins)
 
         if self._numerical_pdf.ndim != 3:
             logger.error("Spatial PDF histogram must be 3-dimensional.")

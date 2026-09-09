@@ -2,7 +2,7 @@
 Spatial variable sampler for the uniform cylinder geometry.
 Author: S. M. Lee
 First Date: September 15, 2025
-Last Update: July 20, 2026
+Last Update: September 09, 2026
 """
 
 from __future__ import absolute_import
@@ -205,7 +205,7 @@ class UniformCylinder(SpatialSampler):
 
         for i, ke in enumerate(self.ke):
             entries = ke.shape[0]
-            phi = np.random.uniform(0, 2 * np.pi, entries)  # (rad)
+            phi = np.random.uniform(self._phi_edges[0], self._phi_edges[-1], entries)  # (rad)
             self._sample_phi_start[i] = phi
 
         return True
