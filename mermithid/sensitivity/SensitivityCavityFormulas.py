@@ -10,7 +10,7 @@ CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc
 import numpy as np
 from scipy.stats import ncx2, chi2
 from scipy.special import roots_laguerre
-import matplotlib.pyplot as plt  
+import matplotlib.pyplot as plt
 from scipy.optimize import nnls
 
 from mermithid.misc.Constants_numericalunits import *
@@ -50,14 +50,14 @@ class OutputPort:
     att_line_db:            float
     att_cir_db:             float
     quantum_amp_efficiency: float
-    
+
 
 # Wouters functinos
 def db_to_pwr_ratio(q_db):
     return 10**(q_db/10)
 
 def axial_motion(magnetic_field, pitch, trap_length, minimum_trapped_pitch, kin_energy, flat_fraction=0.5, trajectory = None):
-    # returns the axial motion frequency and a trajectory of point along the axial motion 
+    # returns the axial motion frequency and a trajectory of point along the axial motion
     # also return the average magnetic field seen by the electron
     # from z=0 to z=cavity_length/2 with npoints set by the trajectory variable
     # See LUCKEY write-up for a little more on Talia's "flat fraction" trap model
@@ -76,7 +76,7 @@ def axial_motion(magnetic_field, pitch, trap_length, minimum_trapped_pitch, kin_
     axial_frequency = 1/4/(time_flat+time_harmonic)
 
     #Average magnetic field:
-    magnetic_field_avg_harm = magnetic_field/2*(1+1/np.sin(pitch)**2) 
+    magnetic_field_avg_harm = magnetic_field/2*(1+1/np.sin(pitch)**2)
     magnetic_field_avg = (magnetic_field_avg_harm*time_harmonic + magnetic_field*time_flat)/(time_harmonic+time_flat)
 
     # Trajectory:
@@ -87,7 +87,7 @@ def axial_motion(magnetic_field, pitch, trap_length, minimum_trapped_pitch, kin_
         time = np.linspace(0, time_flat+time_harmonic, trajectory)
         z_t = np.heaviside(time_flat-time, 0.5)*time*transverse_speed +\
               np.heaviside(time-time_flat, 0.5)*(z_w*flat_fraction + z_w*(1-flat_fraction)*tan_min/np.tan(pitch)*np.sin(omega_harm*(time-time_flat)))
-  
+
     return axial_frequency, magnetic_field_avg, z_t
 
 def magnetic_field_flat_harmonic(z, magnetic_field, trap_length, minimum_trapped_pitch, flat_fraction=0.5):
@@ -139,7 +139,7 @@ def Pn_cavity(t_cavity, coupling, loaded_Q, bandwidth, freq):
 
 # Noise power reflecting of the cavity
 def Pn_reflected(Pn_incident, coupling, loaded_Q, bandwidth, freq):
-    
+
     reflection_coefficient = 1-freq/loaded_Q/bandwidth*np.arctan(loaded_Q*bandwidth/freq)*4*coupling/(1+coupling)**2
     return Pn_incident*reflection_coefficient
 
@@ -177,7 +177,7 @@ def Pn_f(Pn_i,t_i,t_f,a,bandwidth): # eq 10
         return Pn_i+ kB*bandwidth*(t_f-t_i)*(1+ (1-a)/np.log(a))+ (t_i*kB*bandwidth-Pn_i)*(1-a)
     else:
         return Pn_i*np.ones_like(t_f)
-    
+
 # Effective temperature taking the quantum photon population into account.
 def t_effective(t_physical, cyclotron_frequency):
     quantum = 2*np.pi*hbar*cyclotron_frequency/kB
@@ -267,7 +267,7 @@ def trapping_efficiency(z_range, bg_magnetic_field, min_pitch_angle, trap_flat_f
 
     Notes
     -----
-    The magnetic field profile is computed using the `magnetic_field_flat_harmonic` function, currently it only produces z-profile of the trap without radial variation. 
+    The magnetic field profile is computed using the `magnetic_field_flat_harmonic` function, currently it only produces z-profile of the trap without radial variation.
     No radial field variation was assumed for this calculation.
     The mean trapping efficiency is averaged over the region where the trapping field exists.
     """
@@ -278,13 +278,13 @@ def trapping_efficiency(z_range, bg_magnetic_field, min_pitch_angle, trap_flat_f
     #Collect z profile of the magnetic field
     for z in zs:
         profiles.append(magnetic_field_flat_harmonic(z, bg_magnetic_field, z_range*2, min_pitch_angle, trap_flat_fraction))
-    
+
     #Calculate maximum trapping field along z (Bz_max)
     maximum_Bz = max(profiles)
 
     #Calculate mean trapping efficiency using mean of epsilon(z) = sqrt(1-B(z)/B_max(z)) at z = 0
     mean_efficiency = np.mean(np.array([np.sqrt(1-b_at_z/maximum_Bz) for b_at_z in profiles]))
-    
+
     return mean_efficiency
 
 
@@ -306,7 +306,7 @@ class CavitySensitivity(Sensitivity):
         self.CalcDefaults(overwrite=False)
 
     # Add any additional initialization to this function, NOT __INIT__!!
-    def CalcDefaults(self, overwrite=False): 
+    def CalcDefaults(self, overwrite=False):
         ###
         #Initialization related to the effective volume:
         ###
@@ -314,7 +314,7 @@ class CavitySensitivity(Sensitivity):
         self.cavity_freq = frequency(self.T_endpoint, self.MagneticField.nominal_field)
         self.CavityRadius()
         self.cavity_length = 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
-        
+
         #Get trap length from cavity length if not specified
         if ((not hasattr(self.Experiment, 'trap_length')) or overwrite):
             self.Experiment.trap_length = 0.8 * 2 * self.cavity_radius * self.Experiment.cavity_L_over_D
@@ -332,17 +332,17 @@ class CavitySensitivity(Sensitivity):
 
         #Calculate position dependent trapping efficiency
         self.pos_dependent_trapping_efficiency = trapping_efficiency( z_range = self.Experiment.trap_length /2,
-                                                                    bg_magnetic_field = self.MagneticField.nominal_field, 
-                                                                    min_pitch_angle = self.FrequencyExtraction.minimum_angle_in_bandwidth, 
+                                                                    bg_magnetic_field = self.MagneticField.nominal_field,
+                                                                    min_pitch_angle = self.FrequencyExtraction.minimum_angle_in_bandwidth,
                                                                     trap_flat_fraction = self.MagneticField.trap_flat_fraction
-                                                                    )          
-        
+                                                                    )
+
         #We may decide to remove the "Threshold" section and move the threshold-related parameters to the "Efficiency" section.
         if not self.Efficiency.usefixedvalue:
             self.Threshold = NameSpace({opt: eval(self.cfg.get('Threshold', opt)) for opt in self.cfg.options('Threshold')})
-   
+
         #Cyclotron radius is sometimes used in the effective volume calculation
-        self.cyc_rad = cyclotron_radius(self.cavity_freq, self.T_endpoint) 
+        self.cyc_rad = cyclotron_radius(self.cavity_freq, self.T_endpoint)
 
         #Assigning the background constant if it's not in the config file
         if hasattr(self.Experiment, "bkgd_constant"):
@@ -350,8 +350,8 @@ class CavitySensitivity(Sensitivity):
             logger.info("Using background rate constant of {}/eV/s".format(self.bkgd_constant))
         else:
             self.bkgd_constant = 1
-            logger.info("Using background rate constant of 1/eV/s") 
-        
+            logger.info("Using background rate constant of 1/eV/s")
+
         # Need to get power fractions before calculating effective volume (given impact on detection efficiency)
         # Power fractions are relative to the power of a 90° carrier electron
         # If average_power_fractions==True, use carrier and sideband pitch power fractions averaged over the usable pitch angle range.
@@ -384,29 +384,60 @@ class CavitySensitivity(Sensitivity):
                 if sideband_order in harmonic_fractions:
                     self.sideband_power_fraction_array = harmonic_fractions[sideband_order]
                 elif self.FrequencyExtraction.crlb_on_sidebands:
-                    # A harmonic missing from SOME mode's file is normal (the
-                    # axial-parity selection rule), and contributes 0. But the
-                    # PRIMARY file missing its OWN configured sideband_order is
-                    # a configuration error: the sideband silently contributes
-                    # nothing, tau_snr rises, and the sensitivity degrades by a
-                    # small amount that looks like a real result. Fail loudly.
-                    raise ValueError(
-                        "{}: power-fractions file supplies harmonics {} but "
-                        "sideband_order = {} is not among them, so the sideband "
-                        "would silently contribute zero. For an odd axial index "
-                        "only EVEN harmonics are nonzero, so the sideband column "
-                        "for sideband_order={} must be headed 'n{}'.".format(
-                            self.FrequencyExtraction.powers_vs_theta_file,
-                            sorted(harmonic_fractions), sideband_order,
-                            sideband_order, sideband_order))
+                    # A harmonic missing from the PRIMARY file is normal when
+                    # sideband_order is parity-FORBIDDEN for the primary
+                    # mode's own axial index (odd axial index: only even
+                    # harmonics are ever nonzero; even axial index: only odd
+                    # harmonics). This is exactly the multimode case where the
+                    # primary (odd) mode supplies the carrier and a DIFFERENT,
+                    # even-indexed mode supplies the sideband -- e.g. TE011
+                    # carrier + TE012 first sideband, sideband_order = 1
+                    # (reconciliation_status.md, Addendum 2 and Addendum 5).
+                    # Parity-aware: fire only when NO configured mode can
+                    # supply this harmonic at all, which is a genuine
+                    # configuration error (wrong sideband_order, or a
+                    # single-mode config whose only mode cannot radiate the
+                    # requested harmonic by parity), not the normal
+                    # forbidden-for-the-primary-alone case.
+                    axial_indices_for_guard = getattr(self.FrequencyExtraction, "axial_mode_indices", [1])
+                    if not hasattr(axial_indices_for_guard, "__len__"):
+                        axial_indices_for_guard = [int(axial_indices_for_guard)]
+                    axial_indices_for_guard = [int(p) for p in axial_indices_for_guard]
+                    p0 = axial_indices_for_guard[0]
+                    # If the PRIMARY mode's own parity allows this harmonic,
+                    # its absence from the primary's own file is a genuine
+                    # error (missing data, wrong file), not a parity artifact
+                    # -- some OTHER mode being parity-eligible does not excuse
+                    # that. Only suppress the raise when parity forbids the
+                    # harmonic for the primary specifically, and a different
+                    # configured mode's parity allows it.
+                    primary_parity_allows = (sideband_order % 2) == (0 if p0 % 2 else 1)
+                    other_mode_can_supply = any(
+                        (sideband_order % 2) == (0 if p % 2 else 1)
+                        for p in axial_indices_for_guard[1:])
+                    if primary_parity_allows or not other_mode_can_supply:
+                        raise ValueError(
+                            "{}: power-fractions file supplies harmonics {} but "
+                            "sideband_order = {} is not among them, and no "
+                            "configured mode (axial_mode_indices = {}) can supply "
+                            "harmonic n{} by axial parity either (odd axial index: "
+                            "only even harmonics; even axial index: only odd "
+                            "harmonics). The sideband would silently contribute "
+                            "zero for every mode. For an odd axial index only EVEN "
+                            "harmonics are nonzero, so the sideband column for "
+                            "sideband_order={} must be headed 'n{}'.".format(
+                                self.FrequencyExtraction.powers_vs_theta_file,
+                                sorted(harmonic_fractions), sideband_order,
+                                axial_indices_for_guard, sideband_order,
+                                sideband_order, sideband_order))
 
                 # Calculating distribution of pitch angles at the bottom of the trap, after trapping
                 theta_start_array = np.linspace(self.FrequencyExtraction.minimum_angle_in_bandwidth, np.pi/2, self.Efficiency.n_theta_start_for_trapped_pitch_dist)
                 self.theta_bottoms_bin_centers, self.prob_theta_bottom = dist_of_theta_bottom_after_trapping(self.MagneticField.nominal_field, theta_start_array, self.Experiment.trap_length, self.FrequencyExtraction.minimum_angle_in_bandwidth, flat_fraction=self.MagneticField.trap_flat_fraction, n_z_start=self.Efficiency.n_z_for_trapped_pitch_dist, n_theta_bottom=self.Efficiency.n_theta_bottom_for_trapped_pitch_dist)
-                
+
                 # Determining which probability corresponds to each pitch angle in self.theta_array
                 self.prob_theta_array = np.interp(self.theta_array, self.theta_bottoms_bin_centers, self.prob_theta_bottom)
-        
+
                 # Plotting pitch angle distribution
                 figure = plt.figure()
                 plt.scatter(self.theta_bottoms_bin_centers/deg, self.prob_theta_bottom, s=3, label="Binned distribution", color='red')
@@ -416,7 +447,7 @@ class CavitySensitivity(Sensitivity):
                 plt.legend(fontsize=12, loc='lower center')
                 plt.tight_layout()
                 plt.savefig("theta_bottom_dist_interpolated_{}.png".format(self.Experiment.exp_label), dpi=300)
-                
+
         #Set up cavity signal modes and readout ports configurations
         self.SetupModesAndPorts()
         self.SolveExternalQ()
@@ -430,7 +461,7 @@ class CavitySensitivity(Sensitivity):
         logger.info("Cyclotron radius: {}m".format(self.cyc_rad/m))
         if self.use_cyc_rad:
             logger.info("Using cyclotron radius as unusable distance from wall, for radial efficiency calculation")
-        
+
         ####
         #Initialization related to the energy resolution:
         ####
@@ -438,13 +469,13 @@ class CavitySensitivity(Sensitivity):
         self.CRLB_constant = 6
         if hasattr(self.FrequencyExtraction, "crlb_constant"):
             self.CRLB_constant = self.FrequencyExtraction.crlb_constant
-            logger.info("Using configured CRLB constant")      
-        
+            logger.info("Using configured CRLB constant")
+
         # Number of steps in pitch angle between min_pitch and pi/2 for the frequency noise uncertainty calculation
         self.pitch_steps = 100
         if hasattr(self.FrequencyExtraction, "pitch_steps"):
             self.pitch_steps = self.FrequencyExtraction.pitch_steps
-            logger.info("Using configured pitch_steps value")  
+            logger.info("Using configured pitch_steps value")
 
         #Just calculated for comparison
         self.larmor_power = rad_power(self.T_endpoint, np.pi/2, self.MagneticField.nominal_field) # currently not used
@@ -453,7 +484,7 @@ class CavitySensitivity(Sensitivity):
         if not self.Efficiency.usefixedvalue:
             if self.Threshold.use_detection_threshold:
                 logger.info("Overriding any detection eff and RF background in the config file; calculating these from the detection_threshold.")
-        else:  
+        else:
             logger.info("Using the detection eff and RF background rate from the config file.")
 
     def SetupModesAndPorts(self):
@@ -531,6 +562,21 @@ class CavitySensitivity(Sensitivity):
                 q_unloaded=unloaded_qs[k],
                 power_fractions=fractions))
 
+        # Check for unconfigured loaded Q values when using powers vs pitch angle data
+        if len(self.modes) > 1 and \
+                any(m.power_fractions is not None for m in self.modes) and \
+                getattr(fe, "mode_loaded_qs", None) is None:
+            raise ValueError(
+                "{} modes with file-based power fractions are configured "
+                "(mode_powers_vs_theta_files / powers_vs_theta_file) but mode_loaded_qs "
+                "is not set. The per-mode power fractions already carry the cavity's own "
+                "resonant response at whatever loaded Q the simulation was run with; "
+                "leaving mode_loaded_qs unset lets SolveExternalQ derive a DIFFERENT Q_L "
+                "per mode from the bandwidth requirement, which makes the noise/bandwidth "
+                "calculation inconsistent with the data it is reading (observed: up to "
+                "2.4x overstatement of higher-mode power). Set mode_loaded_qs explicitly "
+                "to the Q_L the simulation assumed.".format(len(self.modes)))
+
         # --- Ports ---
         z_fractions = getattr(fe, "port_z_fractions", None)
         if z_fractions is None:
@@ -565,7 +611,7 @@ class CavitySensitivity(Sensitivity):
         # --- rank conditions on the mode/port coupling matrix -----------------
         # The SNR document requires K >= Q (at least one generalised port per
         # mode), every mode coupling to at least one port (g_q != 0), and no
-        # two modes aliased on the port grid. 
+        # two modes aliased on the port grid.
         n_modes_ = len(self.modes)
         n_ports_ = len(self.ports)
         if n_modes_ > n_ports_:
@@ -673,7 +719,7 @@ class CavitySensitivity(Sensitivity):
         axial_mode_index = 1
         self.cavity_radius = c0/(2*np.pi*self.cavity_freq)*np.sqrt(self.Jprime_0**2+axial_mode_index**2*np.pi**2/(4*self.Experiment.cavity_L_over_D**2))
         return self.cavity_radius
-    
+
     def CavityModeFrequency(self, axial_mode_index=1):
         """Resonant frequency of the TE_01l cylindrical cavity mode, l = axial_mode_index.
         l=1 (TE011) is the fundamental that sets the cavity geometry, so
@@ -682,19 +728,19 @@ class CavitySensitivity(Sensitivity):
         k_r = self.Jprime_0 / self.cavity_radius
         k_z = axial_mode_index * np.pi / self.cavity_length
         return c0 / (2 * np.pi) * np.sqrt(k_r**2 + k_z**2)
-    
+
     def CavityVolume(self):
         #radius = 0.5*wavelength(self.T_endpoint, self.MagneticField.nominal_field)
         self.total_cavity_volume = 2*self.cavity_radius*self.Experiment.cavity_L_over_D*np.pi*(self.cavity_radius)**2*self.Experiment.n_cavities
-        
+
         logger.info("Frequency: {} MHz".format(round(self.cavity_freq/MHz, 3)))
         logger.info("Wavelength: {} cm".format(round(wavelength(self.T_endpoint, self.MagneticField.nominal_field)/cm, 3)))
         logger.info("Cavity radius: {} cm".format(round(self.cavity_radius/cm, 3)))
         logger.info("Cavity length: {} cm".format(round(2*self.cavity_radius*self.Experiment.cavity_L_over_D/cm, 3)))
         logger.info("Total cavity volume: {} m^3".format(round(self.total_cavity_volume/m**3, 3)))\
-        
+
         return self.total_cavity_volume
-    
+
 
     # ELECTRON TRAP
     def TrapVolume(self):
@@ -703,14 +749,14 @@ class CavitySensitivity(Sensitivity):
         return self.total_trap_volume
 
 
-    
+
     def EffectiveVolume(self):
         self.total_trap_volume = self.TrapVolume()
 
         if self.Efficiency.usefixedvalue:
             self.effective_volume = self.total_trap_volume * self.Efficiency.fixed_efficiency
             self.use_cyc_rad = False
-            self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV    
+            self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV
         else:
             #Detection efficiency
             if self.Threshold.use_detection_threshold:
@@ -721,7 +767,7 @@ class CavitySensitivity(Sensitivity):
             else:
                 #Using the inputted detection efficiency and RF background rate from the config file.
                 self.detection_efficiency = self.Efficiency.detection_efficiency
-                self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV    
+                self.RF_background_rate_per_eV = self.Experiment.RF_background_rate_per_eV
 
 
             #Radial efficiency
@@ -731,21 +777,21 @@ class CavitySensitivity(Sensitivity):
             else:
                 self.radial_efficiency = (self.cavity_radius - self.cyc_rad)**2/self.cavity_radius**2
                 self.use_cyc_rad = True
-            
+
             #Efficiency from a cut during analysis on the axial frequency
             self.fa_cut_efficiency = trapping_efficiency(z_range = self.Experiment.trap_length /2,
-                                                                    bg_magnetic_field = self.MagneticField.nominal_field, 
-                                                                    min_pitch_angle = self.Efficiency.min_pitch_used_in_analysis, 
+                                                                    bg_magnetic_field = self.MagneticField.nominal_field,
+                                                                    min_pitch_angle = self.Efficiency.min_pitch_used_in_analysis,
                                                                     trap_flat_fraction = self.MagneticField.trap_flat_fraction
-                                                                    )/self.pos_dependent_trapping_efficiency 
-            
+                                                                    )/self.pos_dependent_trapping_efficiency
+
             #The effective volume includes the three efficiency factors above, as well as the trapping efficiency
-            self.effective_volume = self.total_trap_volume*self.radial_efficiency*self.detection_efficiency*self.fa_cut_efficiency*self.pos_dependent_trapping_efficiency   
-            
+            self.effective_volume = self.total_trap_volume*self.radial_efficiency*self.detection_efficiency*self.fa_cut_efficiency*self.pos_dependent_trapping_efficiency
+
         # The "signal rate improvement" factor can be toggled to test the increase in statistics required to reach some sensitivity
         self.effective_volume*=self.Experiment.sri_factor
         return self.effective_volume
-        
+
 
     def BoxTrappingEfficiency(self):
         self.box_trapping_efficiency = np.cos(self.FrequencyExtraction.minimum_angle_in_bandwidth)
@@ -768,7 +814,7 @@ class CavitySensitivity(Sensitivity):
         max_ax_freq, mean_field, z_t = axial_motion(self.MagneticField.nominal_field,
                                                   self.FrequencyExtraction.minimum_angle_in_bandwidth,
                                                   self.Experiment.trap_length,
-                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth, 
+                                                  self.FrequencyExtraction.minimum_angle_in_bandwidth,
                                                   self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction, trajectory = 1000) #1000
 
         #The np.random.triangluar function weights the radii, accounting for the fact that there are more electrons at large radii than small ones
@@ -836,7 +882,7 @@ class CavitySensitivity(Sensitivity):
             self.required_bw = required_bw
             self.loaded_q = loaded_q
         return loaded_q
-    
+
     def SolveExternalQ(self, target_qls=None, target_weights=None, ortho_weight=1e10, ortho_tol=1e-6):
         """Solve per-port external Qs so each mode hits its target loaded Q while
         keeping modes orthogonal. Single mode/port reduces to coupling = Q0/Ql - 1."""
@@ -927,7 +973,7 @@ class CavitySensitivity(Sensitivity):
                                        mode.axial_mode_index, mode.q_loaded, required_ql,
                                        mode.q_loaded/required_ql - 1.0))
         return x_opt, x_res
-        
+
     def BuildInterferenceMatrix(self):
         """Inter-mode interference matrix R^2_{alpha,beta} ('SNR of Multimode
         Signal Readout', Sec. 3):  R^2 = 1_N - R_d^dagger R_d, where
@@ -957,10 +1003,10 @@ class CavitySensitivity(Sensitivity):
             logger.warning("Interference matrix: mode cross-talk |R2_ab| up to "
                            "{:.2e}; zero-forcing isolation may be degraded.".format(max_crosstalk))
         return R2
-           
+
     # SENSITIVITY
     # see parent class in SensitivityFormulas.py
- 
+
 
     # SYSTEMATICS
     # Generic systematics are implemented in the parent class in SensitivityFormulas.py
@@ -998,7 +1044,7 @@ class CavitySensitivity(Sensitivity):
     def calculate_tau_snr(self, time_window, power_fraction=1, tau_snr_array_for_radii=False,
                           components=None):
         """Multimode tau_SNR per Rick's multi-mode SNR document."""
-        
+
         self.CavityLoadedQ()
         fft_bandwidth = 3/time_window
         self.fft_bandwidth = fft_bandwidth
@@ -1287,7 +1333,7 @@ class CavitySensitivity(Sensitivity):
         with np.errstate(divide='ignore', invalid='ignore'):
             tau_snr = np.where(inv_tau_total > 0, 1.0/inv_tau_total, np.inf)
         return float(tau_snr) if np.ndim(tau_snr) == 0 else tau_snr
-                
+
     """
     def print_SNRs(self, rho_opt):
         tau_snr = self.calculate_tau_snr(self.time_window, sideband_power_fraction=1)
@@ -1315,39 +1361,39 @@ class CavitySensitivity(Sensitivity):
             # This is for the case where the track is flat (almost no slope), and where we
             # treat it as a pure sinusoid (don't fit the slope when extracting the frequency).
             # Applies for a complex signal.
-            return self.FrequencyExtraction.CRLB_scaling_factor*(6*tau_SNR/self.time_window**3)/(2*np.pi)**2 
+            return self.FrequencyExtraction.CRLB_scaling_factor*(6*tau_SNR/self.time_window**3)/(2*np.pi)**2
         else:
-            # Non-zero, fitted slope. 
+            # Non-zero, fitted slope.
             # Doesn't assume that alpha*T/2 << omega_c, since it includes the 5*eta/(1-eta) term in Eq. 25 of Joe's write-up: https://3.basecamp.com/3700981/buckets/3107037/documents/6331876030.
             # CODE IMPLEMENTATION NEEDS TO BE DOUBLE-CHECKED BY CONSIDERING AN EXPERIMENT WITH LARGE-ISH ETA.
             # The first term relies on the relation delta_t_start = sqrt(20)*tau_snr. This is from Equation 6.40 of Nick's thesis,
             # derived in Appendix A and verified with an MC study.
             # Using a factor of 23 instead of 20, from re-calculating Nick's integrals (though this derivation is approximate).
-            # Nick's derivation uses an expression for P_fa assuming the phase is known. 
+            # Nick's derivation uses an expression for P_fa assuming the phase is known.
             # The phase won't be known, but it's more difficult to determine the unknown-phase expression.
             # Working on that.
             return self.FrequencyExtraction.CRLB_scaling_factor*(23*(self.slope*tau_SNR)**2 + tau_SNR/self.time_window**3*(96 - 6*5*self.eta/(1+self.eta)))/(2*np.pi)**2
 
-    
+
     def syst_frequency_extraction(self):
         # cite{https://3.basecamp.com/3700981/buckets/3107037/uploads/2009854398} (Section 1.2, p 7-9)
         # Are we double counting the antenna collection efficiency? We use it here. Does it also impact the effective volume, v_eff ?
-        
+
         if self.FrequencyExtraction.UseFixedValue:
             sigma = self.FrequencyExtraction.Default_Systematic_Smearing
             delta = self.FrequencyExtraction.Default_Systematic_Uncertainty
             return sigma, delta
-        
-       
+
+
         endpoint_frequency = self.cavity_freq
         # using Pe and alpha (aka slope) from above
         Pe = self.signal_power #/self.FrequencyExtraction.mode_coupling_efficiency
-        
+
         self.slope = endpoint_frequency * 2 * np.pi * Pe/me/c0**2 # track slope
         self.time_window = track_length(self.Experiment.number_density, self.T_endpoint, molecular=(not self.Experiment.atomic))
-        
+
         self.time_window_slope_zero = abs(self.cavity_freq-frequency(self.T_endpoint+20*meV, self.MagneticField.nominal_field))/self.slope
-        
+
         if self.FrequencyExtraction.use_average_power_fractions:
             tau_snr_full_length = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.carrier_power_fraction)
         else:
@@ -1362,30 +1408,13 @@ class CavitySensitivity(Sensitivity):
         if self.FrequencyExtraction.crlb_on_sidebands:
             #Calculate noise contribution to uncertainty, including energy correction for pitch angle.
             #This comes from section 6.1.9 of the CDR.
-            #
-            # NOTE ON EVEN-AXIAL-INDEX MODES (TE012, TE014, ...): this block
-            # still only combines the carrier (n=0) with ONE configured sideband
-            # order m = FrequencyExtraction.sideband_order. It was NOT
-            # generalized to combine additional/different harmonics (as an
-            # even-p mode would need: n=1, n=3, no carrier at all), because the
-            # carrier Jacobian below (dfc0_dfc_array) itself depends on m -- the
-            # carrier and the m-th sideband are solved as a COUPLED
-            # two-observable system for (f_c0, f_axial), not as two independent
-            # per-tone information contributions. Naively summing independent
-            # per-harmonic terms (one attempt at this, since reverted) silently
-            # dropped that coupling and is wrong. Correctly combining an
-            # arbitrary set of harmonics (needed to use TE012/TE014 at all)
-            # requires redoing this as a joint N-observable block inversion,
-            # which needs the CDR 6.1.9 source or the CRLB note's general
-            # Fisher block-inversion result -- neither was available here. See
-            # readout_chain_derivation and the assumption ledger.
 
             if self.FrequencyExtraction.use_average_power_fractions:
                 tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, self.FrequencyExtraction.sideband_power_fraction)
             else:
                 tau_snr_full_length_sideband = self.calculate_tau_snr(self.time_window, components=("sideband",))
                 tau_snr_full_length_sideband = tau_snr_full_length_sideband[:len(self.theta_array)-1] #Cut out theta=pi/2, since sideband power is 0 there, resulting in infinite tau_snr.
-            
+
             # (sigmaf_lsb)^2:
             var_f_sideband_crlb = self.frequency_variance_from_CRLB(tau_snr_full_length_sideband)
             m = self.FrequencyExtraction.sideband_order #For convenience
@@ -1394,7 +1423,7 @@ class CavitySensitivity(Sensitivity):
             # the parameters describing the track shape (p and q)
             thetas_for_p_and_q_calc = np.linspace(self.FrequencyExtraction.minimum_angle_in_bandwidth, 90*deg, self.pitch_steps)
             pitch_comps_for_p_and_q_calc = np.pi/2 - thetas_for_p_and_q_calc
-            
+
             # Defining array of pitch angle complement values over which we calculate the
             # resolution contribution from noise.
             if self.FrequencyExtraction.use_average_power_fractions:
@@ -1410,17 +1439,12 @@ class CavitySensitivity(Sensitivity):
             #Using the average p across the pitch angle range
             ax_freq_array, mean_field_array, z_t = axial_motion(self.MagneticField.nominal_field,
                                     thetas_for_p_and_q_calc, self.Experiment.trap_length,
-                                    self.FrequencyExtraction.minimum_angle_in_bandwidth, 
+                                    self.FrequencyExtraction.minimum_angle_in_bandwidth,
                                     self.T_endpoint, flat_fraction=self.MagneticField.trap_flat_fraction)
             fc0_endpoint = self.cavity_freq
             p_array = ax_freq_array/fc0_endpoint/pitch_comps_for_p_and_q_calc #An array
-            # pitch_comps_for_p_and_q_calc's LAST element is exactly 0.0 (the
-            # linspace endpoint lands exactly on 90 degrees), so p_array's
-            # last element is ill-defined there. 
             if self.FrequencyExtraction.use_average_power_fractions:
                 p_array = p_array[:1] #Cut out theta=pi/2 (ill defined there)
-            else:
-                p_array = p_array[:-1] #Cut out theta=pi/2 (ill defined there)
             self.p = np.mean(p_array)
 
             # Now calculating q for the trap that we have
@@ -1500,21 +1524,21 @@ class CavitySensitivity(Sensitivity):
 
         The following changes were made to the original integral to fit the G-L method:
         Original integrand: ∫[0 to \inf] ncx2(df=2, nc=t/τ).sf(thres) * (1/μ) * exp(-t/μ) dt
-        
+
         Where. t = track_duration, μ (\mu) = mean_track_duration, τ (\tau) = tau_snr_ex_carrier, thres = detection_threshold
 
         We do the change of variable, x = t / μ. So, t = x μ, or, dt = μ dx
 
-        Substituting into the original integral: 
+        Substituting into the original integral:
         ∫[0 to \inf] ncx2(df=2, nc=xμ/τ).sf(thres) * (1/μ) * exp(-x) μ dx
         The μ's cancel out, and the integral takes the form:
         ∫[0 to \inf] f(x) * exp(-x) dx
         where, f(x) = ncx2(df=2, nc=xμ/τ).sf(thres)
-        
+
         Parameters: None
-        
+
         Returns: avg_efficiency (float): SNR and threshold dependent detection efficieny.
-                   
+
         Notes: Also check the antenna paper for more details. Especially the section on the signal detection with matched filtering.
         """
         # Calculate the mean track duration
@@ -1529,7 +1553,7 @@ class CavitySensitivity(Sensitivity):
 
         # Roots and weights for the Laguerre polynomial
         x, w = roots_laguerre(100) #n=100 is the number of quadrature points
-        
+
         # Scale the track duration to match the form of Gauss-Laguerre quadrature
         scaled_x = x * mean_track_duration # scaled_x = xμ
 
@@ -1570,20 +1594,20 @@ class CavitySensitivity(Sensitivity):
         self.RF_background_rate_per_eV = self.rf_background_rate_cavity()
         return self.RF_background_rate_per_eV
 
-    
-        
-    
+
+
+
     # PRINTS
     def print_SNRs(self, rho=None):
         #logger.warning("Deprecation warning: This function does not modify the number density in the Experiment namespace. Values printed are for pre-set number density.")
-        
+
         logger.info("**SNR parameters**:")
         if rho == None:
             track_duration = self.time_window
             logger.info("SNR-related parameters are printed for pre-set number density.")
         else:
             track_duration = track_length(rho, self.T_endpoint, molecular=(not self.Experiment.atomic))
-        
+
         tau_snr_90deg = self.calculate_tau_snr(track_duration, power_fraction=1)
         #For an example carrier:
         if self.FrequencyExtraction.use_average_power_fractions:
@@ -1599,13 +1623,13 @@ class CavitySensitivity(Sensitivity):
         SNR_1eV_ex_carrier = 1/eV_bandwidth/tau_snr_ex_carrier
         SNR_track_duration_ex_carrier = track_duration/tau_snr_ex_carrier
         SNR_1ms_ex_carrier = 0.001*s/tau_snr_ex_carrier
-        
+
         logger.info("Number density: {} m^-3".format(self.Experiment.number_density*m**3))
         logger.info("Track duration: {}ms".format(track_duration/ms))
         logger.info("tau_SNR for 90° carrier: {}s".format(tau_snr_90deg/s))
         logger.info("tau_SNR for carrier used in calculation (see config file): {}s".format(tau_snr_ex_carrier/s))
         logger.info("Sampling duration for 1eV: {}ms".format(1/eV_bandwidth/ms))
-        
+
         logger.info("Received power for 90° carrier: {}W".format(self.received_power/W))
         logger.info("Noise temperature: {}K".format(self.noise_temp/K))
         logger.info("Noise power in 1eV: {}W".format(self.noise_energy*eV_bandwidth/W))
@@ -1613,22 +1637,22 @@ class CavitySensitivity(Sensitivity):
         #logger.info("SNR 1 eV from temperatures:{}".format(self.received_power/(self.noise_energy*eV_bandwidth)))
         logger.info("SNRs of carriers (90°, used in calc) for track duration at optimum density: {}, {}".format(SNR_track_duration_90deg, SNR_track_duration_ex_carrier))
         logger.info("SNR of carriers (90°, used in calc) for 1 ms: {}, {}".format(SNR_1ms_90deg, SNR_1ms_ex_carrier))
-        
-        
+
+
         logger.info("Optimum energy window: {} eV".format(self.DeltaEWidth()/eV))
-        
+
         #logger.info("CRLB if slope is nonzero and needs to be fitted: {} Hz".format(np.sqrt(self.var_f_CRLB_slope_fitted)/Hz))
         #logger.info("CRLB constant: {}".format(self.CRLB_constant))
         logger.info("**Done printing SNR parameters.**")
-        
+
         return self.noise_temp, SNR_1eV_90deg, track_duration
-    
-    
+
+
     def print_Efficiencies(self):
-        
+
         logger.info("Effective volume: {} mm^3".format(round(self.effective_volume/mm**3, 3)))
-        logger.info("Total efficiency: {}".format(self.effective_volume/self.total_trap_volume))  
-    
+        logger.info("Total efficiency: {}".format(self.effective_volume/self.total_trap_volume))
+
         if not self.Efficiency.usefixedvalue:
             # radial and detection efficiency are configured in the config file
             logger.info("Radial efficiency: {}".format(self.radial_efficiency))
@@ -1637,6 +1661,7 @@ class CavitySensitivity(Sensitivity):
             logger.info("Trapping efficiency: {}".format(self.pos_dependent_trapping_efficiency))
             logger.info("Efficiency from axial frequency cut: {}".format(self.fa_cut_efficiency))
             logger.info("SRI factor: {}".format(self.Experiment.sri_factor))
+
 
 
 
@@ -1662,19 +1687,21 @@ sigma_f_CRLB = (ScalingFactorCRLB /(2*np.pi) * sigNoise/Amplitude * np.sqrt(alph
 + 96.*Nsteps/(ts**2*(Nsteps**4-5*Nsteps**2+4))))"""
 
 
+
 """
 CRLB_constant = 6
 sigma_CRLB_slope_zero = np.sqrt((CRLB_constant*tau_snr_part_length/self.time_window_slope_zero**3)/(2*np.pi)**2)*self.FrequencyExtraction.CRLB_scaling_factor
-        
+
 sigma_f_CRLB = np.min([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])
-        
+
 # logger.info("CRLB options are: {} , {}".format(sigma_CRLB_slope_zero/Hz, sigma_f_CRLB_slope_fitted/Hz))
 self.best_time_window=[self.time_window_slope_zero, self.time_window][np.argmin([sigma_CRLB_slope_zero, sigma_f_CRLB_slope_fitted])]"""
-        
+
 """# uncertainty in alpha
 delta_alpha = 6*sigNoise/(Amplitude*ts**2) * np.sqrt(10/(Nsteps*(Nsteps**4-5*Nsteps**2+4)))
 # uncetainty in sigma_f in Hz due to uncertainty in alpha
 delta_sigma_f_CRLB = delta_alpha * alpha_approx *sigNoise**2/(8*np.pi**2*Amplitude**2*Gdot*sigma_f_CRLB*ScalingFactorCRLB**2)"""
+
 
 
 """fc_endpoint_array = frequency(self.T_endpoint, mean_field_array)
