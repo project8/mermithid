@@ -954,6 +954,32 @@ class CavitySensitivity(Sensitivity):
                 port_inv_q = x_opt[i]*field_sq
                 mode.q_externals[port.name] = (1.0/port_inv_q if port_inv_q > 1e-10 else np.inf)
                 total_inv_q_ext += port_inv_q
+            # COLLAPSE GUARD. A layout that is not mirror-symmetric about the
+            # cavity midplane drives the nnls solution to x ~ 0: every mode
+            # ends at its UNLOADED Q, out-coupling vanishes, and tau_SNR -> inf,
+            # which reads downstream as an excellent result. Nothing else
+            # catches this -- the K >= Q rank check does not apply at N = M, the
+            # aliasing check compares power patterns rather than magnitudes, and
+            # the orthogonality residual passes because x ~ 0 satisfies those
+            # rows exactly. Any scan over port positions walks into this region.
+            #
+            # Relative threshold, so it is scale-free and cannot fire on a mode
+            # whose target genuinely requires no external coupling.
+            required_inv_q_ext = max(0.0, 1.0/target_qls[alpha] - 1.0/mode.q_unloaded)
+            if required_inv_q_ext > 0 and total_inv_q_ext <= 1e-6*required_inv_q_ext:
+                raise ValueError(
+                    "TE01{}: the solver returned essentially zero external "
+                    "coupling (sum 1/Q_ext = {:.3e}) while a loaded Q of {:.0f} "
+                    "was requested, which needs {:.3e}. The mode would sit at "
+                    "its unloaded Q of {:.0f} with no out-coupling, giving "
+                    "tau_SNR -> infinity and a falsely excellent sensitivity. "
+                    "This is the signature of a port layout that is not "
+                    "mirror-symmetric about the cavity midplane, where the "
+                    "orthogonality constraints are satisfiable only by x = 0. "
+                    "Port z-fractions: {}.".format(
+                        mode.axial_mode_index, total_inv_q_ext, target_qls[alpha],
+                        required_inv_q_ext, mode.q_unloaded,
+                        [round(port.z_position/L, 6) for port in self.ports]))
             mode.q_loaded = (1.0/(1.0/mode.q_unloaded + total_inv_q_ext)
                              if total_inv_q_ext > 0 else mode.q_unloaded)
         # A mode whose ACHIEVED loaded Q exceeds its bandwidth-required value is
@@ -972,6 +998,49 @@ class CavitySensitivity(Sensitivity):
                                    "the tau_SNR combination is optimistic.".format(
                                        mode.axial_mode_index, mode.q_loaded, required_ql,
                                        mode.q_loaded/required_ql - 1.0))
+        # PIN CONSISTENCY (file-based path only). Every mode's power fractions
+        # were divided by the PRIMARY mode's reference power and are rescaled by
+        # the PRIMARY mode's Hanneke power (calculate_tau_snr, base_mode), so the
+        # residual error is S_primary(Q_achieved)/S_primary(Q_sim). The primary
+        # mode is tuned on resonance, where delta = 0 and S = 2Q, which makes
+        # that residual simply Q_achieved/Q_sim: a 5% drift in the PRIMARY
+        # mode's achieved Q is a 5% error in EVERY mode's signal power. For the
+        # other modes the drift is second order on the signal, but it still puts
+        # their noise (Pn_cavity at mode.q_loaded) on a different Q than the
+        # suppression frozen into their files.
+        #
+        # mode_loaded_qs sets the nnls TARGETS, not the achieved values -- they
+        # compete with the orthogonality rows and the uniformity regularisation
+        # -- so the pin can be requested and missed. On this path it is a
+        # correctness constraint, not a convention, so this is an error.
+        user_qls_check = getattr(self.FrequencyExtraction, "mode_loaded_qs", None)
+        file_based = any(m.power_fractions is not None for m in self.modes)
+        if file_based and user_qls_check is not None:
+            if not hasattr(user_qls_check, "__len__"):
+                user_qls_check = [user_qls_check]*n_modes
+            q_tol = getattr(self.FrequencyExtraction, "mode_loaded_q_tolerance", 1e-3)
+            for alpha, mode in enumerate(self.modes):
+                pinned_ql = user_qls_check[alpha]
+                if pinned_ql is None or pinned_ql <= 0:
+                    continue
+                rel_drift = abs(mode.q_loaded - pinned_ql)/pinned_ql
+                if rel_drift > q_tol:
+                    raise ValueError(
+                        "TE01{}: achieved loaded Q {:.1f} differs from the "
+                        "pinned mode_loaded_qs value {:.1f} by {:.2%}, over the "
+                        "{:.2%} tolerance.{} With file-based power fractions the "
+                        "pin is a correctness constraint: the fractions carry "
+                        "the simulation's own resonant suppression at the "
+                        "pinned Q, and the analytic rescaling assumes the "
+                        "achieved Q matches it. Move the ports, relax "
+                        "ortho_weight, or re-run the simulation at the achieved "
+                        "Q. Set FrequencyExtraction.mode_loaded_q_tolerance to "
+                        "widen this deliberately.".format(
+                            mode.axial_mode_index, mode.q_loaded, pinned_ql,
+                            rel_drift, q_tol,
+                            " This is the PRIMARY mode, whose Q sets the shared "
+                            "analytic scale, so the error is linear and applies "
+                            "to every mode's signal power." if alpha == 0 else ""))
         return x_opt, x_res
 
     def BuildInterferenceMatrix(self):
@@ -1060,9 +1129,25 @@ class CavitySensitivity(Sensitivity):
         # the radius-averaged scalar mode powers as the absolute scale.
         scalar_powers = [m.signal_power for m in self.modes]
         if components is not None:
-            mode_powers = [scalar_powers[a]*self._mode_component_sum(m, components)
-                           for a, m in enumerate(self.modes)]
+            # SAME SCALE RULE AS Pe BELOW (base_mode). On the file-based path
+            # every mode's fractions were divided by the PRIMARY mode's
+            # reference power, so the analytic scale that belongs with them is
+            # the PRIMARY mode's Hanneke power, once, for every mode.
+            #
+            # _F forms only ratios sqrt(X_b/X_a), so this shared factor cancels
+            # identically and F_sig ends up a function of the file fraction
+            # ratios alone -- which is where the inter-mode information lives.
+            # Using each mode's OWN signal_power here instead leaves those
+            # ratios carrying P_gen,k/P_gen,primary and S_k/S_primary, i.e. the
+            # double count the Pe rule removes, so the interference factors
+            # would be computed on different mode powers than the ones they
+            # correct.
+            base_scalar_power = scalar_powers[0]
+            mode_powers = [base_scalar_power*self._mode_component_sum(m, components)
+                           for m in self.modes]
         else:
+            # AVERAGE-FRACTIONS PATH: no file carries the inter-mode ratio, so
+            # each mode's own Hanneke power is the only source of it.
             mode_powers = scalar_powers
 
         # --- interference factors (document main result), diagonal-normalized ---
@@ -1136,8 +1221,32 @@ class CavitySensitivity(Sensitivity):
             f_mode = self.CavityModeFrequency(mode.axial_mode_index)
             # All modes share one radius sample and mask (CavityPower), so every
             # mode's signal_power_vs_r is index-aligned and usable directly.
-            mode_signal_power = (mode.signal_power_vs_r if tau_snr_array_for_radii
-                                 else mode.signal_power)
+            # FILE-BASED PATH: every mode's power fractions were divided by
+            # the PRIMARY mode's reference power (ReadPowerFractionsFile), so
+            # the files already carry the whole inter-mode ratio -- generated
+            # power AND each mode's own resonant suppression at the loaded Q
+            # the simulation was run with. The analytic scale that belongs with
+            # that denominator is the PRIMARY mode's Hanneke power, applied
+            # once for every mode:
+            #     Pe_k(theta) = H_primary * P_sim,k(theta) / P_sim,primary(ref)
+            # Using each mode's OWN Hanneke power here applies both ratios
+            # twice (P_gen,k/P_gen,primary and S_k/S_primary) and understates
+            # the detuned modes badly -- roughly 9x for TE013 at the 10 m trap,
+            # where its Lorentzian response is ~0.11.
+            #
+            # Exact only while the ACHIEVED loaded Q equals the Q the
+            # simulation assumed: the residual factor is
+            # S_primary(Q_achieved)/S_primary(Q_sim). That is what the
+            # mode_loaded_qs pin in SetupModesAndPorts and the drift check at
+            # the end of SolveExternalQ exist to protect.
+            #
+            # AVERAGE-FRACTIONS PATH: no file carries the inter-mode ratio, so
+            # each mode's own Hanneke power is the only source of it and must
+            # stay per-mode. A single-mode configuration is unchanged either
+            # way, since self.modes[0] IS mode.
+            base_mode = self.modes[0] if components is not None else mode
+            mode_signal_power = (base_mode.signal_power_vs_r if tau_snr_array_for_radii
+                                 else base_mode.signal_power)
             if components is not None:
                 # A mode with power_fractions=None (no independent signal file)
                 # and a mode whose fractions are simply zero at the requested
@@ -1444,7 +1553,9 @@ class CavitySensitivity(Sensitivity):
             fc0_endpoint = self.cavity_freq
             p_array = ax_freq_array/fc0_endpoint/pitch_comps_for_p_and_q_calc #An array
             if self.FrequencyExtraction.use_average_power_fractions:
-                p_array = p_array[:1] #Cut out theta=pi/2 (ill defined there)
+                p_array = p_array[:1]
+            else:
+                p_array = p_array[:-1]
             self.p = np.mean(p_array)
 
             # Now calculating q for the trap that we have
