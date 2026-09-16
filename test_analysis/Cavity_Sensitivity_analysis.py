@@ -236,9 +236,9 @@ sens_config_dict = {
     #"goals_x_position": 0.12, #4e-2, #<-- Number for ncav*eff*time   #0.11, <-- Number for ncavities*livetime
     #"goals_y_rel_position": 0.86, #0.84, <-- Number for ncav*eff*time   #0.81, <-- Number for ncavities*livetime
     }
-sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
-sens_curve.Configure(sens_config_dict)
-sens_curve.Run()
+#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+#sens_curve.Configure(sens_config_dict)
+#sens_curve.Run()
 
 
 sens_config_dict = {
@@ -467,8 +467,344 @@ sens_config_dict = {
 #sens_curve.Run()
 
 
+# Configuration for single mode vs. multimode configuration
+sens_config_dict = {
+    # required
+    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_5m_singlemode_matched.cfg", #"/termite/sensitivity_config_files/Config_LFA_Experiment.cfg",
+    "plot_path": "./LFA_comparison_singlemode_vs_multimode_longcav2_Sep-13-2026.pdf", #ncav-eff-time
+    "exposure_axis": True,
+    # optional
+    "figsize": (8.3, 6.3), #(10,6),
+    "fontsize": 15,
+    "legend_location": "upper right",
+    "legend_bbox_to_anchor": (-0.,0,0.86,0.971), #last entry: 0.955
+    "track_length_axis": False,
+    "molecular_axis": False,
+    "atomic_axis": False,
+    "exposure_axis": False,
+    "density_axis": False,
+    "ncav_eff_time_axis": False,
+    "ncavities_livetime_axis": False,
+    "livetime_axis": True,
+    "cavity": True,
+    "add_PhaseII": False,
+    "PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg",
+    "add_1year_1cav_point_to_last_ref": False,
+    "y_limits": [2e-2, 3],
+    #"density_range": [1e12,1e19],
+    "year_range": [0.1,35],
+    "main_curve_upper_label":  r"LFA, single mode, 5m cavity", # 560 MHz, $V = 1.7\,$m$^3$
+    "goals": {"LFA threshold (0.7 eV)": 0.7, "Phase IV (0.04 eV)": 0.04},
+    "goals_x_position": {"LFA threshold (0.7 eV)": 4.5, "Phase IV (0.04 eV)": 0.108}, #6e14, #3.3e14, #5.5e13, 
+    "goals_y_rel_position": {"LFA threshold (0.7 eV)": 0.83, "Phase IV (0.04 eV)": 0.83}, #6e14, #3.3e14, #5.5e13, 
+    "comparison_curve": True,
+    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_10m_singlemode_matched.cfg", "/termite/sensitivity_config_files/Config_LFA_5m_multimode.cfg", "/termite/sensitivity_config_files/Config_LFA_10m_multimode.cfg"], #"/termite/sensitivity_config_files/Config_LFA_Experiment_max_BNL_diam_threshold.cfg", 
+    "comparison_curve_label": [r"LFA, single mode, 10m cavity", r"LFA, multi-mode, 5m cavity", r"LFA, multi-mode, 10m cavity"], #150 MHz, $V = 94\,$m$^3$
+    "main_curve_color": "blue",
+    "comparison_curve_colors": ["blue", "darkred", "black"],
+    "main_curve_linestyle": "dashed", 
+    "comparison_curve_linestyles": ["solid", "dotted", "dashdot"], 
+    "main_curve_marker": "d",
+    "comparison_curve_markers": ["o", "^", "X"],
+    "optimize_main_density": True,
+    "optimize_comparison_density": True,
+    "lower_label_y_position": 0.17,
+    "upper_label_y_position": 0.7,
+    "label_x_position": 0.115, 
+    #"goals_x_position": 0.12, #4e-2, #<-- Number for ncav*eff*time   #0.11, <-- Number for ncavities*livetime
+    #"goals_y_rel_position": 0.86, #0.84, <-- Number for ncav*eff*time   #0.81, <-- Number for ncavities*livetime
+    }
+#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+#sens_curve.Configure(sens_config_dict)
+#sens_curve.Run()
 
 
 
 
+# Configuration sensitivity vs density curves for LFA single mode vs. multimode
+sens_config_dict = {
+    # required
+    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_5m_singlemode_matched.cfg",
+    "plot_path": "./LFA_comparison_singlemode_vs_multimode_vs_density_Sep-13-2026.pdf",
+    # optional
+    "figsize": (8.3, 6.3),
+    "fontsize": 15,
+    "legend_location": "upper left",
+    "legend_bbox_to_anchor": (0.155,-0.01,1.12,0.885),
+    "molecular_axis": False,
+    "atomic_axis": True,
+    "track_length_axis": True,
+    "density_axis": True,
+    "exposure_axis": False,
+    "livetime_axis": False,
+    "ncav_eff_time_axis": False,
+    "ncavities_livetime_axis": False,
+    "cavity": True,
+    "add_PhaseII": False,
+    "PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg",
+    "add_1year_1cav_point_to_last_ref": False,
+    "y_limits": [2e-2, 3],
+    "density_range": [3e14, 3e18],
+    "det_thresh_range": [5, 115],
+    "add_point_at_configured_density": True,
+    "main_curve_upper_label": r"LFA, single mode, 5m cavity",
+    "goals": {"LFA threshold (0.7 eV)": 0.7, "Phase IV (0.04 eV)": 0.04},
+    "goals_x_position": {"LFA threshold (0.7 eV)": 2.6e16, "Phase IV (0.04 eV)": 4e14},
+    "goals_y_rel_position": {"LFA threshold (0.7 eV)": 1.1, "Phase IV (0.04 eV)": 0.79},
+    "comparison_curve": True,
+    "comparison_config_file_path": ["/termite/sensitivity_config_files/Config_LFA_10m_singlemode_matched.cfg",
+                                    "/termite/sensitivity_config_files/Config_LFA_5m_multimode.cfg",
+                                    "/termite/sensitivity_config_files/Config_LFA_10m_multimode.cfg"],
+    "comparison_curve_label": [r"LFA, single mode, 10m cavity",
+                               r"LFA, multi-mode, 5m cavity",
+                               r"LFA, multi-mode, 10m cavity"],
+    "main_curve_color": "blue",
+    "comparison_curve_colors": ["blue", "darkred", "black"],
+    "main_curve_linestyle": "dashed",
+    "comparison_curve_linestyles": ["solid", "dotted", "dashdot"],
+    "main_curve_marker": "d",
+    "comparison_curve_markers": ["o", "^", "X"],
+    "comparison_label_y_position": [0.30, 0.27, 0.22],
+    "comparison_label_x_position": [7e14, 7e14, 7e14],
+    "lower_label_y_position": 0.17,
+    "upper_label_y_position": 0.7,
+    "label_x_position": 4e14,
+    "verbose": False,
+    "plot_key_parameters": False,
+    }
+#sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+#sens_curve.Configure(sens_config_dict)
+#sens_curve.Run()
 
+
+# --- A) 1 module: single-mode vs multi-mode, 5m data vs 10m data ---
+sens_config_dict = {
+    # required
+    "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIV_1module_singlemode_matched_5mdata.cfg",
+    "plot_path": "./PhaseIV_1module_singlemode_vs_multimode_vs_density.pdf",
+    # optional
+    "figsize": (8.3, 6.3),
+    "fontsize": 15,
+    "legend_location": "upper left",
+    "legend_bbox_to_anchor": (0.155, -0.01, 1.12, 0.885),
+    "molecular_axis": False,
+    "atomic_axis": True,
+    "track_length_axis": True,
+    "density_axis": True,
+    "exposure_axis": False,
+    "livetime_axis": False,
+    "ncav_eff_time_axis": False,
+    "ncavities_livetime_axis": False,
+    "cavity": True,
+    "add_PhaseII": False,
+    "PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg",
+    "add_1year_1cav_point_to_last_ref": False,
+    "y_limits": [2e-2, 3],  # TUNE
+    "density_range": [3e14, 3e18],
+    "det_thresh_range": [5, 115],
+    "add_point_at_configured_density": True,
+    "main_curve_upper_label": r"Phase IV, 1 module, single mode (5m data)",
+    "goals": {"Phase IV (0.04 eV)": 0.04},
+    "goals_x_position": {"Phase IV (0.04 eV)": 4e14},
+    "goals_y_rel_position": {"Phase IV (0.04 eV)": 0.79},
+    "comparison_curve": True,
+    "comparison_config_file_path": [
+        "/termite/sensitivity_config_files/Config_PhaseIV_1module_multimode_5mdata.cfg",
+        "/termite/sensitivity_config_files/Config_PhaseIV_1module_singlemode_matched_10mdata.cfg",
+        "/termite/sensitivity_config_files/Config_PhaseIV_1module_multimode_10mdata.cfg",
+    ],
+    "comparison_curve_label": [
+        r"1 module, multi-mode (5m data)",
+        r"1 module, single mode (10m data)",
+        r"1 module, multi-mode (10m data)",
+    ],
+    "main_curve_color": "blue",
+    "comparison_curve_colors": ["darkred", "black", "green"],
+    "main_curve_linestyle": "dashed",
+    "comparison_curve_linestyles": ["solid", "dotted", "dashdot"],
+    "main_curve_marker": "d",
+    "comparison_curve_markers": ["o", "^", "X"],
+    "comparison_label_y_position": [0.30, 0.27, 0.22],  # TUNE
+    "comparison_label_x_position": [7e14, 7e14, 7e14],  # TUNE
+    "lower_label_y_position": 0.17,
+    "upper_label_y_position": 0.7,
+    "label_x_position": 4e14,
+    "verbose": False,
+    "plot_key_parameters": False,
+    }
+sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+sens_curve.Configure(sens_config_dict)
+sens_curve.Run()
+
+
+# --- B) 10 modules (Phase IV baseline): single-mode vs multi-mode, 5m data ---
+sens_config_dict = {
+    # required
+    "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIV_10module_singlemode_matched_5mdata.cfg",
+    "plot_path": "./PhaseIV_10module_singlemode_vs_multimode_vs_density.pdf",
+    # optional
+    "figsize": (8.3, 6.3),
+    "fontsize": 15,
+    "legend_location": "upper left",
+    "legend_bbox_to_anchor": (0.155, -0.01, 1.12, 0.885),
+    "molecular_axis": False,
+    "atomic_axis": True,
+    "track_length_axis": True,
+    "density_axis": True,
+    "exposure_axis": False,
+    "livetime_axis": False,
+    "ncav_eff_time_axis": False,
+    "ncavities_livetime_axis": False,
+    "cavity": True,
+    "add_PhaseII": False,
+    "PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg",
+    "add_1year_1cav_point_to_last_ref": False,
+    "y_limits": [2e-2, 3],  # TUNE
+    "density_range": [3e14, 3e18],
+    "det_thresh_range": [5, 115],
+    "add_point_at_configured_density": True,
+    "main_curve_upper_label": r"Phase IV, 10 modules, single mode (5m data)",
+    "goals": {"Phase IV (0.04 eV)": 0.04},
+    "goals_x_position": {"Phase IV (0.04 eV)": 4e14},
+    "goals_y_rel_position": {"Phase IV (0.04 eV)": 0.79},
+    "comparison_curve": True,
+    "comparison_config_file_path": [
+        "/termite/sensitivity_config_files/Config_PhaseIV_10module_multimode_5mdata.cfg",
+    ],
+    "comparison_curve_label": [
+        r"10 modules, multi-mode (5m data)",
+    ],
+    "main_curve_color": "blue",
+    "comparison_curve_colors": ["darkred"],
+    "main_curve_linestyle": "dashed",
+    "comparison_curve_linestyles": ["solid"],
+    "main_curve_marker": "d",
+    "comparison_curve_markers": ["o"],
+    "comparison_label_y_position": [0.10],  # TUNE
+    "comparison_label_x_position": [7e14],  # TUNE
+    "lower_label_y_position": 0.17,
+    "upper_label_y_position": 0.7,
+    "label_x_position": 4e14,
+    "verbose": False,
+    "plot_key_parameters": False,
+    }
+sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+sens_curve.Configure(sens_config_dict)
+sens_curve.Run()
+
+
+# --- C) 5 modules, double length: single-mode vs multi-mode, 10m data ---
+sens_config_dict = {
+    # required
+    "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIV_5module_2xlength_singlemode_matched_10mdata.cfg",
+    "plot_path": "./PhaseIV_5module_2xlength_singlemode_vs_multimode_vs_density.pdf",
+    # optional
+    "figsize": (8.3, 6.3),
+    "fontsize": 15,
+    "legend_location": "upper left",
+    "legend_bbox_to_anchor": (0.155, -0.01, 1.12, 0.885),
+    "molecular_axis": False,
+    "atomic_axis": True,
+    "track_length_axis": True,
+    "density_axis": True,
+    "exposure_axis": False,
+    "livetime_axis": False,
+    "ncav_eff_time_axis": False,
+    "ncavities_livetime_axis": False,
+    "cavity": True,
+    "add_PhaseII": False,
+    "PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg",
+    "add_1year_1cav_point_to_last_ref": False,
+    "y_limits": [2e-2, 3],  # TUNE
+    "density_range": [3e14, 3e18],
+    "det_thresh_range": [5, 115],
+    "add_point_at_configured_density": True,
+    "main_curve_upper_label": r"Phase IV, 5 modules x2 length, single mode (10m data)",
+    "goals": {"Phase IV (0.04 eV)": 0.04},
+    "goals_x_position": {"Phase IV (0.04 eV)": 4e14},
+    "goals_y_rel_position": {"Phase IV (0.04 eV)": 0.79},
+    "comparison_curve": True,
+    "comparison_config_file_path": [
+        "/termite/sensitivity_config_files/Config_PhaseIV_5module_2xlength_multimode_10mdata.cfg",
+    ],
+    "comparison_curve_label": [
+        r"5 modules x2 length, multi-mode (10m data)",
+    ],
+    "main_curve_color": "blue",
+    "comparison_curve_colors": ["darkred"],
+    "main_curve_linestyle": "dashed",
+    "comparison_curve_linestyles": ["solid"],
+    "main_curve_marker": "d",
+    "comparison_curve_markers": ["o"],
+    "comparison_label_y_position": [0.10],  # TUNE
+    "comparison_label_x_position": [7e14],  # TUNE
+    "lower_label_y_position": 0.17,
+    "upper_label_y_position": 0.7,
+    "label_x_position": 4e14,
+    "verbose": False,
+    "plot_key_parameters": False,
+    }
+sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+sens_curve.Configure(sens_config_dict)
+sens_curve.Run()
+
+
+# --- D) Multimode only, across module count/length: 1 vs 10 vs 5x2 ---
+# NOT an apples-to-apples data-source ablation (1- and 10-module curves use 5m
+# data, the 5-module curve uses 10m data, per the mapping the configs were
+# built with) -- shows the module-count/length trade at fixed readout scheme.
+sens_config_dict = {
+    # required
+    "config_file_path": "/termite/sensitivity_config_files/Config_PhaseIV_1module_multimode_5mdata.cfg",
+    "plot_path": "./PhaseIV_multimode_module_count_vs_density.pdf",
+    # optional
+    "figsize": (8.3, 6.3),
+    "fontsize": 15,
+    "legend_location": "upper left",
+    "legend_bbox_to_anchor": (0.155, -0.01, 1.12, 0.885),
+    "molecular_axis": False,
+    "atomic_axis": True,
+    "track_length_axis": True,
+    "density_axis": True,
+    "exposure_axis": False,
+    "livetime_axis": False,
+    "ncav_eff_time_axis": False,
+    "ncavities_livetime_axis": False,
+    "cavity": True,
+    "add_PhaseII": False,
+    "PhaseII_config_path": "/termite/sensitivity_config_files/Config_PhaseII_Experiment.cfg",
+    "add_1year_1cav_point_to_last_ref": False,
+    "y_limits": [2e-2, 3],  # TUNE
+    "density_range": [3e14, 3e18],
+    "det_thresh_range": [5, 115],
+    "add_point_at_configured_density": True,
+    "main_curve_upper_label": r"Phase IV, 1 module, multi-mode (5m data)",
+    "goals": {"Phase IV (0.04 eV)": 0.04},
+    "goals_x_position": {"Phase IV (0.04 eV)": 4e14},
+    "goals_y_rel_position": {"Phase IV (0.04 eV)": 0.79},
+    "comparison_curve": True,
+    "comparison_config_file_path": [
+        "/termite/sensitivity_config_files/Config_PhaseIV_10module_multimode_5mdata.cfg",
+        "/termite/sensitivity_config_files/Config_PhaseIV_5module_2xlength_multimode_10mdata.cfg",
+    ],
+    "comparison_curve_label": [
+        r"10 modules, multi-mode (5m data)",
+        r"5 modules x2 length, multi-mode (10m data)",
+    ],
+    "main_curve_color": "blue",
+    "comparison_curve_colors": ["darkred", "black"],
+    "main_curve_linestyle": "dashed",
+    "comparison_curve_linestyles": ["solid", "dotted"],
+    "main_curve_marker": "d",
+    "comparison_curve_markers": ["o", "^"],
+    "comparison_label_y_position": [0.10, 0.08],  # TUNE
+    "comparison_label_x_position": [7e14, 7e14],  # TUNE
+    "lower_label_y_position": 0.17,
+    "upper_label_y_position": 0.7,
+    "label_x_position": 4e14,
+    "verbose": False,
+    "plot_key_parameters": False,
+    }
+sens_curve = CavitySensitivityCurveProcessor("sensitivity_curve_processor")
+sens_curve.Configure(sens_config_dict)
+sens_curve.Run()
