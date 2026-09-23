@@ -233,11 +233,13 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         self.plot_sensitivity_scan_on_log_scale = reader.read_param(params, 'plot_sensitivity_scan_on_log_scale', True)
         
         self.density_axis = reader.read_param(params, "density_axis", True)
+        self.exposure_axis = reader.read_param(params, "exposure_axis", False)
         self.track_length_axis = reader.read_param(params, 'track_length_axis', True)
         self.atomic_axis = reader.read_param(params, 'atomic_axis', False)
         self.molecular_axis = reader.read_param(params, 'molecular_axis', False)
         
         self.density_range = reader.read_param(params, 'density_range', [1e14,1e21])
+        self.exposure_range = reader.read_param(params, 'exposure_range', [1e-10, 1e3])
         self.ylim = reader.read_param(params, 'y_limits', [1e-2, 1e2])
         
         
@@ -257,9 +259,16 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         self.diagnostics_needing_providers = set()
         self.diagnostic_values = {spec["key"]: [] for spec in self.diagnostics}
         
-        if self.density_axis:
+        if self.density_axis and self.exposure_axis:
+            raise ValueError("density_axis and exposure_axis are mutually exclusive: "
+                              "exposure lines are drawn at fixed density, so the two "
+                              "x-axes can't both be active at once.")
+        elif self.density_axis:
             self.add_sens_line = self.add_density_sens_line
             logger.info("Doing density lines")
+        elif self.exposure_axis:
+            self.add_sens_line = self.add_exposure_sens_line
+            logger.info("Doing exposure lines")
 
 
 
@@ -304,6 +313,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
 
         # densities, exposures, runtimes
         self.rhos = np.logspace(np.log10(self.density_range[0]), np.log10(self.density_range[1]), 100)/m**3
+        self.exposures = np.logspace(np.log10(self.exposure_range[0]), np.log10(self.exposure_range[1]), 100)*m**3*year
         if(self.scan_parameter_scale == "lin"):
             self.scan_parameter_values = np.linspace(self.scan_parameter_range[0], self.scan_parameter_range[1], self.scan_parameter_steps)*self.scan_parameter_unit
         elif(self.scan_parameter_scale == "log"):
@@ -373,12 +383,21 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             self.sens_main.EffectiveVolume()
             self.sens_main.CavityPower()
             
-            # optimize density
-            logger.info("Optimizing density")
-            limit = [self.sens_main.CL90(Experiment={"number_density": rho}) for rho in self.rhos]
+            # density: optimized when density is the x-axis, otherwise left at
+            # whatever the config file already specifies (used as-is by the
+            # exposure line, which sweeps livetime at fixed density)
+            if self.density_axis:
+                logger.info("Optimizing density")
+                limit = [self.sens_main.CL90(Experiment={"number_density": rho}) for rho in self.rhos]
+                opt = np.argmin(limit)
+                rho_opt = self.rhos[opt]
+            else:
+                logger.info("Using fixed density from config: {} /m**3".format(
+                    self.sens_main.Experiment.number_density*m**3))
+                rho_opt = self.sens_main.Experiment.number_density
+                limit = [self.sens_main.CL90(Experiment={"number_density": rho_opt})]
+
             self.optimum_limits.append(np.min(limit))
-            opt = np.argmin(limit)
-            rho_opt = self.rhos[opt]
             self.optimum_rhos.append(rho_opt)
               
             # add main curve
@@ -801,7 +820,14 @@ class SensitivityParameterScanProcessor(BaseProcessor):
             ax.set_xlabel(axis_label)
             ax.set_ylim(self.ylim)
             ax.set_ylabel(r"90% CL on $m_\beta$ (eV)")
-            
+
+        elif self.exposure_axis:
+            logger.info("Adding exposure axis")
+            ax.set_xlim(self.exposure_range[0], self.exposure_range[-1])
+            ax.set_xlabel(r"Effective Volume $\times$ Time (m$^3$y)")
+            ax.set_ylim(self.ylim)
+            ax.set_ylabel(r"90% CL on $m_\beta$ (eV)")
+
         if len(param_range)>4:
             # add colorbar with colors from self.range
             cmap = matplotlib.cm.get_cmap('Spectral')
@@ -882,9 +908,35 @@ class SensitivityParameterScanProcessor(BaseProcessor):
                 self.kp_ax[1].plot(self.rhos*m**3, track_durations,
                                    linestyle="--", marker='.', **kwargs)
         return limits
-    
- 
-      
+
+    def add_exposure_sens_line(self, sens, plot_key_params=False, **kwargs):
+        """Sweep exposure (Effective Volume x Livetime, in m^3 y) at fixed density.
+
+        Density is left exactly as InternalRun set it (the config value, not
+        optimized) -- this mirrors add_density_sens_line's role of tracing out
+        the x-axis, just with livetime as the swept quantity instead of
+        number_density. Matches the pattern used for exposure lines in
+        CavitySensitivityCurveProcessor.add_exposure_sens_line.
+        """
+        limits = []
+        temp_livetime = sens.Experiment.livetime
+
+        for exposure in self.exposures:
+            livetime = exposure / sens.EffectiveVolume()
+            sens.Experiment.livetime = livetime
+            limits.append(sens.CL90()/eV)
+
+        # restore the config's livetime so downstream logging in InternalRun
+        # (which assumes Experiment.LiveTime is the configured value) is
+        # unaffected by this sweep
+        sens.Experiment.livetime = temp_livetime
+        sens.CL90()
+
+        self.ax.plot(self.exposures/m**3/year, limits, **kwargs)
+        logger.info('Minimum limit at exposure {} m**3 y: {}'.format(
+            (self.exposures/m**3/year)[np.argmin(limits)], np.min(limits)))
+        return limits
+
     def add_text(self, x, y, text, color="k"): #, fontsize=9.5
         self.ax.text(x, y, text, color=color)
 
@@ -900,7 +952,8 @@ class SensitivityParameterScanProcessor(BaseProcessor):
                 legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(0.15,0,1,0.765))
             
         else:
-            legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(-0.,0,0.89,0.97))
+            if self.scan_parameter_steps < 5:
+                legend=self.fig.legend(loc=self.legend_location, framealpha=0.95, bbox_to_anchor=(-0.,0,0.89,0.97))
 
             
             

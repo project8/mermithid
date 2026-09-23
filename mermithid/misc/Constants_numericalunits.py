@@ -61,7 +61,7 @@ ground_state_branch_atomic = 0.702
 # C032 - Ground state branch (molecular)
 ground_state_branch_molecular = 0.570
 # C035 - [eV] Difference between atomic and effective molecular endpoints, effective difference 10-2 eV
-endpoint_diff = tritium_endpoint_molecular - tritium_endpoint_atomic
+endpoint_diff = 8*eV#tritium_endpoint_molecular - tritium_endpoint_atomic
 # C036 - [eV] Recoil energy of tritium atom (Bodine)
 atomic_tritium_recoil_energy = 3.409*eV
 # C038 - [eV] Binding energy of tritium molecule (Bodine)

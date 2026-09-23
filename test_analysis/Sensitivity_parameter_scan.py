@@ -124,8 +124,8 @@ sens_config_dict = {
 # Configuration for efficiency scan
 sens_config_dict = {
     # required
-    "config_file_path": "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg",
-    #config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_Atomic_Effects.cfg",
+    #config_file_path": "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg",
+    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_Atomic_Effects.cfg",
     "plot_path": ".",
     # optional
     "figsize": (7.0,6),
@@ -137,10 +137,11 @@ sens_config_dict = {
     "y_limits": [2e-2, 4],
     "density_range": [1e12,3e18],
     #"density_range": [1e8, 1e12],
-    "goals": {"Phase IV (0.04 eV)": 0.04},
+    #"goals": {"Phase IV (0.04 eV)": 0.04},
+    "goals": {"LFA, target (0.3 eV)": 0.3},
     "scan_parameter_name": "Efficiency.T2_T_ratio",
     "scan_parameter_range": [1e-9,1e-1],
-    "scan_parameter_steps": 21,
+    "scan_parameter_steps": 9,
     "scan_parameter_scale": "log",
     "scan_parameter_unit": 1,
     "plot_sensitivity_scan_on_log_scale": True,
@@ -161,6 +162,34 @@ sens_config_dict = {
 sens_scan = SensitivityParameterScanProcessor("sensitivity_curve_processor")
 sens_scan.Configure(sens_config_dict)
 sens_scan.Run()
+
+
+# Sensitivity vs exposure scan, fixed density 
+sens_config_dict = {
+    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_Atomic_Effects.cfg",
+    "plot_path": ".",
+    "figsize": (7.0,6),
+    "track_length_axis": False,       # only meaningful vs. density
+    "molecular_axis": False,
+    "atomic_axis": True,
+    "density_axis": False,
+    "exposure_axis": True,
+    "cavity": True,
+    "y_limits": [2e-2, 10],
+    "exposure_range": [1e-6, 1e3],
+    "goals": {"LFA, target (0.3 eV)": 0.3},
+    "goals_x_position": 1e-3,
+    "scan_parameter_name": "Efficiency.T2_T_ratio",
+    "scan_parameter_range": [1e-9, 1e-1],
+    "scan_parameter_steps": 9,
+    "scan_parameter_scale": "log",
+    "scan_parameter_unit": 1,
+    "plot_sensitivity_scan_on_log_scale": True,
+    "plot_key_parameters": False,
+    }
+#sens_scan = SensitivityParameterScanProcessor("sensitivity_curve_processor")
+#sens_scan.Configure(sens_config_dict)
+#sens_scan.Run()
 
 print(sens_scan.results)
 
