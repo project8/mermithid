@@ -10,6 +10,7 @@ from __future__ import absolute_import
 
 
 import matplotlib
+import matplotlib.ticker
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -239,6 +240,13 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         self.molecular_axis = reader.read_param(params, 'molecular_axis', False)
         
         self.density_range = reader.read_param(params, 'density_range', [1e14,1e21])
+        # optimize_density: True  -> working point is the density minimizing CL90
+        #                            (at the config livetime) for each scan value
+        #                   False -> working point is held fixed for every scan value
+        # fixed_density: density (in m^-3) used when optimize_density is False.
+        #                None -> use Experiment.number_density from the config file.
+        self.optimize_density = reader.read_param(params, 'optimize_density', True)
+        self.fixed_density = reader.read_param(params, 'fixed_density', None)
         self.exposure_range = reader.read_param(params, 'exposure_range', [1e-10, 1e3])
         self.ylim = reader.read_param(params, 'y_limits', [1e-2, 1e2])
         
@@ -350,6 +358,16 @@ class SensitivityParameterScanProcessor(BaseProcessor):
         # arrays for the diagnostic parameters (kept separate from the results above)
         self.diagnostic_values = {spec["key"]: [] for spec in self.diagnostics}
 
+        # density from the config file. Restored at the start of every scan step
+        # so that quantities computed before the density optimization (e.g.
+        # EffectiveVolume) never see the density pinned by the previous step.
+        config_density = self.sens_main.Experiment.number_density
+        if self.fixed_density is not None:
+            config_density = self.fixed_density/m**3
+        if not self.optimize_density:
+            logger.info("Density NOT optimized: using fixed density {} /m**3 for every scan value".format(
+                config_density*m**3))
+
         for i, color in self.range(self.scan_parameter_values/self.scan_parameter_unit):
             parameter_value = self.scan_parameter_values[i]
             
@@ -377,28 +395,47 @@ class SensitivityParameterScanProcessor(BaseProcessor):
 #            if (param != "trap_length"):
 #                self.sens_main.TrapLength() # method no longer exist in CavitySensitivity
             
+            # reset density to the config value before anything density-dependent
+            self.sens_main.Experiment.number_density = config_density
+
             logger.info("Calculating cavity experiment radius, volume, effective volume, power") 
             self.sens_main.CavityRadius()  
             self.sens_main.CavityVolume()
             self.sens_main.EffectiveVolume()
             self.sens_main.CavityPower()
             
-            # density: optimized when density is the x-axis, otherwise left at
-            # whatever the config file already specifies (used as-is by the
-            # exposure line, which sweeps livetime at fixed density)
-            if self.density_axis:
+            if self.optimize_density:
+                # density optimized for the current scan-parameter value, at the
+                # livetime/exposure given in the config file
                 logger.info("Optimizing density")
-                limit = [self.sens_main.CL90(Experiment={"number_density": rho}) for rho in self.rhos]
-                opt = np.argmin(limit)
+                limit = np.array([self.sens_main.CL90(Experiment={"number_density": rho}) for rho in self.rhos], dtype=float)
+                n_bad = np.sum(~np.isfinite(limit))
+                if n_bad == len(limit):
+                    raise RuntimeError(f"CL90 is NaN/inf at every density in density_range for "
+                                       f"{self.scan_parameter_name} = {parameter_value/self.scan_parameter_unit}")
+                if n_bad > 0:
+                    logger.warning(f"CL90 is NaN/inf at {n_bad}/{len(limit)} densities "
+                                   f"(likely track length -> 0 at high density); ignoring those points")
+                opt = np.nanargmin(np.where(np.isfinite(limit), limit, np.nan))
                 rho_opt = self.rhos[opt]
+                limit_opt = limit[opt]
             else:
-                logger.info("Using fixed density from config: {} /m**3".format(
-                    self.sens_main.Experiment.number_density*m**3))
-                rho_opt = self.sens_main.Experiment.number_density
-                limit = [self.sens_main.CL90(Experiment={"number_density": rho_opt})]
+                # fixed working point: same density for every scan-parameter value
+                rho_opt = config_density
+                limit_opt = self.sens_main.CL90(Experiment={"number_density": rho_opt})
+                if not np.isfinite(limit_opt):
+                    raise RuntimeError(f"CL90 is NaN/inf at the fixed density {rho_opt*m**3} /m**3 for "
+                                       f"{self.scan_parameter_name} = {parameter_value/self.scan_parameter_unit}")
 
-            self.optimum_limits.append(np.min(limit))
+            self.optimum_limits.append(limit_opt)
             self.optimum_rhos.append(rho_opt)
+
+            if self.exposure_axis:
+                # exposure line sweeps livetime at fixed density: pin it to the
+                # working point chosen above (optimized or fixed)
+                self.sens_main.Experiment.number_density = rho_opt
+                logger.info("Exposure line drawn at density: {} /m**3 ({})".format(
+                    rho_opt*m**3, "optimized" if self.optimize_density else "fixed"))
               
             # add main curve
             logger.info("Drawing main curve")  
@@ -492,7 +529,7 @@ class SensitivityParameterScanProcessor(BaseProcessor):
 
         plt.figure(figsize=self.figsize)
         #plt.title("Sensitivity vs. {}".format(self.scan_parameter_name))
-        plt.plot(self.scan_parameter_values/self.scan_parameter_unit, np.array(self.optimum_limits)/eV, marker=".", label="Density optimized scenarios")
+        plt.plot(self.scan_parameter_values/self.scan_parameter_unit, np.array(self.optimum_limits)/eV, marker=".", label="Density optimized scenarios" if self.optimize_density else "Fixed density ({:.2e} m$^{{-3}}$)".format(self.optimum_rhos[0]*m**3))
         plt.xlabel(self.parameter_axis_label(), fontsize=self.fontsize)
         plt.ylabel(r"90% CL on $m_\beta$ (eV)", fontsize=self.fontsize)
         if self.plot_sensitivity_scan_on_log_scale:
@@ -830,11 +867,19 @@ class SensitivityParameterScanProcessor(BaseProcessor):
 
         if len(param_range)>4:
             # add colorbar with colors from self.range
-            cmap = matplotlib.cm.get_cmap('Spectral')
-            norm = matplotlib.colors.Normalize(vmin=np.min(param_range), vmax=np.max(param_range))
+            # same norm as the line colors, so colorbar and lines always agree
+            cmap = matplotlib.colors.ListedColormap(matplotlib.cm.get_cmap('viridis')(np.linspace(0.0, 0.9, 256)))
+            norm = self.param_norm(param_range)
             sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
             sm.set_array([])
-            self.fig.colorbar(sm, ticks=np.round(param_range, 2), label=self.parameter_axis_label(self.scan_parameter_name))
+            label = self.parameter_axis_label(self.scan_parameter_name)
+            if self.scan_parameter_scale == "log":
+                # LogNorm: matplotlib places ticks at the decades automatically
+                cbar = self.fig.colorbar(sm, ax=ax, label=label)
+            else:
+                ticks = param_range if len(param_range) <= 11 else None
+                cbar = self.fig.colorbar(sm, ax=ax, ticks=ticks, label=label)
+                cbar.ax.yaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%g'))
             
         
 
@@ -894,10 +939,10 @@ class SensitivityParameterScanProcessor(BaseProcessor):
                 track_durations.append(np.mean(np.atleast_1d(sens.time_window))/ms)
 
         self.ax.plot(self.rhos*m**3, limits, **kwargs)
-        rho_opt = self.rhos[np.argmin(limits)]
+        rho_opt = self.rhos[np.nanargmin(limits)]
         # set experiment to optimum density
         sens.CL90(Experiment={"number_density": rho_opt})
-        logger.info('Minimum limit at {}: {}'.format(rho_opt*m**3, np.min(limits)))
+        logger.info('Minimum limit at {}: {}'.format(rho_opt*m**3, np.nanmin(limits)))
 
         if collect_key_params:
             if not hasattr(self, "kp_ax"):
@@ -912,10 +957,10 @@ class SensitivityParameterScanProcessor(BaseProcessor):
     def add_exposure_sens_line(self, sens, plot_key_params=False, **kwargs):
         """Sweep exposure (Effective Volume x Livetime, in m^3 y) at fixed density.
 
-        Density is left exactly as InternalRun set it (the config value, not
-        optimized) -- this mirrors add_density_sens_line's role of tracing out
-        the x-axis, just with livetime as the swept quantity instead of
-        number_density. Matches the pattern used for exposure lines in
+        Density is left exactly as InternalRun set it: the density that
+        minimizes CL90 at the config's livetime, for the current scan-parameter
+        value. It is not re-optimized as exposure varies. Matches the pattern
+        used for exposure lines in
         CavitySensitivityCurveProcessor.add_exposure_sens_line.
         """
         limits = []
@@ -934,16 +979,27 @@ class SensitivityParameterScanProcessor(BaseProcessor):
 
         self.ax.plot(self.exposures/m**3/year, limits, **kwargs)
         logger.info('Minimum limit at exposure {} m**3 y: {}'.format(
-            (self.exposures/m**3/year)[np.argmin(limits)], np.min(limits)))
+            (self.exposures/m**3/year)[np.nanargmin(limits)], np.nanmin(limits)))
         return limits
 
     def add_text(self, x, y, text, color="k"): #, fontsize=9.5
         self.ax.text(x, y, text, color=color)
 
+    def param_norm(self, param_range):
+        """Color normalization for the scan parameter: log for log scans, linear otherwise."""
+        vmin, vmax = np.min(param_range), np.max(param_range)
+        if self.scan_parameter_scale == "log":
+            return matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax)
+        if vmin == vmax:
+            vmin, vmax = vmin - 0.5, vmax + 0.5
+        return matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
+
     def range(self, param_range):
-        cmap = matplotlib.cm.get_cmap('Spectral')
-        norm = matplotlib.colors.Normalize(vmin=0, vmax=len(param_range)-1)
-        return [(idx, cmap(norm(idx))) for idx, _ in enumerate(param_range)]
+        # color each line by its parameter VALUE (not its index), using the same
+        # norm as the colorbar, so the colorbar reads correctly
+        cmap = cmap = matplotlib.colors.ListedColormap(matplotlib.cm.get_cmap('viridis')(np.linspace(0.0, 0.9, 256)))
+        norm = self.param_norm(param_range)
+        return [(idx, cmap(norm(value))) for idx, value in enumerate(param_range)]
 
     def save(self, filename, **kwargs):
         

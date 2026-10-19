@@ -163,8 +163,8 @@ class Sensitivity(object):
         n_cavities = self.Experiment.n_cavities
         if self.Efficiency.T2_background_atomic_trap:
             # Stat^2 = 4/(9*r_a*t*#_cav) * ((1 + zeta)*delta_E + b*#_cav/r_a/delta_E + 3*#_cav*zeta*delta_endpoint*(1 + delta_endpoint/delta_E))
-            sens = 2/(3*sig_rate*self.Experiment.LiveTime*n_cavities)*np.sqrt(sig_rate*self.Experiment.LiveTime*n_cavities*(1+zeta)*DeltaE \
-                   	+ bkg_rate*(n_cavities**2*self.Experiment.LiveTime/DeltaE) + 3*n_cavities**2*zeta*endpoint_diff*sig_rate \
+            sens = 2/(3*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*(1+zeta)*DeltaE \
+                   	+ bkg_rate*self.Experiment.LiveTime/DeltaE + 3*zeta*endpoint_diff*sig_rate \
 			* self.Experiment.LiveTime*(1 + endpoint_diff/DeltaE))
         else:
             # Stat^2 = 4/(9*r_a*t) * (delta_E + b/r_a/delta_E) if zeta=0

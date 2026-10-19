@@ -124,8 +124,8 @@ sens_config_dict = {
 # Configuration for efficiency scan
 sens_config_dict = {
     # required
-    #config_file_path": "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg.cfg",
-    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_Atomic_Effects.cfg",
+    "config_file_path": "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg_Atomic_Effects.cfg",
+    #"config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_Atomic_Effects.cfg",
     "plot_path": ".",
     # optional
     "figsize": (7.0,6),
@@ -133,15 +133,16 @@ sens_config_dict = {
     "molecular_axis": False,
     "atomic_axis": True,
     "density_axis": True,
+    "optimize_density": True,
     "cavity": True,
     "y_limits": [2e-2, 4],
     "density_range": [1e12,3e18],
     #"density_range": [1e8, 1e12],
-    #"goals": {"Phase IV (0.04 eV)": 0.04},
-    "goals": {"LFA, target (0.3 eV)": 0.3},
+    "goals": {"Phase IV (0.04 eV)": 0.04},
+    #"goals": {"LFA, target (0.3 eV)": 0.3},
     "scan_parameter_name": "Efficiency.T2_T_ratio",
     "scan_parameter_range": [1e-9,1e-1],
-    "scan_parameter_steps": 9,
+    "scan_parameter_steps": 17,
     "scan_parameter_scale": "log",
     "scan_parameter_unit": 1,
     "plot_sensitivity_scan_on_log_scale": True,
@@ -166,7 +167,8 @@ sens_scan.Run()
 
 # Sensitivity vs exposure scan, fixed density 
 sens_config_dict = {
-    "config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_Atomic_Effects.cfg",
+    "config_file_path": "/termite/sensitivity_config_files/Config_atomic_150MHz_minpitch_87deg_Atomic_Effects.cfg",
+    #"config_file_path": "/termite/sensitivity_config_files/Config_LFA_Experiment_Atomic_Effects.cfg",
     "plot_path": ".",
     "figsize": (7.0,6),
     "track_length_axis": False,       # only meaningful vs. density
@@ -174,18 +176,32 @@ sens_config_dict = {
     "atomic_axis": True,
     "density_axis": False,
     "exposure_axis": True,
+    "optimize_density": True,
     "cavity": True,
     "y_limits": [2e-2, 10],
+    "density_range": [1e12, 3e18],
     "exposure_range": [1e-6, 1e3],
-    "goals": {"LFA, target (0.3 eV)": 0.3},
-    "goals_x_position": 1e-3,
+    "goals": {"Phase IV (0.04 eV)": 0.04},
+    #"goals": {"LFA, target (0.3 eV)": 0.3},
+    "goals_x_position": 1.5e-6,
     "scan_parameter_name": "Efficiency.T2_T_ratio",
-    "scan_parameter_range": [1e-9, 1e-1],
+    "scan_parameter_range": [0.351e-9, 0.351e-1],
     "scan_parameter_steps": 9,
     "scan_parameter_scale": "log",
     "scan_parameter_unit": 1,
     "plot_sensitivity_scan_on_log_scale": True,
     "plot_key_parameters": False,
+    "diagnostic_parameters": [
+    {"name": "SignalRate()",   "unit": "1/(eV^3*s)",     "label": "Signal rate",   "log": True},
+    {"name": "BackgroundRate()",   "unit": "1/(eV*s)",     "label": "Background rate",   "log": True},
+    {"name": "SignalRatio()",                     "label": "T2/T signal ratio ζ",   "log": True},
+    {"name": "DeltaEWidth()",   "unit": "eV",     "label": "Optimum energy window",   "log": True},
+    {"name": "StatSens()",   "unit": "eV^2",     "label": "Statistical sensitivity",   "log": True},
+    {"name": "SystSens()",   "unit": "eV^2",     "label": "Systematic sensitivity",   "log": True},
+    {"name": "T2_T_ratio",   "log": True},
+    {"name": "effective_volume", "unit": "m^3",   "log": True},
+    "detection_efficiency",          # bare strings work for dimensionless quantities
+    ],
     }
 #sens_scan = SensitivityParameterScanProcessor("sensitivity_curve_processor")
 #sens_scan.Configure(sens_config_dict)
