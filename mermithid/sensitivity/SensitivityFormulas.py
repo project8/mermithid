@@ -1,11 +1,12 @@
 '''
 Class calculating neutrino mass sensitivities based on analytic formulas from CDR.
-Author: R. Reimann, C. Claessens, T. E. Weiss
+Author: R. Reimann, C. Claessens, T. E. Weiss, M. Oueslati
 Date: Nov. 17, 2020
-Updated: December 2024
+Updated: July 2026
 
 The statistical method and formulas are described in
 CDR (CRES design report, Section 1.3) https://www.overleaf.com/project/5b9314afc673d862fa923d53.
+Jin's Atomic Calculator slides for atomic effects from Hamish's AtomicCalculator spreadsheet
 '''
 import numpy as np
 import configparser
@@ -160,11 +161,12 @@ class Sensitivity(object):
         sig_rate = self.SignalRate()
         DeltaE = self.DeltaEWidth()
         zeta = self.SignalRatio()
-        n_cavities = self.Experiment.n_cavities
+        # Scales with number of cavities
+        #n_cavities = self.Experiment.n_cavities
         if self.Efficiency.T2_background_atomic_trap:
             # Stat^2 = 4/(9*r_a*t*#_cav) * ((1 + zeta)*delta_E + b*#_cav/r_a/delta_E + 3*#_cav*zeta*delta_endpoint*(1 + delta_endpoint/delta_E))
-            sens = 2/(3*sig_rate*self.Experiment.LiveTime*n_cavities)*np.sqrt(sig_rate*self.Experiment.LiveTime*n_cavities*(1+zeta)*DeltaE \
-                   	+ bkg_rate*(n_cavities**2*self.Experiment.LiveTime/DeltaE) + 3*n_cavities**2*zeta*endpoint_diff*sig_rate \
+            sens = 2/(3*sig_rate*self.Experiment.LiveTime)*np.sqrt(sig_rate*self.Experiment.LiveTime*(1+zeta)*DeltaE \
+                   	+ bkg_rate*(self.Experiment.LiveTime/DeltaE) + 3*zeta*endpoint_diff*sig_rate \
 			* self.Experiment.LiveTime*(1 + endpoint_diff/DeltaE))
         else:
             # Stat^2 = 4/(9*r_a*t) * (delta_E + b/r_a/delta_E) if zeta=0
